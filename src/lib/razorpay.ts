@@ -3,7 +3,7 @@
 import { toSmallestUnit } from './pricing';
 import type { InvoiceData, RazorpayPaymentLinkResponse } from '@/types';
 
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID!;
+const RAZORPAY_KEY_ID     = process.env.RAZORPAY_KEY_ID!;
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET!;
 
 function getAuthHeader(): string {
@@ -29,26 +29,23 @@ export async function createRazorpayPaymentLink(
       email: invoice.clientEmail,
       contact: invoice.clientPhone,
     },
-    notify: {
-      sms: true,
-      email: true,
-    },
+    notify: { sms: true, email: true },
     reminder_enable: true,
     notes: {
       invoice_number: invoice.invoiceNumber,
-      client_type: invoice.clientType,
-      invoice_id: invoice.id,
+      client_type:    invoice.clientType,
+      invoice_id:     invoice.id,
     },
-    callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/razorpay/callback`,
+    callback_url:    `${process.env.NEXT_PUBLIC_APP_URL}/api/razorpay/callback`,
     callback_method: 'get',
-    expire_by: Math.floor(new Date(invoice.dueDate).getTime() / 1000),
+    expire_by:       Math.floor(new Date(invoice.dueDate).getTime() / 1000),
   };
 
   const response = await fetch('https://api.razorpay.com/v1/payment_links', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: getAuthHeader(),
+      Authorization:  getAuthHeader(),
     },
     body: JSON.stringify(payload),
   });
@@ -59,14 +56,44 @@ export async function createRazorpayPaymentLink(
   }
 
   const data = await response.json();
-  
   return {
-    id: data.id,
+    id:        data.id,
     short_url: data.short_url,
-    amount: data.amount,
-    currency: data.currency,
-    status: data.status,
+    amount:    data.amount,
+    currency:  data.currency,
+    status:    data.status,
   };
+}
+
+// ─────────────────────────────────────────────
+// CANCEL RAZORPAY PAYMENT LINK
+// Returns true on success, false if already cancelled/expired (non-fatal)
+// ─────────────────────────────────────────────
+export async function cancelRazorpayPaymentLink(linkId: string): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `https://api.razorpay.com/v1/payment_links/${linkId}/cancel`,
+      {
+        method:  'POST',
+        headers: { Authorization: getAuthHeader() },
+      }
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      // 400 with "Payment Link is already cancelled/expired" is non-fatal
+      const msg: string = err?.error?.description ?? '';
+      if (msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('expired')) {
+        return false;
+      }
+      throw new Error(`Razorpay cancel error: ${JSON.stringify(err)}`);
+    }
+    return true;
+  } catch (e) {
+    // Best-effort — don't block local operations if Razorpay is unreachable
+    console.warn('Razorpay cancel link warning:', e);
+    return false;
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -77,6 +104,7 @@ export function verifyWebhookSignature(
   signature: string,
   secret: string
 ): boolean {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const crypto = require('crypto');
   const expectedSignature = crypto
     .createHmac('sha256', secret)
@@ -90,14 +118,8 @@ export function verifyWebhookSignature(
 // ─────────────────────────────────────────────
 export async function fetchPaymentLinkStatus(linkId: string) {
   const response = await fetch(`https://api.razorpay.com/v1/payment_links/${linkId}`, {
-    headers: {
-      Authorization: getAuthHeader(),
-    },
+    headers: { Authorization: getAuthHeader() },
   });
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch payment link status');
-  }
-
+  if (!response.ok) throw new Error('Failed to fetch payment link status');
   return response.json();
 }
