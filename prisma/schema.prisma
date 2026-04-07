@@ -1,0 +1,88 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ClientType {
+  FRESHER
+  MID_CAREER
+  EXECUTIVE
+  EXECUTIVE_PLUS
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  CANCELLED
+  EXPIRED
+}
+
+model Invoice {
+  id                String        @id @default(cuid())
+  invoiceNumber     String        @unique
+  
+  // Client Info
+  clientName        String
+  clientEmail       String
+  clientPhone       String
+  clientType        ClientType
+  country           String
+  
+  // Currency & Pricing
+  currency          String        // ISO 4217 e.g. "USD", "GBP"
+  currencySymbol    String        // e.g. "$", "£"
+  exchangeRate      Float         // INR → currency rate at time of creation
+  
+  // Services (INR base)
+  resumeBaseInr     Float
+  linkedinBaseInr   Float
+  coverLetterBaseInr Float        @default(0)
+  
+  // Converted amounts (in client currency)
+  resumeConverted   Float
+  linkedinConverted Float
+  coverLetterConverted Float      @default(0)
+  subtotalConverted Float
+  processingFeeRate Float         // 0.02 or 0.035
+  processingFeeConverted Float
+  totalPayable      Float
+  
+  // Payment
+  status            InvoiceStatus @default(PENDING)
+  razorpayLinkId    String?
+  razorpayLinkUrl   String?
+  razorpayPaymentId String?
+  paidAt            DateTime?
+  
+  // Dates
+  invoiceDate       DateTime      @default(now())
+  dueDate           DateTime
+  
+  // Email
+  emailSentAt       DateTime?
+  emailResendCount  Int           @default(0)
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  @@index([status])
+  @@index([clientType])
+  @@index([clientEmail])
+}
+
+model ExchangeRateCache {
+  id          String   @id @default(cuid())
+  baseCurrency String  @default("INR")
+  targetCurrency String
+  rate        Float
+  cachedAt    DateTime @default(now())
+  expiresAt   DateTime
+  
+  @@unique([baseCurrency, targetCurrency])
+}
