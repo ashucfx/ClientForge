@@ -1,0 +1,73 @@
+/* src/app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --blue: #1f56d4;
+  --blue-dark: #1a42a0;
+  --blue-light: #e8f0fe;
+  --green: #3FBD8B;
+  --green-dark: #2d9970;
+  --green-light: #e6f9f1;
+  --navy: #0f1c3d;
+  --slate: #4a5568;
+  --muted: #6b7280;
+  --border: #e8eeff;
+  --surface: #f8faff;
+  --bg: #f0f4ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--navy);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* Mono font for numbers/codes */
+.mono {
+  font-family: 'DM Mono', 'Courier New', monospace;
+}
+
+/* Status badges */
+.badge-paid {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-600 bg-green-100 text-green-700;
+}
+.badge-pending {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-600 bg-amber-100 text-amber-700;
+}
+.badge-expired {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-600 bg-gray-100 text-gray-600;
+}
+.badge-cancelled {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-600 bg-red-100 text-red-600;
+}
+
+/* Smooth page transitions */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-page {
+  animation: fadeSlideUp 0.3s ease-out;
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.card-hover:hover {
+  box-shadow: 0 8px 32px rgba(31, 86, 212, 0.12);
+  transform: translateY(-1px);
+}
