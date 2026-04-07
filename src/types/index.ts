@@ -71,6 +71,11 @@ export interface InvoiceData {
   dueDate: Date;
   emailSentAt: Date | null;
   emailResendCount: number;
+  // Revisions & editing
+  revisionCount: number;
+  revisionCharge: number;
+  notes: string | null;
+  customPricing: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
