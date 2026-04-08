@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyWebhookSignature } from '@/lib/razorpay';
 import { sendPaymentConfirmationEmail } from '@/lib/email';
-import { sendSMS, buildPaymentConfirmationSMS } from '@/lib/sms';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -58,13 +57,6 @@ export async function POST(request: NextRequest) {
       console.error('Confirmation email failed:', err);
     }
 
-    // Send confirmation SMS
-    try {
-      const smsBody = buildPaymentConfirmationSMS(invoice as any);
-      await sendSMS(invoice.clientPhone, smsBody);
-    } catch (err) {
-      console.error('Confirmation SMS failed:', err);
-    }
   }
 
   if (event === 'payment_link.expired') {
