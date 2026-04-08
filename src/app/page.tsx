@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import type { InvoiceData, ClientType, InvoiceStatus } from '@/types';
 import { formatCurrency, CLIENT_TYPE_LABELS } from '@/lib/pricing';
 import { LogoSidebar } from '@/components/Logo';
+import { IconCheck, IconDocument, IconPending, IconSearch, IconTrendUp } from '@/components/Icons';
 
 // ─── Toast ───────────────────────────────────────────────────────
 type ToastItem = { id: number; msg: string; type: 'success' | 'error' | 'warn' };
@@ -71,7 +72,7 @@ function TierTag({ type }: { type: ClientType }) {
 // ─── KPI card ─────────────────────────────────────────────────────
 function KpiCard({ label, value, sub, icon, bg, accent }: {
   label: string; value: string | number; sub?: string;
-  icon: string; bg: string; accent?: boolean;
+  icon: React.ReactNode; bg: string; accent?: boolean;
 }) {
   return (
     <div className="kpi-card" style={accent ? { borderColor: '#bfdbfe', boxShadow: '0 0 0 1px #bfdbfe, 0 4px 12px rgba(31,86,212,.08)' } : {}}>
@@ -258,7 +259,7 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
             <div>
               <h1 className="page-title">ClientForge</h1>
-              <p className="page-subtitle">by Ripple Nexus · Career Booster workflows today, onboarding next</p>
+              <p className="page-subtitle">by Ripple Nexus</p>
             </div>
             <Link href="/invoices/new" className="btn btn-primary btn-lg" style={{ gap: 8 }}>
               <span style={{ fontSize: 20, lineHeight: 1 }}>+</span> New Invoice
@@ -267,10 +268,10 @@ export default function Dashboard() {
 
           {/* KPI Row */}
           <div className="grid-4" style={{ marginBottom: 24 }}>
-            <KpiCard label="Total Invoices" value={stats.total} icon="📋" bg="#eff6ff" accent />
-            <KpiCard label="Pending" value={stats.pending} icon="🔹" bg="#e0f2fe" sub="Awaiting payment" />
-            <KpiCard label="Paid" value={stats.paid} icon="✅" bg="#d1fae5" sub="Completed" />
-            <KpiCard label="Paid Rate" value={`${stats.conversion}%`} icon="📈" bg="#eef2ff" sub={`${stats.paid} of ${stats.total} paid`} />
+            <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: 'var(--brand)' }} />} bg="#eff6ff" accent />
+            <KpiCard label="Pending" value={stats.pending} icon={<IconPending style={{ color: 'var(--brand)' }} />} bg="#e0f2fe" sub="Awaiting payment" />
+            <KpiCard label="Paid" value={stats.paid} icon={<IconCheck style={{ color: '#3FBD8B' }} />} bg="#d1fae5" sub="Completed" />
+            <KpiCard label="Paid Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: 'var(--brand)' }} />} bg="#eef2ff" sub={`${stats.paid} of ${stats.total} paid`} />
           </div>
 
           {/* Revenue bar */}
@@ -283,7 +284,9 @@ export default function Dashboard() {
           <div className="card" style={{ padding: '14px 18px', marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             {/* Search */}
             <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
-              <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', fontSize: 14, pointerEvents: 'none' }}>🔍</span>
+              <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }}>
+                <IconSearch />
+              </span>
               <input
                 className="input"
                 style={{ paddingLeft: 34 }}

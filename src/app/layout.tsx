@@ -5,6 +5,14 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'ClientForge by Ripple Nexus',
   description: 'Client operations workspace by Ripple Nexus',
+  icons: {
+    icon: [
+      { url: '/favicon.png', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/favicon.png', type: 'image/png' },
+    ],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
