@@ -9,6 +9,7 @@ import { CLIENT_TYPE_LABELS, BASE_PRICING, FEE_RATES, round2 } from '@/lib/prici
 import { getCallingCodeForCountryName, normalizePhoneE164 } from '@/lib/phone';
 import type { ClientType, LineItem, CurrencyInfo } from '@/types';
 import { LogoSidebar, Logo } from '@/components/Logo';
+import { IconAlert, IconCheck, IconCreditCard, IconLink, IconList, IconMail, IconSettings, IconSpinner, IconTarget, IconUser } from '@/components/Icons';
 import { format, addDays } from 'date-fns';
 
 const CLIENT_TYPES: ClientType[] = ['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS'];
@@ -62,11 +63,13 @@ function FieldLabel({ label, required }: { label: string; required?: boolean }) 
   );
 }
 
-function SectionCard({ title, icon, children, noPad }: { title: string; icon: string; children: React.ReactNode; noPad?: boolean }) {
+function SectionCard({ title, icon, children, noPad }: { title: string; icon: React.ReactNode; children: React.ReactNode; noPad?: boolean }) {
   return (
     <div className="card" style={{ overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-        <span style={{ fontSize: 18 }}>{icon}</span>
+        <span style={{ width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)' }}>
+          {icon}
+        </span>
         <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{title}</h2>
       </div>
       <div style={noPad ? {} : { padding: '20px' }}>{children}</div>
@@ -358,7 +361,7 @@ export default function NewInvoicePage() {
       {/* Sidebar */}
       <aside className="sidebar">
         <div style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-          <LogoSidebar size={32} />
+          <LogoSidebar size={44} />
         </div>
         <nav style={{ flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
           <NavLink href="/"             icon="▣" label="Dashboard" />
@@ -394,7 +397,7 @@ export default function NewInvoicePage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
             {/* 1. Client Info */}
-            <SectionCard title="Client Information" icon="🔹">
+            <SectionCard title="Client Information" icon={<IconUser />}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <FieldLabel label="Full Name" required />
@@ -469,7 +472,7 @@ export default function NewInvoicePage() {
             </SectionCard>
 
             {/* 2. Career Level */}
-            <SectionCard title="Career Level" icon="🎯">
+            <SectionCard title="Career Level" icon={<IconTarget />}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 {CLIENT_TYPES.map(t => {
                   const meta = CLIENT_META[t];
@@ -506,7 +509,7 @@ export default function NewInvoicePage() {
             </SectionCard>
 
             {/* 3. Line Items */}
-            <SectionCard title="Line Items" icon="📋" noPad>
+            <SectionCard title="Line Items" icon={<IconList />} noPad>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
                   <thead>
@@ -588,7 +591,7 @@ export default function NewInvoicePage() {
             </SectionCard>
 
             {/* 4. Adjustments */}
-            <SectionCard title="Invoice Settings" icon="🔧">
+            <SectionCard title="Invoice Settings" icon={<IconSettings />}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div>
                   <FieldLabel label="Discount %" />
@@ -637,7 +640,12 @@ export default function NewInvoicePage() {
             {/* Error */}
             {error && (
               <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: 12, padding: '12px 16px', fontSize: 14 }}>
-                ⚠ {error}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#b91c1c' }}>
+                    <IconAlert size={16} />
+                  </span>
+                  {error}
+                </span>
               </div>
             )}
 
@@ -648,7 +656,16 @@ export default function NewInvoicePage() {
               className="btn btn-primary"
               style={{ width: '100%', justifyContent: 'center', padding: '15px', fontSize: 15, fontWeight: 700 }}
             >
-              {submitting ? '⏳ Creating Invoice…' : '→ Create Invoice & Send Email'}
+              {submitting ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ display: 'inline-flex', animation: 'spin 0.9s linear infinite' }}>
+                    <IconSpinner />
+                  </span>
+                  Creating invoice...
+                </span>
+              ) : (
+                'Create Invoice & Send Email'
+              )}
             </button>
           </div>
 
@@ -658,15 +675,17 @@ export default function NewInvoicePage() {
             <div className="card" style={{ padding: '16px 18px' }}>
               <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 12 }}>What Happens Next</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[
-                  ['📄', 'Unique invoice number generated'],
-                  ['🔗', 'Razorpay payment link created'],
-                  ['📧', 'Branded email sent instantly'],
-                  ['💳', 'Client pays via secure link'],
-                  ['✅', 'Status auto-updates on payment'],
-                ].map(([icon, text], i) => (
+                {([
+                  [<IconList key="inv" />, 'Unique invoice number generated'],
+                  [<IconLink key="link" />, 'Razorpay payment link created'],
+                  [<IconMail key="mail" />, 'Branded email sent instantly'],
+                  [<IconCreditCard key="pay" />, 'Client pays via secure link'],
+                  [<IconCheck key="ok" style={{ color: '#3FBD8B' }} />, 'Status auto-updates on payment'],
+                ] as const).map(([icon, text], i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <span style={{ fontSize: 15, flexShrink: 0 }}>{icon}</span>
+                    <span style={{ width: 18, height: 18, flexShrink: 0, color: 'var(--brand)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+                      {icon}
+                    </span>
                     <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{text}</span>
                   </div>
                 ))}

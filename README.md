@@ -249,26 +249,19 @@ CMD ["npm", "start"]
 - [x] Currency locked on invoice creation — cannot be changed
 - [x] Razorpay amount matches invoice exactly (smallest unit)
 - [x] Input validation via Zod on all POST routes
-- [ ] Add Next.js middleware for admin authentication
+- [x] Admin-only access via middleware + login
 - [ ] Rate limit invoice creation endpoint
 - [ ] Add CORS headers for production
 
-### Adding Admin Auth (Middleware)
+### Admin Authentication
 
-Create `src/middleware.ts`:
-```typescript
-import { NextRequest, NextResponse } from 'next/server';
+This app is private by default: all routes (including `/api/*`) are protected by `middleware.ts`, and access is granted only after signing in at `/login`.
 
-export function middleware(request: NextRequest) {
-  const token = request.cookies.get('admin_token')?.value;
-  if (!token || token !== process.env.ADMIN_SECRET) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-}
+Set these in production:
 
-export const config = {
-  matcher: ['/', '/invoices/:path*', '/api/invoices/:path*'],
-};
+```bash
+ADMIN_PASSWORD=your_admin_password
+ADMIN_SESSION_SECRET=your_long_random_secret
 ```
 
 ---

@@ -238,7 +238,7 @@ export default function Dashboard() {
       {/* ── SIDEBAR ── */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <LogoSidebar size={32} />
+          <LogoSidebar size={44} />
         </div>
         <nav className="sidebar-nav">
           <span className="nav-section-label">Main</span>

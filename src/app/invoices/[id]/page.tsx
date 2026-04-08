@@ -422,7 +422,7 @@ export default function InvoiceDetailPage() {
       {/* ── SIDEBAR ── */}
       <aside className="sidebar">
         <div className="px-5 py-5 border-b border-white/10">
-          <LogoSidebar size={34} />
+          <LogoSidebar size={44} />
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1">
           {[
@@ -717,7 +717,7 @@ export default function InvoiceDetailPage() {
 
               {/* Footer */}
               <div style={{ background: 'var(--navy)', padding: '16px 36px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <LogoSidebar size={28} />
+                <LogoSidebar size={34} />
                 <div className="mono" style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>{invoice.invoiceNumber}</div>
               </div>
             </div>
