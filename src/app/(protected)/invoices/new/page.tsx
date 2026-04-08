@@ -455,6 +455,11 @@ export default function NewInvoicePage() {
                   const meta = CLIENT_META[t];
                   const sel  = clientType === t;
                   const base = BASE_PRICING[t];
+                  const baseInr = base.resume + base.linkedin;
+                  const converted = round2(baseInr / exchangeRate);
+                  const fromLabel = (currencyInfo?.code ?? 'INR') === 'INR'
+                    ? `from ${sym}${baseInr.toLocaleString('en-IN')}`
+                    : `from ${fmt(converted, sym)}${currencyInfo?.code ? ` ${currencyInfo.code}` : ''}`;
                   return (
                     <button
                       key={t}
@@ -477,7 +482,7 @@ export default function NewInvoicePage() {
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--muted)' }}>{meta.sub}</div>
                       <div style={{ fontSize: 11, color: meta.color, fontWeight: 600, marginTop: 6 }}>
-                        from ₹{base.resume + base.linkedin}
+                        {fromLabel}{exchangeRate !== 1 ? ' (auto)' : ''}
                       </div>
                     </button>
                   );
