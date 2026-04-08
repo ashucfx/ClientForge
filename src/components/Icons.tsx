@@ -173,3 +173,13 @@ export function IconTarget({ size = 18, style }: { size?: number; style?: CSSPro
     </StrokeIcon>
   );
 }
+
+export function IconLogout({ size = 18, style }: { size?: number; style?: CSSProperties }) {
+  return (
+    <StrokeIcon size={size} style={style}>
+      <path d="M10 7V6a2.5 2.5 0 0 1 2.5-2.5H19a2.5 2.5 0 0 1 2.5 2.5v12A2.5 2.5 0 0 1 19 20.5h-6.5A2.5 2.5 0 0 1 10 18v-1" />
+      <path d="M3.5 12h9" />
+      <path d="M7 8.5L3.5 12 7 15.5" />
+    </StrokeIcon>
+  );
+}

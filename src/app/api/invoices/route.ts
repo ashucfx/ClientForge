@@ -6,6 +6,7 @@ import { generateInvoiceNumber, FEE_RATES, round2 } from '@/lib/pricing';
 import { createRazorpayPaymentLink } from '@/lib/razorpay';
 import { sendInvoiceEmail } from '@/lib/email';
 import { normalizePhoneE164 } from '@/lib/phone';
+import { isAdminRequest } from '@/lib/auth';
 import { z } from 'zod';
 import { addDays } from 'date-fns';
 import type { LineItem } from '@/types';
@@ -39,6 +40,9 @@ const CreateInvoiceSchema = z.object({
 
 // ─── GET /api/invoices ─────────────────────────
 export async function GET(request: NextRequest) {
+  if (!(await isAdminRequest())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const { searchParams } = new URL(request.url);
   const status     = searchParams.get('status');
   const clientType = searchParams.get('clientType');
@@ -74,6 +78,9 @@ export async function GET(request: NextRequest) {
 // ─── POST /api/invoices ────────────────────────
 export async function POST(request: NextRequest) {
   try {
+    if (!(await isAdminRequest())) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const body   = await request.json();
     const parsed = CreateInvoiceSchema.safeParse(body);
 

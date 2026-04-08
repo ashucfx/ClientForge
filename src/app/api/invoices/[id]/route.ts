@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { cancelRazorpayPaymentLink, createRazorpayPaymentLink } from '@/lib/razorpay';
 import { calculatePricing, round2 } from '@/lib/pricing';
+import { isAdminRequest } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,9 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  if (!(await isAdminRequest())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const invoice = await prisma.invoice.findUnique({ where: { id: params.id } });
   if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
   return NextResponse.json({ invoice });
@@ -28,6 +32,9 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    if (!(await isAdminRequest())) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const body = await request.json();
 
     const existing = await prisma.invoice.findUnique({ where: { id: params.id } });
@@ -117,6 +124,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    if (!(await isAdminRequest())) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const invoice = await prisma.invoice.findUnique({ where: { id: params.id } });
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
 

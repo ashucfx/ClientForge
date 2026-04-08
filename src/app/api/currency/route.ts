@@ -3,9 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getExchangeRate, getCurrencyForCountry, SUPPORTED_CURRENCIES, COUNTRIES } from '@/lib/currency';
 import { calculatePricing } from '@/lib/pricing';
 import type { ClientType } from '@/types';
+import { isAdminRequest } from '@/lib/auth';
 
 // GET /api/currency?country=India&clientType=FRESHER&services=resume,linkedin
 export async function GET(request: NextRequest) {
+  if (!(await isAdminRequest())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const { searchParams } = new URL(request.url);
   const country = searchParams.get('country');
   const clientType = searchParams.get('clientType') as ClientType;

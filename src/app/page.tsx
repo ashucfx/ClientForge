@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import type { InvoiceData, ClientType, InvoiceStatus } from '@/types';
 import { formatCurrency, CLIENT_TYPE_LABELS } from '@/lib/pricing';
 import { LogoSidebar } from '@/components/Logo';
-import { IconCheck, IconDocument, IconPending, IconSearch, IconTrendUp } from '@/components/Icons';
+import { IconCheck, IconDocument, IconLogout, IconPending, IconSearch, IconTrendUp } from '@/components/Icons';
 
 // ─── Toast ───────────────────────────────────────────────────────
 type ToastItem = { id: number; msg: string; type: 'success' | 'error' | 'warn' };
@@ -232,6 +232,11 @@ export default function Dashboard() {
     setDeleting(false);
   };
 
+  const handleLogout = async () => {
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
+    router.replace('/login?next=/');
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
 
@@ -247,6 +252,16 @@ export default function Dashboard() {
           <NavItem href="/invoices"     icon="≡" label="All Invoices" />
         </nav>
         <div className="sidebar-footer">
+          <button
+            className="nav-item"
+            onClick={handleLogout}
+            style={{ color: 'rgba(255,255,255,.75)' }}
+          >
+            <span className="nav-icon" style={{ display: 'inline-flex', color: 'rgba(255,255,255,.75)' }}>
+              <IconLogout />
+            </span>
+            Logout
+          </button>
           <span style={{ fontSize: 11, color: 'rgba(255,255,255,.22)' }}>ClientForge · Ripple Nexus</span>
         </div>
       </aside>

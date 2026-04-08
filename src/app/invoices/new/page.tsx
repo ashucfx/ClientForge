@@ -9,7 +9,7 @@ import { CLIENT_TYPE_LABELS, BASE_PRICING, FEE_RATES, round2 } from '@/lib/prici
 import { getCallingCodeForCountryName, normalizePhoneE164 } from '@/lib/phone';
 import type { ClientType, LineItem, CurrencyInfo } from '@/types';
 import { LogoSidebar, Logo } from '@/components/Logo';
-import { IconAlert, IconCheck, IconCreditCard, IconLink, IconList, IconMail, IconSettings, IconSpinner, IconTarget, IconUser } from '@/components/Icons';
+import { IconAlert, IconCheck, IconCreditCard, IconLink, IconList, IconLogout, IconMail, IconSettings, IconSpinner, IconTarget, IconUser } from '@/components/Icons';
 import { format, addDays } from 'date-fns';
 
 const CLIENT_TYPES: ClientType[] = ['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS'];
@@ -352,6 +352,11 @@ export default function NewInvoicePage() {
     }
   };
 
+  const handleLogout = async () => {
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
+    router.replace('/login?next=/invoices/new');
+  };
+
   const sym = currencyInfo?.symbol ?? '₹';
   const callingCode = getCallingCodeForCountryName(country);
   const phonePreview = clientPhone.trim() ? normalizePhoneE164(clientPhone, country) : null;
@@ -369,6 +374,16 @@ export default function NewInvoicePage() {
           <NavLink href="/invoices"     icon="≡" label="All Invoices" />
         </nav>
         <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          <button
+            className="nav-item"
+            onClick={handleLogout}
+            style={{ width: '100%', color: 'rgba(255,255,255,.75)', marginBottom: 8 }}
+          >
+            <span className="nav-icon" style={{ display: 'inline-flex', color: 'rgba(255,255,255,.75)' }}>
+              <IconLogout />
+            </span>
+            Logout
+          </button>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontWeight: 600 }}>ClientForge · Ripple Nexus</div>
         </div>
       </aside>

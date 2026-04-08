@@ -18,6 +18,9 @@ function isPublicPath(pathname: string): boolean {
   if (pathname === '/login') return true;
   if (pathname.startsWith('/api/auth/')) return true;
 
+  // External webhook (authenticated by signature, not cookies)
+  if (pathname === '/api/razorpay/webhook' || pathname.startsWith('/api/razorpay/webhook/')) return true;
+
   return false;
 }
 
@@ -48,4 +51,3 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ['/((?!_next/static|_next/image).*)'],
 };
-

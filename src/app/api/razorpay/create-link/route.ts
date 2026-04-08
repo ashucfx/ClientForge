@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { createRazorpayPaymentLink } from '@/lib/razorpay';
+import { isAdminRequest } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,6 +11,9 @@ export const dynamic = 'force-dynamic';
 // Used to (re)generate a payment link for an existing invoice
 export async function POST(request: NextRequest) {
   try {
+    if (!(await isAdminRequest())) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const { invoiceId } = await request.json();
 
     const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });

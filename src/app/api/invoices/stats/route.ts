@@ -1,11 +1,15 @@
 // src/app/api/invoices/stats/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { isAdminRequest } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  if (!(await isAdminRequest())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const [total, paid, pending, expired] = await Promise.all([
     prisma.invoice.count(),
     prisma.invoice.count({ where: { status: 'PAID' } }),

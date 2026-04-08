@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { sendInvoiceEmail } from '@/lib/email';
+import { isAdminRequest } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,6 +11,9 @@ export async function POST(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  if (!(await isAdminRequest())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const invoice = await prisma.invoice.findUnique({ where: { id: params.id } });
   if (!invoice) {
     return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
