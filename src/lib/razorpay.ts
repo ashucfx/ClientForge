@@ -39,8 +39,6 @@ export async function createRazorpayPaymentLink(
       client_type:    invoice.clientType,
       invoice_id:     invoice.id,
     },
-    callback_url:    `${process.env.NEXT_PUBLIC_APP_URL}/api/razorpay/callback`,
-    callback_method: 'get',
     expire_by:       Math.floor(new Date(invoice.dueDate).getTime() / 1000),
   };
 
