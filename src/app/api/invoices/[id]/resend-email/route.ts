@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { sendInvoiceEmail } from '@/lib/email';
+import { sendSMS, buildInvoiceSMS } from '@/lib/sms';
 import { isAdminRequest } from '@/lib/auth';
 
 export const runtime = 'nodejs';
@@ -28,9 +29,18 @@ export async function POST(
         emailResendCount: { increment: 1 },
       },
     });
-    return NextResponse.json({ success: true });
   } catch (err) {
-    console.error(err);
+    console.error('Resend email failed:', err);
     return NextResponse.json({ error: 'Email send failed' }, { status: 500 });
   }
+
+  // Also resend SMS (best-effort — don't fail the whole request if SMS fails)
+  try {
+    const smsBody = buildInvoiceSMS(invoice as any);
+    await sendSMS(invoice.clientPhone, smsBody);
+  } catch (err) {
+    console.error('Resend SMS failed:', err);
+  }
+
+  return NextResponse.json({ success: true });
 }

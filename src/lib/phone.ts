@@ -70,8 +70,12 @@ export function normalizePhoneE164(input: string, countryName?: string): { e164:
   return { e164: parsed.number, country: parsed.country ?? iso2 ?? undefined };
 }
 
-// Razorpay expects `customer.contact` as digits; keep it strict and strip formatting.
+// Razorpay `customer.contact` — keep E.164 with + prefix intact.
+// Razorpay accepts +919876543210 format and routes SMS/email correctly for both
+// Indian and international numbers.
 export function toRazorpayContact(phone: string): string {
-  return phone.replace(/[^\d]/g, '');
+  // Strip formatting characters but preserve the leading +
+  const stripped = phone.replace(/[^\d+]/g, '');
+  return stripped.startsWith('+') ? stripped : `+${stripped}`;
 }
 

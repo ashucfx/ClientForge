@@ -5,6 +5,7 @@ import { getCurrencyForCountry, getExchangeRate } from '@/lib/currency';
 import { generateInvoiceNumber, FEE_RATES, round2 } from '@/lib/pricing';
 import { createRazorpayPaymentLink } from '@/lib/razorpay';
 import { sendInvoiceEmail } from '@/lib/email';
+import { sendSMS, buildInvoiceSMS } from '@/lib/sms';
 import { normalizePhoneE164 } from '@/lib/phone';
 import { isAdminRequest } from '@/lib/auth';
 import { z } from 'zod';
@@ -168,6 +169,12 @@ export async function POST(request: NextRequest) {
       await sendInvoiceEmail(fullInvoice as unknown as Parameters<typeof sendInvoiceEmail>[0]);
       await prisma.invoice.update({ where: { id: invoice.id }, data: { emailSentAt: new Date() } });
     } catch (e) { console.error('Email failed:', e); }
+
+    // ── Send SMS ──
+    try {
+      const smsBody = buildInvoiceSMS(fullInvoice as unknown as Parameters<typeof buildInvoiceSMS>[0]);
+      await sendSMS(invoice.clientPhone, smsBody);
+    } catch (e) { console.error('SMS failed:', e); }
 
     return NextResponse.json({ invoice: fullInvoice }, { status: 201 });
   } catch (err) {
