@@ -3,15 +3,15 @@
 // Shared responsive shell: sidebar on desktop, drawer + topbar on mobile
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogoSidebar, Logo } from '@/components/Logo';
-import { IconLogout } from '@/components/Icons';
+import { IconGrid, IconPlus, IconList, IconLogout } from '@/components/Icons';
 
 const NAV = [
-  { href: '/',             icon: '▪', label: 'Dashboard'   },
-  { href: '/invoices/new', icon: '+', label: 'New Invoice' },
-  { href: '/invoices',     icon: '≡', label: 'All Invoices'},
+  { href: '/',             Icon: IconGrid, label: 'Dashboard'    },
+  { href: '/invoices/new', Icon: IconPlus, label: 'New Invoice'  },
+  { href: '/invoices',     Icon: IconList, label: 'All Invoices' },
 ];
 
 function isNavActive(href: string, pathname: string) {
@@ -42,35 +42,45 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const SidebarContent = () => (
     <>
+      {/* Brand logo in white pill */}
       <div className="sidebar-logo">
-        <LogoSidebar size={40} />
+        <div className="sidebar-brand">
+          <Image
+            src="/Logo.png"
+            alt="ClientForge by Ripple Nexus"
+            width={136}
+            height={46}
+            style={{ objectFit: 'contain', display: 'block' }}
+            priority
+          />
+        </div>
       </div>
+
+      {/* Navigation */}
       <nav className="sidebar-nav">
         <span className="nav-section-label">Main</span>
-        {NAV.map(n => (
+        {NAV.map(({ href, Icon, label }) => (
           <Link
-            key={n.href}
-            href={n.href}
-            className={`nav-item${isNavActive(n.href, pathname) ? ' active' : ''}`}
+            key={href}
+            href={href}
+            className={`nav-item${isNavActive(href, pathname) ? ' active' : ''}`}
             onClick={() => setOpen(false)}
           >
-            <span className="nav-icon" style={{ fontSize: 15 }}>{n.icon}</span>
-            {n.label}
+            <span className="nav-icon"><Icon size={16} /></span>
+            {label}
           </Link>
         ))}
       </nav>
+
+      {/* Footer */}
       <div className="sidebar-footer">
-        <button
-          className="nav-item"
-          onClick={handleLogout}
-          style={{ color: 'rgba(255,255,255,.75)' }}
-        >
-          <span className="nav-icon" style={{ display: 'inline-flex', color: 'rgba(255,255,255,.75)' }}>
-            <IconLogout />
+        <button className="nav-item" onClick={handleLogout} style={{ marginBottom: 6 }}>
+          <span className="nav-icon" style={{ display: 'inline-flex' }}>
+            <IconLogout size={16} />
           </span>
           Logout
         </button>
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,.22)' }}>ClientForge · Ripple Nexus</span>
+        <span className="sidebar-version">ClientForge · Ripple Nexus</span>
       </div>
     </>
   );
@@ -100,18 +110,29 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* ── Mobile topbar ── */}
       <header className="mobile-topbar">
         <button
-          className="hamburger"
-          onClick={() => setOpen(true)}
-          aria-label="Open menu"
+          className={`hamburger${open ? ' hamburger-open' : ''}`}
+          onClick={() => setOpen(v => !v)}
+          aria-label={open ? 'Close menu' : 'Open menu'}
+          aria-expanded={open}
         >
           <span />
           <span />
           <span />
         </button>
-        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
-          <Logo variant="horizontal" size={28} />
+
+        {/* Centered logo */}
+        <div className="topbar-logo">
+          <Image
+            src="/Logo.png"
+            alt="ClientForge"
+            width={110}
+            height={34}
+            style={{ objectFit: 'contain', display: 'block' }}
+            priority
+          />
         </div>
-        <div style={{ width: 40 }} />
+
+        <div style={{ width: 44 }} />
       </header>
 
       {/* ── Content ── */}
