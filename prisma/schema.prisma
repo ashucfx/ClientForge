@@ -24,44 +24,53 @@ enum InvoiceStatus {
 }
 
 model Invoice {
-  id                String        @id @default(cuid())
-  invoiceNumber     String        @unique
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
 
   // Client Info
-  clientName        String
-  clientEmail       String
-  clientPhone       String
-  clientType        ClientType
-  country           String
+  clientName    String
+  clientEmail   String
+  clientPhone   String
+  clientType    ClientType
+  country       String
+  companyName   String?
 
-  // Currency & Pricing
-  currency          String
-  currencySymbol    String
-  exchangeRate      Float
+  // Currency
+  currency       String
+  currencySymbol String
+  exchangeRate   Float
 
-  // Services (INR base — editable)
-  resumeBaseInr     Float
-  linkedinBaseInr   Float
-  coverLetterBaseInr Float        @default(0)
+  // ── Line items (new flexible model) ──────────
+  // JSON array of { id, description, qty, unitPrice, lineTotal }
+  lineItems Json @default("[]")
 
-  // Converted amounts (in client currency)
-  resumeConverted   Float
-  linkedinConverted Float
-  coverLetterConverted Float      @default(0)
-  subtotalConverted Float
-  processingFeeRate Float
+  // Invoice-level adjustments
+  discountRate   Float @default(0)   // % discount applied on subtotal
+  taxRate        Float @default(0)   // % tax applied after discount
+  discountAmount Float @default(0)   // computed
+  taxAmount      Float @default(0)   // computed
+
+  // ── Legacy service fields (backward compat) ──
+  resumeBaseInr        Float @default(0)
+  linkedinBaseInr      Float @default(0)
+  coverLetterBaseInr   Float @default(0)
+  resumeConverted      Float @default(0)
+  linkedinConverted    Float @default(0)
+  coverLetterConverted Float @default(0)
+
+  // Totals
+  subtotalConverted      Float
+  processingFeeRate      Float
   processingFeeConverted Float
-  totalPayable      Float
+  totalPayable           Float
 
   // Revisions
-  revisionCount     Int           @default(0)
-  revisionCharge    Float         @default(0)   // extra charge beyond 2 free revisions
+  revisionCount  Int   @default(0)
+  revisionCharge Float @default(0)
 
-  // Internal notes
-  notes             String?
-
-  // Custom pricing flag
-  customPricing     Boolean       @default(false)
+  // Meta
+  notes         String?
+  customPricing Boolean @default(false)
 
   // Payment
   status            InvoiceStatus @default(PENDING)
@@ -71,15 +80,15 @@ model Invoice {
   paidAt            DateTime?
 
   // Dates
-  invoiceDate       DateTime      @default(now())
-  dueDate           DateTime
+  invoiceDate DateTime @default(now())
+  dueDate     DateTime
 
   // Email
-  emailSentAt       DateTime?
-  emailResendCount  Int           @default(0)
+  emailSentAt      DateTime?
+  emailResendCount Int @default(0)
 
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([clientType])

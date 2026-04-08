@@ -1,111 +1,153 @@
 // src/types/index.ts
 
-export type ClientType = 'FRESHER' | 'MID_CAREER' | 'EXECUTIVE' | 'EXECUTIVE_PLUS';
+export type ClientType    = 'FRESHER' | 'MID_CAREER' | 'EXECUTIVE' | 'EXECUTIVE_PLUS';
 export type InvoiceStatus = 'PENDING' | 'PAID' | 'CANCELLED' | 'EXPIRED';
 
+// ─── Line Item ─────────────────────────────────────────────────
+export interface LineItem {
+  id:          string;
+  description: string;
+  qty:         number;
+  unitPrice:   number;   // in client's display currency
+  lineTotal:   number;   // qty × unitPrice (computed)
+}
+
+// ─── Pricing calculation result ────────────────────────────────
 export interface ClientTypePricing {
-  resume: number;
-  linkedin: number;
+  resume:      number;
+  linkedin:    number;
   coverLetter: number;
 }
 
 export interface CurrencyInfo {
-  code: string;
+  code:   string;
   symbol: string;
-  name: string;
+  name:   string;
 }
 
 export interface CountryCurrencyMap {
   [country: string]: CurrencyInfo;
 }
 
+// ─── Invoice form input ────────────────────────────────────────
 export interface InvoiceFormData {
-  clientName: string;
-  clientEmail: string;
-  clientPhone: string;
-  country: string;
-  clientType: ClientType;
-  currency?: string; // optional override
-  selectedServices: {
-    resume: boolean;
-    linkedin: boolean;
-    coverLetter: boolean;
-  };
+  clientName:    string;
+  clientEmail:   string;
+  clientPhone:   string;
+  companyName?:  string;
+  country:       string;
+  clientType:    ClientType;
+  currency?:     string;
+  lineItems:     LineItem[];
+  discountRate:  number;
+  taxRate:       number;
+  notes?:        string;
+  dueDays?:      number;
 }
 
 export interface InvoiceLineItem {
-  service: string;
+  service:        string;
   descriptionKey: string;
-  baseInr: number;
-  converted: number;
-  isFree?: boolean;
+  baseInr:        number;
+  converted:      number;
+  isFree?:        boolean;
 }
 
+// ─── Full Invoice (from DB) ────────────────────────────────────
 export interface InvoiceData {
-  id: string;
+  id:            string;
   invoiceNumber: string;
-  clientName: string;
-  clientEmail: string;
-  clientPhone: string;
-  clientType: ClientType;
-  country: string;
-  currency: string;
+
+  // Client
+  clientName:   string;
+  clientEmail:  string;
+  clientPhone:  string;
+  clientType:   ClientType;
+  country:      string;
+  companyName:  string | null;
+
+  // Currency
+  currency:       string;
   currencySymbol: string;
-  exchangeRate: number;
-  resumeBaseInr: number;
-  linkedinBaseInr: number;
-  coverLetterBaseInr: number;
-  resumeConverted: number;
-  linkedinConverted: number;
+  exchangeRate:   number;
+
+  // Line items (new model)
+  lineItems:     LineItem[];
+
+  // Invoice-level adjustments
+  discountRate:   number;
+  taxRate:        number;
+  discountAmount: number;
+  taxAmount:      number;
+
+  // Legacy service fields
+  resumeBaseInr:        number;
+  linkedinBaseInr:      number;
+  coverLetterBaseInr:   number;
+  resumeConverted:      number;
+  linkedinConverted:    number;
   coverLetterConverted: number;
-  subtotalConverted: number;
-  processingFeeRate: number;
+
+  // Totals
+  subtotalConverted:      number;
+  processingFeeRate:      number;
   processingFeeConverted: number;
-  totalPayable: number;
-  status: InvoiceStatus;
-  razorpayLinkId: string | null;
-  razorpayLinkUrl: string | null;
-  razorpayPaymentId: string | null;
-  paidAt: Date | null;
-  invoiceDate: Date;
-  dueDate: Date;
-  emailSentAt: Date | null;
-  emailResendCount: number;
-  // Revisions & editing
-  revisionCount: number;
+  totalPayable:           number;
+
+  // Revisions
+  revisionCount:  number;
   revisionCharge: number;
-  notes: string | null;
+
+  // Meta
+  notes:         string | null;
   customPricing: boolean;
+
+  // Payment
+  status:            InvoiceStatus;
+  razorpayLinkId:    string | null;
+  razorpayLinkUrl:   string | null;
+  razorpayPaymentId: string | null;
+  paidAt:            Date | null;
+
+  // Dates
+  invoiceDate: Date;
+  dueDate:     Date;
+
+  // Email
+  emailSentAt:      Date | null;
+  emailResendCount: number;
+
   createdAt: Date;
   updatedAt: Date;
 }
 
+// ─── Pricing calculation ───────────────────────────────────────
 export interface PricingCalculation {
-  resumeBaseInr: number;
-  linkedinBaseInr: number;
-  coverLetterBaseInr: number;
-  resumeConverted: number;
-  linkedinConverted: number;
+  resumeBaseInr:        number;
+  linkedinBaseInr:      number;
+  coverLetterBaseInr:   number;
+  resumeConverted:      number;
+  linkedinConverted:    number;
   coverLetterConverted: number;
-  subtotalInr: number;
-  subtotalConverted: number;
-  processingFeeRate: number;
+  subtotalInr:          number;
+  subtotalConverted:    number;
+  processingFeeRate:    number;
   processingFeeConverted: number;
-  totalPayable: number;
-  exchangeRate: number;
+  totalPayable:         number;
+  exchangeRate:         number;
 }
 
 export interface RazorpayPaymentLinkResponse {
-  id: string;
+  id:        string;
   short_url: string;
-  amount: number;
-  currency: string;
-  status: string;
+  amount:    number;
+  currency:  string;
+  status:    string;
 }
 
 export interface DashboardStats {
-  totalInvoices: number;
+  totalInvoices:  number;
   pendingInvoices: number;
-  paidInvoices: number;
-  totalRevenue: { [currency: string]: number };
+  paidInvoices:   number;
+  totalRevenue:   { [currency: string]: number };
 }
