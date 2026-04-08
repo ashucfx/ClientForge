@@ -5,6 +5,7 @@ import { getCurrencyForCountry, getExchangeRate } from '@/lib/currency';
 import { generateInvoiceNumber, FEE_RATES, round2 } from '@/lib/pricing';
 import { createRazorpayPaymentLink } from '@/lib/razorpay';
 import { sendInvoiceEmail } from '@/lib/email';
+import { normalizePhoneE164 } from '@/lib/phone';
 import { z } from 'zod';
 import { addDays } from 'date-fns';
 import type { LineItem } from '@/types';
@@ -86,6 +87,14 @@ export async function POST(request: NextRequest) {
       lineItems, discountRate, taxRate, notes, dueDays,
     } = parsed.data;
 
+    const normalizedPhone = normalizePhoneE164(clientPhone, country);
+    if (!normalizedPhone) {
+      return NextResponse.json(
+        { error: 'Invalid phone number. Select the correct country and enter a valid mobile number (or include +country code).' },
+        { status: 400 }
+      );
+    }
+
     // ── Currency resolution ──
     const detectedCurrency = getCurrencyForCountry(country);
     const currencyCode     = currencyOverride ?? detectedCurrency.code;
@@ -121,7 +130,7 @@ export async function POST(request: NextRequest) {
     const invoice = await prisma.invoice.create({
       data: {
         invoiceNumber: generateInvoiceNumber(),
-        clientName, clientEmail, clientPhone, clientType,
+        clientName, clientEmail, clientPhone: normalizedPhone.e164, clientType,
         country, companyName,
         currency: currencyCode, currencySymbol, exchangeRate,
         lineItems: safeItems as object[],

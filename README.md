@@ -1,6 +1,6 @@
-# Ripple Nexus — Career Booster Invoice System
+# ClientForge by Ripple Nexus
 
-Production-ready internal SaaS for automated invoicing, Razorpay payment links, multi-currency support, and branded email delivery.
+Internal client operations workspace by Ripple Nexus. Today it powers Career Booster billing (payment links, multi-currency, branded emails) and is designed to expand into broader invoicing + client onboarding workflows.
 
 ---
 

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { COUNTRIES } from '@/lib/currency';
 import { CLIENT_TYPE_LABELS, BASE_PRICING, FEE_RATES, round2 } from '@/lib/pricing';
+import { getCallingCodeForCountryName, normalizePhoneE164 } from '@/lib/phone';
 import type { ClientType, LineItem, CurrencyInfo } from '@/types';
 import { LogoSidebar, Logo } from '@/components/Logo';
 import { format, addDays } from 'date-fns';
@@ -297,6 +298,13 @@ export default function NewInvoicePage() {
       setError('Please fill in all required fields (Name, Email, Phone, Country).');
       return;
     }
+
+    const normalizedPhone = normalizePhoneE164(clientPhone, country);
+    if (!normalizedPhone) {
+      setError('Invalid phone number. Select the correct country and enter a valid mobile number (or include +country code).');
+      return;
+    }
+
     const validItems = lineItems.filter(i => i.description.trim());
     if (validItems.length === 0) {
       setError('Add at least one line item with a description.');
@@ -316,7 +324,7 @@ export default function NewInvoicePage() {
         body:    JSON.stringify({
           clientName: clientName.trim(),
           clientEmail: clientEmail.trim(),
-          clientPhone: clientPhone.trim(),
+          clientPhone: normalizedPhone.e164,
           companyName: companyName.trim() || undefined,
           country,
           clientType,
@@ -342,6 +350,8 @@ export default function NewInvoicePage() {
   };
 
   const sym = currencyInfo?.symbol ?? '₹';
+  const callingCode = getCallingCodeForCountryName(country);
+  const phonePreview = clientPhone.trim() ? normalizePhoneE164(clientPhone, country) : null;
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -356,7 +366,7 @@ export default function NewInvoicePage() {
           <NavLink href="/invoices"     icon="≡" label="All Invoices" />
         </nav>
         <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontWeight: 600 }}>v2.0.0 · Internal</div>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontWeight: 600 }}>ClientForge · Ripple Nexus</div>
         </div>
       </aside>
 
@@ -373,7 +383,7 @@ export default function NewInvoicePage() {
             Create Invoice
           </h1>
           <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--muted)' }}>
-            Fill in client details, add line items, and send a branded invoice with payment link.
+            Add client details, line items, and send a branded payment link.
           </p>
         </div>
 
@@ -384,7 +394,7 @@ export default function NewInvoicePage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
             {/* 1. Client Info */}
-            <SectionCard title="Client Information" icon="👤">
+            <SectionCard title="Client Information" icon="🔹">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <FieldLabel label="Full Name" required />
@@ -396,7 +406,42 @@ export default function NewInvoicePage() {
                 </div>
                 <div>
                   <FieldLabel label="Phone Number" required />
-                  <input className="input" type="tel" value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="+91 9876543210" />
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div
+                      className="input"
+                      style={{
+                        width: 96,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 800,
+                        color: 'var(--text)',
+                        background: '#f8fafc',
+                      }}
+                      aria-label="Country calling code"
+                      title="Country calling code (based on selected country)"
+                    >
+                      {callingCode ? `+${callingCode}` : '—'}
+                    </div>
+                    <input
+                      className="input"
+                      style={{ flex: 1 }}
+                      type="tel"
+                      inputMode="tel"
+                      value={clientPhone}
+                      onChange={e => setClientPhone(e.target.value)}
+                      placeholder={country === 'India' ? 'e.g. 9876543210' : 'e.g. 4155552671 (or +country code)'}
+                    />
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 11, color: phonePreview ? 'var(--muted)' : '#ef4444' }}>
+                    {clientPhone.trim()
+                      ? (phonePreview
+                        ? `Will be sent to Razorpay as: ${phonePreview.e164}`
+                        : 'Invalid phone number for the selected country.'
+                      )
+                      : 'Enter a mobile number (we format it for international SMS).'
+                    }
+                  </div>
                 </div>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <FieldLabel label="Company / Organisation (optional)" />
@@ -543,7 +588,7 @@ export default function NewInvoicePage() {
             </SectionCard>
 
             {/* 4. Adjustments */}
-            <SectionCard title="Invoice Settings" icon="⚙️">
+            <SectionCard title="Invoice Settings" icon="🔧">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div>
                   <FieldLabel label="Discount %" />

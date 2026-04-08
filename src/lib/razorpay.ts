@@ -2,6 +2,7 @@
 
 import { toSmallestUnit } from './pricing';
 import type { InvoiceData, RazorpayPaymentLinkResponse } from '@/types';
+import { normalizePhoneE164, toRazorpayContact } from '@/lib/phone';
 
 const RAZORPAY_KEY_ID     = process.env.RAZORPAY_KEY_ID!;
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET!;
@@ -18,6 +19,8 @@ export async function createRazorpayPaymentLink(
   invoice: InvoiceData
 ): Promise<RazorpayPaymentLinkResponse> {
   const amountInSmallestUnit = toSmallestUnit(invoice.totalPayable, invoice.currency);
+  const normalizedPhone = normalizePhoneE164(invoice.clientPhone, invoice.country);
+  const contact = toRazorpayContact(normalizedPhone?.e164 ?? invoice.clientPhone);
 
   const payload = {
     amount: amountInSmallestUnit,
@@ -27,7 +30,7 @@ export async function createRazorpayPaymentLink(
     customer: {
       name: invoice.clientName,
       email: invoice.clientEmail,
-      contact: invoice.clientPhone,
+      contact,
     },
     notify: { sms: true, email: true },
     reminder_enable: true,

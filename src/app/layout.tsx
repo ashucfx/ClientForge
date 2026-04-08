@@ -3,8 +3,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Ripple Nexus — Invoice System',
-  description: 'Global Career Booster Invoice Platform',
+  title: 'ClientForge by Ripple Nexus',
+  description: 'Client operations workspace by Ripple Nexus',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

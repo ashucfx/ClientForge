@@ -136,7 +136,7 @@ export function LogoSidebar({ size = 36 }: { size?: number }) {
           Ripple<span style={{ color: '#3FBD8B', fontWeight: 300 }}>Nexus</span>
         </div>
         <div style={{ fontSize: size * 0.28, color: 'rgba(255,255,255,0.4)', marginTop: 2, letterSpacing: '0.5px' }}>
-          Invoice System
+          ClientForge
         </div>
       </div>
     </div>

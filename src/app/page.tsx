@@ -246,7 +246,7 @@ export default function Dashboard() {
           <NavItem href="/invoices"     icon="≡" label="All Invoices" />
         </nav>
         <div className="sidebar-footer">
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.22)' }}>v3.0 · Ripple Nexus</span>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.22)' }}>ClientForge · Ripple Nexus</span>
         </div>
       </aside>
 
@@ -257,8 +257,8 @@ export default function Dashboard() {
           {/* Page title row */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
             <div>
-              <h1 className="page-title">Dashboard</h1>
-              <p className="page-subtitle">Career Booster Invoice Management</p>
+              <h1 className="page-title">ClientForge</h1>
+              <p className="page-subtitle">by Ripple Nexus · Career Booster workflows today, onboarding next</p>
             </div>
             <Link href="/invoices/new" className="btn btn-primary btn-lg" style={{ gap: 8 }}>
               <span style={{ fontSize: 20, lineHeight: 1 }}>+</span> New Invoice
@@ -267,10 +267,10 @@ export default function Dashboard() {
 
           {/* KPI Row */}
           <div className="grid-4" style={{ marginBottom: 24 }}>
-            <KpiCard label="Total Invoices"  value={stats.total}           icon="📋" bg="#eff6ff" accent />
-            <KpiCard label="Pending Payment" value={stats.pending}          icon="⏳" bg="#fef9c3" sub="Awaiting payment" />
-            <KpiCard label="Paid"            value={stats.paid}             icon="✅" bg="#d1fae5" sub="Completed" />
-            <KpiCard label="Conversion Rate" value={`${stats.conversion}%`} icon="📈" bg="#f3e8ff" sub={`${stats.paid} of ${stats.total} paid`} />
+            <KpiCard label="Total Invoices" value={stats.total} icon="📋" bg="#eff6ff" accent />
+            <KpiCard label="Pending" value={stats.pending} icon="🔹" bg="#e0f2fe" sub="Awaiting payment" />
+            <KpiCard label="Paid" value={stats.paid} icon="✅" bg="#d1fae5" sub="Completed" />
+            <KpiCard label="Paid Rate" value={`${stats.conversion}%`} icon="📈" bg="#eef2ff" sub={`${stats.paid} of ${stats.total} paid`} />
           </div>
 
           {/* Revenue bar */}
@@ -287,7 +287,7 @@ export default function Dashboard() {
               <input
                 className="input"
                 style={{ paddingLeft: 34 }}
-                placeholder="Search name, email, invoice #…"
+                placeholder="Search name, email, invoice #..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
