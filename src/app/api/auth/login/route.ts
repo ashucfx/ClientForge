@@ -16,10 +16,6 @@ export async function POST(request: NextRequest) {
     const token = await createAdminSessionToken();
     const res = NextResponse.json({ ok: true });
 
-    const ttlSeconds = process.env.ADMIN_SESSION_TTL_SECONDS
-      ? Number(process.env.ADMIN_SESSION_TTL_SECONDS)
-      : 60 * 60 * 8;
-
     res.cookies.set({
       name: getAdminCookieName(),
       value: token,
@@ -27,7 +23,7 @@ export async function POST(request: NextRequest) {
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
       path: '/',
-      maxAge: Number.isFinite(ttlSeconds) && ttlSeconds > 0 ? ttlSeconds : 60 * 60 * 8,
+      // Session cookie: do not persist across browser restarts.
     });
     return res;
   } catch (e) {
