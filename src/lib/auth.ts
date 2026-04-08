@@ -22,7 +22,15 @@ export function getAdminPassword(): string {
 }
 
 export async function createAdminSessionToken(opts?: { ttlSeconds?: number }): Promise<string> {
-  return createSessionToken(getAdminSessionSecret(), opts);
+  const configuredTtl = process.env.ADMIN_SESSION_TTL_SECONDS
+    ? Number(process.env.ADMIN_SESSION_TTL_SECONDS)
+    : undefined;
+  const ttlSeconds =
+    typeof opts?.ttlSeconds === 'number'
+      ? opts.ttlSeconds
+      : (Number.isFinite(configuredTtl) && (configuredTtl as number) > 0 ? (configuredTtl as number) : 60 * 60 * 8); // 8 hours default
+
+  return createSessionToken(getAdminSessionSecret(), { ttlSeconds });
 }
 
 export async function verifyAdminSessionToken(token: string): Promise<boolean> {
