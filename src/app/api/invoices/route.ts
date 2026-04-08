@@ -154,12 +154,16 @@ export async function POST(request: NextRequest) {
     // ── Razorpay link ──
     let razorpayLinkId: string | null  = null;
     let razorpayLinkUrl: string | null = null;
+    let razorpayError: string | null   = null;
     try {
       const rzp = await createRazorpayPaymentLink(invoice as unknown as Parameters<typeof createRazorpayPaymentLink>[0]);
       razorpayLinkId  = rzp.id;
       razorpayLinkUrl = rzp.short_url;
       await prisma.invoice.update({ where: { id: invoice.id }, data: { razorpayLinkId, razorpayLinkUrl } });
-    } catch (e) { console.error('Razorpay link failed:', e); }
+    } catch (e) {
+      razorpayError = e instanceof Error ? e.message : String(e);
+      console.error('Razorpay link failed:', razorpayError);
+    }
 
     const fullInvoice = { ...invoice, razorpayLinkId, razorpayLinkUrl };
 
@@ -169,7 +173,10 @@ export async function POST(request: NextRequest) {
       await prisma.invoice.update({ where: { id: invoice.id }, data: { emailSentAt: new Date() } });
     } catch (e) { console.error('Email failed:', e); }
 
-    return NextResponse.json({ invoice: fullInvoice }, { status: 201 });
+    return NextResponse.json({
+      invoice: fullInvoice,
+      ...(razorpayError ? { razorpayError } : {}),
+    }, { status: 201 });
   } catch (err) {
     console.error('Create invoice error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
