@@ -445,7 +445,7 @@ export default function InvoiceDetailPage() {
       </aside>
 
       {/* ── MAIN ── */}
-      <main className="main-content animate-page">
+      <main className="page-wrapper" style={{ padding: '32px 36px' }}>
 
         {/* Success Banner */}
         {showBanner && (

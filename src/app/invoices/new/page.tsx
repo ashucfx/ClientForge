@@ -344,7 +344,7 @@ export default function NewInvoicePage() {
   const sym = currencyInfo?.symbol ?? '₹';
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       {/* Sidebar */}
       <aside className="sidebar">
         <div style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
@@ -361,7 +361,7 @@ export default function NewInvoicePage() {
       </aside>
 
       {/* Main */}
-      <main className="main-content" style={{ flex: 1, padding: '32px 36px', maxWidth: 1280, overflowY: 'auto' }}>
+      <main className="page-wrapper" style={{ padding: '32px 36px', maxWidth: 1280 }}>
         {/* Breadcrumb + header */}
         <div style={{ marginBottom: 28 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 12, color: 'var(--muted)' }}>
