@@ -7,8 +7,8 @@ import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type { InvoiceData, ClientType, InvoiceStatus } from '@/types';
 import { formatCurrency, CLIENT_TYPE_LABELS } from '@/lib/pricing';
-import { LogoSidebar } from '@/components/Logo';
-import { IconCheck, IconDocument, IconLogout, IconPending, IconSearch, IconTrendUp } from '@/components/Icons';
+import { IconCheck, IconDocument, IconPending, IconSearch, IconTrendUp } from '@/components/Icons';
+import AppShell from '@/components/AppShell';
 
 // ─── Toast ───────────────────────────────────────────────────────
 type ToastItem = { id: number; msg: string; type: 'success' | 'error' | 'warn' };
@@ -118,16 +118,6 @@ function DeleteModal({ inv, onCancel, onConfirm, busy }: {
   );
 }
 
-// ─── Sidebar nav link ─────────────────────────────────────────────
-function NavItem({ href, icon, label, active }: { href: string; icon: string; label: string; active?: boolean }) {
-  return (
-    <Link href={href} className={`nav-item ${active ? 'active' : ''}`}>
-      <span className="nav-icon" style={{ fontSize: 15 }}>{icon}</span>
-      {label}
-    </Link>
-  );
-}
-
 // ─── Mini revenue chart (SVG bar) ─────────────────────────────────
 function RevenueBar({ invoices }: { invoices: InvoiceData[] }) {
   const paid = invoices.filter(i => i.status === 'PAID');
@@ -232,116 +222,78 @@ export default function Dashboard() {
     setDeleting(false);
   };
 
-  const handleLogout = async () => {
-    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
-    router.replace('/login?next=/');
-  };
-
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+    <AppShell>
+      <div className="page-header" style={{ paddingBottom: 24 }}>
 
-      {/* ── SIDEBAR ── */}
-      <aside className="sidebar">
-        <div className="sidebar-logo">
-          <LogoSidebar size={44} />
+        {/* Page title row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h1 className="page-title">ClientForge</h1>
+            <p className="page-subtitle">by Ripple Nexus</p>
+          </div>
+          <Link href="/invoices/new" className="btn btn-primary btn-lg" style={{ gap: 8 }}>
+            <span style={{ fontSize: 20, lineHeight: 1 }}>+</span> New Invoice
+          </Link>
         </div>
-        <nav className="sidebar-nav">
-          <span className="nav-section-label">Main</span>
-          <NavItem href="/"             icon="▪" label="Dashboard"    active />
-          <NavItem href="/invoices/new" icon="+" label="New Invoice" />
-          <NavItem href="/invoices"     icon="≡" label="All Invoices" />
-        </nav>
-        <div className="sidebar-footer">
-          <button
-            className="nav-item"
-            onClick={handleLogout}
-            style={{ color: 'rgba(255,255,255,.75)' }}
-          >
-            <span className="nav-icon" style={{ display: 'inline-flex', color: 'rgba(255,255,255,.75)' }}>
-              <IconLogout />
+
+        {/* KPI Row */}
+        <div className="grid-4" style={{ marginBottom: 24 }}>
+          <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: 'var(--brand)' }} />} bg="#eff6ff" accent />
+          <KpiCard label="Pending" value={stats.pending} icon={<IconPending style={{ color: 'var(--brand)' }} />} bg="#e0f2fe" sub="Awaiting payment" />
+          <KpiCard label="Paid" value={stats.paid} icon={<IconCheck style={{ color: '#3FBD8B' }} />} bg="#d1fae5" sub="Completed" />
+          <KpiCard label="Paid Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: 'var(--brand)' }} />} bg="#eef2ff" sub={`${stats.paid} of ${stats.total} paid`} />
+        </div>
+
+        {/* Revenue bar */}
+        {!loading && <RevenueBar invoices={invoices} />}
+      </div>
+
+      <div className="page-body" style={{ paddingTop: 0 }}>
+
+        {/* Filters / Search bar */}
+        <div className="card" style={{ padding: '14px 18px', marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
+            <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }}>
+              <IconSearch />
             </span>
-            Logout
-          </button>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.22)' }}>ClientForge · Ripple Nexus</span>
+            <input
+              className="input"
+              style={{ paddingLeft: 34 }}
+              placeholder="Search name, email, invoice #..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+
+          <select className="input" style={{ width: 140, flexShrink: 0 }} value={statusFilter} onChange={e => setStatus(e.target.value)}>
+            <option value="">All Status</option>
+            <option value="PENDING">Pending</option>
+            <option value="PAID">Paid</option>
+            <option value="EXPIRED">Expired</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+
+          <select className="input" style={{ width: 160, flexShrink: 0 }} value={typeFilter} onChange={e => setType(e.target.value)}>
+            <option value="">All Packages</option>
+            <option value="FRESHER">Fresher</option>
+            <option value="MID_CAREER">Mid-Career</option>
+            <option value="EXECUTIVE">Executive</option>
+            <option value="EXECUTIVE_PLUS">Executive Plus</option>
+          </select>
+
+          {(search || statusFilter || typeFilter) && (
+            <button className="btn btn-ghost btn-sm" onClick={() => { setSearch(''); setStatus(''); setType(''); }}>✕ Clear</button>
+          )}
+
+          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+            {visible.length} of {stats.total}
+          </span>
         </div>
-      </aside>
 
-      {/* ── MAIN ── */}
-      <div className="page-wrapper">
-        <div className="page-header" style={{ paddingBottom: 24 }}>
-
-          {/* Page title row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-            <div>
-              <h1 className="page-title">ClientForge</h1>
-              <p className="page-subtitle">by Ripple Nexus</p>
-            </div>
-            <Link href="/invoices/new" className="btn btn-primary btn-lg" style={{ gap: 8 }}>
-              <span style={{ fontSize: 20, lineHeight: 1 }}>+</span> New Invoice
-            </Link>
-          </div>
-
-          {/* KPI Row */}
-          <div className="grid-4" style={{ marginBottom: 24 }}>
-            <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: 'var(--brand)' }} />} bg="#eff6ff" accent />
-            <KpiCard label="Pending" value={stats.pending} icon={<IconPending style={{ color: 'var(--brand)' }} />} bg="#e0f2fe" sub="Awaiting payment" />
-            <KpiCard label="Paid" value={stats.paid} icon={<IconCheck style={{ color: '#3FBD8B' }} />} bg="#d1fae5" sub="Completed" />
-            <KpiCard label="Paid Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: 'var(--brand)' }} />} bg="#eef2ff" sub={`${stats.paid} of ${stats.total} paid`} />
-          </div>
-
-          {/* Revenue bar */}
-          {!loading && <RevenueBar invoices={invoices} />}
-        </div>
-
-        <div className="page-body" style={{ paddingTop: 0 }}>
-
-          {/* Filters / Search bar */}
-          <div className="card" style={{ padding: '14px 18px', marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            {/* Search */}
-            <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
-              <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }}>
-                <IconSearch />
-              </span>
-              <input
-                className="input"
-                style={{ paddingLeft: 34 }}
-                placeholder="Search name, email, invoice #..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
-
-            {/* Status filter */}
-            <select className="input" style={{ width: 148 }} value={statusFilter} onChange={e => setStatus(e.target.value)}>
-              <option value="">All Status</option>
-              <option value="PENDING">Pending</option>
-              <option value="PAID">Paid</option>
-              <option value="EXPIRED">Expired</option>
-              <option value="CANCELLED">Cancelled</option>
-            </select>
-
-            {/* Type filter */}
-            <select className="input" style={{ width: 180 }} value={typeFilter} onChange={e => setType(e.target.value)}>
-              <option value="">All Packages</option>
-              <option value="FRESHER">Fresher</option>
-              <option value="MID_CAREER">Mid-Career</option>
-              <option value="EXECUTIVE">Executive</option>
-              <option value="EXECUTIVE_PLUS">Executive Plus</option>
-            </select>
-
-            {(search || statusFilter || typeFilter) && (
-              <button className="btn btn-ghost btn-sm" onClick={() => { setSearch(''); setStatus(''); setType(''); }}>
-                ✕ Clear
-              </button>
-            )}
-
-            <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
-              {visible.length} of {stats.total}
-            </span>
-          </div>
-
-          {/* Invoice table */}
-          <div className="card" style={{ overflow: 'hidden' }}>
+        {/* Invoice table — scrollable on mobile */}
+        <div className="card" style={{ overflow: 'hidden' }}>
+          <div className="table-scroll-wrapper">
             <table className="data-table">
               <thead>
                 <tr>
@@ -421,12 +373,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Delete modal */}
       {deleteTarget && (
         <DeleteModal inv={deleteTarget} onCancel={() => setDeleteTarget(null)} onConfirm={handleDelete} busy={deleting} />
       )}
-
       <ToastStack toasts={toasts} />
-    </div>
+    </AppShell>
   );
 }

@@ -8,8 +8,9 @@ import { COUNTRIES } from '@/lib/currency';
 import { CLIENT_TYPE_LABELS, BASE_PRICING, FEE_RATES, round2 } from '@/lib/pricing';
 import { getCallingCodeForCountryName, normalizePhoneE164 } from '@/lib/phone';
 import type { ClientType, LineItem, CurrencyInfo } from '@/types';
-import { LogoSidebar, Logo } from '@/components/Logo';
-import { IconAlert, IconCheck, IconCreditCard, IconLink, IconList, IconLogout, IconMail, IconSettings, IconSpinner, IconTarget, IconUser } from '@/components/Icons';
+import { Logo } from '@/components/Logo';
+import { IconAlert, IconCheck, IconCreditCard, IconLink, IconList, IconMail, IconSettings, IconSpinner, IconTarget, IconUser } from '@/components/Icons';
+import AppShell from '@/components/AppShell';
 import { format, addDays } from 'date-fns';
 
 const CLIENT_TYPES: ClientType[] = ['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS'];
@@ -43,17 +44,6 @@ function defaultItemsForType(clientType: ClientType, exchangeRate: number): Line
 }
 
 // ─── Sub-components ────────────────────────────
-function NavLink({ href, icon, label, active }: { href: string; icon: string; label: string; active?: boolean }) {
-  return (
-    <Link href={href}
-      className="nav-item"
-      style={{ opacity: active ? 1 : undefined, background: active ? 'rgba(31,86,212,0.35)' : undefined }}
-    >
-      <span style={{ fontSize: 16, width: 20, textAlign: 'center' }}>{icon}</span>
-      {label}
-    </Link>
-  );
-}
 
 function FieldLabel({ label, required }: { label: string; required?: boolean }) {
   return (
@@ -355,44 +345,13 @@ export default function NewInvoicePage() {
     }
   };
 
-  const handleLogout = async () => {
-    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
-    router.replace('/login?next=/invoices/new');
-  };
-
   const sym = currencyInfo?.symbol ?? '₹';
   const callingCode = getCallingCodeForCountryName(country);
   const phonePreview = clientPhone.trim() ? normalizePhoneE164(clientPhone, country) : null;
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-          <LogoSidebar size={44} />
-        </div>
-        <nav style={{ flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <NavLink href="/"             icon="▣" label="Dashboard" />
-          <NavLink href="/invoices/new" icon="+" label="New Invoice" active />
-          <NavLink href="/invoices"     icon="≡" label="All Invoices" />
-        </nav>
-        <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-          <button
-            className="nav-item"
-            onClick={handleLogout}
-            style={{ width: '100%', color: 'rgba(255,255,255,.75)', marginBottom: 8 }}
-          >
-            <span className="nav-icon" style={{ display: 'inline-flex', color: 'rgba(255,255,255,.75)' }}>
-              <IconLogout />
-            </span>
-            Logout
-          </button>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontWeight: 600 }}>ClientForge · Ripple Nexus</div>
-        </div>
-      </aside>
-
-      {/* Main */}
-      <main className="page-wrapper" style={{ padding: '32px 36px', maxWidth: 1280 }}>
+    <AppShell>
+      <main className="page-wrapper" style={{ maxWidth: 1280 }}>
         {/* Breadcrumb + header */}
         <div style={{ marginBottom: 28 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 12, color: 'var(--muted)' }}>
@@ -408,8 +367,8 @@ export default function NewInvoicePage() {
           </p>
         </div>
 
-        {/* Split layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24, alignItems: 'start' }}>
+        {/* Split layout — stacks on mobile */}
+        <div className="invoice-form-grid">
 
           {/* ── Left: Form ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -698,7 +657,7 @@ export default function NewInvoicePage() {
           </div>
 
           {/* ── Right: Sticky preview ── */}
-          <div style={{ position: 'sticky', top: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="invoice-preview-col">
             {/* What happens next */}
             <div className="card" style={{ padding: '16px 18px' }}>
               <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 12 }}>What Happens Next</div>
@@ -745,15 +704,14 @@ export default function NewInvoicePage() {
         </div>
       </main>
 
-      {/* Toast */}
       {toast && (
-        <div className="toast-container">
+        <div className="toast-stack">
           <div className={`toast ${toast.type === 'error' ? 'toast-error' : 'toast-success'}`}>
             <span>{toast.type === 'error' ? '✕' : '✓'}</span>
             {toast.msg}
           </div>
         </div>
       )}
-    </div>
+    </AppShell>
   );
 }

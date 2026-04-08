@@ -7,8 +7,8 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import type { InvoiceData, InvoiceStatus } from '@/types';
 import { CLIENT_TYPE_LABELS, formatCurrency, BASE_PRICING, REVISION_FEE, round2 } from '@/lib/pricing';
-import { LogoSidebar, Logo } from '@/components/Logo';
-import { IconLogout } from '@/components/Icons';
+import { Logo } from '@/components/Logo';
+import AppShell from '@/components/AppShell';
 
 // ─── Toast ────────────────────────────────────
 type Toast = { id: number; msg: string; type: 'success' | 'error' };
@@ -322,11 +322,6 @@ export default function InvoiceDetailPage() {
 
   const isJustCreated = searchParams.get('created') === 'true';
 
-  const handleLogout = async () => {
-    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
-    router.replace(`/login?next=/invoices/${params.id}`);
-  };
-
   const [invoice, setInvoice]     = useState<InvoiceData | null>(null);
   const [loading, setLoading]     = useState(true);
   const [resending, setResending] = useState(false);
@@ -424,43 +419,8 @@ export default function InvoiceDetailPage() {
   const canEdit = invoice.status === 'PENDING';
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      {/* ── SIDEBAR ── */}
-      <aside className="sidebar">
-        <div className="px-5 py-5 border-b border-white/10">
-          <LogoSidebar size={44} />
-        </div>
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          {[
-            { href: '/',             icon: '⬛', label: 'Dashboard' },
-            { href: '/invoices/new', icon: '＋', label: 'New Invoice' },
-            { href: '/invoices',     icon: '📄', label: 'All Invoices' },
-          ].map(n => (
-            <Link key={n.href} href={n.href}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
-              style={{ color: 'rgba(255,255,255,0.6)' }}
-            >
-              <span className="w-5 text-center text-base">{n.icon}</span>{n.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="px-5 py-4 border-t border-white/10">
-          <button
-            className="nav-item"
-            onClick={handleLogout}
-            style={{ width: '100%', color: 'rgba(255,255,255,.75)', marginBottom: 8 }}
-          >
-            <span className="nav-icon" style={{ display: 'inline-flex', color: 'rgba(255,255,255,.75)' }}>
-              <IconLogout />
-            </span>
-            Logout
-          </button>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>ClientForge · Ripple Nexus</div>
-        </div>
-      </aside>
-
-      {/* ── MAIN ── */}
-      <main className="page-wrapper" style={{ padding: '32px 36px' }}>
+    <AppShell>
+      <main className="page-wrapper" style={{ maxWidth: 1280, margin: '0 auto' }}>
 
         {/* Success Banner */}
         {showBanner && (
@@ -733,7 +693,7 @@ export default function InvoiceDetailPage() {
 
               {/* Footer */}
               <div style={{ background: 'var(--navy)', padding: '16px 36px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <LogoSidebar size={34} />
+                <Logo variant="horizontal" size={28} dark />
                 <div className="mono" style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>{invoice.invoiceNumber}</div>
               </div>
             </div>
@@ -819,6 +779,6 @@ export default function InvoiceDetailPage() {
       )}
 
       <Toasts toasts={toasts} />
-    </div>
+    </AppShell>
   );
 }
