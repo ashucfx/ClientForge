@@ -2,43 +2,57 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getCurrencyForCountry, getExchangeRate } from '@/lib/currency';
-import {
-  calculatePricing,
-  generateInvoiceNumber,
-  CLIENT_TYPE_LABELS,
-} from '@/lib/pricing';
+import { generateInvoiceNumber, FEE_RATES, round2 } from '@/lib/pricing';
 import { createRazorpayPaymentLink } from '@/lib/razorpay';
 import { sendInvoiceEmail } from '@/lib/email';
 import { z } from 'zod';
 import { addDays } from 'date-fns';
+import type { LineItem } from '@/types';
 
-const CreateInvoiceSchema = z.object({
-  clientName: z.string().min(2),
-  clientEmail: z.string().email(),
-  clientPhone: z.string().min(6),
-  country: z.string().min(2),
-  clientType: z.enum(['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS']),
-  currencyOverride: z.string().optional(),
-  services: z.object({
-    resume: z.boolean(),
-    linkedin: z.boolean(),
-    coverLetter: z.boolean(),
-  }),
+// ─── Validation ────────────────────────────────
+const LineItemSchema = z.object({
+  id:          z.string(),
+  description: z.string().min(1),
+  qty:         z.number().min(0.01),
+  unitPrice:   z.number().min(0),
+  lineTotal:   z.number(),
 });
 
-// ─────────────────────────────────────────────
-// GET /api/invoices
-// ─────────────────────────────────────────────
+const CreateInvoiceSchema = z.object({
+  clientName:   z.string().min(2),
+  clientEmail:  z.string().email(),
+  clientPhone:  z.string().min(6),
+  companyName:  z.string().optional(),
+  country:      z.string().min(2),
+  clientType:   z.enum(['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS']),
+  currencyOverride: z.string().optional(),
+  lineItems:    z.array(LineItemSchema).min(1),
+  discountRate: z.number().min(0).max(100).default(0),
+  taxRate:      z.number().min(0).max(100).default(0),
+  notes:        z.string().optional(),
+  dueDays:      z.number().min(1).max(90).default(7),
+});
+
+// ─── GET /api/invoices ─────────────────────────
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get('status');
+  const status     = searchParams.get('status');
   const clientType = searchParams.get('clientType');
-  const page = parseInt(searchParams.get('page') ?? '1');
-  const limit = parseInt(searchParams.get('limit') ?? '20');
+  const search     = searchParams.get('search');
+  const page       = Math.max(1, parseInt(searchParams.get('page')  ?? '1'));
+  const limit      = Math.min(100, parseInt(searchParams.get('limit') ?? '50'));
 
   const where: Record<string, unknown> = {};
-  if (status) where.status = status;
+  if (status)     where.status     = status;
   if (clientType) where.clientType = clientType;
+  if (search) {
+    where.OR = [
+      { clientName:    { contains: search, mode: 'insensitive' } },
+      { clientEmail:   { contains: search, mode: 'insensitive' } },
+      { invoiceNumber: { contains: search, mode: 'insensitive' } },
+      { companyName:   { contains: search, mode: 'insensitive' } },
+    ];
+  }
 
   const [invoices, total] = await Promise.all([
     prisma.invoice.findMany({
@@ -50,126 +64,95 @@ export async function GET(request: NextRequest) {
     prisma.invoice.count({ where }),
   ]);
 
-  return NextResponse.json({
-    invoices,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
-  });
+  return NextResponse.json({ invoices, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } });
 }
 
-// ─────────────────────────────────────────────
-// POST /api/invoices
-// ─────────────────────────────────────────────
+// ─── POST /api/invoices ────────────────────────
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body   = await request.json();
     const parsed = CreateInvoiceSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: parsed.error.flatten() },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Validation failed', details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { clientName, clientEmail, clientPhone, country, clientType, currencyOverride, services } =
-      parsed.data;
+    const {
+      clientName, clientEmail, clientPhone, companyName,
+      country, clientType, currencyOverride,
+      lineItems, discountRate, taxRate, notes, dueDays,
+    } = parsed.data;
 
-    // Currency detection
+    // ── Currency resolution ──
     const detectedCurrency = getCurrencyForCountry(country);
-    const currencyCode = currencyOverride ?? detectedCurrency.code;
-    const currencyInfo = currencyOverride
-      ? { code: currencyOverride, symbol: detectedCurrency.symbol, name: detectedCurrency.name }
-      : detectedCurrency;
+    const currencyCode     = currencyOverride ?? detectedCurrency.code;
+    const currencySymbol   = detectedCurrency.symbol;
+    const exchangeRate     = await getExchangeRate(currencyCode);
 
-    // Get exchange rate (INR → target currency)
-    const exchangeRate = await getExchangeRate(currencyCode);
+    // ── Recalculate line totals server-side (trust server math) ──
+    const safeItems: LineItem[] = lineItems.map(item => ({
+      ...item,
+      lineTotal: round2(item.qty * item.unitPrice),
+    }));
 
-    // Calculate pricing
-    const pricing = calculatePricing(clientType, currencyCode, exchangeRate, services);
+    const grossSubtotal  = round2(safeItems.reduce((s, i) => s + i.lineTotal, 0));
 
-    if (pricing.totalPayable <= 0) {
-      return NextResponse.json(
-        { error: 'At least one service must be selected' },
-        { status: 400 }
-      );
+    if (grossSubtotal <= 0) {
+      return NextResponse.json({ error: 'Invoice total must be greater than zero' }, { status: 400 });
     }
 
-    // Generate invoice number
-    const invoiceNumber = generateInvoiceNumber();
-    const invoiceDate = new Date();
-    const dueDate = addDays(invoiceDate, 7);
+    const discountAmount    = round2(grossSubtotal * discountRate / 100);
+    const afterDiscount     = round2(grossSubtotal - discountAmount);
+    const taxAmount         = round2(afterDiscount * taxRate / 100);
+    const subtotalConverted = round2(afterDiscount + taxAmount);
 
-    // Create invoice in DB (without payment link first)
+    const processingFeeRate      = currencyCode === 'INR' ? FEE_RATES.INR : FEE_RATES.INTERNATIONAL;
+    const processingFeeConverted = round2(subtotalConverted * processingFeeRate);
+    const totalPayable           = round2(subtotalConverted + processingFeeConverted);
+
+    // ── Dates ──
+    const invoiceDate = new Date();
+    const dueDate     = addDays(invoiceDate, dueDays);
+
+    // ── Create invoice ──
     const invoice = await prisma.invoice.create({
       data: {
-        invoiceNumber,
-        clientName,
-        clientEmail,
-        clientPhone,
-        clientType,
-        country,
-        currency: currencyCode,
-        currencySymbol: currencyInfo.symbol,
-        exchangeRate,
-        resumeBaseInr: pricing.resumeBaseInr,
-        linkedinBaseInr: pricing.linkedinBaseInr,
-        coverLetterBaseInr: pricing.coverLetterBaseInr,
-        resumeConverted: pricing.resumeConverted,
-        linkedinConverted: pricing.linkedinConverted,
-        coverLetterConverted: pricing.coverLetterConverted,
-        subtotalConverted: pricing.subtotalConverted,
-        processingFeeRate: pricing.processingFeeRate,
-        processingFeeConverted: pricing.processingFeeConverted,
-        totalPayable: pricing.totalPayable,
-        invoiceDate,
-        dueDate,
+        invoiceNumber: generateInvoiceNumber(),
+        clientName, clientEmail, clientPhone, clientType,
+        country, companyName,
+        currency: currencyCode, currencySymbol, exchangeRate,
+        lineItems: safeItems as object[],
+        discountRate, taxRate, discountAmount, taxAmount,
+        subtotalConverted,
+        processingFeeRate,
+        processingFeeConverted,
+        totalPayable,
+        notes,
+        invoiceDate, dueDate,
       },
     });
 
-    // Create Razorpay payment link
-    let razorpayLinkId: string | null = null;
+    // ── Razorpay link ──
+    let razorpayLinkId: string | null  = null;
     let razorpayLinkUrl: string | null = null;
-
     try {
-      const rzpLink = await createRazorpayPaymentLink(invoice as any);
-      razorpayLinkId = rzpLink.id;
-      razorpayLinkUrl = rzpLink.short_url;
+      const rzp = await createRazorpayPaymentLink(invoice as unknown as Parameters<typeof createRazorpayPaymentLink>[0]);
+      razorpayLinkId  = rzp.id;
+      razorpayLinkUrl = rzp.short_url;
+      await prisma.invoice.update({ where: { id: invoice.id }, data: { razorpayLinkId, razorpayLinkUrl } });
+    } catch (e) { console.error('Razorpay link failed:', e); }
 
-      await prisma.invoice.update({
-        where: { id: invoice.id },
-        data: { razorpayLinkId, razorpayLinkUrl },
-      });
-    } catch (rzpError) {
-      console.error('Razorpay link creation failed:', rzpError);
-      // Continue without payment link — can be retried
-    }
+    const fullInvoice = { ...invoice, razorpayLinkId, razorpayLinkUrl };
 
-    const fullInvoice = {
-      ...invoice,
-      razorpayLinkId,
-      razorpayLinkUrl,
-    };
-
-    // Send email
+    // ── Send email ──
     try {
-      await sendInvoiceEmail(fullInvoice as any);
-      await prisma.invoice.update({
-        where: { id: invoice.id },
-        data: { emailSentAt: new Date() },
-      });
-    } catch (emailError) {
-      console.error('Email send failed:', emailError);
-      // Non-critical — invoice is created
-    }
+      await sendInvoiceEmail(fullInvoice as unknown as Parameters<typeof sendInvoiceEmail>[0]);
+      await prisma.invoice.update({ where: { id: invoice.id }, data: { emailSentAt: new Date() } });
+    } catch (e) { console.error('Email failed:', e); }
 
     return NextResponse.json({ invoice: fullInvoice }, { status: 201 });
-  } catch (error) {
-    console.error('Create invoice error:', error);
+  } catch (err) {
+    console.error('Create invoice error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

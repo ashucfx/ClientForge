@@ -73,7 +73,7 @@ export async function PATCH(
         ...existing,
         ...updateData,
         totalPayable: finalTotal,
-      } as Parameters<typeof createRazorpayPaymentLink>[0];
+      } as unknown as Parameters<typeof createRazorpayPaymentLink>[0];
 
       try {
         const newLink = await createRazorpayPaymentLink(updatedInvoice);
