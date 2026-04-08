@@ -4,6 +4,9 @@ import { prisma } from '@/lib/db';
 import { cancelRazorpayPaymentLink, createRazorpayPaymentLink } from '@/lib/razorpay';
 import { calculatePricing, round2 } from '@/lib/pricing';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // ─────────────────────────────────────────────
 // GET — fetch single invoice
 // ─────────────────────────────────────────────

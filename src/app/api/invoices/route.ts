@@ -9,6 +9,9 @@ import { z } from 'zod';
 import { addDays } from 'date-fns';
 import type { LineItem } from '@/types';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // ─── Validation ────────────────────────────────
 const LineItemSchema = z.object({
   id:          z.string(),

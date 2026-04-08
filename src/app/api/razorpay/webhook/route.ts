@@ -4,6 +4,9 @@ import { prisma } from '@/lib/db';
 import { verifyWebhookSignature } from '@/lib/razorpay';
 import { sendPaymentConfirmationEmail } from '@/lib/email';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 const WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET!;
 
 export async function POST(request: NextRequest) {

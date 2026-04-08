@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { createRazorpayPaymentLink } from '@/lib/razorpay';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // POST /api/razorpay/create-link  { invoiceId }
 // Used to (re)generate a payment link for an existing invoice
 export async function POST(request: NextRequest) {
