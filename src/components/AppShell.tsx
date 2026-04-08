@@ -3,10 +3,10 @@
 // Shared responsive shell: sidebar on desktop, drawer + topbar on mobile
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { IconGrid, IconPlus, IconList, IconLogout } from '@/components/Icons';
+import { Logo } from '@/components/Logo';
 
 const NAV = [
   { href: '/',             Icon: IconGrid, label: 'Dashboard'    },
@@ -42,18 +42,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const SidebarContent = () => (
     <>
-      {/* Brand logo in white pill */}
+      {/* Brand logo — dark bg logo looks perfect on dark sidebar */}
       <div className="sidebar-logo">
-        <div className="sidebar-brand">
-          <Image
-            src="/Logo.png"
-            alt="ClientForge by Ripple Nexus"
-            width={136}
-            height={46}
-            style={{ objectFit: 'contain', display: 'block' }}
-            priority
-          />
-        </div>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }} aria-label="Ripple Nexus · ClientForge">
+          <Logo variant="horizontal" size={34} />
+          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+            <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.2px', color: 'var(--text-primary)' }}>ClientForge</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)' }}>by Ripple Nexus</span>
+          </div>
+        </Link>
       </div>
 
       {/* Navigation */}
@@ -122,14 +119,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Centered logo */}
         <div className="topbar-logo">
-          <Image
-            src="/Logo.png"
-            alt="ClientForge"
-            width={110}
-            height={34}
-            style={{ objectFit: 'contain', display: 'block' }}
-            priority
-          />
+          <Logo variant="icon" size={28} />
         </div>
 
         <div style={{ width: 44 }} />

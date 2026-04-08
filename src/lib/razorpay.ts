@@ -1,5 +1,6 @@
 // src/lib/razorpay.ts
 
+import { createHmac } from 'crypto';
 import { toSmallestUnit } from './pricing';
 import type { InvoiceData, RazorpayPaymentLinkResponse } from '@/types';
 import { normalizePhoneE164, toRazorpayContact } from '@/lib/phone';
@@ -111,12 +112,7 @@ export function verifyWebhookSignature(
   signature: string,
   secret: string
 ): boolean {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const crypto = require('crypto');
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(body)
-    .digest('hex');
+  const expectedSignature = createHmac('sha256', secret).update(body).digest('hex');
   return expectedSignature === signature;
 }
 

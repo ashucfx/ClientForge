@@ -88,7 +88,7 @@ function EditPricingModal({
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div style={{ background: 'linear-gradient(135deg,#0f1c3d,#1f56d4)', borderRadius: '18px 18px 0 0', padding: '20px 24px' }}>
+        <div style={{ background: 'var(--brand-gradient)', borderRadius: '18px 18px 0 0', padding: '20px 24px' }}>
           <div className="flex items-center justify-between">
             <div>
               <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 17, margin: 0 }}>Edit Invoice Pricing</h2>
@@ -475,7 +475,7 @@ export default function InvoiceDetailPage() {
             <div className="card overflow-hidden" style={{ boxShadow: '0 4px 40px rgba(31,86,212,.08)' }}>
 
               {/* Invoice Header */}
-              <div style={{ background: 'linear-gradient(135deg,#0f1c3d 0%,#1f56d4 100%)', padding: '32px 36px' }}>
+              <div style={{ background: 'var(--brand-gradient)', padding: '32px 36px' }}>
                 <div className="flex items-start justify-between">
                   <div>
                     <Logo variant="horizontal" size={38} dark />
@@ -633,7 +633,7 @@ export default function InvoiceDetailPage() {
                     <span>Processing Fee ({(invoice.processingFeeRate * 100).toFixed(1)}%)</span>
                     <span style={{ fontWeight: 600 }}>{fmt(invoice.processingFeeConverted)}</span>
                   </div>
-                  <div style={{ background: 'linear-gradient(135deg,#1f56d4,#1a42a0)', borderRadius: 10, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                  <div style={{ background: 'var(--brand-gradient)', borderRadius: 10, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                     <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: 13 }}>Total Payable ({invoice.currency})</span>
                     <span style={{ color: '#fff', fontWeight: 900, fontSize: 20 }}>{fmt(invoice.totalPayable)}</span>
                   </div>
@@ -668,7 +668,7 @@ export default function InvoiceDetailPage() {
               {/* Value prop */}
               <div style={{ borderTop: '1px solid #f0f4ff', padding: '16px 36px' }}>
                 <blockquote style={{ borderLeft: '3px solid var(--green)', background: '#f0fff8', borderRadius: '0 8px 8px 0', padding: '12px 16px', fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', lineHeight: 1.7, margin: 0 }}>
-                  "This investment is designed to improve recruiter visibility and interview conversion — giving your career the competitive edge it deserves."
+                  &ldquo;This investment is designed to improve recruiter visibility and interview conversion — giving your career the competitive edge it deserves.&rdquo;
                 </blockquote>
               </div>
 

@@ -96,7 +96,7 @@ function InvoicePreview({
   return (
     <div className="preview-card" style={{ background: '#fff', borderRadius: 14, border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden', fontSize: 13 }}>
       {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg,#0f1c3d 0%,#1f3a80 60%,#1f56d4 100%)', padding: '22px 24px' }}>
+      <div style={{ background: 'var(--brand-gradient)', padding: '22px 24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Logo size={28} variant="horizontal" dark />
           <div style={{ textAlign: 'right' }}>
@@ -186,7 +186,7 @@ function InvoicePreview({
             <span>Processing Fee ({(feeRate * 100).toFixed(1)}%)</span><span>+{fmt(fee, sym)}</span>
           </div>
         </div>
-        <div style={{ marginTop: 10, background: 'linear-gradient(135deg,#1f56d4,#1a42a0)', borderRadius: 10, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ marginTop: 10, background: 'var(--brand-gradient)', borderRadius: 10, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: 600 }}>Total Payable</span>
           <span style={{ color: '#fff', fontWeight: 900, fontSize: 18 }}>{fmt(total, sym)}</span>
         </div>
