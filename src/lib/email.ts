@@ -1,12 +1,12 @@
 // src/lib/email.ts
 
-import type { InvoiceData } from '@/types';
-import { CLIENT_TYPE_LABELS, formatCurrency } from './pricing';
+import type { InvoiceData, LineItem } from '@/types';
+import { CLIENT_TYPE_LABELS, formatCurrency, round2 } from './pricing';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY!;
 const FROM_EMAIL    = process.env.FROM_EMAIL ?? 'info@theripplenexus.com';
 const FROM_NAME     = 'Ripple Nexus';
-const REPLY_TO      = 'support@theripplenexus.com';
+const REPLY_TO      = 'info@theripplenexus.com';
 const WEBSITE       = 'https://www.theripplenexus.com';
 
 // ─────────────────────────────────────────────
@@ -142,6 +142,26 @@ export async function sendPaymentConfirmationEmail(invoice: InvoiceData): Promis
 function buildInvoiceEmailText(invoice: InvoiceData): string {
   const sym = invoice.currencySymbol;
   const fmt = (n: number) => formatCurrency(n, sym);
+
+  // Build line items from the new lineItems JSON array
+  const items: LineItem[] = Array.isArray(invoice.lineItems) && invoice.lineItems.length > 0
+    ? invoice.lineItems as unknown as LineItem[]
+    : [];
+
+  const itemLines = items.map(item => {
+    const lt = item.qty * item.unitPrice;
+    const priceStr = lt === 0 ? 'FREE' : fmt(lt);
+    const qtyStr = item.qty !== 1 ? ` × ${item.qty}` : '';
+    return `${item.description}${qtyStr}`.padEnd(35) + priceStr;
+  }).join('\n');
+
+  const discountLine = invoice.discountRate > 0
+    ? `Discount (${invoice.discountRate}%)`.padEnd(35) + `-${fmt(invoice.discountAmount)}\n`
+    : '';
+  const taxLine = invoice.taxRate > 0
+    ? `Tax (${invoice.taxRate}%)`.padEnd(35) + `+${fmt(invoice.taxAmount)}\n`
+    : '';
+
   return `
 Hi ${invoice.clientName.split(' ')[0]},
 
@@ -153,17 +173,17 @@ Package        : ${CLIENT_TYPE_LABELS[invoice.clientType]}
 Invoice Date   : ${new Date(invoice.invoiceDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
 Due Date       : ${new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
 
-─────────────────────────────
-${invoice.resumeConverted > 0 ? `Professional Resume Writing   ${fmt(invoice.resumeConverted)}\n` : ''}${invoice.linkedinConverted > 0 ? `LinkedIn Profile Optimization  ${fmt(invoice.linkedinConverted)}\n` : ''}Cover Letter Template          FREE
-─────────────────────────────
-Subtotal                       ${fmt(invoice.subtotalConverted)}
-Processing Fee (${(invoice.processingFeeRate * 100).toFixed(1)}%)        ${fmt(invoice.processingFeeConverted)}
-─────────────────────────────
-TOTAL PAYABLE                  ${fmt(invoice.totalPayable)} ${invoice.currency}
-─────────────────────────────
+─────────────────────────────────────
+${itemLines}
+─────────────────────────────────────
+${'Subtotal'.padEnd(35)}${fmt(invoice.subtotalConverted)}
+${discountLine}${taxLine}${'Processing Fee (' + (invoice.processingFeeRate * 100).toFixed(1) + '%)'.padEnd(35 - ('Processing Fee ('.length + (invoice.processingFeeRate * 100).toFixed(1).length))}${fmt(invoice.processingFeeConverted)}
+─────────────────────────────────────
+TOTAL PAYABLE                      ${fmt(invoice.totalPayable)} ${invoice.currency}
+─────────────────────────────────────
 ${invoice.razorpayLinkUrl ? `PAY NOW: ${invoice.razorpayLinkUrl}` : ''}
 
-Terms: No refunds after work commences. Delivery within 2-4 business days. 2 revisions included.
+Terms: No refunds after work commences. Delivery within 2–4 business days. 2 revisions included.
 
 Questions? Reply to this email or write to ${REPLY_TO}
 
@@ -227,47 +247,69 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
         <!--<![endif]-->`
     : '';
 
-  const resumeRow = invoice.resumeConverted > 0
-    ? `<tr>
-        <td style="padding:11px 16px;border-bottom:1px solid #eef2ff;">
-          <table cellpadding="0" cellspacing="0" role="presentation" width="100%">
-            <tr>
-              <td width="28" valign="middle">
-                <div style="width:24px;height:24px;background:#eef2ff;border-radius:50%;text-align:center;line-height:24px;font-size:13px;">&#128196;</div>
-              </td>
-              <td style="padding-left:10px;" valign="middle">
-                <div style="font-size:14px;color:#0f1c3d;font-weight:600;">Professional Resume Writing</div>
-                <div style="font-size:12px;color:#6b7280;margin-top:1px;">ATS-optimised &bull; Keyword-rich &bull; Recruiter-ready</div>
-              </td>
-              <td align="right" valign="middle" style="white-space:nowrap;">
-                <span style="font-size:15px;color:#0f1c3d;font-weight:700;">${fmt(invoice.resumeConverted)}</span>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>`
-    : '';
+  // Build line item rows from the new lineItems JSON array
+  const lineItemsArr: LineItem[] = Array.isArray(invoice.lineItems) && invoice.lineItems.length > 0
+    ? invoice.lineItems as unknown as LineItem[]
+    : [];
 
-  const linkedinRow = invoice.linkedinConverted > 0
-    ? `<tr>
-        <td style="padding:11px 16px;border-bottom:1px solid #eef2ff;">
+  const lineItemRows = lineItemsArr.map((item, idx) => {
+    const lt = round2(item.qty * item.unitPrice);
+    const isFree = lt === 0;
+    const isLast = idx === lineItemsArr.length - 1;
+    const borderStyle = isLast ? '' : 'border-bottom:1px solid #eef2ff;';
+    // Icon: pick based on common keywords, fallback to document icon
+    const icon = /resume|cv/i.test(item.description) ? '&#128196;'
+      : /linkedin/i.test(item.description) ? '&#128279;'
+      : /cover/i.test(item.description) ? '&#9993;'
+      : '&#128203;';
+    const iconBg = isFree ? '#f0fdf4' : '#eef2ff';
+    return `<tr>
+        <td style="padding:12px 16px;${borderStyle}">
           <table cellpadding="0" cellspacing="0" role="presentation" width="100%">
             <tr>
-              <td width="28" valign="middle">
-                <div style="width:24px;height:24px;background:#eef2ff;border-radius:50%;text-align:center;line-height:24px;font-size:13px;">&#128279;</div>
+              <td width="30" valign="middle">
+                <div style="width:26px;height:26px;background:${iconBg};border-radius:50%;text-align:center;line-height:26px;font-size:13px;">${icon}</div>
               </td>
               <td style="padding-left:10px;" valign="middle">
-                <div style="font-size:14px;color:#0f1c3d;font-weight:600;">LinkedIn Profile Optimization</div>
-                <div style="font-size:12px;color:#6b7280;margin-top:1px;">Visibility boost &bull; Headline &bull; Recruiter magnet</div>
+                <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#0f1c3d;font-weight:600;">${item.description}</div>
+                ${item.qty !== 1 ? `<div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#6b7280;margin-top:1px;">Qty: ${item.qty} &times; ${fmt(item.unitPrice)}</div>` : ''}
               </td>
               <td align="right" valign="middle" style="white-space:nowrap;">
-                <span style="font-size:15px;color:#0f1c3d;font-weight:700;">${fmt(invoice.linkedinConverted)}</span>
+                ${isFree
+                  ? `<span style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#16a34a;font-weight:700;background:#f0fdf4;padding:3px 10px;border-radius:20px;border:1px solid #bbf7d0;">FREE</span>`
+                  : `<span style="font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#0f1c3d;font-weight:700;">${fmt(lt)}</span>`
+                }
               </td>
             </tr>
           </table>
         </td>
-      </tr>`
-    : '';
+      </tr>`;
+  }).join('');
+
+  // Totals rows
+  const discountRow = invoice.discountRate > 0 ? `
+          <tr>
+            <td style="padding:4px 16px;background:#fafbff;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#16a34a;">Discount (${invoice.discountRate}%)</td>
+                  <td align="right" style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#16a34a;">&#8722;${fmt(invoice.discountAmount)}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>` : '';
+
+  const taxRow = invoice.taxRate > 0 ? `
+          <tr>
+            <td style="padding:4px 16px;background:#fafbff;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#6b7280;">Tax (${invoice.taxRate}%)</td>
+                  <td align="right" style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#6b7280;">+${fmt(invoice.taxAmount)}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>` : '';
 
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -412,29 +454,10 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
         </div>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
                style="border-radius:12px;border:1px solid #dce6ff;overflow:hidden;">
-          ${resumeRow}
-          ${linkedinRow}
-          <!-- Cover Letter — always free -->
-          <tr>
-            <td style="padding:11px 16px;border-bottom:1px solid #eef2ff;">
-              <table cellpadding="0" cellspacing="0" role="presentation" width="100%">
-                <tr>
-                  <td width="28" valign="middle">
-                    <div style="width:24px;height:24px;background:#f0fdf4;border-radius:50%;text-align:center;line-height:24px;font-size:13px;">&#9993;</div>
-                  </td>
-                  <td style="padding-left:10px;" valign="middle">
-                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#0d1b4b;font-weight:600;">Cover Letter Template</div>
-                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#6b7280;margin-top:1px;">Customisable &bull; Application-ready</div>
-                  </td>
-                  <td align="right" valign="middle" style="white-space:nowrap;">
-                    <span style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#16a34a;font-weight:700;background:#f0fdf4;padding:3px 10px;border-radius:20px;border:1px solid #bbf7d0;">
-                      INCLUDED FREE
-                    </span>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+          <!-- Line items (dynamic from invoice.lineItems) -->
+          ${lineItemRows}
+          <!-- Divider row -->
+          <tr><td style="height:1px;background:#dce6ff;font-size:0;line-height:0;">&nbsp;</td></tr>
           <!-- Subtotal -->
           <tr>
             <td style="padding:10px 16px 4px;background:#fafbff;">
@@ -446,6 +469,8 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
               </table>
             </td>
           </tr>
+          ${discountRow}
+          ${taxRow}
           <tr>
             <td style="padding:4px 16px 10px;background:#fafbff;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">

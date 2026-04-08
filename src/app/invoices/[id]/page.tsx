@@ -504,7 +504,7 @@ export default function InvoiceDetailPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <Logo variant="horizontal" size={38} dark />
-                    <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 16 }}>support@theripplenexus.com</div>
+                    <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 16 }}>info@theripplenexus.com</div>
                     <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>www.theripplenexus.com</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
