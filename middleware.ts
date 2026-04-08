@@ -31,11 +31,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const secret = getSecret();
-  const token = request.cookies.get(COOKIE_NAME)?.value ?? '';
+  try {
+    const secret = getSecret();
+    const token = request.cookies.get(COOKIE_NAME)?.value ?? '';
 
-  const ok = secret ? await verifySessionToken(secret, token) : false;
-  if (ok) return NextResponse.next();
+    // If no secret is configured, always block — misconfiguration must not grant access
+    if (!secret) {
+      throw new Error('ADMIN_SESSION_SECRET is not configured');
+    }
+
+    const ok = await verifySessionToken(secret, token);
+    if (ok) return NextResponse.next();
+  } catch {
+    // Fall through to redirect/401 below
+  }
 
   if (pathname.startsWith('/api/')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

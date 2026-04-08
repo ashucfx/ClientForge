@@ -38,9 +38,13 @@ export async function verifyAdminSessionToken(token: string): Promise<boolean> {
 }
 
 export async function isAdminRequest(): Promise<boolean> {
-  const token = cookies().get(COOKIE_NAME)?.value;
-  if (!token) return false;
-  return verifyAdminSessionToken(token);
+  try {
+    const token = cookies().get(COOKIE_NAME)?.value;
+    if (!token) return false;
+    return verifyAdminSessionToken(token);
+  } catch {
+    return false;
+  }
 }
 
 export function getAdminCookieName(): string {
