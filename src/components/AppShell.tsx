@@ -46,10 +46,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="sidebar-logo">
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }} aria-label="Ripple Nexus · ClientForge">
           <Logo variant="horizontal" size={34} />
-          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-            <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.2px', color: 'var(--text-primary)' }}>ClientForge</span>
-            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)' }}>by Ripple Nexus</span>
-          </div>
         </Link>
       </div>
 

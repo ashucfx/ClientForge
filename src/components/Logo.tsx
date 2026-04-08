@@ -10,6 +10,10 @@ interface LogoProps {
 }
 
 export function Logo({ variant = 'horizontal', size = 40, dark = false }: LogoProps) {
+  const hub = dark ? '#ffffff' : 'var(--brand)';
+  const spoke = dark ? '#ffffff' : 'var(--brand)';
+  const spokeOpacity = dark ? 0.7 : 0.6;
+  const dot = 'var(--green)';
   // The icon SVG centred at 0,0 — viewBox covers the outermost green dots (74+6.5=80.5) + padding
   const icon = (
     <svg
@@ -21,36 +25,36 @@ export function Logo({ variant = 'horizontal', size = 40, dark = false }: LogoPr
       aria-hidden="true"
     >
       {/* Centre hub */}
-      <circle cx="0" cy="0" r="16" fill="#1f56d4" />
+      <circle cx="0" cy="0" r="16" fill={hub} />
 
       {/* 6 spoke lines + inner nodes at r=42, every 60° */}
-      <line x1="0" y1="0" x2="42" y2="0"      stroke="#1f56d4" strokeWidth="5" strokeOpacity="0.6" />
-      <circle cx="42" cy="0" r="9" fill="#1f56d4" />
+      <line x1="0" y1="0" x2="42" y2="0"      stroke={spoke} strokeWidth="5" strokeOpacity={spokeOpacity} />
+      <circle cx="42" cy="0" r="9" fill={hub} />
 
-      <line x1="0" y1="0" x2="21" y2="36.37"  stroke="#1f56d4" strokeWidth="5" strokeOpacity="0.6" />
-      <circle cx="21" cy="36.37" r="9" fill="#1f56d4" />
+      <line x1="0" y1="0" x2="21" y2="36.37"  stroke={spoke} strokeWidth="5" strokeOpacity={spokeOpacity} />
+      <circle cx="21" cy="36.37" r="9" fill={hub} />
 
-      <line x1="0" y1="0" x2="-21" y2="36.37" stroke="#1f56d4" strokeWidth="5" strokeOpacity="0.6" />
-      <circle cx="-21" cy="36.37" r="9" fill="#1f56d4" />
+      <line x1="0" y1="0" x2="-21" y2="36.37" stroke={spoke} strokeWidth="5" strokeOpacity={spokeOpacity} />
+      <circle cx="-21" cy="36.37" r="9" fill={hub} />
 
-      <line x1="0" y1="0" x2="-42" y2="0"     stroke="#1f56d4" strokeWidth="5" strokeOpacity="0.6" />
-      <circle cx="-42" cy="0" r="9" fill="#1f56d4" />
+      <line x1="0" y1="0" x2="-42" y2="0"     stroke={spoke} strokeWidth="5" strokeOpacity={spokeOpacity} />
+      <circle cx="-42" cy="0" r="9" fill={hub} />
 
-      <line x1="0" y1="0" x2="-21" y2="-36.37" stroke="#1f56d4" strokeWidth="5" strokeOpacity="0.6" />
-      <circle cx="-21" cy="-36.37" r="9" fill="#1f56d4" />
+      <line x1="0" y1="0" x2="-21" y2="-36.37" stroke={spoke} strokeWidth="5" strokeOpacity={spokeOpacity} />
+      <circle cx="-21" cy="-36.37" r="9" fill={hub} />
 
-      <line x1="0" y1="0" x2="21" y2="-36.37" stroke="#1f56d4" strokeWidth="5" strokeOpacity="0.6" />
-      <circle cx="21" cy="-36.37" r="9" fill="#1f56d4" />
+      <line x1="0" y1="0" x2="21" y2="-36.37" stroke={spoke} strokeWidth="5" strokeOpacity={spokeOpacity} />
+      <circle cx="21" cy="-36.37" r="9" fill={hub} />
 
       {/* 8 green outer dots at r=74, every 45° */}
-      <circle cx="74"    cy="0"     r="6.5" fill="#3FBD8B" fillOpacity="0.85" />
-      <circle cx="52.33" cy="52.33" r="6.5" fill="#3FBD8B" fillOpacity="0.85" />
-      <circle cx="0"     cy="74"    r="6.5" fill="#3FBD8B" fillOpacity="0.85" />
-      <circle cx="-52.33" cy="52.33" r="6.5" fill="#3FBD8B" fillOpacity="0.85" />
-      <circle cx="-74"   cy="0"     r="6.5" fill="#3FBD8B" fillOpacity="0.85" />
-      <circle cx="-52.33" cy="-52.33" r="6.5" fill="#3FBD8B" fillOpacity="0.85" />
-      <circle cx="0"     cy="-74"   r="6.5" fill="#3FBD8B" fillOpacity="0.85" />
-      <circle cx="52.33" cy="-52.33" r="6.5" fill="#3FBD8B" fillOpacity="0.85" />
+      <circle cx="74"    cy="0"     r="6.5" fill={dot} fillOpacity="0.88" />
+      <circle cx="52.33" cy="52.33" r="6.5" fill={dot} fillOpacity="0.88" />
+      <circle cx="0"     cy="74"    r="6.5" fill={dot} fillOpacity="0.88" />
+      <circle cx="-52.33" cy="52.33" r="6.5" fill={dot} fillOpacity="0.88" />
+      <circle cx="-74"   cy="0"     r="6.5" fill={dot} fillOpacity="0.88" />
+      <circle cx="-52.33" cy="-52.33" r="6.5" fill={dot} fillOpacity="0.88" />
+      <circle cx="0"     cy="-74"   r="6.5" fill={dot} fillOpacity="0.88" />
+      <circle cx="52.33" cy="-52.33" r="6.5" fill={dot} fillOpacity="0.88" />
     </svg>
   );
 

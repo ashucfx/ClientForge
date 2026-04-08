@@ -351,7 +351,7 @@ export default function NewInvoicePage() {
 
   return (
     <AppShell>
-      <main className="page-wrapper" style={{ maxWidth: 1280 }}>
+      <main className="page-body">
         {/* Breadcrumb + header */}
         <div style={{ marginBottom: 28 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 12, color: 'var(--muted)' }}>
