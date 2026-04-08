@@ -415,7 +415,6 @@ export default function InvoiceDetailPage() {
   }
 
   const fmt  = (n: number) => formatCurrency(n, invoice.currencySymbol);
-  const desc = { resume: 'ATS-optimised, keyword-rich', linkedin: 'Visibility boost, recruiter magnet', coverLetter: 'Customisable template' };
   const canEdit = invoice.status === 'PENDING';
 
   return (
@@ -567,63 +566,98 @@ export default function InvoiceDetailPage() {
                 </div>
               </div>
 
-              {/* Services Table */}
+              {/* Line Items Table */}
               <div style={{ padding: '24px 36px' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 14 }}>Services</div>
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 14 }}>
+                  Line Items
+                </div>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ background: '#f0f4ff' }}>
-                      {['Service', 'Description', 'Base (INR)', 'Amount'].map(h => (
-                        <th key={h} style={{ textAlign: h === 'Amount' || h === 'Base (INR)' ? 'right' : 'left', padding: '10px 14px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8 }}>{h}</th>
+                      {[
+                        { label: '#',          align: 'center', w: 40  },
+                        { label: 'Description', align: 'left',  w: undefined },
+                        { label: 'Qty',         align: 'center', w: 56  },
+                        { label: 'Unit Price',  align: 'right',  w: 120 },
+                        { label: 'Total',       align: 'right',  w: 120 },
+                      ].map(h => (
+                        <th key={h.label} style={{
+                          textAlign: h.align as React.CSSProperties['textAlign'],
+                          padding: '10px 12px', fontSize: 11, fontWeight: 700,
+                          color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8,
+                          width: h.w,
+                        }}>{h.label}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {invoice.resumeConverted > 0 && (
-                      <tr style={{ borderBottom: '1px solid #f0f4ff' }}>
-                        <td style={{ padding: '14px 14px', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>📄 Resume Writing</td>
-                        <td style={{ padding: '14px 14px', fontSize: 12, color: 'var(--muted)', maxWidth: 200 }}>{desc.resume}</td>
-                        <td style={{ padding: '14px 14px', textAlign: 'right', fontSize: 12, color: 'var(--muted)' }} className="mono">₹{invoice.resumeBaseInr.toLocaleString()}</td>
-                        <td style={{ padding: '14px 14px', textAlign: 'right', fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{fmt(invoice.resumeConverted)}</td>
-                      </tr>
-                    )}
-                    {invoice.linkedinConverted > 0 && (
-                      <tr style={{ borderBottom: '1px solid #f0f4ff' }}>
-                        <td style={{ padding: '14px 14px', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>🔗 LinkedIn Optimization</td>
-                        <td style={{ padding: '14px 14px', fontSize: 12, color: 'var(--muted)', maxWidth: 200 }}>{desc.linkedin}</td>
-                        <td style={{ padding: '14px 14px', textAlign: 'right', fontSize: 12, color: 'var(--muted)' }} className="mono">₹{invoice.linkedinBaseInr.toLocaleString()}</td>
-                        <td style={{ padding: '14px 14px', textAlign: 'right', fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{fmt(invoice.linkedinConverted)}</td>
-                      </tr>
-                    )}
-                    <tr>
-                      <td style={{ padding: '14px 14px', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>✉️ Cover Letter Template</td>
-                      <td style={{ padding: '14px 14px', fontSize: 12, color: 'var(--muted)' }}>{desc.coverLetter}</td>
-                      <td style={{ padding: '14px 14px', textAlign: 'right' }}>—</td>
-                      <td style={{ padding: '14px 14px', textAlign: 'right' }}>
-                        <span style={{ background: 'var(--green-light)', color: '#15803d', borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>FREE</span>
-                      </td>
-                    </tr>
+                    {(invoice.lineItems as unknown as import('@/types').LineItem[]).map((item, idx) => {
+                      const lt = round2(item.qty * item.unitPrice);
+                      const isFree = lt === 0;
+                      return (
+                        <tr key={item.id ?? idx} style={{ borderBottom: '1px solid #f0f4ff' }}>
+                          <td style={{ padding: '13px 12px', textAlign: 'center', fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>
+                            {idx + 1}
+                          </td>
+                          <td style={{ padding: '13px 12px', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
+                            {item.description}
+                          </td>
+                          <td style={{ padding: '13px 12px', textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>
+                            {item.qty}
+                          </td>
+                          <td style={{ padding: '13px 12px', textAlign: 'right', fontSize: 13, color: 'var(--muted)' }}>
+                            {isFree ? '—' : fmt(item.unitPrice)}
+                          </td>
+                          <td style={{ padding: '13px 12px', textAlign: 'right', fontWeight: 700, fontSize: 14 }}>
+                            {isFree
+                              ? <span style={{ background: 'var(--green-light)', color: '#15803d', borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>FREE</span>
+                              : <span style={{ color: 'var(--text)' }}>{fmt(lt)}</span>
+                            }
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {(invoice.revisionCharge ?? 0) > 0 && (
-                      <tr style={{ borderTop: '1px solid #f0f4ff' }}>
-                        <td style={{ padding: '14px 14px', fontWeight: 600, fontSize: 14, color: '#dc2626' }}>🔄 Extra Revisions</td>
-                        <td style={{ padding: '14px 14px', fontSize: 12, color: 'var(--muted)' }}>Revision #{invoice.revisionCount} — beyond 2 free</td>
-                        <td style={{ padding: '14px 14px', textAlign: 'right', fontSize: 12, color: 'var(--muted)' }} className="mono">₹{invoice.revisionCharge}</td>
-                        <td style={{ padding: '14px 14px', textAlign: 'right', fontWeight: 700, fontSize: 14, color: '#dc2626' }}>{fmt(round2((invoice.revisionCharge ?? 0) / invoice.exchangeRate))}</td>
+                      <tr style={{ borderTop: '2px solid #f0f4ff' }}>
+                        <td style={{ padding: '13px 12px', textAlign: 'center', fontSize: 12, color: '#dc2626' }}>+</td>
+                        <td style={{ padding: '13px 12px', fontWeight: 600, fontSize: 14, color: '#dc2626' }}>
+                          🔄 Extra Revision #{invoice.revisionCount}
+                        </td>
+                        <td style={{ padding: '13px 12px', textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>1</td>
+                        <td style={{ padding: '13px 12px', textAlign: 'right', fontSize: 13, color: 'var(--muted)' }}>
+                          {fmt(round2((invoice.revisionCharge ?? 0) / invoice.exchangeRate))}
+                        </td>
+                        <td style={{ padding: '13px 12px', textAlign: 'right', fontWeight: 700, fontSize: 14, color: '#dc2626' }}>
+                          {fmt(round2((invoice.revisionCharge ?? 0) / invoice.exchangeRate))}
+                        </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
 
-                {/* Totals */}
-                <div style={{ maxWidth: 300, marginLeft: 'auto', marginTop: 20 }}>
-                  <div className="flex justify-between text-sm mb-2" style={{ color: 'var(--muted)' }}>
-                    <span>Subtotal</span><span className="font-semibold">{fmt(invoice.subtotalConverted)}</span>
+                {/* Totals breakdown */}
+                <div style={{ maxWidth: 320, marginLeft: 'auto', marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--muted)', paddingBottom: 8, borderBottom: '1px dashed var(--border)' }}>
+                    <span>Subtotal</span>
+                    <span style={{ fontWeight: 600 }}>{fmt(invoice.subtotalConverted)}</span>
                   </div>
-                  <div className="flex justify-between text-sm mb-3" style={{ color: 'var(--muted)' }}>
+                  {(invoice.discountRate ?? 0) > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#16a34a' }}>
+                      <span>Discount ({invoice.discountRate}%)</span>
+                      <span style={{ fontWeight: 600 }}>−{fmt(invoice.discountAmount)}</span>
+                    </div>
+                  )}
+                  {(invoice.taxRate ?? 0) > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--muted)' }}>
+                      <span>Tax ({invoice.taxRate}%)</span>
+                      <span style={{ fontWeight: 600 }}>+{fmt(invoice.taxAmount)}</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--muted)' }}>
                     <span>Processing Fee ({(invoice.processingFeeRate * 100).toFixed(1)}%)</span>
-                    <span className="font-semibold">{fmt(invoice.processingFeeConverted)}</span>
+                    <span style={{ fontWeight: 600 }}>{fmt(invoice.processingFeeConverted)}</span>
                   </div>
-                  <div style={{ background: 'linear-gradient(135deg,#1f56d4,#1a42a0)', borderRadius: 10, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ background: 'linear-gradient(135deg,#1f56d4,#1a42a0)', borderRadius: 10, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                     <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: 13 }}>Total Payable ({invoice.currency})</span>
                     <span style={{ color: '#fff', fontWeight: 900, fontSize: 20 }}>{fmt(invoice.totalPayable)}</span>
                   </div>
