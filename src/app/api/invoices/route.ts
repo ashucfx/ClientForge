@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     const invoiceDate = new Date();
     const dueDate     = addDays(invoiceDate, dueDays);
 
-    // ── Create invoice ──
+    // ── Create invoice (draft — no Razorpay link yet) ──
     const invoice = await prisma.invoice.create({
       data: {
         invoiceNumber: generateInvoiceNumber(),
@@ -151,32 +151,41 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // ── Razorpay link ──
-    let razorpayLinkId: string | null  = null;
-    let razorpayLinkUrl: string | null = null;
-    let razorpayError: string | null   = null;
+    // ── Razorpay payment link — REQUIRED ──
+    // If this fails we delete the invoice so the dashboard stays clean.
+    let razorpayLinkId:  string;
+    let razorpayLinkUrl: string;
     try {
       const rzp = await createRazorpayPaymentLink(invoice as unknown as Parameters<typeof createRazorpayPaymentLink>[0]);
       razorpayLinkId  = rzp.id;
       razorpayLinkUrl = rzp.short_url;
-      await prisma.invoice.update({ where: { id: invoice.id }, data: { razorpayLinkId, razorpayLinkUrl } });
-    } catch (e) {
-      razorpayError = e instanceof Error ? e.message : String(e);
-      console.error('Razorpay link failed:', razorpayError);
+    } catch (rzpErr) {
+      // Rollback: remove the orphaned invoice so it never shows in dashboard
+      await prisma.invoice.delete({ where: { id: invoice.id } }).catch(() => {});
+      const detail = rzpErr instanceof Error ? rzpErr.message : String(rzpErr);
+      console.error('[Razorpay] Payment link creation failed:', detail);
+      return NextResponse.json(
+        { error: `Payment link creation failed — ${detail}` },
+        { status: 422 }
+      );
     }
 
-    const fullInvoice = { ...invoice, razorpayLinkId, razorpayLinkUrl };
+    // Persist the Razorpay link on the invoice
+    const fullInvoice = await prisma.invoice.update({
+      where: { id: invoice.id },
+      data:  { razorpayLinkId, razorpayLinkUrl },
+    });
 
-    // ── Send email ──
+    // ── Send email (non-fatal — invoice is already created & link generated) ──
     try {
       await sendInvoiceEmail(fullInvoice as unknown as Parameters<typeof sendInvoiceEmail>[0]);
       await prisma.invoice.update({ where: { id: invoice.id }, data: { emailSentAt: new Date() } });
-    } catch (e) { console.error('Email failed:', e); }
+    } catch (emailErr) {
+      console.error('[Email] Invoice email failed:', emailErr);
+      // Don't fail the request — Razorpay already sent its own email+SMS notification
+    }
 
-    return NextResponse.json({
-      invoice: fullInvoice,
-      ...(razorpayError ? { razorpayError } : {}),
-    }, { status: 201 });
+    return NextResponse.json({ invoice: fullInvoice }, { status: 201 });
   } catch (err) {
     console.error('Create invoice error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

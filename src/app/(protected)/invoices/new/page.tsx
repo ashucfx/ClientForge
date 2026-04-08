@@ -245,6 +245,7 @@ export default function NewInvoicePage() {
   const [error,      setError]      = useState('');
   const [toast,      setToast]      = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorRef   = useRef<HTMLDivElement | null>(null);
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -339,16 +340,18 @@ export default function NewInvoicePage() {
           dueDays,
         }),
       });
+      const data = await res.json();
       if (!res.ok) {
-        const e = await res.json();
-        throw new Error(e.error ?? 'Invoice creation failed');
+        throw new Error(data.error ?? 'Invoice creation failed');
       }
-      const { invoice } = await res.json();
-      showToast('Invoice created & email sent!');
-      setTimeout(() => router.push(`/invoices/${invoice.id}?created=true`), 800);
+      showToast('Invoice created & payment link sent!');
+      setTimeout(() => router.push(`/invoices/${data.invoice.id}?created=true`), 800);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Something went wrong');
+      const msg = e instanceof Error ? e.message : 'Something went wrong. Please try again.';
+      setError(msg);
       setSubmitting(false);
+      // Scroll to error so it's visible
+      setTimeout(() => errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
     }
   };
 
@@ -654,13 +657,23 @@ export default function NewInvoicePage() {
 
             {/* Error */}
             {error && (
-              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: 12, padding: '12px 16px', fontSize: 14 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#b91c1c' }}>
+              <div ref={errorRef} style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 12, padding: '14px 16px', fontSize: 13 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <span style={{ flexShrink: 0, width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#b91c1c', marginTop: 1 }}>
                     <IconAlert size={16} />
                   </span>
-                  {error}
-                </span>
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#991b1b', marginBottom: 4 }}>
+                      {error.startsWith('Payment link creation failed') ? 'Razorpay Payment Link Error' : 'Error'}
+                    </div>
+                    <div style={{ color: '#b91c1c', lineHeight: 1.55 }}>{error}</div>
+                    {error.includes('Razorpay') && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: '#7f1d1d', background: '#fee2e2', borderRadius: 8, padding: '8px 10px' }}>
+                        <strong>Check:</strong> Razorpay API keys in Vercel env vars · Account enabled for this currency · Phone number is valid
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 

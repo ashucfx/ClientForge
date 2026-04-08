@@ -52,8 +52,14 @@ export async function createRazorpayPaymentLink(
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Razorpay API error: ${JSON.stringify(error)}`);
+    const body = await response.json().catch(() => ({}));
+    // Extract the human-readable description Razorpay provides
+    const description: string =
+      body?.error?.description ??
+      body?.error?.code ??
+      body?.message ??
+      JSON.stringify(body);
+    throw new Error(`Razorpay: ${description}`);
   }
 
   const data = await response.json();
