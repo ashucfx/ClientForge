@@ -5,19 +5,24 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { IconGrid, IconPlus, IconList, IconLogout } from '@/components/Icons';
+import { IconGrid, IconPlus, IconList, IconLogout, IconTarget } from '@/components/Icons';
 import { Logo } from '@/components/Logo';
 
-const NAV = [
+const NAV_MAIN = [
   { href: '/',             Icon: IconGrid, label: 'Dashboard'    },
   { href: '/invoices/new', Icon: IconPlus, label: 'New Invoice'  },
   { href: '/invoices',     Icon: IconList, label: 'All Invoices' },
+];
+
+const NAV_CAREER = [
+  { href: '/career', Icon: IconTarget, label: 'Career Booster Services' },
 ];
 
 function isNavActive(href: string, pathname: string) {
   if (href === '/') return pathname === '/';
   if (href === '/invoices/new') return pathname === '/invoices/new';
   if (href === '/invoices') return pathname.startsWith('/invoices') && pathname !== '/invoices/new';
+  if (href === '/career') return pathname.startsWith('/career');
   return pathname.startsWith(href);
 }
 
@@ -52,7 +57,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* Navigation */}
       <nav className="sidebar-nav">
         <span className="nav-section-label">Main</span>
-        {NAV.map(({ href, Icon, label }) => (
+        {NAV_MAIN.map(({ href, Icon, label }) => (
+          <Link
+            key={href}
+            href={href}
+            className={`nav-item${isNavActive(href, pathname) ? ' active' : ''}`}
+            onClick={() => setOpen(false)}
+          >
+            <span className="nav-icon"><Icon size={16} /></span>
+            {label}
+          </Link>
+        ))}
+
+        <span className="nav-section-label" style={{ marginTop: 16 }}>Services</span>
+        {NAV_CAREER.map(({ href, Icon, label }) => (
           <Link
             key={href}
             href={href}

@@ -1,0 +1,107 @@
+// src/lib/career/auth.ts
+// Portal JWT-like token auth — HMAC-SHA256 (Edge-compatible, no jsonwebtoken)
+
+const COOKIE_NAME = 'cf_portal';
+const DEFAULT_TTL = 60 * 60 * 24 * 7; // 7 days
+const MAGIC_TTL   = 60 * 60 * 72;     // 72 hours for magic links
+
+function getSecret(): string {
+  const s = process.env.CAREER_PORTAL_SECRET;
+  if (!s) throw new Error('CAREER_PORTAL_SECRET is not configured');
+  return s;
+}
+
+function b64urlEncode(bytes: Uint8Array): string {
+  const base64 =
+    typeof btoa === 'function'
+      ? (() => { let s = ''; bytes.forEach(b => { s += String.fromCharCode(b); }); return btoa(s); })()
+      : Buffer.from(bytes).toString('base64');
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function b64urlDecode(b64url: string): Uint8Array {
+  const pad = '='.repeat((4 - (b64url.length % 4)) % 4);
+  const b64 = (b64url + pad).replace(/-/g, '+').replace(/_/g, '/');
+  if (typeof atob === 'function') {
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  return new Uint8Array(Buffer.from(b64, 'base64'));
+}
+
+async function hmac(secret: string, data: string): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  return new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data)));
+}
+
+function timingSafe(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let out = 0;
+  for (let i = 0; i < a.length; i++) out |= a[i] ^ b[i];
+  return out === 0;
+}
+
+// ── Portal Session Token ─────────────────────────────────────────────────────
+
+export interface PortalPayload {
+  clientId: string;
+  email: string;
+  iat: number;
+  exp: number;
+}
+
+export async function createPortalToken(clientId: string, email: string): Promise<string> {
+  const secret = getSecret();
+  const now = Math.floor(Date.now() / 1000);
+  const payload: PortalPayload = { clientId, email, iat: now, exp: now + DEFAULT_TTL };
+  const payloadB64 = b64urlEncode(new TextEncoder().encode(JSON.stringify(payload)));
+  const sig = b64urlEncode(await hmac(secret, payloadB64));
+  return `${payloadB64}.${sig}`;
+}
+
+export async function verifyPortalToken(token: string): Promise<PortalPayload | null> {
+  try {
+    const secret = getSecret();
+    const parts = token.split('.');
+    if (parts.length !== 2) return null;
+    const [payloadB64, sigB64] = parts;
+    const expected = await hmac(secret, payloadB64);
+    if (!timingSafe(expected, b64urlDecode(sigB64))) return null;
+    const payload = JSON.parse(new TextDecoder().decode(b64urlDecode(payloadB64))) as PortalPayload;
+    if (Math.floor(Date.now() / 1000) > payload.exp) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+// ── Magic Link Token (short-lived, one-time) ─────────────────────────────────
+
+export function generateMagicToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+export function magicTokenExpiry(): Date {
+  return new Date(Date.now() + MAGIC_TTL * 1000);
+}
+
+// ── Cookie helpers ────────────────────────────────────────────────────────────
+
+export const PORTAL_COOKIE = COOKIE_NAME;
+
+export function portalCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: DEFAULT_TTL,
+  };
+}

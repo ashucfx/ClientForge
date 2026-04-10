@@ -21,6 +21,12 @@ function isPublicPath(pathname: string): boolean {
   // External webhook (authenticated by signature, not cookies)
   if (pathname === '/api/razorpay/webhook' || pathname.startsWith('/api/razorpay/webhook/')) return true;
 
+  // Career Booster — career webhook + portal has its own JWT auth
+  if (pathname === '/api/career/webhook') return true;
+  if (pathname.startsWith('/api/career/auth/')) return true;  // includes magic-link, verify, pin-login (set-pin requires session)
+  if (pathname.startsWith('/api/career/portal/')) return true;
+  if (pathname.startsWith('/portal')) return true;
+
   return false;
 }
 

@@ -105,3 +105,152 @@ model ExchangeRateCache {
 
   @@unique([baseCurrency, targetCurrency])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CAREER BOOSTER MODULE
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum CareerPackage {
+  RESUME
+  LINKEDIN
+  COVER_LETTER
+  FULL
+}
+
+enum CareerStatus {
+  NOT_STARTED
+  SUBMITTED
+  UNDER_PROCESS
+  DRAFT_SENT
+  REVISION_REQUESTED
+  COMPLETED
+}
+
+model CareerClient {
+  id                String        @id @default(cuid())
+  name              String
+  email             String        @unique
+  phone             String?
+  packageType       CareerPackage
+  status            CareerStatus  @default(NOT_STARTED)
+  amountPaid        Float         @default(0)
+  currency          String        @default("INR")
+  razorpayPaymentId String?       @unique
+  razorpayOrderId   String?
+  magicToken        String?
+  magicTokenExpiry  DateTime?
+  pinHash           String?       // HMAC-SHA256 of 6-digit PIN
+  lastLoginAt       DateTime?
+  invoiceId         String?
+  notes             String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  forms        CareerFormSubmission[]
+  deliverables CareerDeliverable[]
+  emailLogs    CareerEmailLog[]
+  activityLogs CareerActivityLog[]
+  revisions    CareerRevision[]
+  comments     CareerComment[]
+
+  @@index([status])
+  @@index([email])
+  @@index([packageType])
+}
+
+model CareerFormSubmission {
+  id          String       @id @default(cuid())
+  clientId    String
+  formType    String
+  formData    Json
+  version     Int          @default(1)
+  submittedAt DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([clientId, formType])
+}
+
+model CareerDeliverable {
+  id          String       @id @default(cuid())
+  clientId    String
+  label       String
+  fileUrl     String
+  publicId    String
+  fileType    String
+  mimeType    String
+  sizeBytes   Int          @default(0)
+  uploadedBy  String
+  emailSent   Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+
+  client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model CareerEmailLog {
+  id        String       @id @default(cuid())
+  clientId  String
+  trigger   String
+  resendId  String?
+  status    String       @default("sent")
+  metadata  Json?
+  sentAt    DateTime     @default(now())
+
+  client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model CareerActivityLog {
+  id          String       @id @default(cuid())
+  clientId    String
+  action      String
+  performedBy String       @default("system")
+  metadata    Json?
+  createdAt   DateTime     @default(now())
+
+  client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model CareerFormSchema {
+  id        String   @id @default(cuid())
+  formType  String   @unique
+  schema    Json
+  version   Int      @default(1)
+  updatedAt DateTime @updatedAt
+}
+
+model CareerRevision {
+  id          String   @id @default(cuid())
+  clientId    String
+  requestedBy String   @default("client") // "client" | "admin"
+  note        String
+  fileLabel   String?  // which deliverable this relates to
+  status      String   @default("PENDING") // PENDING | APPROVED | DENIED
+  adminNote   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model CareerComment {
+  id         String   @id @default(cuid())
+  clientId   String
+  authorType String   @default("client") // "client" | "admin"
+  authorName String
+  content    String
+  createdAt  DateTime @default(now())
+
+  client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
