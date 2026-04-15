@@ -76,18 +76,31 @@ export async function uploadToCloudinary(
     fileUrl: data.secure_url,
     mimeType: mimeMap[data.format] ?? `${data.resource_type}/${data.format}`,
     sizeBytes: data.bytes,
-    originalName: data.original_filename,
+    // Cloudinary strips extension from original_filename — re-append it
+    originalName: data.original_filename
+      ? `${data.original_filename}.${data.format}`
+      : `file.${data.format}`,
   };
 }
 
 export async function deleteFromCloudinary(publicId: string): Promise<void> {
   const timestamp = String(Math.floor(Date.now() / 1000));
-  const signature = await buildSignature({ public_id: publicId, timestamp });
-  const body = new URLSearchParams({ public_id: publicId, api_key: API_KEY, timestamp, signature });
 
-  await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/destroy`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
-  });
+  // Try each resource type — Cloudinary requires the correct type for deletion.
+  // Files uploaded via /auto/upload may land as 'image', 'video', or 'raw'.
+  for (const resourceType of ['raw', 'image', 'video']) {
+    const signature = await buildSignature({ public_id: publicId, resource_type: resourceType, timestamp });
+    const body = new URLSearchParams({ public_id: publicId, api_key: API_KEY, timestamp, resource_type: resourceType, signature });
+
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/destroy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+
+    if (res.ok) {
+      const data = await res.json() as { result?: string };
+      if (data.result === 'ok') return; // deleted successfully
+    }
+  }
 }

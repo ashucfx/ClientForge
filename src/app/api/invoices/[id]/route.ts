@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { cancelRazorpayPaymentLink, createRazorpayPaymentLink } from '@/lib/razorpay';
+import { cancelPaypalInvoice } from '@/lib/paypal';
 import { calculatePricing, round2 } from '@/lib/pricing';
 import { isAdminRequest } from '@/lib/auth';
 
@@ -130,9 +131,13 @@ export async function DELETE(
     const invoice = await prisma.invoice.findUnique({ where: { id: params.id } });
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
 
-    // If there's a pending Razorpay link, cancel it first (best-effort)
-    if (invoice.razorpayLinkId && invoice.status === 'PENDING') {
-      await cancelRazorpayPaymentLink(invoice.razorpayLinkId);
+    // Cancel the active payment link (best-effort) before deletion
+    if (invoice.status === 'PENDING') {
+      if (invoice.paymentGateway === 'PAYPAL' && invoice.paypalInvoiceId) {
+        await cancelPaypalInvoice(invoice.paypalInvoiceId);
+      } else if (invoice.razorpayLinkId) {
+        await cancelRazorpayPaymentLink(invoice.razorpayLinkId);
+      }
     }
 
     await prisma.invoice.delete({ where: { id: params.id } });

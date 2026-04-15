@@ -498,11 +498,19 @@ export default function InvoiceDetailPage() {
             >
               {resending ? '⏳ Sending…' : '📧 Resend Email'}
             </button>
-            {invoice.razorpayLinkUrl && invoice.status === 'PENDING' && (
-              <a href={invoice.razorpayLinkUrl} target="_blank" rel="noopener noreferrer"
-                className="btn btn-primary" style={{ fontSize: 13, padding: '8px 14px' }}>
-                Payment Link ↗
-              </a>
+            {invoice.status === 'PENDING' && (
+              (() => {
+                const isPayPal = invoice.paymentGateway === 'PAYPAL';
+                const payUrl   = isPayPal
+                  ? (invoice.paypalPaymentUrl ?? undefined)
+                  : (invoice.razorpayLinkUrl ?? undefined);
+                return payUrl ? (
+                  <a href={payUrl} target="_blank" rel="noopener noreferrer"
+                     className="btn btn-primary" style={{ fontSize: 13, padding: '8px 14px' }}>
+                    {isPayPal ? 'PayPal Link ↗' : 'Payment Link ↗'}
+                  </a>
+                ) : null;
+              })()
             )}
             {invoice.status !== 'PAID' && (
               <button
@@ -702,16 +710,47 @@ export default function InvoiceDetailPage() {
               </div>
 
               {/* CTA / Paid state */}
-              {invoice.status === 'PENDING' && invoice.razorpayLinkUrl && (
-                <div style={{ background: '#f8faff', borderTop: '1px solid var(--border-blue)', padding: '24px 36px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>Secure payment via Razorpay &nbsp;🔒&nbsp; UPI · Cards · Net Banking</div>
-                  <a href={invoice.razorpayLinkUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ fontSize: 16, padding: '14px 36px', boxShadow: '0 4px 20px rgba(31,86,212,.35)' }}>
-                    💳 Pay {fmt(invoice.totalPayable)} Now
-                  </a>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 10, wordBreak: 'break-all' }}>
-                    {invoice.razorpayLinkUrl}
-                  </div>
-                </div>
+              {invoice.status === 'PENDING' && (
+                <>
+                  {/* Razorpay CTA */}
+                  {invoice.paymentGateway !== 'PAYPAL' && invoice.razorpayLinkUrl && (
+                    <div style={{ background: '#f8faff', borderTop: '1px solid var(--border-blue)', padding: '24px 36px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+                        Secure payment via <strong>Razorpay</strong> &mdash; UPI · Cards · Net Banking
+                      </div>
+                      <a href={invoice.razorpayLinkUrl} target="_blank" rel="noopener noreferrer"
+                         className="btn btn-primary" style={{ fontSize: 16, padding: '14px 36px', boxShadow: '0 4px 20px rgba(31,86,212,.35)' }}>
+                        Pay {fmt(invoice.totalPayable)} Now
+                      </a>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 10, wordBreak: 'break-all' }}>
+                        {invoice.razorpayLinkUrl}
+                      </div>
+                    </div>
+                  )}
+                  {/* PayPal CTA */}
+                  {invoice.paymentGateway === 'PAYPAL' && invoice.paypalPaymentUrl && (
+                    <div style={{ background: '#f0f4ff', borderTop: '1px solid #c7d2fe', padding: '24px 36px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+                        Secure payment via <strong style={{ color: '#003087' }}>PayPal</strong> &mdash; Cards · PayPal Balance · Bank Transfer
+                      </div>
+                      <a href={invoice.paypalPaymentUrl!}
+                         target="_blank" rel="noopener noreferrer"
+                         style={{
+                           display: 'inline-block',
+                           background: 'linear-gradient(135deg,#003087 0%,#009cde 100%)',
+                           color: '#fff', textDecoration: 'none',
+                           padding: '14px 36px', borderRadius: 8,
+                           fontWeight: 800, fontSize: 16,
+                           boxShadow: '0 4px 20px rgba(0,48,135,.35)',
+                         }}>
+                        Pay {fmt(invoice.totalPayable)} via PayPal
+                      </a>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 10, wordBreak: 'break-all' }}>
+                        {invoice.paypalPaymentUrl!}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {invoice.status === 'PAID' && (
@@ -768,6 +807,11 @@ export default function InvoiceDetailPage() {
               <div className="space-y-3">
                 {[
                   ['Status',   <StatusBadge key="s" status={invoice.status} />],
+                  ['Gateway',  <span key="gw" style={{
+                    background: invoice.paymentGateway === 'PAYPAL' ? '#e0f0ff' : '#eef2ff',
+                    color:      invoice.paymentGateway === 'PAYPAL' ? '#003087' : '#1f56d4',
+                    borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700,
+                  }}>{invoice.paymentGateway ?? 'RAZORPAY'}</span>],
                   ['Email',    invoice.emailSentAt ? `Sent ${format(new Date(invoice.emailSentAt), 'dd MMM')}` : 'Not sent'],
                   ...(invoice.emailResendCount > 0 ? [['Resends', `${invoice.emailResendCount}×`]] : []),
                   ...(invoice.razorpayLinkId ? [['Razorpay ID', <span key="r" className="mono text-xs truncate" style={{ color: 'var(--blue)', maxWidth: 120, display: 'block' }}>{invoice.razorpayLinkId}</span>]] : []),
@@ -834,7 +878,7 @@ export default function InvoiceDetailPage() {
                       onClick={handleSyncRazorpay}
                       disabled={syncing}
                     >
-                      {syncing ? 'Syncing…' : 'Sync Razorpay Status'}
+                      {syncing ? 'Syncing…' : `Sync ${invoice.paymentGateway === 'PAYPAL' ? 'PayPal' : 'Razorpay'}`}
                     </button>
                   )}
                 </>

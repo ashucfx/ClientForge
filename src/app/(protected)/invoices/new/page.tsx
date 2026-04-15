@@ -219,11 +219,12 @@ export default function NewInvoicePage() {
   const [currencyOverride, setCurrencyOverride] = useState('');
 
   // Invoice settings
-  const [lineItems,    setLineItems]    = useState<LineItem[]>([]);
-  const [discountRate, setDiscountRate] = useState(0);
-  const [taxRate,      setTaxRate]      = useState(0);
-  const [notes,        setNotes]        = useState('');
-  const [dueDays,      setDueDays]      = useState(7);
+  const [lineItems,       setLineItems]       = useState<LineItem[]>([]);
+  const [discountRate,    setDiscountRate]    = useState(0);
+  const [taxRate,         setTaxRate]         = useState(0);
+  const [notes,           setNotes]           = useState('');
+  const [dueDays,         setDueDays]         = useState(7);
+  const [paymentGateway,  setPaymentGateway]  = useState<'RAZORPAY' | 'PAYPAL'>('PAYPAL');
 
   // Currency state
   const [currencyInfo,  setCurrencyInfo]  = useState<CurrencyInfo | null>({ code: 'INR', symbol: '₹', name: 'Indian Rupee' });
@@ -312,6 +313,7 @@ export default function NewInvoicePage() {
     setSubmitting(true);
     setError('');
     try {
+      const effectiveCurrency = currencyOverride.trim() || currencyInfo?.code || 'INR';
       const res = await fetch('/api/invoices', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -323,6 +325,8 @@ export default function NewInvoicePage() {
           country,
           clientType,
           currencyOverride: currencyOverride.trim() || undefined,
+          // INR always uses Razorpay (enforced server-side too)
+          paymentGateway: effectiveCurrency === 'INR' ? 'RAZORPAY' : paymentGateway,
           lineItems: validItems,
           discountRate,
           taxRate,
@@ -416,7 +420,9 @@ export default function NewInvoicePage() {
                   <div style={{ marginTop: 6, fontSize: 11, color: phonePreview ? 'var(--muted)' : '#ef4444' }}>
                     {clientPhone.trim()
                       ? (phonePreview
-                        ? `Will be sent to Razorpay as: ${phonePreview.e164}`
+                        ? ((currencyInfo?.code ?? 'INR') !== 'INR' && paymentGateway === 'PAYPAL'
+                            ? `Formatted: ${phonePreview.e164} (stored for records)`
+                            : `Will be sent to Razorpay as: ${phonePreview.e164}`)
                         : 'Invalid phone number for the selected country.'
                       )
                       : 'Enter a mobile number (we format it for international SMS).'
@@ -619,6 +625,73 @@ export default function NewInvoicePage() {
               </div>
             </SectionCard>
 
+            {/* 5. Payment Gateway — only shown for non-INR */}
+            {(currencyInfo?.code ?? 'INR') !== 'INR' && (
+              <SectionCard title="Payment Gateway" icon={<IconCreditCard />}>
+                <div style={{ marginBottom: 10, fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
+                  Indian clients (INR) always use <strong>Razorpay</strong>. For international clients you can choose.
+                  PayPal is recommended — lower conversion losses and familiar to international buyers.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {([
+                    {
+                      value: 'PAYPAL' as const,
+                      label: 'PayPal',
+                      sub: 'Recommended for international',
+                      fee: '3.49% + fixed fee',
+                      color: '#003087',
+                      badge: 'Recommended',
+                    },
+                    {
+                      value: 'RAZORPAY' as const,
+                      label: 'Razorpay',
+                      sub: 'Works internationally too',
+                      fee: '3% + GST (may vary)',
+                      color: '#1f56d4',
+                      badge: null,
+                    },
+                  ] as const).map(opt => {
+                    const sel = paymentGateway === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setPaymentGateway(opt.value)}
+                        style={{
+                          border: `2px solid ${sel ? opt.color : 'var(--border)'}`,
+                          background: sel ? `${opt.color}10` : '#fff',
+                          borderRadius: 12, padding: '14px 16px',
+                          cursor: 'pointer', textAlign: 'left', transition: 'all .15s',
+                          position: 'relative',
+                        }}
+                      >
+                        {opt.badge && (
+                          <span style={{
+                            position: 'absolute', top: 8, right: 8,
+                            background: '#dcfce7', color: '#15803d',
+                            fontSize: 10, fontWeight: 700, borderRadius: 20,
+                            padding: '2px 7px', letterSpacing: '.3px',
+                          }}>
+                            {opt.badge}
+                          </span>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <span style={{ fontSize: 14, fontWeight: 800, color: sel ? opt.color : 'var(--text)' }}>
+                            {opt.label}
+                          </span>
+                          <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${sel ? opt.color : '#d1d5db'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {sel && <div style={{ width: 8, height: 8, borderRadius: '50%', background: opt.color }} />}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{opt.sub}</div>
+                        <div style={{ fontSize: 11, color: opt.color, fontWeight: 600 }}>Fee: {opt.fee}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </SectionCard>
+            )}
+
             {/* Error */}
             {error && (
               <div ref={errorRef} style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 12, padding: '14px 16px', fontSize: 13 }}>
@@ -628,10 +701,17 @@ export default function NewInvoicePage() {
                   </span>
                   <div>
                     <div style={{ fontWeight: 700, color: '#991b1b', marginBottom: 4 }}>
-                      {error.startsWith('Payment link creation failed') ? 'Razorpay Payment Link Error' : 'Error'}
+                      {error.startsWith('Payment link creation failed')
+                        ? (error.includes('(PAYPAL)') ? 'PayPal Payment Link Error' : 'Razorpay Payment Link Error')
+                        : 'Error'}
                     </div>
                     <div style={{ color: '#b91c1c', lineHeight: 1.55 }}>{error}</div>
-                    {error.includes('Razorpay') && (
+                    {error.includes('(PAYPAL)') && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: '#7f1d1d', background: '#fee2e2', borderRadius: 8, padding: '8px 10px' }}>
+                        <strong>Check:</strong> PayPal Client ID &amp; Secret in env vars (must be different values) · PAYPAL_ENV matches your app type (sandbox vs production) · App has Invoicing permission enabled
+                      </div>
+                    )}
+                    {error.includes('Razorpay') && !error.includes('(PAYPAL)') && (
                       <div style={{ marginTop: 8, fontSize: 12, color: '#7f1d1d', background: '#fee2e2', borderRadius: 8, padding: '8px 10px' }}>
                         <strong>Check:</strong> Razorpay API keys in Vercel env vars · Account enabled for this currency · Phone number is valid
                       </div>
@@ -669,7 +749,7 @@ export default function NewInvoicePage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {([
                   [<IconList key="inv" />, 'Unique invoice number generated'],
-                  [<IconLink key="link" />, 'Razorpay payment link created'],
+                  [<IconLink key="link" />, `${(currencyInfo?.code ?? 'INR') === 'INR' ? 'Razorpay' : paymentGateway === 'PAYPAL' ? 'PayPal' : 'Razorpay'} payment link created`],
                   [<IconMail key="mail" />, 'Branded email sent instantly'],
                   [<IconCreditCard key="pay" />, 'Client pays via secure link'],
                   [<IconCheck key="ok" style={{ color: '#3FBD8B' }} />, 'Status auto-updates on payment'],

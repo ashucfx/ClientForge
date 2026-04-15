@@ -102,6 +102,11 @@ export interface InvoiceData {
   notes:         string | null;
   customPricing: boolean;
 
+  // Payment gateway
+  paymentGateway:  string;           // "RAZORPAY" | "PAYPAL"
+  paypalInvoiceId:  string | null;
+  paypalPaymentUrl: string | null;
+
   // Payment
   status:            InvoiceStatus;
   razorpayLinkId:    string | null;

@@ -181,7 +181,7 @@ ${discountLine}${taxLine}${'Processing Fee (' + (invoice.processingFeeRate * 100
 ─────────────────────────────────────
 TOTAL PAYABLE                      ${fmt(invoice.totalPayable)} ${invoice.currency}
 ─────────────────────────────────────
-${invoice.razorpayLinkUrl ? `PAY NOW: ${invoice.razorpayLinkUrl}` : ''}
+${invoice.razorpayLinkUrl ? `PAY NOW: ${invoice.razorpayLinkUrl}` : invoice.paypalPaymentUrl ? `PAY NOW: ${invoice.paypalPaymentUrl}` : ''}
 
 Terms: No refunds after work commences. Delivery within 2–4 business days. 2 revisions included.
 
@@ -227,10 +227,12 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
   const invoiceDateStr = new Date(invoice.invoiceDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const dueDateStr     = new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-  const payBtnHTML = invoice.razorpayLinkUrl
+  const payUrl = invoice.razorpayLinkUrl || invoice.paypalPaymentUrl || '';
+  const isPayPal = !invoice.razorpayLinkUrl && !!invoice.paypalPaymentUrl;
+  const payBtnHTML = payUrl
     ? `<!--[if mso]>
         <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
-          href="${invoice.razorpayLinkUrl}" style="height:52px;v-text-anchor:middle;width:260px;" arcsize="15%"
+          href="${payUrl}" style="height:52px;v-text-anchor:middle;width:260px;" arcsize="15%"
           stroke="f" fillcolor="#2B5CE6">
           <w:anchorlock/>
           <center style="color:#ffffff;font-family:Helvetica,sans-serif;font-size:17px;font-weight:700;">
@@ -239,7 +241,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
         </v:roundrect>
         <![endif]-->
         <!--[if !mso]><!-->
-        <a href="${invoice.razorpayLinkUrl}"
+        <a href="${payUrl}"
            target="_blank"
            style="display:inline-block;background:linear-gradient(135deg,#2B5CE6 0%,#1a42a0 100%);color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:8px;font-family:Helvetica,Arial,sans-serif;font-size:17px;font-weight:800;letter-spacing:0.3px;box-shadow:0 4px 16px rgba(43,92,230,0.45);mso-hide:all;">
           Pay Now &mdash; ${fmt(invoice.totalPayable)}
@@ -326,14 +328,27 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
     table, td { mso-table-lspace:0pt; mso-table-rspace:0pt; border-collapse:collapse; }
     img { -ms-interpolation-mode:bicubic; border:0; outline:none; text-decoration:none; }
     /* Mobile */
-    @media only screen and (max-width:640px) {
-      .email-container { width:100% !important; }
-      .mobile-pad      { padding:20px 16px !important; }
-      .mobile-center   { text-align:center !important; }
-      .mobile-hide     { display:none !important; }
-      .mobile-full     { width:100% !important; display:block !important; }
-      .hero-title      { font-size:24px !important; }
-      .btn-pay         { padding:14px 24px !important; font-size:15px !important; }
+    @media only screen and (max-width:600px) {
+      .email-container  { width:100% !important; }
+      .mobile-pad       { padding:18px 14px !important; }
+      .mobile-center    { text-align:center !important; }
+      .mobile-hide      { display:none !important; }
+      .mobile-full      { width:100% !important; display:block !important; }
+      .hero-title       { font-size:22px !important; }
+      .btn-pay          { padding:14px 20px !important; font-size:15px !important; display:block !important; text-align:center !important; }
+      /* Header: hide invoice badge on small screens, let brand breathe */
+      .hdr-badge        { display:none !important; }
+      /* Meta grid: stack 50/50 cells full-width */
+      .meta-cell        { display:block !important; width:100% !important; box-sizing:border-box !important; border-right:none !important; border-bottom:1px solid #dce6ff !important; }
+      /* Timeline: hide arrows, let steps wrap */
+      .tl-arrow         { display:none !important; }
+      .tl-step          { display:inline-block !important; width:30% !important; }
+      /* Trust badges: keep 3-up but smaller */
+      .badge-cell       { padding:0 2px !important; }
+      /* Total amount font size */
+      .total-amount     { font-size:22px !important; }
+      /* Footer: stack brand & ref */
+      .footer-ref       { display:none !important; }
     }
   </style>
 </head>
@@ -361,14 +376,14 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
             <td valign="middle">
               <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td valign="middle" style="padding-right:12px;">
+                  <td valign="middle" style="padding-right:10px;width:44px;">
                     ${LOGO_SVG}
                   </td>
-                  <td valign="middle">
-                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;line-height:1;">
-                      Ripple<span style="color:#ffffff;">Nexus</span>
+                  <td valign="middle" style="white-space:nowrap;">
+                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;line-height:1;white-space:nowrap;">
+                      Ripple&nbsp;Nexus
                     </div>
-                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:rgba(255,255,255,0.65);letter-spacing:1.2px;text-transform:uppercase;margin-top:3px;">
+                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:rgba(255,255,255,0.65);letter-spacing:1px;text-transform:uppercase;margin-top:3px;white-space:nowrap;">
                       Career Acceleration
                     </div>
                   </td>
@@ -376,7 +391,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
               </table>
             </td>
             <!-- Invoice Badge -->
-            <td align="right" valign="middle">
+            <td class="hdr-badge" align="right" valign="middle">
               <table role="presentation" cellpadding="0" cellspacing="0"
                      style="background:rgba(255,255,255,0.12);border-radius:10px;border:1px solid rgba(255,255,255,0.2);">
                 <tr>
@@ -418,23 +433,23 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
                style="background:#f5f8ff;border-radius:12px;border:1px solid #dce6ff;overflow:hidden;">
           <tr>
-            <td width="50%" style="padding:14px 18px;border-right:1px solid #dce6ff;">
+            <td class="meta-cell" width="50%" style="padding:14px 18px;border-right:1px solid #dce6ff;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#7c8db5;text-transform:uppercase;letter-spacing:1.2px;">Billed To</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#0d1b4b;font-weight:700;margin-top:4px;">${invoice.clientName}</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#6b7280;margin-top:2px;">${invoice.clientEmail}</div>
             </td>
-            <td width="50%" style="padding:14px 18px;">
+            <td class="meta-cell" width="50%" style="padding:14px 18px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#7c8db5;text-transform:uppercase;letter-spacing:1.2px;">Package</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#2B5CE6;font-weight:700;margin-top:4px;">${CLIENT_TYPE_LABELS[invoice.clientType]}</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#6b7280;margin-top:2px;">${invoice.country}</div>
             </td>
           </tr>
           <tr>
-            <td style="padding:12px 18px;border-top:1px solid #dce6ff;border-right:1px solid #dce6ff;">
+            <td class="meta-cell" style="padding:12px 18px;border-top:1px solid #dce6ff;border-right:1px solid #dce6ff;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#7c8db5;text-transform:uppercase;letter-spacing:1.2px;">Issue Date</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#0d1b4b;font-weight:600;margin-top:4px;">${invoiceDateStr}</div>
             </td>
-            <td style="padding:12px 18px;border-top:1px solid #dce6ff;">
+            <td class="meta-cell" style="padding:12px 18px;border-top:1px solid #dce6ff;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#7c8db5;text-transform:uppercase;letter-spacing:1.2px;">Due Date</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#dc2626;font-weight:700;margin-top:4px;">${dueDateStr}</div>
             </td>
@@ -498,7 +513,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
                     <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px;">${invoice.currency} &bull; incl. all fees</div>
                   </td>
                   <td align="right">
-                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:28px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">${fmt(invoice.totalPayable)}</div>
+                    <div class="total-amount" style="font-family:Helvetica,Arial,sans-serif;font-size:28px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">${fmt(invoice.totalPayable)}</div>
                   </td>
                 </tr>
               </table>
@@ -509,23 +524,24 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
     </tr>
 
     <!-- ══════════════════ PAY NOW CTA ══════════════════ -->
-    ${invoice.razorpayLinkUrl ? `
+    ${payUrl ? `
     <tr>
       <td class="mobile-pad" style="padding:28px 36px 8px;" align="center">
-        <table role="presentation" cellpadding="0" cellspacing="0">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:320px;">
           <tr>
-            <td align="center" style="border-radius:8px;"
-                bgcolor="#2B5CE6">
+            <td align="center" style="border-radius:8px;" bgcolor="#2B5CE6">
               ${payBtnHTML}
             </td>
           </tr>
         </table>
         <div style="margin-top:12px;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#9ca3af;">
-          Secure payment via Razorpay &mdash; UPI &bull; Cards &bull; Net Banking &bull; Wallets
+          ${isPayPal
+            ? 'Secure payment via PayPal &mdash; Cards &bull; PayPal Balance &bull; Bank Transfer'
+            : 'Secure payment via Razorpay &mdash; UPI &bull; Cards &bull; Net Banking &bull; Wallets'}
         </div>
         <div style="margin-top:8px;font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#b0b8cc;">
           Or paste this link in your browser:<br/>
-          <a href="${invoice.razorpayLinkUrl}" style="color:#2B5CE6;word-break:break-all;">${invoice.razorpayLinkUrl}</a>
+          <a href="${payUrl}" style="color:#2B5CE6;word-break:break-all;">${payUrl}</a>
         </div>
       </td>
     </tr>` : ''}
@@ -539,23 +555,23 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
           <tr>
             <!-- Step 1 -->
-            <td width="25%" align="center" valign="top" style="padding:0 6px;">
+            <td class="tl-step" width="25%" align="center" valign="top" style="padding:0 6px;">
               <div style="width:36px;height:36px;background:#eef2ff;border-radius:50%;margin:0 auto 8px;text-align:center;line-height:36px;font-size:15px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#2B5CE6;">1</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#0d1b4b;text-align:center;">Payment</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#9ca3af;text-align:center;margin-top:2px;">Instant</div>
             </td>
             <!-- Arrow -->
-            <td width="8%" align="center" valign="top" style="padding-top:10px;font-size:18px;color:#c7d2fe;">&rarr;</td>
+            <td class="tl-arrow" width="8%" align="center" valign="top" style="padding-top:10px;font-size:18px;color:#c7d2fe;">&rarr;</td>
             <!-- Step 2 -->
-            <td width="25%" align="center" valign="top" style="padding:0 6px;">
+            <td class="tl-step" width="25%" align="center" valign="top" style="padding:0 6px;">
               <div style="width:36px;height:36px;background:#eef2ff;border-radius:50%;margin:0 auto 8px;text-align:center;line-height:36px;font-size:15px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#2B5CE6;">2</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#0d1b4b;text-align:center;">Kickoff</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#9ca3af;text-align:center;margin-top:2px;">Within 24 hrs</div>
             </td>
             <!-- Arrow -->
-            <td width="8%" align="center" valign="top" style="padding-top:10px;font-size:18px;color:#c7d2fe;">&rarr;</td>
+            <td class="tl-arrow" width="8%" align="center" valign="top" style="padding-top:10px;font-size:18px;color:#c7d2fe;">&rarr;</td>
             <!-- Step 3 -->
-            <td width="25%" align="center" valign="top" style="padding:0 6px;">
+            <td class="tl-step" width="25%" align="center" valign="top" style="padding:0 6px;">
               <div style="width:36px;height:36px;background:#eef2ff;border-radius:50%;margin:0 auto 8px;text-align:center;line-height:36px;font-size:15px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#2B5CE6;">3</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#0d1b4b;text-align:center;">Delivery</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#9ca3af;text-align:center;margin-top:2px;">2–4 business days</div>
@@ -590,19 +606,19 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
       <td class="mobile-pad" style="padding:20px 36px 0;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
           <tr>
-            <td width="33%" align="center" style="padding:0 4px;">
+            <td class="badge-cell" width="33%" align="center" style="padding:0 4px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#6b7280;text-align:center;">
                 <div style="width:32px;height:32px;background:#eef2ff;border-radius:50%;margin:0 auto 6px;text-align:center;line-height:32px;font-size:11px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#2B5CE6;">SSL</div>
                 <strong style="color:#0d1b4b;">Secure Payment</strong><br/>256-bit SSL
               </div>
             </td>
-            <td width="33%" align="center" style="padding:0 4px;">
+            <td class="badge-cell" width="33%" align="center" style="padding:0 4px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#6b7280;text-align:center;">
                 <div style="width:32px;height:32px;background:#eef2ff;border-radius:50%;margin:0 auto 6px;text-align:center;line-height:32px;font-size:11px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#2B5CE6;">2-4</div>
                 <strong style="color:#0d1b4b;">Fast Delivery</strong><br/>2–4 Business Days
               </div>
             </td>
-            <td width="33%" align="center" style="padding:0 4px;">
+            <td class="badge-cell" width="33%" align="center" style="padding:0 4px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#6b7280;text-align:center;">
                 <div style="width:32px;height:32px;background:#eef2ff;border-radius:50%;margin:0 auto 6px;text-align:center;line-height:32px;font-size:11px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#2B5CE6;">x2</div>
                 <strong style="color:#0d1b4b;">2 Revisions</strong><br/>Satisfaction Driven
@@ -648,8 +664,8 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
                     </svg>
                   </td>
                   <td valign="middle">
-                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:#2B5CE6;line-height:1;">
-                      Ripple<span style="color:#5CC8A0;">Nexus</span>
+                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:#2B5CE6;line-height:1;white-space:nowrap;">
+                      Ripple&nbsp;<span style="color:#5CC8A0;">Nexus</span>
                     </div>
                     <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#9ca3af;margin-top:3px;">
                       <a href="mailto:${REPLY_TO}" style="color:#9ca3af;text-decoration:none;">${REPLY_TO}</a>
@@ -661,7 +677,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
               </table>
             </td>
             <!-- Invoice ref -->
-            <td align="right" valign="middle">
+            <td class="footer-ref" align="right" valign="middle">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#b0b8cc;">
                 Ref: ${invoice.invoiceNumber}
               </div>

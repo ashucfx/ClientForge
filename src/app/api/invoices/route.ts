@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { getCurrencyForCountry, getExchangeRate } from '@/lib/currency';
 import { generateInvoiceNumber, FEE_RATES, round2 } from '@/lib/pricing';
 import { createRazorpayPaymentLink } from '@/lib/razorpay';
+import { createPaypalInvoice } from '@/lib/paypal';
 import { sendInvoiceEmail } from '@/lib/email';
 import { normalizePhoneE164 } from '@/lib/phone';
 import { isAdminRequest } from '@/lib/auth';
@@ -31,6 +32,7 @@ const CreateInvoiceSchema = z.object({
   country:      z.string().min(2),
   clientType:   z.enum(['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS']),
   currencyOverride: z.string().optional(),
+  paymentGateway:   z.enum(['RAZORPAY', 'PAYPAL']).optional(), // admin chooses; INR always forces RAZORPAY
   lineItems:    z.array(LineItemSchema).min(1),
   discountRate: z.number().min(0).max(100).default(0),
   taxRate:      z.number().min(0).max(100).default(0),
@@ -91,6 +93,7 @@ export async function POST(request: NextRequest) {
     const {
       clientName, clientEmail, clientPhone, companyName,
       country, clientType, currencyOverride,
+      paymentGateway: requestedGateway,
       lineItems, discountRate, taxRate, notes, dueDays,
     } = parsed.data;
 
@@ -151,29 +154,61 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // ── Razorpay payment link — REQUIRED ──
-    // If this fails we delete the invoice so the dashboard stays clean.
-    let razorpayLinkId:  string;
-    let razorpayLinkUrl: string;
+    // ── Determine gateway ───────────────────────────────────────
+    // Indian clients (INR) → always Razorpay
+    // International → admin choice (default PayPal)
+    const gateway: 'RAZORPAY' | 'PAYPAL' =
+      currencyCode === 'INR' ? 'RAZORPAY' : (requestedGateway ?? 'PAYPAL');
+
+    // ── Create payment link ──────────────────────────────────────
+    // On failure → delete orphaned invoice so dashboard stays clean
+    let gatewayUpdate: Record<string, string> = {};
+
     try {
-      const rzp = await createRazorpayPaymentLink(invoice as unknown as Parameters<typeof createRazorpayPaymentLink>[0]);
-      razorpayLinkId  = rzp.id;
-      razorpayLinkUrl = rzp.short_url;
-    } catch (rzpErr) {
-      // Rollback: remove the orphaned invoice so it never shows in dashboard
+      if (gateway === 'RAZORPAY') {
+        const rzp = await createRazorpayPaymentLink(
+          invoice as unknown as Parameters<typeof createRazorpayPaymentLink>[0]
+        );
+        gatewayUpdate = {
+          paymentGateway:  'RAZORPAY',
+          razorpayLinkId:  rzp.id,
+          razorpayLinkUrl: rzp.short_url,
+        };
+      } else {
+        const pp = await createPaypalInvoice({
+          id:            invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          clientName:    invoice.clientName,
+          clientEmail:   invoice.clientEmail,
+          currency:      invoice.currency,
+          dueDate:       invoice.dueDate,
+          notes:         invoice.notes,
+          lineItems:     (safeItems as LineItem[]).map(i => ({
+            description: i.description,
+            qty:         i.qty,
+            unitPrice:   i.unitPrice,
+          })),
+        });
+        gatewayUpdate = {
+          paymentGateway:  'PAYPAL',
+          paypalInvoiceId: pp.id,
+          paypalPaymentUrl: pp.paymentUrl,
+        };
+      }
+    } catch (gwErr) {
       await prisma.invoice.delete({ where: { id: invoice.id } }).catch(() => {});
-      const detail = rzpErr instanceof Error ? rzpErr.message : String(rzpErr);
-      console.error('[Razorpay] Payment link creation failed:', detail);
+      const detail = gwErr instanceof Error ? gwErr.message : String(gwErr);
+      console.error(`[${gateway}] Payment link creation failed:`, detail);
       return NextResponse.json(
-        { error: `Payment link creation failed — ${detail}` },
+        { error: `Payment link creation failed (${gateway}) — ${detail}` },
         { status: 422 }
       );
     }
 
-    // Persist the Razorpay link on the invoice
+    // Persist gateway fields on the invoice
     const fullInvoice = await prisma.invoice.update({
       where: { id: invoice.id },
-      data:  { razorpayLinkId, razorpayLinkUrl },
+      data:  gatewayUpdate,
     });
 
     // ── Send email (non-fatal — invoice is already created & link generated) ──

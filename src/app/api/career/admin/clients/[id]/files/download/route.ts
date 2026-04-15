@@ -22,13 +22,16 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const upstream = await fetch(file.fileUrl);
   if (!upstream.ok) return NextResponse.json({ error: 'Fetch failed' }, { status: 502 });
 
+  const buffer = await upstream.arrayBuffer();
+
   const filename = file.originalName || file.label || 'download';
   const safe = filename.replace(/[^\w.\- ]/g, '_');
 
-  return new NextResponse(upstream.body, {
+  return new NextResponse(buffer, {
     headers: {
       'Content-Type': file.mimeType || 'application/octet-stream',
       'Content-Disposition': `attachment; filename="${safe}"`,
+      'Content-Length': String(buffer.byteLength),
     },
   });
 }
