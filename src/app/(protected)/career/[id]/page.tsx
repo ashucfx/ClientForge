@@ -1235,7 +1235,7 @@ function FilesTab({ client, onUpdated }: { client: ClientDetail; onUpdated: () =
             <p className="text-xs font-bold text-amber-700 uppercase tracking-wide">Drafts ({drafts.length})</p>
           </div>
           <div className="divide-y divide-slate-100">
-            {drafts.map(file => <FileRow key={file.id} file={file} onDelete={deleteFile} deleting={deleting} />)}
+            {drafts.map(file => <FileRow key={file.id} file={file} clientId={clientId} onDelete={deleteFile} deleting={deleting} />)}
           </div>
         </div>
       )}
@@ -1248,7 +1248,7 @@ function FilesTab({ client, onUpdated }: { client: ClientDetail; onUpdated: () =
             <p className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Final Deliverables ({finals.length})</p>
           </div>
           <div className="divide-y divide-slate-100">
-            {finals.map(file => <FileRow key={file.id} file={file} onDelete={deleteFile} deleting={deleting} />)}
+            {finals.map(file => <FileRow key={file.id} file={file} clientId={clientId} onDelete={deleteFile} deleting={deleting} />)}
           </div>
         </div>
       )}
@@ -1261,8 +1261,9 @@ function FilesTab({ client, onUpdated }: { client: ClientDetail; onUpdated: () =
   );
 }
 
-function FileRow({ file, onDelete, deleting }: {
+function FileRow({ file, clientId, onDelete, deleting }: {
   file: Deliverable;
+  clientId: string;
   onDelete: (id: string) => void;
   deleting: string | null;
 }) {
@@ -1288,11 +1289,12 @@ function FileRow({ file, onDelete, deleting }: {
         </p>
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
-        <a href={file.fileUrl} target="_blank" rel="noopener noreferrer"
+        <a href={`/api/career/admin/clients/${clientId}/files/preview?fileId=${file.id}`}
+          target="_blank" rel="noopener noreferrer"
           className="px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium transition-colors">
           Preview
         </a>
-        <a href={file.fileUrl} download
+        <a href={`/api/career/admin/clients/${clientId}/files/download?fileId=${file.id}`}
           className="px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium transition-colors">
           Download
         </a>

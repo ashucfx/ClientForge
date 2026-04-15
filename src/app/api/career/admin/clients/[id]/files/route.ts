@@ -122,7 +122,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       fileType,
       mimeType:     uploaded.mimeType,
       sizeBytes:    uploaded.sizeBytes,
-      originalName: uploaded.originalName || file.name,
+      // file.name is the browser's original filename — always use it first.
+      // uploaded.originalName comes from Cloudinary's original_filename which
+      // can be the random public_id for older uploads, not the real filename.
+      originalName: file.name || uploaded.originalName,
       fileCategory,
       uploadedBy: 'admin',
     },

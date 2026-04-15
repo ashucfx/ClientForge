@@ -8,10 +8,97 @@ const FOLDER     = 'career-booster';
 
 export interface UploadResult {
   publicId: string;
-  fileUrl: string;  // secure CDN URL
+  fileUrl: string;       // secure CDN URL
+  resourceType: string;  // 'raw' | 'image' | 'video'
   mimeType: string;
   sizeBytes: number;
   originalName: string;
+}
+
+/**
+ * Generate a signed Cloudinary delivery URL.
+ *
+ * When a Cloudinary account has "secure delivery" restrictions, unsigned URLs
+ * return 401. Adding a s--{sig}-- token (signed with the API secret) authorises
+ * the request without exposing the secret.
+ *
+ * Signing spec (from Cloudinary SDK source):
+ *   to_sign  = public_id_with_format  (after stripping the version prefix)
+ *   sig      = base64url(SHA-1(to_sign + API_SECRET)).slice(0, 8)
+ *   url      = original_url with /upload/ replaced by /upload/s--{sig}--/
+ */
+const MIME_TO_EXT: Record<string, string> = {
+  'application/pdf':    'pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/msword': 'doc',
+  'image/png':          'png',
+  'image/jpeg':         'jpg',
+  'image/gif':          'gif',
+  'image/webp':         'webp',
+};
+
+/**
+ * Ensure a filename has the correct extension.
+ * Older DB records may have been stored without an extension (Cloudinary's
+ * original_filename strips it, and raw/DOCX format was sometimes empty).
+ * Derives the extension from the mimeType when missing.
+ */
+export function ensureExtension(filename: string, mimeType: string): string {
+  const base = filename.trim().replace(/\.+$/, ''); // strip trailing dots
+  if (base.includes('.')) return base;              // already has extension
+  const ext = MIME_TO_EXT[mimeType];
+  return ext ? `${base}.${ext}` : base;
+}
+
+/**
+ * Return the URL that our server should use to fetch a Cloudinary resource.
+ *
+ * - Images (PNG, JPEG, GIF, WEBP, …) are publicly delivered by Cloudinary
+ *   without any signing needed.
+ * - PDFs and office documents have restricted delivery and require a signed URL.
+ *
+ * Pass the stored mimeType so we can skip unnecessary signing for images.
+ */
+export async function getDeliveryUrl(fileUrl: string, mimeType: string): Promise<string> {
+  if (mimeType.startsWith('image/')) {
+    return fileUrl; // images are public — no signing needed
+  }
+  return getSignedCloudinaryUrl(fileUrl);
+}
+
+/**
+ * Cloudinary delivery URL signing.
+ *
+ * Accounts created after Jan 2024 use SHA-256 by default.
+ * Older accounts use SHA-1.  Set CLOUDINARY_SIGN_ALGO=sha1 to override.
+ *
+ * Signing spec:
+ *   to_sign = public_id_with_format  (strip version prefix, keep format extension)
+ *   sig     = base64url(HASH(to_sign + API_SECRET)).slice(0, 8)
+ *   url     = original_url with /upload/ → /upload/s--{sig}--/
+ */
+export async function getSignedCloudinaryUrl(fileUrl: string): Promise<string> {
+  const uploadIdx = fileUrl.indexOf('/upload/');
+  if (uploadIdx === -1) return fileUrl;
+
+  const afterUpload = fileUrl.substring(uploadIdx + '/upload/'.length);
+  // Strip version prefix (v1234567890/) — NOT part of the signing string
+  const publicIdWithFormat = afterUpload.replace(/^v\d+\//, '');
+
+  const algo  = (process.env.CLOUDINARY_SIGN_ALGO ?? 'sha256').toLowerCase();
+  const webAlgo = algo === 'sha1' ? 'SHA-1' : 'SHA-256';
+
+  const str     = publicIdWithFormat + API_SECRET;
+  const bytes   = new TextEncoder().encode(str);
+  const hashBuf = await crypto.subtle.digest(webAlgo, bytes);
+  const hashBytes = new Uint8Array(hashBuf);
+
+  // base64url: replace + → - and / → _, take first 8 chars
+  let binary = '';
+  hashBytes.forEach(b => { binary += String.fromCharCode(b); });
+  const sig = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').substring(0, 8);
+
+  return fileUrl.replace('/upload/', `/upload/s--${sig}--/`);
 }
 
 async function buildSignature(params: Record<string, string>): Promise<string> {
@@ -33,7 +120,14 @@ export async function uploadToCloudinary(
   const timestamp = String(Math.floor(Date.now() / 1000));
   const folder = `${FOLDER}/${clientId}`;
 
-  const sigParams: Record<string, string> = { folder, timestamp };
+  // use_filename + unique_filename=false → Cloudinary preserves the original
+  // filename in the public_id instead of generating a random one.
+  const sigParams: Record<string, string> = {
+    folder,
+    timestamp,
+    unique_filename: 'false',
+    use_filename:    'true',
+  };
   const signature = await buildSignature(sigParams);
 
   const formData = new FormData();
@@ -41,6 +135,8 @@ export async function uploadToCloudinary(
   formData.append('api_key', API_KEY);
   formData.append('timestamp', timestamp);
   formData.append('folder', folder);
+  formData.append('use_filename', 'true');
+  formData.append('unique_filename', 'false');
   formData.append('signature', signature);
 
   const res = await fetch(
@@ -72,10 +168,11 @@ export async function uploadToCloudinary(
   };
 
   return {
-    publicId: data.public_id,
-    fileUrl: data.secure_url,
-    mimeType: mimeMap[data.format] ?? `${data.resource_type}/${data.format}`,
-    sizeBytes: data.bytes,
+    publicId:     data.public_id,
+    fileUrl:      data.secure_url,
+    resourceType: data.resource_type,
+    mimeType:     mimeMap[data.format] ?? `${data.resource_type}/${data.format}`,
+    sizeBytes:    data.bytes,
     // Cloudinary strips extension from original_filename — re-append it
     originalName: data.original_filename
       ? `${data.original_filename}.${data.format}`
