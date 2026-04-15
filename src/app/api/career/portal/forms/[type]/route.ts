@@ -1,5 +1,5 @@
 // src/app/api/career/portal/forms/[type]/route.ts
-// POST — submit / re-submit a form
+// GET — fetch existing submission | POST — submit / re-submit
 
 export const runtime = 'nodejs';
 
@@ -7,14 +7,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
-import { canAccessForm } from '@/lib/career/forms';
 import { sendCareerEmail } from '@/lib/career/email';
-import type { FormType } from '@/lib/career/types';
+import { getFormsForServices, PACKAGE_FORMS, normalizeFormType, legacyAliasesFor } from '@/lib/career/types';
+import type { FormType, CareerServiceSlug } from '@/lib/career/types';
+
+const VALID_FORM_TYPES: FormType[] = ['career_profile', 'linkedin_profile', 'portfolio_website'];
+
+/** Add N business days (Mon-Fri) to a date */
+function addBusinessDays(from: Date, days: number): Date {
+  const d = new Date(from);
+  let added = 0;
+  while (added < days) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) added++; // skip Sat(6) and Sun(0)
+  }
+  return d;
+}
 
 const FORM_LABELS: Record<FormType, string> = {
-  resume: 'Resume',
-  linkedin: 'LinkedIn Optimisation',
-  cover_letter: 'Cover Letter',
+  career_profile:    'Career Profile Strategy Brief',
+  linkedin_profile:  'LinkedIn Profile Optimization Brief',
+  portfolio_website: 'Portfolio Website Development Brief',
 };
 
 export async function GET(req: NextRequest, { params }: { params: { type: string } }) {
@@ -23,8 +37,12 @@ export async function GET(req: NextRequest, { params }: { params: { type: string
   const payload = await verifyPortalToken(token);
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const canonical = normalizeFormType(params.type);
+  // Check canonical name AND all legacy aliases (e.g. career_profile → also check 'resume', 'cover_letter')
+  const allNames = [canonical, ...legacyAliasesFor(canonical)];
+
   const existing = await db.careerFormSubmission.findFirst({
-    where: { clientId: payload.clientId, formType: params.type },
+    where: { clientId: payload.clientId, formType: { in: allNames } },
     orderBy: { version: 'desc' },
   });
 
@@ -36,20 +54,35 @@ export async function POST(req: NextRequest, { params }: { params: { type: strin
   const payload = await verifyPortalToken(token);
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const formType = params.type as FormType;
-  const valid: FormType[] = ['resume', 'linkedin', 'cover_letter'];
-  if (!valid.includes(formType)) {
+  // Accept both new canonical names and legacy aliases
+  const formType = normalizeFormType(params.type) as FormType;
+  if (!VALID_FORM_TYPES.includes(formType)) {
     return NextResponse.json({ error: 'Invalid form type' }, { status: 400 });
   }
 
   const client = await db.careerClient.findUnique({
     where: { id: payload.clientId },
-    select: { id: true, name: true, email: true, packageType: true },
+    select: {
+      id: true, name: true, email: true, packageType: true,
+      expectedDeliveryAt: true,
+      services: { select: { service: { select: { slug: true } } } },
+    },
   });
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  if (!canAccessForm(client.packageType, formType)) {
-    return NextResponse.json({ error: 'Form not included in your package' }, { status: 403 });
+  // Access check — services first, then legacy packageType
+  let allowed: FormType[];
+  if (client.services.length > 0) {
+    const slugs = client.services.map(s => s.service.slug as CareerServiceSlug);
+    allowed = getFormsForServices(slugs);
+  } else if (client.packageType) {
+    allowed = PACKAGE_FORMS[client.packageType] ?? [];
+  } else {
+    allowed = [];
+  }
+
+  if (!allowed.includes(formType)) {
+    return NextResponse.json({ error: 'Form not included in your services' }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);
@@ -57,9 +90,9 @@ export async function POST(req: NextRequest, { params }: { params: { type: strin
     return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
   }
 
-  // Get current version for this formType
+  const allFormNames = [formType, ...legacyAliasesFor(formType)];
   const latest = await db.careerFormSubmission.findFirst({
-    where: { clientId: client.id, formType },
+    where: { clientId: client.id, formType: { in: allFormNames } },
     orderBy: { version: 'desc' },
     select: { version: true },
   });
@@ -67,19 +100,29 @@ export async function POST(req: NextRequest, { params }: { params: { type: strin
   const nextVersion = (latest?.version ?? 0) + 1;
 
   const submission = await db.careerFormSubmission.create({
+    data: { clientId: client.id, formType, formData: body, version: nextVersion },
+  });
+
+  // Set expectedDeliveryAt (5 business days) on very first form submission
+  const isFirstSubmission = !client.expectedDeliveryAt && (latest === null);
+  await db.careerClient.updateMany({
+    where: { id: client.id, status: 'NOT_STARTED' },
     data: {
-      clientId: client.id,
-      formType,
-      formData: body,
-      version: nextVersion,
+      status: 'SUBMITTED',
+      ...(isFirstSubmission ? { expectedDeliveryAt: addBusinessDays(new Date(), 5) } : {}),
     },
   });
 
-  // Advance status to SUBMITTED if still NOT_STARTED
-  await db.careerClient.updateMany({
-    where: { id: client.id, status: 'NOT_STARTED' },
-    data: { status: 'SUBMITTED' },
-  });
+  // If already SUBMITTED/beyond but no delivery date yet, set it now
+  if (!client.expectedDeliveryAt && !isFirstSubmission) {
+    const anyForm = await db.careerFormSubmission.count({ where: { clientId: client.id } });
+    if (anyForm === 1) {
+      await db.careerClient.update({
+        where: { id: client.id },
+        data: { expectedDeliveryAt: addBusinessDays(new Date(), 5) },
+      });
+    }
+  }
 
   await db.careerActivityLog.create({
     data: {
@@ -90,7 +133,6 @@ export async function POST(req: NextRequest, { params }: { params: { type: strin
     },
   });
 
-  // Confirmation email (non-blocking)
   sendCareerEmail({
     to: client.email,
     trigger: 'FORM_CONFIRM',

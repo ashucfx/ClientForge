@@ -202,7 +202,7 @@ const container: React.CSSProperties = {
 };
 
 const header: React.CSSProperties = {
-  backgroundColor: '#0f172a',
+  background: 'linear-gradient(135deg, #0f2756 0%, #1f56d4 100%)',
   padding: '20px 28px',
 };
 
@@ -225,7 +225,7 @@ const brandSub: React.CSSProperties = {
 
 const headerLink: React.CSSProperties = {
   fontSize: '10px',
-  color: '#64748b',
+  color: '#93c5fd',
   letterSpacing: '0.3px',
   textDecoration: 'none',
 };

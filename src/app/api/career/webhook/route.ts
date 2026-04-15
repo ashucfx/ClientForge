@@ -1,5 +1,5 @@
 // src/app/api/career/webhook/route.ts
-// Razorpay webhook for Career Booster — creates client + triggers welcome email
+// Razorpay webhook for Career Booster — creates client, maps services, sends welcome email
 
 export const runtime = 'nodejs';
 
@@ -8,11 +8,11 @@ import crypto from 'crypto';
 import { prisma as db } from '@/lib/db';
 import { generateMagicToken, magicTokenExpiry } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
-import { PACKAGE_LABELS } from '@/lib/career/types';
-import type { CareerPackage } from '@/lib/career/types';
+import type { CareerServiceSlug } from '@/lib/career/types';
+import { resolveServices } from '@/lib/career/services';
 
-const WEBHOOK_SECRET = process.env.RAZORPAY_CAREER_WEBHOOK_SECRET
-  ?? process.env.RAZORPAY_WEBHOOK_SECRET!;
+const WEBHOOK_SECRET =
+  process.env.RAZORPAY_CAREER_WEBHOOK_SECRET ?? process.env.RAZORPAY_WEBHOOK_SECRET!;
 
 const PORTAL_URL =
   process.env.NODE_ENV === 'development'
@@ -31,8 +31,21 @@ function verifySignature(body: string, signature: string): boolean {
   }
 }
 
+function packageToSlugs(raw: string): CareerServiceSlug[] {
+  const upper = raw.toUpperCase();
+  const map: Record<string, CareerServiceSlug[]> = {
+    RESUME:       ['RESUME'],
+    LINKEDIN:     ['LINKEDIN'],
+    COVER_LETTER: ['COVER_LETTER'],
+    FULL:         ['RESUME', 'COVER_LETTER', 'LINKEDIN'],
+    FULL_PACKAGE: ['RESUME', 'COVER_LETTER', 'LINKEDIN'],
+    PORTFOLIO:    ['PORTFOLIO'],
+  };
+  return map[upper] ?? [];
+}
+
 export async function POST(req: NextRequest) {
-  const rawBody = await req.text();
+  const rawBody   = await req.text();
   const signature = req.headers.get('x-razorpay-signature') ?? '';
 
   if (!verifySignature(rawBody, signature)) {
@@ -57,6 +70,7 @@ export async function POST(req: NextRequest) {
             phone?: string;
             package_type?: string;
             career_package?: string;
+            services?: string;      // comma-separated slugs e.g. "RESUME,LINKEDIN"
             module?: string;
           };
         };
@@ -70,27 +84,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  // Only handle career payments (check notes.module === 'career' or career_package present)
-  if (event.event !== 'payment.captured') {
-    return NextResponse.json({ received: true });
-  }
+  if (event.event !== 'payment.captured') return NextResponse.json({ received: true });
 
   const payment = event.payload.payment?.entity;
   if (!payment) return NextResponse.json({ received: true });
 
-  const notes = payment.notes ?? {};
+  const notes  = payment.notes ?? {};
   const module = notes.module;
-  const packageRaw = notes.career_package ?? notes.package_type ?? '';
-
-  // Skip if not a career payment
   if (module && module !== 'career') return NextResponse.json({ received: true });
-  if (!packageRaw) return NextResponse.json({ received: true });
 
-  const packageType = packageRaw.toUpperCase() as CareerPackage;
-  const validPackages: CareerPackage[] = ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'FULL'];
-  if (!validPackages.includes(packageType)) {
-    return NextResponse.json({ received: true });
+  // Parse services — prefer `services` note (comma-separated slugs), fall back to single package
+  let slugs: CareerServiceSlug[] = [];
+  if (notes.services) {
+    slugs = notes.services
+      .split(',')
+      .map(s => s.trim().toUpperCase() as CareerServiceSlug)
+      .filter(Boolean);
+  } else {
+    const packageRaw = notes.career_package ?? notes.package_type ?? '';
+    if (!packageRaw) return NextResponse.json({ received: true });
+    slugs = packageToSlugs(packageRaw);
   }
+
+  if (slugs.length === 0) return NextResponse.json({ received: true });
 
   const name  = notes.client_name  ?? notes.name  ?? 'Client';
   const email = notes.client_email ?? notes.email ?? '';
@@ -98,35 +114,36 @@ export async function POST(req: NextRequest) {
 
   if (!email) return NextResponse.json({ error: 'No email in payment notes' }, { status: 400 });
 
-  // Idempotency — skip if already processed
+  // Idempotency
   const existing = await db.careerClient.findUnique({ where: { razorpayPaymentId: payment.id } });
   if (existing) return NextResponse.json({ received: true });
 
+  const serviceRecords = await resolveServices(slugs);
   const magicToken  = generateMagicToken();
   const tokenExpiry = magicTokenExpiry();
 
-  // Upsert: if client already exists (re-purchase), update package + reset token
   const client = await db.careerClient.upsert({
     where: { email },
     create: {
       name, email, phone,
-      packageType,
       amountPaid: payment.amount / 100,
       currency: payment.currency,
       razorpayPaymentId: payment.id,
       razorpayOrderId: payment.order_id ?? null,
       magicToken,
       magicTokenExpiry: tokenExpiry,
+      services: {
+        create: serviceRecords.map(s => ({ serviceId: s.id })),
+      },
       activityLogs: {
         create: {
           action: 'client_created',
           performedBy: 'system',
-          metadata: { trigger: 'razorpay_webhook', paymentId: payment.id },
+          metadata: { trigger: 'razorpay_webhook', paymentId: payment.id, services: slugs },
         },
       },
     },
     update: {
-      packageType,
       amountPaid: payment.amount / 100,
       razorpayPaymentId: payment.id,
       magicToken,
@@ -134,26 +151,26 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Send welcome email (non-blocking — log failure but don't fail webhook)
+  // Sync services for returning clients
+  for (const s of serviceRecords) {
+    await db.careerClientService.upsert({
+      where: { clientId_serviceId: { clientId: client.id, serviceId: s.id } },
+      create: { clientId: client.id, serviceId: s.id },
+      update: {},
+    });
+  }
+
+  const serviceNames = serviceRecords.map(s => s.name).join(', ');
+  const portalUrl = `${PORTAL_URL}/portal/login?token=${magicToken}`;
+
   try {
-    const portalUrl = `${PORTAL_URL}/portal/login?token=${magicToken}`;
     const resendId = await sendCareerEmail({
       to: email,
       trigger: 'WELCOME',
-      data: {
-        name: client.name,
-        packageLabel: PACKAGE_LABELS[packageType],
-        portalUrl,
-      },
+      data: { name: client.name, packageLabel: serviceNames, portalUrl },
     });
-
     await db.careerEmailLog.create({
-      data: {
-        clientId: client.id,
-        trigger: 'WELCOME',
-        resendId,
-        status: 'sent',
-      },
+      data: { clientId: client.id, trigger: 'WELCOME', resendId, status: 'sent' },
     });
   } catch (emailErr) {
     console.error('[career/webhook] Welcome email failed:', emailErr);

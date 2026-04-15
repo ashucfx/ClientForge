@@ -16,11 +16,20 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       deliverables: { orderBy: { createdAt: 'desc' } },
       emailLogs: { orderBy: { sentAt: 'desc' }, take: 20 },
       activityLogs: { orderBy: { createdAt: 'desc' }, take: 30 },
+      services: { select: { service: { select: { slug: true, name: true } } } },
     },
   });
 
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  return NextResponse.json({ client });
+
+  // Flatten services: [{ service: { slug, name } }] → [{ slug, name }]
+  const { services, ...rest } = client;
+  return NextResponse.json({
+    client: {
+      ...rest,
+      services: services.map(s => ({ slug: s.service.slug, name: s.service.name })),
+    },
+  });
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -61,15 +70,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ ok: true, client });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const client = await db.careerClient.findUnique({
-    where: { id: params.id },
-    select: { name: true, email: true },
-  });
-  if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
-
-  await db.careerClient.delete({ where: { id: params.id } });
-  return NextResponse.json({ ok: true, deleted: { name: client.name } });
+// DELETE is now OTP-gated — use POST /[id]/delete-otp then DELETE /[id]/delete-otp?otp=...
+export async function DELETE() {
+  return NextResponse.json(
+    { error: 'Use POST /delete-otp to request an OTP, then DELETE /delete-otp?otp=... to confirm.' },
+    { status: 405 },
+  );
 }

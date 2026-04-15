@@ -7,13 +7,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 import { sendCareerEmail } from '@/lib/career/email';
-import { PACKAGE_LABELS } from '@/lib/career/types';
-import type { CareerPackage } from '@/lib/career/types';
+import { PACKAGE_LABELS, SERVICE_LABELS } from '@/lib/career/types';
+import type { CareerPackage, CareerServiceSlug } from '@/lib/career/types';
 
 const PORTAL_URL =
   process.env.NODE_ENV === 'development'
     ? 'http://localhost:3000'
     : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000');
+
+/** Derive a human-readable service label for a client (services → packageType → fallback) */
+function clientServiceLabel(client: {
+  packageType: string | null;
+  services: { service: { name: string } }[];
+}): string {
+  if (client.services.length > 0) return client.services.map(s => s.service.name).join(', ');
+  if (client.packageType) return PACKAGE_LABELS[client.packageType as CareerPackage] ?? client.packageType;
+  return 'Career Services';
+}
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -30,9 +40,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const note        = (body?.note as string | undefined)?.trim();
-  const fileLabel   = (body?.fileLabel as string | undefined)?.trim() || undefined;
-  const sendEmail   = body?.sendEmail !== false; // default true
+  const note       = (body?.note as string | undefined)?.trim();
+  const fileLabel  = (body?.fileLabel as string | undefined)?.trim() || undefined;
+  const doSendEmail = body?.sendEmail !== false; // default true
 
   if (!note || note.length < 5) {
     return NextResponse.json({ error: 'Note required (min 5 chars).' }, { status: 400 });
@@ -40,18 +50,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const client = await db.careerClient.findUnique({
     where: { id: params.id },
-    select: { id: true, name: true, email: true, packageType: true },
+    select: {
+      id: true, name: true, email: true, packageType: true,
+      services: { select: { service: { select: { slug: true, name: true } } } },
+    },
   });
   if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
 
   const revision = await db.careerRevision.create({
-    data: {
-      clientId: client.id,
-      requestedBy: 'admin',
-      note,
-      fileLabel,
-      status: 'PENDING',
-    },
+    data: { clientId: client.id, requestedBy: 'admin', note, fileLabel, status: 'PENDING' },
   });
 
   await db.careerActivityLog.create({
@@ -63,21 +70,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     },
   });
 
-  if (sendEmail) {
-    try {
-      await sendCareerEmail({
-        to: client.email,
-        trigger: 'REVISION',
-        data: {
-          name: client.name,
-          portalUrl: `${PORTAL_URL}/portal/dashboard`,
-          packageLabel: PACKAGE_LABELS[client.packageType as CareerPackage],
-          revisionNote: note,
-        },
-      });
-    } catch (err) {
-      console.error('[admin/revisions] Email failed:', err);
-    }
+  if (doSendEmail) {
+    // Tell client their revision is now being worked on
+    sendCareerEmail({
+      to: client.email,
+      trigger: 'REVISION',
+      data: {
+        name: client.name,
+        portalUrl: `${PORTAL_URL}/portal/dashboard`,
+        packageLabel: clientServiceLabel(client),
+        revisionStatus: 'approved',
+      },
+    }).catch(err => console.error('[admin/revisions POST] Email failed:', err));
   }
 
   return NextResponse.json({ ok: true, revision }, { status: 201 });
@@ -87,9 +91,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const revisionId = body?.revisionId as string | undefined;
-  const status     = body?.status as string | undefined;
-  const adminNote  = (body?.adminNote as string | undefined)?.trim() || undefined;
+  const revisionId   = body?.revisionId as string | undefined;
+  const status       = body?.status as string | undefined;
+  const adminNote    = (body?.adminNote as string | undefined)?.trim() || undefined;
+  const doSendEmail  = body?.sendEmail !== false; // default true
 
   if (!revisionId || !['APPROVED', 'DENIED', 'PENDING'].includes(status ?? '')) {
     return NextResponse.json({ error: 'revisionId and valid status required' }, { status: 400 });
@@ -108,6 +113,30 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       metadata: { revisionId, adminNote },
     },
   });
+
+  // Send email to client on approve or deny (only if requested, not on PENDING reset)
+  if (doSendEmail && (status === 'APPROVED' || status === 'DENIED')) {
+    const client = await db.careerClient.findUnique({
+      where: { id: params.id },
+      select: {
+        name: true, email: true, packageType: true,
+        services: { select: { service: { select: { slug: true, name: true } } } },
+      },
+    });
+
+    if (client) {
+      sendCareerEmail({
+        to: client.email,
+        trigger: 'REVISION',
+        data: {
+          name: client.name,
+          portalUrl: `${PORTAL_URL}/portal/dashboard`,
+          packageLabel: clientServiceLabel(client),
+          revisionStatus: status === 'APPROVED' ? 'approved' : 'denied',
+        },
+      }).catch(err => console.error('[admin/revisions PATCH] Email failed:', err));
+    }
+  }
 
   return NextResponse.json({ ok: true, revision });
 }

@@ -18,9 +18,14 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: 'desc' },
     select: {
       id: true, label: true, fileUrl: true,
-      fileType: true, mimeType: true, createdAt: true,
+      fileType: true, mimeType: true,
+      fileCategory: true, originalName: true,
+      createdAt: true,
     },
   });
 
-  return NextResponse.json({ files });
+  const drafts = files.filter(f => f.fileCategory === 'draft');
+  const finals = files.filter(f => f.fileCategory !== 'draft');
+
+  return NextResponse.json({ files, drafts, finals });
 }

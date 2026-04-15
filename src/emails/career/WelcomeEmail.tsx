@@ -47,8 +47,8 @@ export function WelcomeEmail({ name, packageLabel, portalUrl }: WelcomeEmailProp
       <Section style={stepsCard}>
         {[
           ['01', 'Log in to your secure portal and complete the intake form'],
-          ['02', 'Our expert team reviews your submission within 2–4 hours'],
-          ['03', 'Work begins within 24–48 hours of receiving your details'],
+          ['02', 'Our expert team reviews your submission within 2-4 hours'],
+          ['03', 'Work begins within 24-48 hours of receiving your details'],
           ['04', 'Review your professionally crafted draft and share feedback'],
           ['05', 'Final, polished files delivered — ready to make an impression'],
         ].map(([num, text]) => (

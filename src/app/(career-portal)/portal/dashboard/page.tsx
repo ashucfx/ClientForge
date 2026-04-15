@@ -21,6 +21,9 @@ interface Me {
   createdAt: string;
   currency?: string;
   hasPinSet?: boolean;
+  revisionCount?: number;
+  revisionsLeft?: number;
+  expectedDeliveryAt?: string | null;
 }
 interface DeliverableItem {
   id: string; label: string; fileUrl: string; fileType: string; createdAt: string;
@@ -31,46 +34,62 @@ interface CommentItem {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+const DocumentIcon = (
+  <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+    <path stroke="#1f56d4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+      d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/>
+    <path stroke="#1f56d4" strokeWidth="1.8" strokeLinecap="round" d="M14 2v6h6M9 13h6M9 17h4"/>
+  </svg>
+);
+const LinkedInIcon = (
+  <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+    <rect x="2" y="2" width="20" height="20" rx="4" stroke="#1f56d4" strokeWidth="1.8"/>
+    <path stroke="#1f56d4" strokeWidth="1.8" strokeLinecap="round"
+      d="M7 10v7M7 7v.5M12 17v-4a2 2 0 014 0v4M12 13v4"/>
+  </svg>
+);
+const WebIcon = (
+  <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10" stroke="#1f56d4" strokeWidth="1.8"/>
+    <path stroke="#1f56d4" strokeWidth="1.8" strokeLinecap="round" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
+  </svg>
+);
+
+// Covers both legacy names (resume, linkedin, cover_letter) and new canonical names
 const FORM_LABELS: Record<string, string> = {
-  resume:       'Career Information Form',
-  linkedin:     'LinkedIn Profile Information',
-  cover_letter: 'Career Information Form',
+  // New canonical names
+  career_profile:    'Career Profile Strategy Brief',
+  linkedin_profile:  'LinkedIn Profile Optimization Brief',
+  portfolio_website: 'Portfolio Website Development Brief',
+  // Legacy aliases (kept so old URL params still show correct labels)
+  resume:            'Career Profile Strategy Brief',
+  linkedin:          'LinkedIn Profile Optimization Brief',
+  cover_letter:      'Career Profile Strategy Brief',
 };
 const FORM_ICON_SVG: Record<string, React.ReactNode> = {
-  resume: (
-    <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
-      <path stroke="#1f56d4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-        d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/>
-      <path stroke="#1f56d4" strokeWidth="1.8" strokeLinecap="round" d="M14 2v6h6M9 13h6M9 17h4"/>
-    </svg>
-  ),
-  linkedin: (
-    <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
-      <rect x="2" y="2" width="20" height="20" rx="4" stroke="#1f56d4" strokeWidth="1.8"/>
-      <path stroke="#1f56d4" strokeWidth="1.8" strokeLinecap="round"
-        d="M7 10v7M7 7v.5M12 17v-4a2 2 0 014 0v4M12 13v4"/>
-    </svg>
-  ),
-  cover_letter: (
-    <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
-      <path stroke="#1f56d4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-        d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/>
-      <path stroke="#1f56d4" strokeWidth="1.8" strokeLinecap="round" d="M14 2v6h6M9 13h6M9 17h4"/>
-    </svg>
-  ),
+  career_profile:    DocumentIcon,
+  linkedin_profile:  LinkedInIcon,
+  portfolio_website: WebIcon,
+  resume:            DocumentIcon,
+  linkedin:          LinkedInIcon,
+  cover_letter:      DocumentIcon,
 };
 const FORM_DESCS: Record<string, string> = {
-  resume:       'Full name, career goals, experience, skills, achievements & cover letter details',
-  linkedin:     'LinkedIn credentials, goals, industry, tone & profile optimisation preferences',
-  cover_letter: 'Full name, career goals, experience, skills, achievements & cover letter details',
+  career_profile:    'Full name, career goals, experience, skills & achievements',
+  linkedin_profile:  'LinkedIn credentials, goals, industry, tone & optimisation preferences',
+  portfolio_website: 'Bio, projects, skills, design preferences & website goals',
+  resume:            'Full name, career goals, experience, skills & achievements',
+  linkedin:          'LinkedIn credentials, goals, industry, tone & optimisation preferences',
+  cover_letter:      'Full name, career goals, experience, skills & achievements',
 };
 
-const STATUS_STEPS: { key: CareerStatus; label: string }[] = [
-  { key: 'NOT_STARTED',   label: 'Not Started'    },
-  { key: 'SUBMITTED',     label: 'Details Submitted' },
-  { key: 'UNDER_PROCESS', label: 'Under Process'  },
-  { key: 'DRAFT_SENT',    label: 'Draft Sent'     },
-  { key: 'COMPLETED',     label: 'Completed'      },
+const STATUS_STEPS: { key: CareerStatus | 'REVISION_IN_PROGRESS'; label: string }[] = [
+  { key: 'NOT_STARTED',          label: 'Payment Received'      },
+  { key: 'SUBMITTED',            label: 'Details Submitted'     },
+  { key: 'UNDER_PROCESS',        label: 'Under Process'         },
+  { key: 'DRAFT_SENT',           label: 'Draft Sent'            },
+  { key: 'REVISION_IN_PROGRESS', label: 'Revision In Progress'  },
+  { key: 'COMPLETED',            label: 'Final Delivered'       },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -131,8 +150,12 @@ export default function PortalDashboardPage() {
   if (loading) return <DashboardSkeleton />;
   if (!me) return null;
 
-  // Determine progress index (handle REVISION_REQUESTED as step 1)
-  const currentKey = me.status === 'REVISION_REQUESTED' ? 'SUBMITTED' : me.status;
+  // Map status to step key
+  const statusToStep = (s: CareerStatus): string => {
+    if (s === 'REVISION_REQUESTED') return 'REVISION_IN_PROGRESS';
+    return s;
+  };
+  const currentKey = statusToStep(me.status);
   const progressIdx = STATUS_STEPS.findIndex(s => s.key === currentKey);
   const allFormsSubmitted = me.availableForms.every(f => me.submittedForms.includes(f));
 
@@ -217,6 +240,45 @@ export default function PortalDashboardPage() {
           </div>
         </div>
 
+        {/* ── Stats row: Revisions + Delivery Date ── */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Revisions left */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Revisions Left</p>
+            <div className="flex items-end gap-1.5">
+              <span className="text-2xl font-bold text-slate-900">{me.revisionsLeft ?? 2}</span>
+              <span className="text-sm text-slate-400 mb-0.5">/ 2</span>
+            </div>
+            <div className="mt-2 flex gap-1">
+              {[0, 1].map(i => (
+                <div key={i} className={`flex-1 h-1.5 rounded-full ${
+                  i < (me.revisionsLeft ?? 2) ? 'bg-blue-500' : 'bg-slate-200'
+                }`} />
+              ))}
+            </div>
+          </div>
+
+          {/* Expected delivery */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Expected Delivery</p>
+            {me.expectedDeliveryAt ? (
+              <>
+                <p className="text-sm font-bold text-slate-900 leading-tight">
+                  {new Date(me.expectedDeliveryAt).toLocaleDateString('en-GB', {
+                    day: 'numeric', month: 'short', year: 'numeric',
+                  })}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">5 business days from submission</p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-bold text-slate-400 leading-tight">Pending</p>
+                <p className="text-xs text-slate-300 mt-1">Submit your form to set date</p>
+              </>
+            )}
+          </div>
+        </div>
+
         {/* ── Progress tracker ── */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
@@ -258,18 +320,21 @@ export default function PortalDashboardPage() {
                       current ? 'text-blue-700' : done ? 'text-slate-700' : 'text-slate-400'
                     }`}>{step.label}</p>
                     {current && me.status === 'NOT_STARTED' && (
-                      <p className="text-xs text-blue-500 mt-0.5">Fill in your forms below to get started →</p>
+                      <p className="text-xs text-blue-500 mt-0.5">Fill in your forms below to get started</p>
                     )}
                     {current && me.status === 'SUBMITTED' && (
                       <p className="text-xs text-blue-500 mt-0.5">Our team is reviewing your submission</p>
                     )}
                     {current && me.status === 'UNDER_PROCESS' && (
-                      <p className="text-xs text-blue-500 mt-0.5">Work in progress — we'll notify you when your draft is ready</p>
+                      <p className="text-xs text-blue-500 mt-0.5">Work in progress - we will notify you when your draft is ready</p>
                     )}
                     {current && me.status === 'DRAFT_SENT' && (
                       <p className="text-xs text-blue-500 mt-0.5">
-                        Check your email for the draft · <Link href="/portal/dashboard/files" className="underline">View in Files</Link>
+                        Check your email for the draft - <Link href="/portal/dashboard/files" className="underline">View in Files</Link>
                       </p>
+                    )}
+                    {current && me.status === 'REVISION_REQUESTED' && (
+                      <p className="text-xs text-orange-500 mt-0.5">Your revision is being worked on</p>
                     )}
                     {current && me.status === 'COMPLETED' && (
                       <p className="text-xs text-emerald-600 mt-0.5 flex items-center gap-1">

@@ -1,5 +1,5 @@
-// src/app/api/career/admin/clients/[id]/comments/route.ts
-// Admin can view all comments and post admin replies
+// src/app/api/career/admin/clients/[id]/messages/route.ts
+// Admin: GET all messages, POST send message
 
 export const runtime = 'nodejs';
 
@@ -16,23 +16,26 @@ const PORTAL_URL =
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const comments = await db.careerComment.findMany({
+  const messages = await db.careerMessage.findMany({
     where: { clientId: params.id },
     orderBy: { createdAt: 'asc' },
   });
 
-  return NextResponse.json({ comments });
+  // Mark all client messages as read by admin
+  await db.careerMessage.updateMany({
+    where: { clientId: params.id, authorType: 'client', readByAdmin: false },
+    data: { readByAdmin: true },
+  });
+
+  return NextResponse.json({ messages });
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const content = (body?.content as string | undefined)?.trim();
-
-  if (!content || content.length < 2) {
-    return NextResponse.json({ error: 'Comment cannot be empty.' }, { status: 400 });
-  }
+  const content = body?.content ? String(body.content).trim() : '';
+  if (!content) return NextResponse.json({ error: 'content required' }, { status: 400 });
 
   const client = await db.careerClient.findUnique({
     where: { id: params.id },
@@ -40,21 +43,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   });
   if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
 
-  const comment = await db.careerComment.create({
+  const message = await db.careerMessage.create({
     data: {
-      clientId: params.id,
+      clientId: client.id,
       authorType: 'admin',
       authorName: 'Ripple Nexus Team',
       content,
+      readByAdmin: true,
     },
   });
 
   // Email notification to client
+  const portalUrl = `${PORTAL_URL}/portal/dashboard`;
   sendCareerEmail({
     to: client.email,
     trigger: 'MESSAGE_NOTIFY',
-    data: { recipientName: client.name, senderType: 'admin', portalUrl: `${PORTAL_URL}/portal/dashboard` },
+    data: { recipientName: client.name, senderType: 'admin', portalUrl },
   }).catch(console.error);
 
-  return NextResponse.json({ ok: true, comment }, { status: 201 });
+  return NextResponse.json({ message }, { status: 201 });
 }

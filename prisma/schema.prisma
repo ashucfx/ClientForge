@@ -117,6 +117,29 @@ enum CareerPackage {
   FULL
 }
 
+// Dynamic services — seeded; new clients use CareerClientService
+model CareerService {
+  id       String  @id @default(cuid())
+  slug     String  @unique  // RESUME | COVER_LETTER | LINKEDIN | PORTFOLIO | FULL_PACKAGE
+  name     String
+  formType String? // career_profile | linkedin_profile | portfolio_website | null
+
+  clients CareerClientService[]
+}
+
+model CareerClientService {
+  id        String   @id @default(cuid())
+  clientId  String
+  serviceId String
+  createdAt DateTime @default(now())
+
+  client  CareerClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  service CareerService @relation(fields: [serviceId], references: [id])
+
+  @@unique([clientId, serviceId])
+  @@index([clientId])
+}
+
 enum CareerStatus {
   NOT_STARTED
   SUBMITTED
@@ -127,12 +150,12 @@ enum CareerStatus {
 }
 
 model CareerClient {
-  id                String        @id @default(cuid())
+  id                String         @id @default(cuid())
   name              String
-  email             String        @unique
+  email             String         @unique
   phone             String?
-  packageType       CareerPackage
-  status            CareerStatus  @default(NOT_STARTED)
+  packageType       CareerPackage? // deprecated: use services relation
+  status            CareerStatus   @default(NOT_STARTED)
   amountPaid        Float         @default(0)
   currency          String        @default("INR")
   razorpayPaymentId String?       @unique
@@ -142,9 +165,10 @@ model CareerClient {
   pinHash           String?       // HMAC-SHA256 of 6-digit PIN
   lastLoginAt       DateTime?
   invoiceId         String?
-  notes             String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  notes               String?
+  expectedDeliveryAt  DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   forms        CareerFormSubmission[]
   deliverables CareerDeliverable[]
@@ -152,6 +176,8 @@ model CareerClient {
   activityLogs CareerActivityLog[]
   revisions    CareerRevision[]
   comments     CareerComment[]
+  services     CareerClientService[]
+  messages     CareerMessage[]
 
   @@index([status])
   @@index([email])
@@ -174,21 +200,24 @@ model CareerFormSubmission {
 }
 
 model CareerDeliverable {
-  id          String       @id @default(cuid())
-  clientId    String
-  label       String
-  fileUrl     String
-  publicId    String
-  fileType    String
-  mimeType    String
-  sizeBytes   Int          @default(0)
-  uploadedBy  String
-  emailSent   Boolean      @default(false)
-  createdAt   DateTime     @default(now())
+  id           String   @id @default(cuid())
+  clientId     String
+  label        String
+  fileUrl      String
+  publicId     String
+  fileType     String
+  mimeType     String
+  sizeBytes    Int      @default(0)
+  originalName String   @default("")
+  fileCategory String   @default("final") // "draft" | "final"
+  uploadedBy   String
+  emailSent    Boolean  @default(false)
+  createdAt    DateTime @default(now())
 
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
+  @@index([clientId, fileCategory])
 }
 
 model CareerEmailLog {
@@ -253,4 +282,27 @@ model CareerComment {
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
+}
+
+model CareerMessage {
+  id            String   @id @default(cuid())
+  clientId      String
+  authorType    String   @default("client") // "client" | "admin"
+  authorName    String
+  content       String
+  readByAdmin   Boolean  @default(false)
+  readByClient  Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model CareerDeleteOtp {
+  id        String   @id @default(cuid())
+  clientId  String   @unique
+  otpHash   String   // SHA-256 of 6-digit OTP
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }

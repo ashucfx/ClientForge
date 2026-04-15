@@ -1,17 +1,16 @@
 // src/lib/career/forms.ts
-// Form schemas matching the official Google Forms shared with clients
 
-import type { FormSchema, CareerPackage, FormType } from './types';
-import { PACKAGE_FORMS } from './types';
+import type { FormSchema, CareerPackage, FormType, CareerServiceSlug } from './types';
+import { PACKAGE_FORMS, SERVICE_FORM_MAP, getFormsForServices } from './types';
 
 export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
 
-  // ── Career Information Form (Resume + Cover Letter intake) ─────────────────
-  resume: {
-    formType: 'resume',
-    title: 'Career Information Form',
+  // ── Career Profile Strategy Brief (Resume + Cover Letter intake) ───────────
+  career_profile: {
+    formType: 'career_profile',
+    title: 'Career Profile Strategy Brief',
     description:
-      'Please fill out this form to provide the necessary details for your resume writing, LinkedIn profile optimisation, and cover letter writing services. Your responses will help us tailor these documents to best reflect your career goals, experiences, and professional image.\n\nIf you have any questions, feel free to reach out at info@theripplenexus.com',
+      'Please fill out this form to provide the necessary details for your resume writing, cover letter, and career strategy services. Your responses will help us tailor these documents to best reflect your career goals, experiences, and professional image.\n\nIf you have any questions, feel free to reach out at info@theripplenexus.com',
     disclaimer:
       'By submitting this form you confirm all information is accurate and you have the right to share it. Ripple Nexus will use this information solely to provide your purchased Career Booster Services.',
     fields: [
@@ -22,7 +21,7 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         type: 'text',
         required: true,
         placeholder: 'Your full name as it should appear on your resume',
-        hint: 'Please provide your full name as you would like it to appear on your resume and LinkedIn profile.',
+        hint: 'Please provide your full name as you would like it to appear on your resume and cover letter.',
         section: 'Contact Information',
       },
       {
@@ -60,7 +59,7 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         type: 'text',
         required: true,
         placeholder: 'e.g. Product Manager, Data Scientist',
-        hint: 'What job title or role are you aiming for with your resume and LinkedIn profile?',
+        hint: 'What job title or role are you aiming for?',
         section: 'Career Direction',
       },
       {
@@ -89,7 +88,7 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         type: 'textarea',
         required: true,
         placeholder: 'Degree — Institution — Year\ne.g. B.Tech CSE — IIT Bombay — 2019',
-        hint: 'Provide details about your educational qualifications, including institutions attended and degrees earned.',
+        hint: 'Provide details about your educational qualifications.',
         section: 'Professional Background',
       },
 
@@ -100,7 +99,6 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         type: 'textarea',
         required: true,
         placeholder: 'List your technical skills, soft skills, tools, and domain expertise…',
-        hint: 'List any specific skills or competencies that you would like to highlight.',
         section: 'Skills & Achievements',
       },
       {
@@ -108,8 +106,7 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         label: 'Certifications and Awards',
         type: 'textarea',
         required: true,
-        placeholder: 'e.g. AWS Certified Solutions Architect (2023)\nHackerRank Gold Badge — Python',
-        hint: 'List any relevant certifications, licenses, or awards that should be included.',
+        placeholder: 'e.g. AWS Certified Solutions Architect (2023)',
         section: 'Skills & Achievements',
       },
       {
@@ -117,8 +114,7 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         label: 'Specific Achievements or Projects',
         type: 'textarea',
         required: true,
-        placeholder: 'e.g. Led a migration that reduced costs by 30%\nBuilt a real-time dashboard used by 50,000+ users',
-        hint: 'Include any notable achievements or projects you would like to emphasise.',
+        placeholder: 'e.g. Led a migration that reduced costs by 30%',
         section: 'Skills & Achievements',
       },
 
@@ -129,7 +125,6 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         type: 'textarea',
         required: false,
         placeholder: 'Career gaps, specific requirements, or anything else we should know…',
-        hint: 'Is there any other information or specific requirements you would like us to consider?',
         section: 'Additional Details',
       },
       {
@@ -152,18 +147,18 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         type: 'file',
         accept: '.pdf,.doc,.docx',
         required: false,
-        hint: 'You can upload any existing resume, cover letter, or additional documents. If you have an extensive career history (Executive or Executive+ level), please attach your existing resume and note "Refer to resume" in the relevant fields above — we will take it from there.',
+        hint: 'You can upload any existing resume, cover letter, or additional documents.',
         section: 'Attachments',
       },
     ],
   },
 
-  // ── LinkedIn Profile Information Form ──────────────────────────────────────
-  linkedin: {
-    formType: 'linkedin',
-    title: 'LinkedIn Profile Information',
+  // ── LinkedIn Profile Optimization Brief ────────────────────────────────────
+  linkedin_profile: {
+    formType: 'linkedin_profile',
+    title: 'LinkedIn Profile Optimization Brief',
     description:
-      'To ensure we optimise your LinkedIn profile to its fullest potential, please fill out the following form with the necessary details. This information will allow us to tailor your profile to highlight your strengths and experiences.\n\nYour login credentials are completely safe with us — used solely for optimising your profile and kept strictly confidential.\n\nQuestions? Reach out at info@theripplenexus.com',
+      'To ensure we optimise your LinkedIn profile to its fullest potential, please fill out the following form with the necessary details.\n\nYour login credentials are completely safe with us — used solely for optimising your profile and kept strictly confidential.\n\nQuestions? Reach out at info@theripplenexus.com',
     disclaimer:
       'By submitting this form you confirm you are the owner of this LinkedIn account and authorise Ripple Nexus to access and optimise your profile. Your credentials will be treated with strict confidentiality and will not be shared with any third party. You are advised to change your password after the work is complete.',
     fields: [
@@ -174,7 +169,7 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         type: 'text',
         required: true,
         placeholder: 'e.g. john-doe-12345',
-        hint: 'This is the part of your LinkedIn URL that comes after "linkedin.com/in/" — e.g. linkedin.com/in/john-doe-12345',
+        hint: 'This is the part of your LinkedIn URL after "linkedin.com/in/"',
         section: 'Account Access',
       },
       {
@@ -183,7 +178,6 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         type: 'text',
         required: true,
         placeholder: 'email@example.com',
-        hint: 'Enter the email address associated with your LinkedIn account.',
         section: 'Account Access',
       },
       {
@@ -192,7 +186,7 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         type: 'password',
         required: true,
         placeholder: '••••••••',
-        hint: 'Used solely to access and update your profile. You can change your password after the work is complete.',
+        hint: 'Used solely to access and update your profile. Change your password after the work is complete.',
         section: 'Account Access',
       },
 
@@ -203,7 +197,7 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         type: 'file',
         accept: '.jpg,.jpeg,.png',
         required: true,
-        hint: 'Please upload a professional photo that you\'d like to use for your LinkedIn profile.',
+        hint: "Please upload a professional photo you'd like to use for your LinkedIn profile.",
         section: 'Profile Media',
       },
 
@@ -220,7 +214,6 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
           'Improve personal brand recognition',
         ],
         required: false,
-        hint: 'Select all that apply.',
         section: 'Optimisation Goals',
       },
       {
@@ -228,17 +221,11 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         label: 'Industry / Professional Field',
         type: 'select',
         options: [
-          'Technology/Software',
-          'Finance/Accounting',
-          'Marketing/Advertising',
-          'Healthcare/Medical',
-          'Education/Academia',
-          'Manufacturing',
-          'Consulting',
-          'Other',
+          'Technology/Software', 'Finance/Accounting', 'Marketing/Advertising',
+          'Healthcare/Medical', 'Education/Academia', 'Manufacturing',
+          'Consulting', 'Other',
         ],
         required: false,
-        hint: 'Which industry best describes your current or desired professional field?',
         section: 'Optimisation Goals',
       },
 
@@ -248,7 +235,7 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         label: 'Current Profile Completeness & Quality',
         type: 'rating',
         required: false,
-        hint: 'How would you rate the current completeness and quality of your LinkedIn profile? (1 = Needs major overhaul · 5 = Excellent and complete)',
+        hint: '1 = Needs major overhaul · 5 = Excellent and complete',
         section: 'Profile Assessment',
       },
       {
@@ -256,7 +243,7 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         label: 'Effectiveness of Your Current Headline',
         type: 'rating',
         required: false,
-        hint: 'How would you rate the effectiveness of your current headline in immediately communicating your value? (1 = Poor · 5 = Excellent)',
+        hint: '1 = Poor · 5 = Excellent',
         section: 'Profile Assessment',
       },
       {
@@ -264,15 +251,10 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         label: 'Areas Requiring Most Immediate Improvement',
         type: 'checkbox',
         options: [
-          'Headline',
-          'Summary/About section',
-          'Experience section details',
-          'Skills and endorsements',
-          'Education/Certifications',
-          'Activity/Posts',
+          'Headline', 'Summary/About section', 'Experience section details',
+          'Skills and endorsements', 'Education/Certifications', 'Activity/Posts',
         ],
         required: false,
-        hint: 'Which areas of your LinkedIn profile do you believe require the most immediate attention?',
         section: 'Profile Assessment',
       },
 
@@ -282,14 +264,11 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         label: 'Primary Tone / Voice for Your LinkedIn Profile',
         type: 'select',
         options: [
-          'Professional and authoritative',
-          'Friendly and approachable',
-          'Innovative and forward-thinking',
-          'Detail-oriented and thorough',
+          'Professional and authoritative', 'Friendly and approachable',
+          'Innovative and forward-thinking', 'Detail-oriented and thorough',
           'Other (specify in additional notes below)',
         ],
         required: false,
-        hint: 'What is the primary tone or voice you want your LinkedIn profile to convey?',
         section: 'Brand & Voice',
       },
       {
@@ -297,15 +276,7 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         label: 'Importance of Industry Keyword Integration',
         type: 'rating',
         required: false,
-        hint: 'How important is it to integrate specific keywords relevant to your industry into your profile? (1 = Not important · 5 = Extremely important)',
-        section: 'Brand & Voice',
-      },
-      {
-        id: 'passive_search_importance',
-        label: 'Importance of Passive Job Search Optimisation',
-        type: 'rating',
-        required: false,
-        hint: 'How important is optimising your LinkedIn for passive job searching (being found by recruiters)? (1 = Not important · 5 = Essential)',
+        hint: '1 = Not important · 5 = Extremely important',
         section: 'Brand & Voice',
       },
 
@@ -315,8 +286,7 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         label: 'Specific Achievements or Career Milestones to Feature',
         type: 'textarea',
         required: false,
-        placeholder: 'List achievements or milestones you want prominently featured on your profile…',
-        hint: 'Are there any specific achievements or career milestones you want prominently featured in your profile?',
+        placeholder: 'List achievements or milestones you want prominently featured…',
         section: 'Content Strategy',
       },
       {
@@ -325,139 +295,187 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         type: 'text',
         required: false,
         placeholder: 'e.g. Product Manager, Senior Data Analyst, CTO',
-        hint: 'What specific job titles or roles are you hoping to attract or be associated with after optimisation?',
-        section: 'Content Strategy',
-      },
-      {
-        id: 'featured_section',
-        label: 'Featured Section — Priority Ranking',
-        type: 'textarea',
-        required: false,
-        placeholder: 'Rank by importance, e.g.:\n1. Portfolio/Work Samples\n2. Publications/Articles\n3. Recommendations/Testimonials\n4. Media Mentions/Press',
-        hint: 'Please rank the importance of content elements for your profile\'s Featured section: Portfolio/Work Samples, Publications/Articles, Media Mentions/Press, Recommendations/Testimonials.',
-        section: 'Content Strategy',
-      },
-      {
-        id: 'active_features',
-        label: 'LinkedIn Features You Actively Use or Plan to Use',
-        type: 'checkbox',
-        options: [
-          'LinkedIn Learning/Courses',
-          'Creator Mode/Newsletters',
-          'LinkedIn Groups',
-          'Posting/Sharing content',
-          'Direct Messaging/InMail',
-        ],
-        required: false,
-        hint: 'Which of these features do you actively use or plan to use frequently on LinkedIn?',
         section: 'Content Strategy',
       },
     ],
   },
 
-  // ── Cover Letter Form (fallback — not used directly) ─────────────────────
-  cover_letter: {
-    formType: 'cover_letter',
-    title: 'Cover Letter Details',
+  // ── Portfolio Website Development Brief ────────────────────────────────────
+  portfolio_website: {
+    formType: 'portfolio_website',
+    title: 'Portfolio Website Development Brief',
     description:
-      'Provide the details below and we will write a compelling, personalised cover letter for your target role. The more specific you are, the better we can tailor it.',
+      'Please fill out this form so we can build a portfolio website that showcases your work and personal brand. The more detail you provide, the better we can tailor the site to your goals.\n\nQuestions? Reach out at info@theripplenexus.com',
     disclaimer:
-      'By submitting this form you confirm all information is accurate. Ripple Nexus uses this information exclusively to write your cover letter.',
+      'By submitting this form you confirm all information provided is accurate and you own or have the right to use all content, images, and materials submitted. Ripple Nexus will use this information solely to build your portfolio website.',
     fields: [
+      // ── Personal Details ──
       {
         id: 'full_name',
         label: 'Full Name',
         type: 'text',
         required: true,
-        placeholder: 'Your name as it should appear on the cover letter',
+        placeholder: 'Your name as it should appear on the site',
         section: 'Personal Details',
       },
       {
-        id: 'current_job_title',
-        label: 'Current Job Title',
+        id: 'profession',
+        label: 'Profession / Job Title',
         type: 'text',
         required: true,
-        placeholder: 'e.g. Marketing Executive',
+        placeholder: 'e.g. UI/UX Designer, Full-Stack Developer',
         section: 'Personal Details',
       },
       {
-        id: 'job_title',
-        label: 'Job Title You Are Applying For',
+        id: 'bio',
+        label: 'About / Bio',
+        type: 'textarea',
+        required: true,
+        placeholder: 'A short bio for your "About Me" section…',
+        section: 'Personal Details',
+      },
+      {
+        id: 'contact_email',
+        label: 'Public Contact Email',
         type: 'text',
         required: true,
-        placeholder: 'e.g. Marketing Manager',
-        section: 'Target Role',
+        placeholder: 'email@example.com',
+        section: 'Personal Details',
       },
       {
-        id: 'company_name',
-        label: 'Company Name',
+        id: 'contact_phone',
+        label: 'Public Phone Number (optional)',
         type: 'text',
         required: false,
-        placeholder: 'Leave blank for a general version',
-        section: 'Target Role',
+        placeholder: '+91 98765 43210',
+        section: 'Personal Details',
       },
+
+      // ── Website Goals ──
       {
-        id: 'industry',
-        label: 'Industry / Sector',
+        id: 'website_goal',
+        label: 'Primary Goal of Your Portfolio Website',
         type: 'select',
         options: [
-          'Technology/Software', 'Finance/Banking', 'Healthcare/Medical',
-          'FMCG/Retail', 'Consulting', 'Education/Academia',
-          'Marketing/Advertising', 'Government/PSU', 'Manufacturing', 'Startup', 'Other',
+          'Showcase work to potential employers',
+          'Attract freelance clients',
+          'Build personal brand / thought leadership',
+          'Sell products or services',
+          'Other',
         ],
         required: true,
-        section: 'Target Role',
+        section: 'Website Goals',
       },
       {
-        id: 'tone',
-        label: 'Preferred Tone',
+        id: 'target_audience',
+        label: 'Target Audience',
+        type: 'text',
+        required: true,
+        placeholder: 'e.g. Recruiters in fintech, Startup founders, Creative directors',
+        section: 'Website Goals',
+      },
+
+      // ── Portfolio Content ──
+      {
+        id: 'projects',
+        label: 'Projects / Work Samples to Feature',
+        type: 'textarea',
+        required: true,
+        placeholder: 'List each project with a brief description, your role, and outcome…',
+        hint: 'Include live URLs or GitHub links where available.',
+        section: 'Portfolio Content',
+      },
+      {
+        id: 'skills',
+        label: 'Key Skills to Highlight',
+        type: 'textarea',
+        required: true,
+        placeholder: 'List your top skills, tools, and technologies…',
+        section: 'Portfolio Content',
+      },
+      {
+        id: 'testimonials',
+        label: 'Testimonials / Recommendations (optional)',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Paste any testimonials or client recommendations…',
+        section: 'Portfolio Content',
+      },
+
+      // ── Design Preferences ──
+      {
+        id: 'design_style',
+        label: 'Preferred Design Style',
         type: 'select',
         options: [
-          'Professional and Formal', 'Confident and Bold',
-          'Warm and Engaging', 'Concise and Direct',
+          'Minimal & Clean', 'Bold & Creative', 'Corporate & Professional',
+          'Dark & Modern', 'Colourful & Playful', 'No preference',
         ],
         required: true,
-        section: 'Target Role',
+        section: 'Design Preferences',
       },
       {
-        id: 'key_strengths',
-        label: 'Top 3 Strengths to Highlight',
-        type: 'textarea',
-        required: true,
-        placeholder: 'What makes you the best fit for this role? List your top strengths…',
-        section: 'Your Story',
+        id: 'colour_preference',
+        label: 'Colour Preferences',
+        type: 'text',
+        required: false,
+        placeholder: 'e.g. Navy + White, or any hex codes…',
+        section: 'Design Preferences',
       },
       {
-        id: 'motivation',
-        label: 'Why This Role / Company?',
+        id: 'reference_sites',
+        label: 'Reference Websites You Like',
         type: 'textarea',
         required: false,
-        placeholder: 'Your genuine motivation helps personalise the letter…',
-        section: 'Your Story',
+        placeholder: 'Paste URLs of sites you like the look of…',
+        section: 'Design Preferences',
       },
+
+      // ── Social / Links ──
       {
-        id: 'key_achievements',
-        label: 'Key Achievements to Mention',
-        type: 'textarea',
+        id: 'linkedin_url',
+        label: 'LinkedIn Profile URL',
+        type: 'url',
         required: false,
-        placeholder: 'e.g. Grew social media following by 200% in 6 months…',
-        section: 'Your Story',
+        placeholder: 'https://linkedin.com/in/your-profile',
+        section: 'Social & Links',
       },
       {
-        id: 'jd_text',
-        label: 'Paste Job Description (optional)',
-        type: 'textarea',
+        id: 'github_url',
+        label: 'GitHub / Behance / Dribbble URL',
+        type: 'url',
         required: false,
-        placeholder: 'Paste the full JD here for better tailoring…',
-        section: 'Job Description',
+        placeholder: 'https://github.com/yourusername',
+        section: 'Social & Links',
       },
+
+      // ── Assets ──
       {
-        id: 'jd_file',
-        label: 'Upload Job Description PDF (optional)',
+        id: 'profile_photo',
+        label: 'Profile Photo',
         type: 'file',
-        accept: '.pdf,.doc,.docx,.txt',
+        accept: '.jpg,.jpeg,.png',
         required: false,
-        section: 'Job Description',
+        hint: 'High-resolution professional photo for the site.',
+        section: 'Assets',
+      },
+      {
+        id: 'resume_upload',
+        label: 'Resume / CV (for reference)',
+        type: 'file',
+        accept: '.pdf,.doc,.docx',
+        required: false,
+        section: 'Assets',
+      },
+
+      // ── Additional ──
+      {
+        id: 'additional_info',
+        label: 'Any Other Requirements or Notes',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Specific sections, features, integrations, or anything else…',
+        section: 'Additional',
       },
     ],
   },
@@ -469,4 +487,12 @@ export function getFormsForPackage(pkg: CareerPackage): FormType[] {
 
 export function canAccessForm(pkg: CareerPackage, formType: FormType): boolean {
   return PACKAGE_FORMS[pkg]?.includes(formType) ?? false;
+}
+
+export function getFormsForServiceSlugs(slugs: CareerServiceSlug[]): FormType[] {
+  return getFormsForServices(slugs);
+}
+
+export function canAccessFormByServices(slugs: CareerServiceSlug[], formType: FormType): boolean {
+  return getFormsForServices(slugs).includes(formType);
 }

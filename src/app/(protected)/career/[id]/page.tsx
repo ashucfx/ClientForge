@@ -4,8 +4,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { PACKAGE_LABELS, STATUS_LABELS } from '@/lib/career/types';
-import type { CareerStatus, CareerPackage, EmailTrigger } from '@/lib/career/types';
+import { PACKAGE_LABELS, SERVICE_LABELS, STATUS_LABELS } from '@/lib/career/types';
+import type { CareerStatus, CareerPackage, CareerServiceSlug, EmailTrigger } from '@/lib/career/types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -15,7 +15,8 @@ interface FormSubmission {
 }
 interface Deliverable {
   id: string; label: string; fileUrl: string;
-  fileType: string; mimeType: string; sizeBytes: number; createdAt: string;
+  fileType: string; mimeType: string; sizeBytes: number;
+  fileCategory: string; createdAt: string;
 }
 interface EmailLog {
   id: string; trigger: string; status: string; sentAt: string; resendId: string | null;
@@ -24,15 +25,20 @@ interface ActivityLog {
   id: string; action: string; performedBy: string;
   createdAt: string; metadata: Record<string, unknown> | null;
 }
+interface RevisionItem {
+  id: string; note: string; fileLabel?: string; status: string;
+  requestedBy: string; adminNote?: string; createdAt: string;
+}
 interface ClientDetail {
   id: string; name: string; email: string; phone: string | null;
-  packageType: CareerPackage; status: CareerStatus;
+  packageType: CareerPackage | null; status: CareerStatus;
   amountPaid: number; currency: string; notes: string | null;
   createdAt: string; lastLoginAt: string | null; invoiceId: string | null;
   forms: FormSubmission[];
   deliverables: Deliverable[];
   emailLogs: EmailLog[];
   activityLogs: ActivityLog[];
+  services: { slug: string; name: string }[];
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -48,17 +54,35 @@ const STATUS_STYLES: Record<CareerStatus, { bg: string; text: string; dot: strin
   REVISION_REQUESTED: { bg: 'bg-orange-100',  text: 'text-orange-700', dot: 'bg-orange-500'  },
   COMPLETED:          { bg: 'bg-emerald-100', text: 'text-emerald-700',dot: 'bg-emerald-500' },
 };
+
+// LINKEDIN_DRAFT is NOT in this list — Draft Ready auto-upgrades to the LinkedIn template
+// when admin picks a LinkedIn file type in the document picker. No separate manual trigger needed.
 const EMAIL_TRIGGERS: { value: EmailTrigger; label: string; desc: string }[] = [
-  { value: 'WELCOME',           label: 'Welcome Email',          desc: 'Sends a new magic link + onboarding steps' },
-  { value: 'FORM_CONFIRM',      label: 'Form Confirmation',      desc: 'Confirms form was received' },
-  { value: 'DRAFT_READY',       label: 'Draft Ready',            desc: 'Notifies client draft is available' },
-  { value: 'REVISION',          label: 'Revision Update',        desc: 'Informs client revision is in progress' },
-  { value: 'FINAL_DELIVERY',    label: 'Final Delivery',         desc: 'Sends all uploaded files to client' },
-  { value: 'LINKEDIN_SECURITY', label: 'LinkedIn Security Steps',desc: 'Account security instructions' },
+  { value: 'WELCOME',           label: 'Welcome Email',           desc: 'Sends a new magic link + onboarding steps' },
+  { value: 'FORM_CONFIRM',      label: 'Form Confirmation',       desc: 'Confirms form was received' },
+  { value: 'DRAFT_READY',       label: 'Draft Ready',             desc: 'Notifies client their draft is available for review' },
+  { value: 'REVISED_DRAFT',     label: 'Revised Draft Ready',     desc: 'Updated draft after revision is ready' },
+  { value: 'REVISION',          label: 'Revision Update',         desc: 'Informs client revision is in progress or denied' },
+  { value: 'FINAL_DELIVERY',    label: 'Final Delivery',          desc: 'Sends all uploaded final files to client' },
+  { value: 'LINKEDIN_SECURITY', label: 'LinkedIn Security Steps', desc: 'Account security instructions for LinkedIn' },
 ];
-const FILE_TYPES = ['resume','cover_letter','linkedin_banner','other'];
+const FILE_TYPES = [
+  { value: 'resume',                   label: 'Resume' },
+  { value: 'cover_letter',             label: 'Cover Letter' },
+  { value: 'linkedin_banner',          label: 'LinkedIn Banner' },
+  { value: 'linkedin_profile_picture', label: 'LinkedIn Profile Picture' },
+  { value: 'portfolio',                label: 'Portfolio Website' },
+  { value: 'other',                    label: 'Other' },
+];
 const FORM_TYPE_LABELS: Record<string, string> = {
-  resume: 'Resume', linkedin: 'LinkedIn Optimisation', cover_letter: 'Cover Letter',
+  // Legacy DB names
+  resume:            'Career Profile Strategy Brief',
+  linkedin:          'LinkedIn Profile Optimisation Brief',
+  cover_letter:      'Career Profile Strategy Brief',
+  // Canonical new names
+  career_profile:    'Career Profile Strategy Brief',
+  linkedin_profile:  'LinkedIn Profile Optimisation Brief',
+  portfolio_website: 'Portfolio Website Development Brief',
 };
 const ACTION_LABELS: Record<string, string> = {
   client_created: 'Client created',
@@ -78,9 +102,12 @@ export default function CareerClientDetailPage() {
   const [client, setClient] = useState<ClientDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
-  const [showEdit,   setShowEdit]   = useState(false);
-  const [showDelete, setShowDelete] = useState(false);
-  const [deleting,   setDeleting]   = useState(false);
+  const [showEdit,    setShowEdit]    = useState(false);
+  const [showDelete,  setShowDelete]  = useState(false);
+  // OTP delete flow: 'idle' | 'requesting' | 'confirm' | 'deleting' | 'done'
+  const [deleteStep,  setDeleteStep]  = useState<'idle' | 'requesting' | 'confirm' | 'deleting' | 'done'>('idle');
+  const [otpInput,    setOtpInput]    = useState('');
+  const [otpError,    setOtpError]    = useState('');
 
   const reload = useCallback(async () => {
     const res = await fetch(`/api/career/admin/clients/${id}`);
@@ -117,7 +144,7 @@ export default function CareerClientDetailPage() {
             <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Edit
           </button>
-          <button onClick={() => setShowDelete(true)}
+          <button onClick={() => { setShowDelete(true); setDeleteStep('idle'); setOtpInput(''); setOtpError(''); }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-all">
             <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
             Delete
@@ -144,7 +171,9 @@ export default function CareerClientDetailPage() {
             {/* Right: badges */}
             <div className="flex flex-wrap items-center gap-2">
               <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-200 uppercase tracking-wide">
-                {PACKAGE_LABELS[client.packageType]}
+                {client.services?.length > 0
+                  ? client.services.map(s => SERVICE_LABELS[s.slug as CareerServiceSlug] ?? s.name).join(', ')
+                  : client.packageType ? PACKAGE_LABELS[client.packageType] : 'Career Services'}
               </span>
               <span className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full ${s.bg} ${s.text}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
@@ -158,7 +187,7 @@ export default function CareerClientDetailPage() {
             {[
               { label: 'Amount Paid',  value: `${client.currency} ${client.amountPaid.toLocaleString()}` },
               { label: 'Forms',        value: `${client.forms.length} submitted` },
-              { label: 'Files',        value: `${client.deliverables.length} / 7 uploaded` },
+              { label: 'Files',        value: `${client.deliverables.length} / 10 uploaded` },
               { label: 'Last Login',   value: client.lastLoginAt ? fmt(client.lastLoginAt, true) : 'Never' },
             ].map(({ label, value }) => (
               <div key={label} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
@@ -200,12 +229,12 @@ export default function CareerClientDetailPage() {
 
       {/* ── FORMS ── */}
       {activeTab === 'forms' && (
-        <FormsTab forms={client.forms} packageType={client.packageType} />
+        <FormsTab forms={client.forms} packageType={client.packageType ?? null} />
       )}
 
       {/* ── FILES ── */}
       {activeTab === 'files' && (
-        <FilesTab clientId={client.id} deliverables={client.deliverables} onUpdated={reload} />
+        <FilesTab client={client} onUpdated={reload} />
       )}
 
       {/* ── EMAILS ── */}
@@ -220,7 +249,7 @@ export default function CareerClientDetailPage() {
 
       {/* ── REVISIONS ── */}
       {activeTab === 'revisions' && (
-        <RevisionAdminTab clientId={client.id} clientName={client.name} clientPackage={client.packageType} />
+        <RevisionAdminTab clientId={client.id} clientName={client.name} clientPackage={client.packageType ?? null} />
       )}
 
       {/* ── COMMENTS ── */}
@@ -237,39 +266,117 @@ export default function CareerClientDetailPage() {
         />
       )}
 
-      {/* ── DELETE CONFIRM ── */}
+      {/* ── DELETE — 2-step OTP flow ── */}
       {showDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 border border-slate-200 animate-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-4 mb-5">
-              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-                <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="#dc2626" strokeWidth="2" strokeLinecap="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-base">Delete client?</h3>
-                <p className="text-slate-500 text-sm mt-1 leading-relaxed">
-                  This will permanently delete <strong className="text-slate-700">{client.name}</strong> and all their
-                  forms, files, email logs, and activity history. This action cannot be undone.
+
+            {/* ── Success state ── */}
+            {deleteStep === 'done' ? (
+              <div className="text-center py-4">
+                <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <h3 className="font-bold text-slate-900 text-lg mb-1">Client deleted</h3>
+                <p className="text-sm text-slate-500">
+                  <strong className="text-slate-700">{client.name}</strong> and all associated data have been permanently removed.
                 </p>
+                <p className="text-xs text-slate-400 mt-3">Redirecting…</p>
               </div>
-            </div>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setShowDelete(false)} disabled={deleting}
-                className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50">
-                Cancel
-              </button>
-              <button
-                disabled={deleting}
-                onClick={async () => {
-                  setDeleting(true);
-                  const res = await fetch(`/api/career/admin/clients/${id}`, { method: 'DELETE' });
-                  if (res.ok) { router.push('/career'); } else { setDeleting(false); setShowDelete(false); }
-                }}
-                className="px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2">
-                {deleting && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                {deleting ? 'Deleting…' : 'Yes, Delete Client'}
-              </button>
-            </div>
+            ) : (
+              <>
+                <div className="flex items-start gap-4 mb-5">
+                  <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="#dc2626" strokeWidth="2" strokeLinecap="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-slate-900 text-base">Delete client?</h3>
+                    <p className="text-slate-500 text-sm mt-1 leading-relaxed">
+                      This will permanently delete <strong className="text-slate-700">{client.name}</strong> and all their
+                      forms, files, email logs, and activity history. This action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+
+                {deleteStep === 'idle' && (
+                  <>
+                    <p className="text-xs text-slate-400 mb-4">
+                      For security, a 6-digit OTP will be emailed to{' '}
+                      <strong>info@theripplenexus.com</strong>. Enter it to confirm deletion.
+                    </p>
+                    <div className="flex gap-3 justify-end">
+                      <button onClick={() => setShowDelete(false)}
+                        className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                        Cancel
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setDeleteStep('requesting'); setOtpError('');
+                          const res = await fetch(`/api/career/admin/clients/${id}/delete-otp`, { method: 'POST' });
+                          if (res.ok) { setDeleteStep('confirm'); }
+                          else {
+                            const d = await res.json().catch(() => ({})) as { error?: string };
+                            setOtpError(d.error ?? 'Failed to send OTP.'); setDeleteStep('idle');
+                          }
+                        }}
+                        className="px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors flex items-center gap-2">
+                        Send OTP & Continue
+                      </button>
+                    </div>
+                    {otpError && <p className="mt-3 text-xs text-red-600">{otpError}</p>}
+                  </>
+                )}
+
+                {deleteStep === 'requesting' && (
+                  <div className="flex items-center justify-center gap-2 py-4 text-sm text-slate-500">
+                    <span className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                    Sending OTP to admin email…
+                  </div>
+                )}
+
+                {(deleteStep === 'confirm' || deleteStep === 'deleting') && (
+                  <>
+                    <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 mb-4">
+                      OTP sent to <strong>info@theripplenexus.com</strong>. It expires in 10 minutes.
+                    </p>
+                    <div className="mb-4">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Enter 6-digit OTP</label>
+                      <input
+                        type="text" inputMode="numeric" maxLength={6} placeholder="••••••"
+                        value={otpInput} onChange={e => { setOtpInput(e.target.value.replace(/\D/g, '')); setOtpError(''); }}
+                        className="w-full px-4 py-2.5 text-lg font-mono tracking-[0.5em] text-center border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400"
+                      />
+                      {otpError && <p className="mt-1.5 text-xs text-red-600">{otpError}</p>}
+                    </div>
+                    <div className="flex gap-3 justify-end">
+                      <button onClick={() => { setShowDelete(false); setDeleteStep('idle'); setOtpInput(''); setOtpError(''); }}
+                        disabled={deleteStep === 'deleting'}
+                        className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50">
+                        Cancel
+                      </button>
+                      <button
+                        disabled={otpInput.length !== 6 || deleteStep === 'deleting'}
+                        onClick={async () => {
+                          setDeleteStep('deleting'); setOtpError('');
+                          const res = await fetch(`/api/career/admin/clients/${id}/delete-otp?otp=${otpInput}`, { method: 'DELETE' });
+                          if (res.ok) {
+                            setDeleteStep('done');
+                            setTimeout(() => router.push('/career'), 1800);
+                            return;
+                          }
+                          const d = await res.json().catch(() => ({})) as { error?: string };
+                          setOtpError(d.error ?? 'Invalid OTP. Please try again.');
+                          setDeleteStep('confirm');
+                        }}
+                        className="px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2">
+                        {deleteStep === 'deleting' && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                        {deleteStep === 'deleting' ? 'Deleting…' : 'Confirm Delete'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
@@ -280,30 +387,146 @@ export default function CareerClientDetailPage() {
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 
 function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: () => void }) {
-  const [statusLoading, setStatusLoading] = useState(false);
-  const [emailSending, setEmailSending] = useState(false);
-  const [selectedTrigger, setSelectedTrigger] = useState<EmailTrigger>('WELCOME');
-  const [toast, setToast] = useState('');
+  const [statusLoading,   setStatusLoading]   = useState(false);
+  const [pendingStatus,   setPendingStatus]   = useState<CareerStatus | null>(null);
+  const [emailSending,    setEmailSending]    = useState(false);
+  const [toast,           setToast]           = useState('');
+
+  // ── Derive client capabilities ──────────────────────────────────────────────
+  const slugs = client.services?.map(s => s.slug) ?? [];
+  const hasLinkedIn =
+    slugs.some(s => ['LINKEDIN', 'FULL_PACKAGE'].includes(s)) ||
+    ['LINKEDIN', 'FULL'].includes(client.packageType ?? '');
+  const isLinkedInOnly =
+    slugs.length > 0
+      ? slugs.every(s => s === 'LINKEDIN')
+      : client.packageType === 'LINKEDIN';
+
+  // Which email auto-fires when a status changes (mirrors backend logic exactly)
+  const autoEmailForStatus: Partial<Record<CareerStatus, { label: string }>> = {
+    DRAFT_SENT:         { label: isLinkedInOnly ? 'LinkedIn Draft Ready' : 'Draft Ready' },
+    REVISION_REQUESTED: { label: 'Revision Update' },
+    COMPLETED:          { label: 'Final Delivery' + (hasLinkedIn ? ' + LinkedIn Security Steps' : '') },
+  };
+
+  // Filtered + annotated email triggers for this specific client
+  const clientTriggers: (typeof EMAIL_TRIGGERS[number] & { auto?: string })[] =
+    EMAIL_TRIGGERS
+      .filter(t => {
+        // Hide LinkedIn Security if client has no LinkedIn service
+        if (t.value === 'LINKEDIN_SECURITY' && !hasLinkedIn) return false;
+        return true;
+      })
+      .map(t => ({
+        ...t,
+        auto: t.value === 'DRAFT_READY'      ? 'Auto on Draft Sent'
+            : t.value === 'REVISION'          ? 'Auto on Revision Requested'
+            : t.value === 'FINAL_DELIVERY'    ? 'Auto on Completed'
+            : undefined,
+      }));
+
+  // Group triggers for the manual send panel
+  const draftTriggers    = clientTriggers.filter(t => ['DRAFT_READY','REVISED_DRAFT'].includes(t.value));
+  const finalTriggers    = clientTriggers.filter(t => ['FINAL_DELIVERY','LINKEDIN_SECURITY'].includes(t.value));
+  const accountTriggers  = clientTriggers.filter(t => ['WELCOME','FORM_CONFIRM','REVISION'].includes(t.value));
+
+  const defaultTrigger: EmailTrigger =
+    isLinkedInOnly ? 'DRAFT_READY' : 'WELCOME';
+  const [selectedTrigger, setSelectedTrigger] = useState<EmailTrigger>(defaultTrigger);
+
+  // Revision actions inline in the manual email panel
+  const [pendingRevisions,  setPendingRevisions]  = useState<RevisionItem[]>([]);
+  const [revsLoaded,        setRevsLoaded]        = useState(false);
+  const [actioningId,       setActioningId]       = useState<string | null>(null);
+  const [actionDecision,    setActionDecision]    = useState<'APPROVED' | 'DENIED' | null>(null);
+  const [actionNote,        setActionNote]        = useState('');
+  const [actionEmailOn,     setActionEmailOn]     = useState(true);
+  const [actionSaving,      setActionSaving]      = useState(false);
+
+  // Draft file picker — populated from client's uploaded drafts
+  const draftDeliverables = client.deliverables.filter(d => d.fileCategory === 'draft');
+  const mostRecentDraft   = draftDeliverables[0] ?? null; // already ordered desc
+  const [selectedDraftFileType, setSelectedDraftFileType] = useState<string>(
+    mostRecentDraft?.fileType ?? 'resume',
+  );
+
+  const DRAFT_TRIGGERS = new Set<EmailTrigger>(['DRAFT_READY', 'LINKEDIN_DRAFT', 'REVISED_DRAFT']);
+  const isDraftTrigger = DRAFT_TRIGGERS.has(selectedTrigger);
+
+  // Map fileType → friendly label (mirrors backend)
+  const FILE_TYPE_LABELS: Record<string, string> = {
+    resume:                   'Resume',
+    cover_letter:             'Cover Letter',
+    linkedin_banner:          'LinkedIn Profile',
+    linkedin_profile_picture: 'LinkedIn Profile',
+    linkedin_optimization:    'LinkedIn Profile',
+    linkedin_content:         'LinkedIn Profile',
+    portfolio:                'Portfolio',
+  };
+  const draftEmailLabel = FILE_TYPE_LABELS[selectedDraftFileType]
+    ?? selectedDraftFileType.replace(/_/g, ' ');
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(''), 3000);
+    setTimeout(() => setToast(''), 4000);
   };
 
-  const updateStatus = async (status: CareerStatus) => {
-    if (status === client.status) return;
+  // Lazy-load pending revisions when admin selects the REVISION trigger
+  useEffect(() => {
+    if (selectedTrigger !== 'REVISION' || revsLoaded) return;
+    fetch(`/api/career/admin/clients/${client.id}/revisions`)
+      .then(r => r.json() as Promise<{ revisions: RevisionItem[] }>)
+      .then(d => {
+        setPendingRevisions((d.revisions ?? []).filter(r => r.status === 'PENDING'));
+        setRevsLoaded(true);
+      })
+      .catch(() => setRevsLoaded(true));
+  }, [selectedTrigger, revsLoaded, client.id]);
+
+  const actOnRevision = async (revisionId: string, decision: 'APPROVED' | 'DENIED') => {
+    setActionSaving(true);
+    const doEmail = actionEmailOn;
+    const res = await fetch(`/api/career/admin/clients/${client.id}/revisions`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        revisionId,
+        status: decision,
+        adminNote: actionNote.trim() || undefined,
+        sendEmail: doEmail,
+      }),
+    });
+    setActionSaving(false);
+    if (res.ok) {
+      setPendingRevisions(prev => prev.filter(r => r.id !== revisionId));
+      setActioningId(null);
+      setActionDecision(null);
+      setActionNote('');
+      const decisionLabel = decision === 'APPROVED' ? 'approved' : 'denied';
+      showToast(`Revision ${decisionLabel}${doEmail ? ` - email sent to ${client.name.split(' ')[0]}` : ''}`);
+      onUpdated();
+    }
+  };
+
+  const confirmStatusChange = async () => {
+    if (!pendingStatus) return;
     setStatusLoading(true);
+    setPendingStatus(null);
     const res = await fetch(`/api/career/admin/clients/${client.id}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status: pendingStatus }),
     });
-    const d = await res.json() as { statusLabel?: string; emailTriggered?: boolean };
+    const d = await res.json() as { statusLabel?: string; emailTriggered?: boolean; emailTrigger?: string };
     setStatusLoading(false);
     if (res.ok) {
-      showToast(d.emailTriggered
-        ? `Status → ${d.statusLabel} · Email sent automatically`
-        : `Status → ${d.statusLabel}`);
+      const autoLabel = d.emailTrigger
+        ? clientTriggers.find(t => t.value === d.emailTrigger)?.label
+          ?? EMAIL_TRIGGERS.find(t => t.value === d.emailTrigger)?.label
+        : null;
+      showToast(autoLabel
+        ? `Status updated to "${d.statusLabel}" - "${autoLabel}" email sent automatically`
+        : `Status updated to "${d.statusLabel}"`);
       onUpdated();
     }
   };
@@ -313,11 +536,16 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
     const res = await fetch(`/api/career/admin/clients/${client.id}/email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ trigger: selectedTrigger }),
+      body: JSON.stringify({
+        trigger: selectedTrigger,
+        ...(isDraftTrigger && { fileType: selectedDraftFileType }),
+      }),
     });
     setEmailSending(false);
     if (res.ok) {
-      showToast('Email sent successfully');
+      const label = clientTriggers.find(t => t.value === selectedTrigger)?.label ?? selectedTrigger;
+      const docNote = isDraftTrigger ? ` for "${draftEmailLabel}"` : '';
+      showToast(`"${label}" email sent to ${client.email}${docNote}`);
       onUpdated();
     } else {
       const d = await res.json() as { error?: string };
@@ -325,25 +553,61 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
     }
   };
 
+  const selectedLabel = clientTriggers.find(t => t.value === selectedTrigger)?.label ?? selectedTrigger;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
       {/* Toast */}
       {toast && (
-        <div className="lg:col-span-2 flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-sm font-medium animate-in fade-in">
+        <div className="lg:col-span-2 flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-sm font-medium">
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           {toast}
         </div>
       )}
 
+      {/* Status confirmation modal */}
+      {pendingStatus && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 border border-slate-200">
+            <h3 className="font-bold text-slate-900 text-base mb-2">Confirm status change</h3>
+            <p className="text-slate-500 text-sm leading-relaxed">
+              Change status to <strong className="text-slate-700">{STATUS_LABELS[pendingStatus]}</strong>?
+            </p>
+            {autoEmailForStatus[pendingStatus] && (
+              <div className="mt-3 flex items-start gap-2.5 px-3.5 py-2.5 bg-blue-50 border border-blue-200 rounded-xl">
+                <svg className="mt-0.5 flex-shrink-0" width="14" height="14" fill="none" viewBox="0 0 24 24">
+                  <path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                <p className="text-xs text-blue-700 leading-relaxed">
+                  <strong>"{autoEmailForStatus[pendingStatus]!.label}"</strong> email will be sent to{' '}
+                  <span className="font-medium">{client.name}</span> automatically.
+                </p>
+              </div>
+            )}
+            <div className="flex gap-3 justify-end mt-5">
+              <button onClick={() => setPendingStatus(null)}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={confirmStatusChange} disabled={statusLoading}
+                className="px-4 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50">
+                {statusLoading ? 'Updating...' : 'Yes, Update'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Status control */}
-      <Card title="Update Status" icon="🔄">
+      <Card title="Update Status" icon={<svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>}>
         <div className="space-y-1.5">
           {STATUS_OPTIONS.map(s => {
-            const style = STATUS_STYLES[s];
+            const style   = STATUS_STYLES[s];
             const isCurrent = s === client.status;
+            const autoEmail = autoEmailForStatus[s];
             return (
               <button key={s} disabled={statusLoading || isCurrent}
-                onClick={() => updateStatus(s)}
+                onClick={() => setPendingStatus(s)}
                 className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
                   isCurrent
                     ? `${style.bg} ${style.text} border-transparent cursor-default`
@@ -353,43 +617,291 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
                   <span className={`w-2 h-2 rounded-full ${isCurrent ? style.dot : 'bg-slate-300'}`} />
                   {STATUS_LABELS[s]}
                 </span>
-                {isCurrent && <span className="text-xs opacity-60 font-normal">Current</span>}
+                <span className="flex items-center gap-2">
+                  {autoEmail && !isCurrent && (
+                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 border border-blue-200 rounded font-semibold whitespace-nowrap">
+                      Sends: {autoEmail.label}
+                    </span>
+                  )}
+                  {isCurrent && <span className="text-xs opacity-60 font-normal">Current</span>}
+                </span>
               </button>
             );
           })}
         </div>
-        <p className="mt-3 text-xs text-slate-400">
-          Changing to <strong>Draft Sent</strong>, <strong>Completed</strong>, or <strong>Revision</strong> automatically triggers the corresponding client email.
-        </p>
       </Card>
 
       {/* Email trigger */}
       <Card title="Send Email Manually" icon={<svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>}>
-        <div className="space-y-3">
-          {EMAIL_TRIGGERS.map(t => (
-            <label key={t.value}
-              className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                selectedTrigger === t.value
-                  ? 'border-blue-300 bg-blue-50'
-                  : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-              }`}>
-              <input type="radio" name="trigger" value={t.value}
-                checked={selectedTrigger === t.value}
-                onChange={() => setSelectedTrigger(t.value)}
-                className="mt-0.5 accent-blue-600" />
-              <div>
-                <p className="text-sm font-semibold text-slate-800">{t.label}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{t.desc}</p>
+        <div className="space-y-4">
+
+          {/* Draft notifications */}
+          {draftTriggers.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
+                <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Draft Notifications</p>
               </div>
-            </label>
-          ))}
+              <div className="space-y-1.5 pl-1">
+                {draftTriggers.map(t => (
+                  <label key={t.value}
+                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                      selectedTrigger === t.value
+                        ? 'border-amber-300 bg-amber-50'
+                        : 'border-slate-200 hover:border-amber-200 hover:bg-amber-50/40'
+                    }`}>
+                    <input type="radio" name="trigger" value={t.value}
+                      checked={selectedTrigger === t.value}
+                      onChange={() => setSelectedTrigger(t.value)}
+                      className="mt-1 accent-amber-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold text-slate-800">{t.label}</p>
+                        {t.auto && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-medium border border-amber-200">
+                            {t.auto}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">{t.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Final delivery */}
+          {finalTriggers.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Final Delivery</p>
+              </div>
+              <div className="space-y-1.5 pl-1">
+                {finalTriggers.map(t => (
+                  <label key={t.value}
+                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                      selectedTrigger === t.value
+                        ? 'border-emerald-300 bg-emerald-50'
+                        : 'border-slate-200 hover:border-emerald-200 hover:bg-emerald-50/40'
+                    }`}>
+                    <input type="radio" name="trigger" value={t.value}
+                      checked={selectedTrigger === t.value}
+                      onChange={() => setSelectedTrigger(t.value)}
+                      className="mt-1 accent-emerald-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold text-slate-800">{t.label}</p>
+                        {t.auto && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded font-medium border border-emerald-200">
+                            {t.auto}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">{t.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Account & updates */}
+          {accountTriggers.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-slate-400 flex-shrink-0" />
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Account & Updates</p>
+              </div>
+              <div className="space-y-1.5 pl-1">
+                {accountTriggers.map(t => (
+                  <div key={t.value}>
+                    <label
+                      className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                        selectedTrigger === t.value
+                          ? 'border-blue-300 bg-blue-50'
+                          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                      }`}>
+                      <input type="radio" name="trigger" value={t.value}
+                        checked={selectedTrigger === t.value}
+                        onChange={() => { setSelectedTrigger(t.value); setActioningId(null); setActionNote(''); }}
+                        className="mt-1 accent-blue-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-slate-800">{t.label}</p>
+                          {t.auto && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded font-medium border border-slate-200">
+                              {t.auto}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">{t.desc}</p>
+                      </div>
+                    </label>
+
+                    {/* Revision action panel — shown inline when REVISION is selected */}
+                    {t.value === 'REVISION' && selectedTrigger === 'REVISION' && (
+                      <div className="mt-1.5 ml-1 px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl">
+                        <p className="text-xs font-bold text-slate-600 mb-2.5 uppercase tracking-wide">
+                          Pending Revision Requests
+                        </p>
+
+                        {!revsLoaded ? (
+                          <div className="flex items-center gap-2 py-2 text-xs text-slate-400">
+                            <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                            Loading revisions…
+                          </div>
+                        ) : pendingRevisions.length === 0 ? (
+                          <p className="text-xs text-slate-400 italic py-1">
+                            No pending revisions. Use the Revisions tab to view all requests.
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            {pendingRevisions.map(r => (
+                              <div key={r.id} className="bg-white border border-slate-200 rounded-xl p-3">
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <div className="flex-1 min-w-0">
+                                    {r.fileLabel && (
+                                      <p className="text-xs font-bold text-blue-700 mb-0.5">Re: {r.fileLabel}</p>
+                                    )}
+                                    <p className="text-xs text-slate-700 leading-relaxed line-clamp-2">{r.note}</p>
+                                    <p className="text-[10px] text-slate-400 mt-1">{fmt(r.createdAt)} · by {r.requestedBy === 'client' ? 'Client' : 'Admin'}</p>
+                                  </div>
+                                </div>
+
+                                {actioningId === r.id && actionDecision ? (
+                                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                                    <div className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold ${
+                                      actionDecision === 'APPROVED'
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : 'bg-red-50 text-red-700 border border-red-200'
+                                    }`}>
+                                      {actionDecision === 'APPROVED' ? 'Approving revision' : 'Denying revision'}
+                                      {actionEmailOn && ` - email will be sent to ${client.name.split(' ')[0]}`}
+                                    </div>
+                                    <textarea
+                                      rows={2}
+                                      value={actionNote}
+                                      onChange={e => setActionNote(e.target.value)}
+                                      placeholder={actionDecision === 'DENIED' ? 'Reason for denial (recommended)…' : 'Optional note to client…'}
+                                      className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                                    />
+                                    <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                                      <input type="checkbox" checked={actionEmailOn} onChange={e => setActionEmailOn(e.target.checked)}
+                                        className="accent-blue-600" />
+                                      Send email notifying client
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <button
+                                        disabled={actionSaving}
+                                        onClick={() => actOnRevision(r.id, actionDecision)}
+                                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg disabled:opacity-50 transition-colors ${
+                                          actionDecision === 'APPROVED'
+                                            ? 'text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100'
+                                            : 'text-red-700 bg-red-50 border border-red-200 hover:bg-red-100'
+                                        }`}>
+                                        {actionSaving ? '…' : `Confirm ${actionDecision === 'APPROVED' ? 'Approve' : 'Deny'}`}
+                                      </button>
+                                      <button
+                                        onClick={() => { setActioningId(null); setActionDecision(null); setActionNote(''); }}
+                                        className="px-3 py-1.5 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex gap-2 pt-2 border-t border-slate-100">
+                                    <button
+                                      onClick={() => { setActioningId(r.id); setActionDecision('APPROVED'); setActionNote(''); setActionEmailOn(true); }}
+                                      className="flex-1 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
+                                      Approve
+                                    </button>
+                                    <button
+                                      onClick={() => { setActioningId(r.id); setActionDecision('DENIED'); setActionNote(''); setActionEmailOn(true); }}
+                                      className="flex-1 py-1.5 text-xs font-bold text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
+                                      Deny
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        <button onClick={sendEmail} disabled={emailSending}
-          className="mt-4 w-full py-2.5 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-700 disabled:opacity-50 transition-colors">
-          {emailSending
-            ? <span className="flex items-center justify-center gap-2"><Spinner /><span>Sending…</span></span>
-            : `Send "${EMAIL_TRIGGERS.find(t => t.value === selectedTrigger)?.label}"`}
-        </button>
+
+        {/* Document picker — only visible when a draft trigger is selected */}
+        {isDraftTrigger && (
+          <div className="mt-1 px-3.5 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+            <p className="text-xs font-bold text-amber-800 mb-2 uppercase tracking-wide">
+              Which document is this draft for?
+            </p>
+            {draftDeliverables.length > 0 ? (
+              <div className="space-y-1.5">
+                {draftDeliverables.map(d => (
+                  <label key={d.id}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-all ${
+                      selectedDraftFileType === d.fileType
+                        ? 'bg-white border-amber-400 shadow-sm'
+                        : 'bg-white/60 border-amber-100 hover:border-amber-300'
+                    }`}>
+                    <input type="radio" name="draftFile" value={d.fileType}
+                      checked={selectedDraftFileType === d.fileType}
+                      onChange={() => setSelectedDraftFileType(d.fileType)}
+                      className="accent-amber-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{d.label}</p>
+                      <p className="text-xs text-amber-700">
+                        Email will say: <strong>{FILE_TYPE_LABELS[d.fileType] ?? d.fileType.replace(/_/g, ' ')}</strong>
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedDraftFileType}
+                  onChange={e => setSelectedDraftFileType(e.target.value)}
+                  className="flex-1 px-3 py-2 text-sm border border-amber-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+                  {FILE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+                <p className="text-xs text-amber-600 flex-shrink-0">No drafts uploaded yet</p>
+              </div>
+            )}
+            <p className="mt-2 text-xs text-amber-600">
+              Client will receive: <strong>"Your {draftEmailLabel} draft is ready"</strong>
+            </p>
+          </div>
+        )}
+
+        {selectedTrigger === 'REVISION' ? (
+          <p className="mt-3 text-xs text-slate-400 text-center">
+            Use the Approve / Deny buttons above to send the revision email.
+          </p>
+        ) : (
+          <button onClick={sendEmail} disabled={emailSending}
+            className={`mt-4 w-full py-2.5 text-white text-sm font-bold rounded-xl disabled:opacity-50 transition-colors ${
+              draftTriggers.some(t => t.value === selectedTrigger)
+                ? 'bg-amber-600 hover:bg-amber-700'
+                : finalTriggers.some(t => t.value === selectedTrigger)
+                ? 'bg-emerald-600 hover:bg-emerald-700'
+                : 'bg-slate-900 hover:bg-slate-700'
+            }`}>
+            {emailSending
+              ? <span className="flex items-center justify-center gap-2"><Spinner /><span>Sending...</span></span>
+              : isDraftTrigger
+                ? `Send "${selectedLabel}" for ${draftEmailLabel} to ${client.name.split(' ')[0]}`
+                : `Send "${selectedLabel}" to ${client.name.split(' ')[0]}`}
+          </button>
+        )}
       </Card>
 
       {/* Portal link */}
@@ -416,7 +928,10 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
       <Card title="Order Details" icon={<svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>}>
         <dl className="space-y-2.5">
           {[
-            ['Package',     PACKAGE_LABELS[client.packageType]],
+            ['Services',
+              client.services?.length > 0
+                ? client.services.map(s => SERVICE_LABELS[s.slug as CareerServiceSlug] ?? s.name).join(', ')
+                : client.packageType ? PACKAGE_LABELS[client.packageType] : 'Career Services'],
             ['Amount Paid', `${client.currency} ${client.amountPaid.toLocaleString()}`],
             ['Joined',      fmt(client.createdAt)],
             ['Last Login',  client.lastLoginAt ? fmt(client.lastLoginAt) : 'Never'],
@@ -435,7 +950,7 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
 
 // ── Forms Tab ─────────────────────────────────────────────────────────────────
 
-function FormsTab({ forms, packageType }: { forms: FormSubmission[]; packageType: CareerPackage }) {
+function FormsTab({ forms, packageType }: { forms: FormSubmission[]; packageType: CareerPackage | null }) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   if (forms.length === 0) {
@@ -523,10 +1038,21 @@ function FormsTab({ forms, packageType }: { forms: FormSubmission[]; packageType
 
       {/* Missing forms warning */}
       {(() => {
-        const { PACKAGE_FORMS } = require('@/lib/career/types') as typeof import('@/lib/career/types');
-        const required = PACKAGE_FORMS[packageType] ?? [];
-        const submitted = Object.keys(byType);
-        const missing = required.filter((r: string) => !submitted.includes(r));
+        const {
+          PACKAGE_FORMS, SERVICE_FORM_MAP, normalizeFormType,
+        } = require('@/lib/career/types') as typeof import('@/lib/career/types');
+
+        // Build required forms from services (new-style) or packageType (legacy)
+        const clientServices = forms.length > 0
+          ? [] // services prop not available here — use packageType fallback
+          : [];
+        const required: string[] = packageType ? (PACKAGE_FORMS[packageType] ?? []) : [];
+
+        // Normalize ALL submitted form types (old "resume" → "career_profile") before comparing
+        const submittedNormalized = new Set(
+          Object.keys(byType).map((t: string) => normalizeFormType(t))
+        );
+        const missing = required.filter((r: string) => !submittedNormalized.has(r as import('@/lib/career/types').FormType));
         if (missing.length === 0) return null;
         return (
           <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
@@ -540,20 +1066,33 @@ function FormsTab({ forms, packageType }: { forms: FormSubmission[]; packageType
 
 // ── Files Tab ─────────────────────────────────────────────────────────────────
 
-function FilesTab({ clientId, deliverables, onUpdated }: {
-  clientId: string;
-  deliverables: Deliverable[];
-  onUpdated: () => void;
-}) {
-  const [label, setLabel]       = useState('');
-  const [fileType, setFileType] = useState('resume');
-  const [uploading, setUploading] = useState(false);
-  const [error, setError]       = useState('');
-  const [toast, setToast]       = useState('');
-  const [deleting, setDeleting] = useState<string | null>(null);
+function FilesTab({ client, onUpdated }: { client: ClientDetail; onUpdated: () => void }) {
+  const clientId    = client.id;
+  const deliverables = client.deliverables;
+
+  const [label,        setLabel]        = useState('');
+  const [fileType,     setFileType]     = useState(FILE_TYPES[0].value);
+  const [fileCategory, setFileCategory] = useState<'draft' | 'final'>('draft');
+  const [sendEmail,    setSendEmail]    = useState(true);
+  const [uploading,    setUploading]    = useState(false);
+  const [error,        setError]        = useState('');
+  const [toast,        setToast]        = useState('');
+  const [deleting,     setDeleting]     = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 4000); };
+
+  // Derive what email will be sent for current selection (mirrors backend logic)
+  const LINKEDIN_TYPES = new Set(['linkedin_banner', 'linkedin_profile_picture', 'linkedin_optimization', 'linkedin_content']);
+  const hasRevisions = false; // unknown on frontend — backend checks this
+  function previewEmailTrigger(): string {
+    if (!sendEmail) return '';
+    if (fileCategory === 'final') return 'Final Delivery';
+    if (LINKEDIN_TYPES.has(fileType)) return 'LinkedIn Draft Ready';
+    // We don't know revision count on frontend — backend decides REVISED_DRAFT vs DRAFT_READY
+    return 'Draft Ready (or Revised Draft if client has prior revisions)';
+  }
+  const emailPreview = previewEmailTrigger();
 
   const upload = async () => {
     const file = fileRef.current?.files?.[0];
@@ -565,13 +1104,23 @@ function FilesTab({ clientId, deliverables, onUpdated }: {
     fd.append('file', file);
     fd.append('label', label.trim());
     fd.append('fileType', fileType);
-    const res = await fetch(`/api/career/admin/clients/${clientId}/files`, { method: 'POST', body: fd });
-    const d = await res.json() as { error?: string };
+    fd.append('fileCategory', fileCategory);
+    fd.append('sendEmail', String(sendEmail));
+    const res  = await fetch(`/api/career/admin/clients/${clientId}/files`, { method: 'POST', body: fd });
+    const data = await res.json() as { error?: string; emailTrigger?: string | null };
     setUploading(false);
-    if (!res.ok) { setError(d.error ?? 'Upload failed'); return; }
-    setLabel(''); setFileType('resume');
+    if (!res.ok) { setError(data.error ?? 'Upload failed'); return; }
+    setLabel('');
+    setFileType(FILE_TYPES[0].value);
     if (fileRef.current) fileRef.current.value = '';
-    showToast('File uploaded');
+    const EMAIL_LABELS: Record<string, string> = {
+      DRAFT_READY: 'Draft Ready', LINKEDIN_DRAFT: 'LinkedIn Draft Ready',
+      REVISED_DRAFT: 'Revised Draft Ready', FINAL_DELIVERY: 'Final Delivery',
+    };
+    const emailNote = data.emailTrigger
+      ? ` - "${EMAIL_LABELS[data.emailTrigger] ?? data.emailTrigger}" email sent`
+      : '';
+    showToast(`${fileCategory === 'draft' ? 'Draft' : 'Final deliverable'} uploaded${emailNote}`);
     onUpdated();
   };
 
@@ -584,93 +1133,174 @@ function FilesTab({ clientId, deliverables, onUpdated }: {
     onUpdated();
   };
 
-  const remaining = 7 - deliverables.length;
+  const drafts  = deliverables.filter(f => f.fileCategory === 'draft');
+  const finals  = deliverables.filter(f => f.fileCategory !== 'draft');
+  const remaining = 10 - finals.length;
 
   return (
     <div className="space-y-4">
       {toast && <Toast msg={toast} />}
 
       {/* Upload card */}
-      <Card title={`Upload Deliverable (${deliverables.length}/7)`} icon="⬆️">
-        {remaining === 0 ? (
-          <p className="text-sm text-amber-700 bg-amber-50 px-3 py-2 rounded-lg">
-            Maximum 7 files reached. Delete a file to upload more.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">Label</label>
-                <input type="text" placeholder="e.g. Final Resume v2"
-                  value={label} onChange={e => setLabel(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">Type</label>
-                <select value={fileType} onChange={e => setFileType(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {FILE_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
-                </select>
-              </div>
+      <Card title={`Upload File (${drafts.length} draft${drafts.length !== 1 ? 's' : ''}, ${finals.length} final${finals.length !== 1 ? 's' : ''})`}
+        icon={<svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>}>
+        <div className="space-y-3">
+          {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+
+          {/* Category toggle */}
+          <div>
+            <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">File Type</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(['draft', 'final'] as const).map(cat => (
+                <button key={cat} type="button"
+                  onClick={() => setFileCategory(cat)}
+                  className={`py-2.5 px-4 rounded-xl text-sm font-semibold border transition-all ${
+                    fileCategory === cat
+                      ? cat === 'draft'
+                        ? 'bg-amber-50 border-amber-300 text-amber-700'
+                        : 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                      : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                  }`}>
+                  {cat === 'draft' ? 'Draft' : 'Final Deliverable'}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-slate-400 mt-1.5">
+              {fileCategory === 'draft'
+                ? 'Draft files are for client review — they can request revisions.'
+                : `Final files are delivered to the client. ${remaining} final slot${remaining !== 1 ? 's' : ''} remaining.`}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">Label</label>
+              <input type="text"
+                placeholder={fileCategory === 'draft' ? 'e.g. Resume Draft v1' : 'e.g. Final Resume'}
+                value={label} onChange={e => setLabel(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">File</label>
-              <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt"
-                className="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-slate-200 rounded-xl p-1" />
-              <p className="text-xs text-slate-400 mt-1">PDF, DOCX, PNG, JPG · Max 20 MB · {remaining} slot{remaining !== 1 ? 's' : ''} remaining</p>
+              <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">Document Type</label>
+              <select value={fileType} onChange={e => setFileType(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                {FILE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
             </div>
-            <button onClick={upload} disabled={uploading || !label}
-              className="w-full py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
-              {uploading ? <span className="flex items-center justify-center gap-2"><Spinner /><span>Uploading…</span></span> : 'Upload File'}
-            </button>
           </div>
-        )}
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">File</label>
+            <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt"
+              className="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-slate-200 rounded-xl p-1" />
+          </div>
+
+          {/* Email notification checkbox */}
+          <label className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-all ${
+            sendEmail
+              ? 'bg-blue-50 border-blue-200'
+              : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+          }`}>
+            <input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)}
+              className="mt-0.5 accent-blue-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-slate-700">
+                Notify client by email after upload
+              </p>
+              {sendEmail && (
+                <p className="text-xs text-blue-600 mt-0.5">
+                  Will send: <strong>{emailPreview}</strong>
+                </p>
+              )}
+              {!sendEmail && (
+                <p className="text-xs text-slate-400 mt-0.5">Client will not be notified</p>
+              )}
+            </div>
+          </label>
+
+          <button onClick={upload} disabled={uploading || !label.trim()}
+            className="w-full py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
+            {uploading
+              ? <span className="flex items-center justify-center gap-2"><Spinner /><span>Uploading...</span></span>
+              : `Upload ${fileCategory === 'draft' ? 'Draft' : 'Final Deliverable'}`}
+          </button>
+        </div>
       </Card>
 
-      {/* File list */}
-      {deliverables.length === 0 ? (
-        <EmptyCard icon={<svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>}
-          title="No files uploaded yet" subtitle="Upload resume, cover letter, LinkedIn banner or other deliverables above." />
-      ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm divide-y divide-slate-100">
-          {deliverables.map(file => (
-            <div key={file.id} className="flex items-center gap-4 p-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
-                {file.fileType === 'resume' ? (
-                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M9 13h6M9 17h4"/></svg>
-                ) : file.fileType === 'linkedin_banner' ? (
-                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#1f56d4" strokeWidth="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke="#1f56d4" strokeWidth="2"/><path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M21 15l-5-5L5 21"/></svg>
-                ) : file.fileType === 'cover_letter' ? (
-                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                ) : (
-                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-900 text-sm truncate">{file.label}</p>
-                <p className="text-xs text-slate-400 mt-0.5 capitalize">
-                  {file.fileType.replace(/_/g, ' ')} · {fmt(file.createdAt)} · {(file.sizeBytes / 1024).toFixed(0)} KB
-                </p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <a href={file.fileUrl} target="_blank" rel="noopener noreferrer"
-                  className="px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium transition-colors">
-                  Preview
-                </a>
-                <a href={file.fileUrl} download
-                  className="px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium transition-colors">
-                  Download
-                </a>
-                <button onClick={() => deleteFile(file.id)} disabled={deleting === file.id}
-                  className="px-3 py-1.5 text-xs bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-medium transition-colors disabled:opacity-40">
-                  {deleting === file.id ? '…' : 'Delete'}
-                </button>
-              </div>
-            </div>
-          ))}
+      {/* Draft files */}
+      {drafts.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="px-5 py-3 bg-amber-50 border-b border-amber-100 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400" />
+            <p className="text-xs font-bold text-amber-700 uppercase tracking-wide">Drafts ({drafts.length})</p>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {drafts.map(file => <FileRow key={file.id} file={file} onDelete={deleteFile} deleting={deleting} />)}
+          </div>
         </div>
       )}
+
+      {/* Final files */}
+      {finals.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="px-5 py-3 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <p className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Final Deliverables ({finals.length})</p>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {finals.map(file => <FileRow key={file.id} file={file} onDelete={deleteFile} deleting={deleting} />)}
+          </div>
+        </div>
+      )}
+
+      {deliverables.length === 0 && (
+        <EmptyCard icon={<svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>}
+          title="No files uploaded yet" subtitle="Upload draft or final deliverables above. The client will be notified by email." />
+      )}
+    </div>
+  );
+}
+
+function FileRow({ file, onDelete, deleting }: {
+  file: Deliverable;
+  onDelete: (id: string) => void;
+  deleting: string | null;
+}) {
+  return (
+    <div className="flex items-center gap-4 p-4">
+      <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
+        {file.fileType === 'resume' ? (
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M9 13h6M9 17h4"/></svg>
+        ) : file.fileType === 'linkedin_banner' ? (
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#1f56d4" strokeWidth="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke="#1f56d4" strokeWidth="2"/><path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M21 15l-5-5L5 21"/></svg>
+        ) : file.fileType === 'linkedin_profile_picture' ? (
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke="#1f56d4" strokeWidth="2"/><path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M4 20c0-4 3.582-7 8-7s8 3 8 7"/></svg>
+        ) : file.fileType === 'cover_letter' ? (
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        ) : (
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-slate-900 text-sm truncate">{file.label}</p>
+        <p className="text-xs text-slate-400 mt-0.5 capitalize">
+          {file.fileType.replace(/_/g, ' ')} · {fmt(file.createdAt)} · {(file.sizeBytes / 1024).toFixed(0)} KB
+        </p>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <a href={file.fileUrl} target="_blank" rel="noopener noreferrer"
+          className="px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium transition-colors">
+          Preview
+        </a>
+        <a href={file.fileUrl} download
+          className="px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium transition-colors">
+          Download
+        </a>
+        <button onClick={() => onDelete(file.id)} disabled={deleting === file.id}
+          className="px-3 py-1.5 text-xs bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-medium transition-colors disabled:opacity-40">
+          {deleting === file.id ? '...' : 'Delete'}
+        </button>
+      </div>
     </div>
   );
 }
@@ -684,8 +1314,10 @@ function EmailsTab({ logs }: { logs: EmailLog[] }) {
 
   const triggerLabel: Record<string, string> = {
     WELCOME: 'Welcome', FORM_CONFIRM: 'Form Confirmation',
-    DRAFT_READY: 'Draft Ready', REVISION: 'Revision',
+    DRAFT_READY: 'Draft Ready', LINKEDIN_DRAFT: 'LinkedIn Draft Ready',
+    REVISED_DRAFT: 'Revised Draft Ready', REVISION: 'Revision Update',
     FINAL_DELIVERY: 'Final Delivery', LINKEDIN_SECURITY: 'LinkedIn Security',
+    DELETE_OTP: 'Account Deletion OTP', MESSAGE_NOTIFY: 'Message Notification',
   };
 
   return (
@@ -765,11 +1397,6 @@ function ActivityTab({ logs }: { logs: ActivityLog[] }) {
 
 // ── Revision Admin Tab ────────────────────────────────────────────────────────
 
-interface RevisionItem {
-  id: string; note: string; fileLabel?: string; status: string;
-  requestedBy: string; adminNote?: string; createdAt: string;
-}
-
 const REV_STATUS_STYLE: Record<string, string> = {
   PENDING:  'bg-amber-50 text-amber-700 border-amber-200',
   APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -779,17 +1406,23 @@ const REV_STATUS_STYLE: Record<string, string> = {
 function RevisionAdminTab({ clientId, clientName, clientPackage }: {
   clientId: string;
   clientName: string;
-  clientPackage: CareerPackage;
+  clientPackage: CareerPackage | null;
 }) {
-  const [revisions, setRevisions] = useState<RevisionItem[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [showForm,  setShowForm]  = useState(false);
-  const [note,      setNote]      = useState('');
-  const [fileLabel, setFileLabel] = useState('');
-  const [sendEmail, setSendEmail] = useState(true);
-  const [saving,    setSaving]    = useState(false);
-  const [error,     setError]     = useState('');
-  const [toast,     setToast]     = useState('');
+  const [revisions,   setRevisions]   = useState<RevisionItem[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [showForm,    setShowForm]    = useState(false);
+  const [note,        setNote]        = useState('');
+  const [fileLabel,   setFileLabel]   = useState('');
+  const [sendEmail,   setSendEmail]   = useState(true);
+  const [saving,      setSaving]      = useState(false);
+  const [error,       setError]       = useState('');
+  const [toast,       setToast]       = useState('');
+  // Inline confirm state for approve/deny
+  const [confirmId,       setConfirmId]       = useState<string | null>(null);
+  const [confirmDecision, setConfirmDecision] = useState<'APPROVED' | 'DENIED' | null>(null);
+  const [confirmNote,     setConfirmNote]     = useState('');
+  const [confirmEmail,    setConfirmEmail]    = useState(true);
+  const [confirming,      setConfirming]      = useState(false);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
@@ -820,16 +1453,26 @@ function RevisionAdminTab({ clientId, clientName, clientPackage }: {
     }
   };
 
-  const updateStatus = async (revisionId: string, status: string, adminNote?: string) => {
+  const confirmAction = async () => {
+    if (!confirmId || !confirmDecision) return;
+    setConfirming(true);
     const res = await fetch(`/api/career/admin/clients/${clientId}/revisions`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ revisionId, status, adminNote }),
+      body: JSON.stringify({
+        revisionId: confirmId,
+        status: confirmDecision,
+        adminNote: confirmNote.trim() || undefined,
+        sendEmail: confirmEmail,
+      }),
     });
+    setConfirming(false);
     if (res.ok) {
       const d = await res.json() as { revision: RevisionItem };
-      setRevisions(prev => prev.map(r => r.id === revisionId ? d.revision : r));
-      showToast(`Revision ${status.toLowerCase()}`);
+      setRevisions(prev => prev.map(r => r.id === confirmId ? d.revision : r));
+      const label = confirmDecision === 'APPROVED' ? 'approved' : 'denied';
+      showToast(`Revision ${label}${confirmEmail ? ' - email sent' : ''}`);
+      setConfirmId(null); setConfirmDecision(null); setConfirmNote('');
     }
   };
 
@@ -920,17 +1563,54 @@ function RevisionAdminTab({ clientId, clientName, clientPackage }: {
                 </div>
               </div>
               {r.status === 'PENDING' && (
-                <div className="flex gap-2 pt-3 border-t border-slate-100">
-                  <button
-                    onClick={() => updateStatus(r.id, 'APPROVED')}
-                    className="flex-1 py-1.5 text-xs font-bold text-emerald-700 border border-emerald-200 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors">
-                    Approve
-                  </button>
-                  <button
-                    onClick={() => updateStatus(r.id, 'DENIED')}
-                    className="flex-1 py-1.5 text-xs font-bold text-red-700 border border-red-200 bg-red-50 rounded-xl hover:bg-red-100 transition-colors">
-                    Deny
-                  </button>
+                <div className="pt-3 border-t border-slate-100">
+                  {confirmId === r.id && confirmDecision ? (
+                    <div className="space-y-2">
+                      <div className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                        confirmDecision === 'APPROVED'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-red-50 text-red-700 border border-red-200'
+                      }`}>
+                        {confirmDecision === 'APPROVED' ? 'Approving revision' : 'Denying revision'}
+                        {confirmEmail && ` - email will be sent to ${clientName.split(' ')[0]}`}
+                      </div>
+                      <textarea rows={2} value={confirmNote} onChange={e => setConfirmNote(e.target.value)}
+                        placeholder={confirmDecision === 'DENIED' ? 'Reason for denial (recommended)…' : 'Optional note to client…'}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 resize-none" />
+                      <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                        <input type="checkbox" checked={confirmEmail} onChange={e => setConfirmEmail(e.target.checked)}
+                          className="w-4 h-4 accent-blue-600" />
+                        Send email to client
+                      </label>
+                      <div className="flex gap-2">
+                        <button onClick={confirmAction} disabled={confirming}
+                          className={`flex-1 py-2 text-xs font-bold rounded-xl disabled:opacity-50 transition-colors ${
+                            confirmDecision === 'APPROVED'
+                              ? 'text-white bg-emerald-600 hover:bg-emerald-700'
+                              : 'text-white bg-red-600 hover:bg-red-700'
+                          }`}>
+                          {confirming ? 'Saving…' : `Confirm ${confirmDecision === 'APPROVED' ? 'Approve' : 'Deny'}`}
+                        </button>
+                        <button onClick={() => { setConfirmId(null); setConfirmDecision(null); setConfirmNote(''); }}
+                          className="px-4 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setConfirmId(r.id); setConfirmDecision('APPROVED'); setConfirmNote(''); setConfirmEmail(true); }}
+                        className="flex-1 py-1.5 text-xs font-bold text-emerald-700 border border-emerald-200 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors">
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => { setConfirmId(r.id); setConfirmDecision('DENIED'); setConfirmNote(''); setConfirmEmail(true); }}
+                        className="flex-1 py-1.5 text-xs font-bold text-red-700 border border-red-200 bg-red-50 rounded-xl hover:bg-red-100 transition-colors">
+                        Deny
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

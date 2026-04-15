@@ -7,8 +7,8 @@ import { isAdminRequest } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 import { generateMagicToken, magicTokenExpiry } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
-import { PACKAGE_LABELS } from '@/lib/career/types';
-import type { CareerPackage } from '@/lib/career/types';
+import type { CareerServiceSlug } from '@/lib/career/types';
+import { resolveServices } from '@/lib/career/services';
 
 const PORTAL_URL =
   process.env.NODE_ENV === 'development'
@@ -19,16 +19,14 @@ export async function GET(req: NextRequest) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = req.nextUrl;
-  const status      = searchParams.get('status') ?? undefined;
-  const packageType = searchParams.get('package') ?? undefined;
-  const search      = searchParams.get('search') ?? undefined;
-  const page        = Math.max(1, Number(searchParams.get('page') ?? '1'));
-  const limit       = Math.min(50, Math.max(10, Number(searchParams.get('limit') ?? '20')));
+  const status  = searchParams.get('status')   ?? undefined;
+  const search  = searchParams.get('search')   ?? undefined;
+  const page    = Math.max(1, Number(searchParams.get('page')  ?? '1'));
+  const limit   = Math.min(50, Math.max(10, Number(searchParams.get('limit') ?? '20')));
 
   const where = {
-    ...(status      ? { status: status as never }      : {}),
-    ...(packageType ? { packageType: packageType as never } : {}),
-    ...(search      ? {
+    ...(status ? { status: status as never } : {}),
+    ...(search ? {
       OR: [
         { name:  { contains: search, mode: 'insensitive' as const } },
         { email: { contains: search, mode: 'insensitive' as const } },
@@ -46,6 +44,7 @@ export async function GET(req: NextRequest) {
         id: true, name: true, email: true, phone: true,
         packageType: true, status: true, amountPaid: true, currency: true,
         createdAt: true, lastLoginAt: true,
+        services: { select: { service: { select: { slug: true, name: true } } } },
         _count: { select: { forms: true, deliverables: true } },
       },
     }),
@@ -63,45 +62,72 @@ export async function POST(req: NextRequest) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  if (!body?.name || !body?.email || !body?.packageType) {
-    return NextResponse.json({ error: 'name, email, packageType required' }, { status: 400 });
+  if (!body?.name || !body?.email) {
+    return NextResponse.json({ error: 'name and email required' }, { status: 400 });
+  }
+
+  // services is an array of CareerService slugs e.g. ['RESUME','LINKEDIN']
+  const slugs: CareerServiceSlug[] = Array.isArray(body.services) ? body.services : [];
+  if (slugs.length === 0) {
+    return NextResponse.json({ error: 'at least one service required' }, { status: 400 });
   }
 
   const email = (body.email as string).toLowerCase().trim();
+
+  // Resolve service IDs — upsert seeds if missing
+  const serviceRecords = await resolveServices(slugs);
+
   const magicToken  = generateMagicToken();
   const tokenExpiry = magicTokenExpiry();
 
   const client = await db.careerClient.upsert({
     where: { email },
     create: {
-      name: body.name as string,
+      name:      body.name as string,
       email,
-      phone: body.phone as string | undefined,
-      packageType: body.packageType as CareerPackage,
-      amountPaid: body.amountPaid ? Number(body.amountPaid) : 0,
-      currency: body.currency ?? 'INR',
-      notes: body.notes as string | undefined,
+      phone:     body.phone    ? String(body.phone).trim()    : null,
+      notes:     body.notes    ? String(body.notes).trim()    : null,
+      amountPaid: body.amountPaid ? Number(body.amountPaid)   : 0,
+      currency:  body.currency ?? 'INR',
       magicToken,
       magicTokenExpiry: tokenExpiry,
+      services: {
+        create: serviceRecords.map(s => ({ serviceId: s.id })),
+      },
+      activityLogs: {
+        create: {
+          action: 'client_created',
+          performedBy: 'admin',
+          metadata: { trigger: 'manual', services: slugs },
+        },
+      },
     },
     update: {
-      packageType: body.packageType as CareerPackage,
       magicToken,
       magicTokenExpiry: tokenExpiry,
     },
   });
 
+  // Sync services on re-purchase (upsert each mapping)
+  if (/* existing client */ !(await db.careerClientService.count({ where: { clientId: client.id } }))) {
+    for (const s of serviceRecords) {
+      await db.careerClientService.upsert({
+        where: { clientId_serviceId: { clientId: client.id, serviceId: s.id } },
+        create: { clientId: client.id, serviceId: s.id },
+        update: {},
+      });
+    }
+  }
+
+  const serviceNames = serviceRecords.map(s => s.name).join(', ');
+  const portalUrl = `${PORTAL_URL}/portal/login?token=${magicToken}`;
+
   // Send welcome email
   try {
-    const portalUrl = `${PORTAL_URL}/portal/login?token=${magicToken}`;
     const resendId = await sendCareerEmail({
       to: email,
       trigger: 'WELCOME',
-      data: {
-        name: client.name,
-        packageLabel: PACKAGE_LABELS[client.packageType],
-        portalUrl,
-      },
+      data: { name: client.name, packageLabel: serviceNames, portalUrl },
     });
     await db.careerEmailLog.create({
       data: { clientId: client.id, trigger: 'WELCOME', resendId, status: 'sent' },
@@ -112,3 +138,4 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ client }, { status: 201 });
 }
+

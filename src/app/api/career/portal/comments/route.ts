@@ -7,6 +7,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
+import { sendCareerEmail } from '@/lib/career/email';
+
+const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'info@theripplenexus.com';
+const PORTAL_URL  =
+  process.env.NODE_ENV === 'development'
+    ? 'http://localhost:3000'
+    : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000');
 
 async function getClient() {
   const token = cookies().get(PORTAL_COOKIE)?.value ?? '';
@@ -14,7 +21,7 @@ async function getClient() {
   if (!payload) return null;
   const client = await db.careerClient.findUnique({
     where: { id: payload.clientId },
-    select: { id: true, name: true },
+    select: { id: true, name: true, email: true },
   });
   return client ?? null;
 }
@@ -52,6 +59,18 @@ export async function POST(req: NextRequest) {
       content,
     },
   });
+
+  // Email notification to admin at info@theripplenexus.com
+  sendCareerEmail({
+    to: ADMIN_EMAIL,
+    trigger: 'MESSAGE_NOTIFY',
+    data: {
+      recipientName: 'Ripple Nexus Team',
+      senderType: 'client',
+      portalUrl: `${PORTAL_URL}/career/${client.id}`,
+      body: `${client.name} has sent a new message in the comments section. Log in to the admin panel to view and reply.`,
+    },
+  }).catch(console.error);
 
   return NextResponse.json({ ok: true, comment }, { status: 201 });
 }

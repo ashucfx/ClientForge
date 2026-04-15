@@ -15,7 +15,7 @@ export function DraftReadyEmail({ name, packageLabel, portalUrl }: DraftReadyEma
   const label = packageLabel ?? 'Career';
   return (
     <EmailBase
-      preview={`Your ${label} draft is ready — log in to your ClientForge Boost portal and review it now`}
+      preview={`Your ${label} draft is ready - log in to your ClientForge Boost portal and review it now`}
       accentColor="#1f56d4"
     >
       <Section style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '12px 18px', margin: '0 0 24px' }}>
@@ -45,7 +45,7 @@ export function DraftReadyEmail({ name, packageLabel, portalUrl }: DraftReadyEma
         ].map((item, i) => (
           <Row key={i} style={{ marginBottom: '10px' }}>
             <Column style={{ width: '20px', verticalAlign: 'top' }}>
-              <Text style={{ margin: '3px 0 0', fontSize: '12px', fontWeight: 700, color: '#1f56d4' }}>—</Text>
+              <Text style={{ margin: '3px 0 0', fontSize: '12px', fontWeight: 700, color: '#1f56d4' }}>-</Text>
             </Column>
             <Column style={{ verticalAlign: 'top', paddingLeft: '6px' }}>
               <Text style={{ margin: '2px 0 0', fontSize: '14px', color: '#475569', lineHeight: '1.5' }}>{item}</Text>
@@ -56,7 +56,7 @@ export function DraftReadyEmail({ name, packageLabel, portalUrl }: DraftReadyEma
 
       <EmailBody style={{ fontSize: '14px', marginTop: '4px' }}>
         Your package includes <strong style={{ color: '#0f172a' }}>2 revision rounds</strong>.
-        Use the feedback form in your portal to request any changes — our team will turnaround revisions within 24–48 hours.
+        Use the feedback form in your portal to request any changes - our team will turnaround revisions within 24-48 hours.
       </EmailBody>
 
       <Text style={{ margin: '16px 0 0', fontSize: '12px', color: '#94a3b8', lineHeight: '1.6', borderLeft: '3px solid #bfdbfe', paddingLeft: '12px' }}>
