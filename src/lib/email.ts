@@ -257,18 +257,15 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
     const isFree = lt === 0;
     const isLast = idx === lineItemsArr.length - 1;
     const borderStyle = isLast ? '' : 'border-bottom:1px solid #eef2ff;';
-    // Icon: pick based on common keywords, fallback to document icon
-    const icon = /resume|cv/i.test(item.description) ? '&#128196;'
-      : /linkedin/i.test(item.description) ? '&#128279;'
-      : /cover/i.test(item.description) ? '&#9993;'
-      : '&#128203;';
     const iconBg = isFree ? '#f0fdf4' : '#eef2ff';
+    const iconColor = isFree ? '#16a34a' : '#2B5CE6';
+    const iconNum = String(idx + 1);
     return `<tr>
         <td style="padding:12px 16px;${borderStyle}">
           <table cellpadding="0" cellspacing="0" role="presentation" width="100%">
             <tr>
               <td width="30" valign="middle">
-                <div style="width:26px;height:26px;background:${iconBg};border-radius:50%;text-align:center;line-height:26px;font-size:13px;">${icon}</div>
+                <div style="width:26px;height:26px;background:${iconBg};border-radius:50%;text-align:center;line-height:26px;font-size:11px;font-weight:700;font-family:Helvetica,Arial,sans-serif;color:${iconColor};">${iconNum}</div>
               </td>
               <td style="padding-left:10px;" valign="middle">
                 <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#0f1c3d;font-weight:600;">${item.description}</div>
@@ -369,7 +366,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
                   </td>
                   <td valign="middle">
                     <div style="font-family:Helvetica,Arial,sans-serif;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;line-height:1;">
-                      Ripple<span style="color:#5CC8A0;">Nexus</span>
+                      Ripple<span style="color:#ffffff;">Nexus</span>
                     </div>
                     <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:rgba(255,255,255,0.65);letter-spacing:1.2px;text-transform:uppercase;margin-top:3px;">
                       Career Acceleration
@@ -406,7 +403,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
       <td class="mobile-pad" style="padding:32px 36px 0;">
         <h1 class="hero-title"
             style="margin:0 0 10px;font-family:Helvetica,Arial,sans-serif;font-size:26px;color:#0d1b4b;font-weight:800;line-height:1.3;">
-          Hello, ${firstName}! &#127775;
+          Hello, ${firstName},
         </h1>
         <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#4a5568;line-height:1.75;">
           Your <strong style="color:#2B5CE6;">${CLIENT_TYPE_LABELS[invoice.clientType]}</strong> Career Booster Package invoice is attached and ready.
@@ -524,7 +521,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
           </tr>
         </table>
         <div style="margin-top:12px;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#9ca3af;">
-          Secure payment via Razorpay &nbsp;&#128274;&nbsp; UPI &bull; Cards &bull; Net Banking &bull; Wallets
+          Secure payment via Razorpay &mdash; UPI &bull; Cards &bull; Net Banking &bull; Wallets
         </div>
         <div style="margin-top:8px;font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#b0b8cc;">
           Or paste this link in your browser:<br/>
@@ -543,7 +540,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
           <tr>
             <!-- Step 1 -->
             <td width="25%" align="center" valign="top" style="padding:0 6px;">
-              <div style="width:36px;height:36px;background:#eef2ff;border-radius:50%;margin:0 auto 8px;text-align:center;line-height:36px;font-size:16px;">&#9989;</div>
+              <div style="width:36px;height:36px;background:#eef2ff;border-radius:50%;margin:0 auto 8px;text-align:center;line-height:36px;font-size:15px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#2B5CE6;">1</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#0d1b4b;text-align:center;">Payment</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#9ca3af;text-align:center;margin-top:2px;">Instant</div>
             </td>
@@ -551,7 +548,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
             <td width="8%" align="center" valign="top" style="padding-top:10px;font-size:18px;color:#c7d2fe;">&rarr;</td>
             <!-- Step 2 -->
             <td width="25%" align="center" valign="top" style="padding:0 6px;">
-              <div style="width:36px;height:36px;background:#eef2ff;border-radius:50%;margin:0 auto 8px;text-align:center;line-height:36px;font-size:16px;">&#128203;</div>
+              <div style="width:36px;height:36px;background:#eef2ff;border-radius:50%;margin:0 auto 8px;text-align:center;line-height:36px;font-size:15px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#2B5CE6;">2</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#0d1b4b;text-align:center;">Kickoff</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#9ca3af;text-align:center;margin-top:2px;">Within 24 hrs</div>
             </td>
@@ -559,7 +556,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
             <td width="8%" align="center" valign="top" style="padding-top:10px;font-size:18px;color:#c7d2fe;">&rarr;</td>
             <!-- Step 3 -->
             <td width="25%" align="center" valign="top" style="padding:0 6px;">
-              <div style="width:36px;height:36px;background:#eef2ff;border-radius:50%;margin:0 auto 8px;text-align:center;line-height:36px;font-size:16px;">&#127775;</div>
+              <div style="width:36px;height:36px;background:#eef2ff;border-radius:50%;margin:0 auto 8px;text-align:center;line-height:36px;font-size:15px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#2B5CE6;">3</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#0d1b4b;text-align:center;">Delivery</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#9ca3af;text-align:center;margin-top:2px;">2–4 business days</div>
             </td>
@@ -595,19 +592,19 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
           <tr>
             <td width="33%" align="center" style="padding:0 4px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#6b7280;text-align:center;">
-                <span style="font-size:18px;display:block;margin-bottom:4px;">&#128274;</span>
+                <div style="width:32px;height:32px;background:#eef2ff;border-radius:50%;margin:0 auto 6px;text-align:center;line-height:32px;font-size:11px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#2B5CE6;">SSL</div>
                 <strong style="color:#0d1b4b;">Secure Payment</strong><br/>256-bit SSL
               </div>
             </td>
             <td width="33%" align="center" style="padding:0 4px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#6b7280;text-align:center;">
-                <span style="font-size:18px;display:block;margin-bottom:4px;">&#128336;</span>
+                <div style="width:32px;height:32px;background:#eef2ff;border-radius:50%;margin:0 auto 6px;text-align:center;line-height:32px;font-size:11px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#2B5CE6;">2-4</div>
                 <strong style="color:#0d1b4b;">Fast Delivery</strong><br/>2–4 Business Days
               </div>
             </td>
             <td width="33%" align="center" style="padding:0 4px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#6b7280;text-align:center;">
-                <span style="font-size:18px;display:block;margin-bottom:4px;">&#128100;</span>
+                <div style="width:32px;height:32px;background:#eef2ff;border-radius:50%;margin:0 auto 6px;text-align:center;line-height:32px;font-size:11px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#2B5CE6;">x2</div>
                 <strong style="color:#0d1b4b;">2 Revisions</strong><br/>Satisfaction Driven
               </div>
             </td>
@@ -738,7 +735,7 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
 
     <!-- Header -->
     <tr>
-      <td style="background:linear-gradient(135deg,#0d9466 0%,#5CC8A0 100%);padding:40px 36px;text-align:center;">
+      <td style="background:linear-gradient(135deg,#1a3fa8 0%,#2B5CE6 55%,#1d4ed8 100%);padding:40px 36px;text-align:center;">
         <!-- Logo -->
         <div style="margin-bottom:16px;">
           <svg width="52" height="52" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;">
@@ -764,7 +761,7 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
             <circle cx="24" cy="50" r="8.5" fill="rgba(255,255,255,0.6)"/>
             <circle cx="50" cy="50" r="17" fill="rgba(255,255,255,0.9)"/>
             <!-- Check mark in center -->
-            <text x="50" y="56" text-anchor="middle" font-size="18" font-family="Arial" fill="#0d9466">&#10003;</text>
+            <text x="50" y="56" text-anchor="middle" font-size="18" font-family="Arial" fill="#2B5CE6">&#10003;</text>
           </svg>
         </div>
         <h1 style="margin:0 0 8px;font-family:Helvetica,Arial,sans-serif;font-size:28px;font-weight:900;color:#ffffff;letter-spacing:-0.3px;">
@@ -793,7 +790,7 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
             </td>
             <td width="50%" style="padding:14px 18px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#7c8db5;text-transform:uppercase;letter-spacing:1.2px;">Amount Paid</div>
-              <div style="font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#0d9466;font-weight:800;margin-top:4px;">${fmt(invoice.totalPayable)} ${invoice.currency}</div>
+              <div style="font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#2B5CE6;font-weight:800;margin-top:4px;">${fmt(invoice.totalPayable)} ${invoice.currency}</div>
             </td>
           </tr>
           <tr>

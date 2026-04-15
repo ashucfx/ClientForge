@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyWebhookSignature } from '@/lib/razorpay';
 import { sendPaymentConfirmationEmail } from '@/lib/email';
+import { onboardFromInvoice } from '@/lib/career/onboarding';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -56,6 +57,11 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error('Confirmation email failed:', err);
     }
+
+    // Auto-onboard career client
+    onboardFromInvoice({ ...invoice, razorpayPaymentId }).catch(err =>
+      console.error('[webhook] Career onboarding failed:', err)
+    );
 
   }
 

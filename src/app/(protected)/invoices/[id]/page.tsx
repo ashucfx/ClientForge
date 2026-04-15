@@ -331,6 +331,8 @@ export default function InvoiceDetailPage() {
   const [showRevision, setShowRevision]         = useState(false);
   const [showDelete, setShowDelete]             = useState(false);
   const [deleting, setDeleting]                 = useState(false);
+  const [markingPaid, setMarkingPaid]           = useState(false);
+  const [syncing, setSyncing]                   = useState(false);
 
   const loadInvoice = useCallback(() => {
     fetch(`/api/invoices/${params.id}`)
@@ -392,6 +394,45 @@ export default function InvoiceDetailPage() {
       show('Delete failed', 'error');
       setDeleting(false);
     }
+  };
+
+  const handleMarkPaid = async () => {
+    if (!confirm(`Mark invoice ${invoice!.invoiceNumber} as PAID manually?\n\nThis will update the status and send a payment confirmation email.`)) return;
+    setMarkingPaid(true);
+    const res = await fetch(`/api/invoices/${invoice!.id}/mark-paid`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'mark_paid' }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setInvoice(data.invoice);
+      show('Invoice marked as paid — confirmation email sent');
+    } else {
+      show(data.error ?? 'Failed to mark as paid', 'error');
+    }
+    setMarkingPaid(false);
+  };
+
+  const handleSyncRazorpay = async () => {
+    setSyncing(true);
+    const res = await fetch(`/api/invoices/${invoice!.id}/mark-paid`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'sync' }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (data.synced) {
+        setInvoice(data.invoice);
+        show(`Synced — status updated to ${data.newStatus}`);
+      } else {
+        show(data.message ?? 'Already up to date');
+      }
+    } else {
+      show(data.error ?? 'Sync failed', 'error');
+    }
+    setSyncing(false);
   };
 
   // ── Loading ──
@@ -460,8 +501,28 @@ export default function InvoiceDetailPage() {
             {invoice.razorpayLinkUrl && invoice.status === 'PENDING' && (
               <a href={invoice.razorpayLinkUrl} target="_blank" rel="noopener noreferrer"
                 className="btn btn-primary" style={{ fontSize: 13, padding: '8px 14px' }}>
-                💳 Payment Link ↗
+                Payment Link ↗
               </a>
+            )}
+            {invoice.status !== 'PAID' && (
+              <button
+                className="btn"
+                style={{ fontSize: 13, padding: '8px 14px', background: '#16a34a', color: '#fff', border: 'none' }}
+                onClick={handleMarkPaid}
+                disabled={markingPaid}
+              >
+                {markingPaid ? 'Updating…' : 'Mark as Paid'}
+              </button>
+            )}
+            {invoice.razorpayLinkId && invoice.status !== 'PAID' && (
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: 13, padding: '8px 14px' }}
+                onClick={handleSyncRazorpay}
+                disabled={syncing}
+              >
+                {syncing ? 'Syncing…' : 'Sync Razorpay'}
+              </button>
             )}
             <button className="btn btn-danger" style={{ fontSize: 13, padding: '8px 14px' }} onClick={() => setShowDelete(true)}>
               🗑️ Delete
@@ -754,8 +815,30 @@ export default function InvoiceDetailPage() {
                 🔄 Log Revision
               </button>
               <button className="btn btn-ghost w-full" style={{ justifyContent: 'center' }} onClick={handleResend} disabled={resending}>
-                📧 {resending ? 'Sending…' : 'Resend Email'}
+                {resending ? 'Sending…' : 'Resend Email'}
               </button>
+              {invoice.status !== 'PAID' && (
+                <>
+                  <button
+                    className="btn w-full"
+                    style={{ justifyContent: 'center', background: '#16a34a', color: '#fff', border: 'none' }}
+                    onClick={handleMarkPaid}
+                    disabled={markingPaid}
+                  >
+                    {markingPaid ? 'Updating…' : 'Mark as Paid'}
+                  </button>
+                  {invoice.razorpayLinkId && (
+                    <button
+                      className="btn btn-ghost w-full"
+                      style={{ justifyContent: 'center' }}
+                      onClick={handleSyncRazorpay}
+                      disabled={syncing}
+                    >
+                      {syncing ? 'Syncing…' : 'Sync Razorpay Status'}
+                    </button>
+                  )}
+                </>
+              )}
               <Link href="/invoices/new" className="btn btn-primary w-full" style={{ justifyContent: 'center' }}>
                 + New Invoice
               </Link>
