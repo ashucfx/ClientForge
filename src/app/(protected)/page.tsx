@@ -39,10 +39,11 @@ function ToastStack({ toasts }: { toasts: ToastItem[] }) {
 
 // ─── Status badge ─────────────────────────────────────────────────
 const STATUS_META: Record<InvoiceStatus, { label: string; cls: string; dot: string }> = {
-  PAID:      { label: 'Paid',      cls: 'badge-paid',      dot: '#059669' },
-  PENDING:   { label: 'Pending',   cls: 'badge-pending',   dot: '#d97706' },
-  EXPIRED:   { label: 'Expired',   cls: 'badge-expired',   dot: '#94a3b8' },
-  CANCELLED: { label: 'Cancelled', cls: 'badge-cancelled', dot: '#ef4444' },
+  PAID:           { label: 'Paid',           cls: 'badge-paid',      dot: '#059669' },
+  PARTIALLY_PAID: { label: 'Partially Paid', cls: 'badge-pending',   dot: '#2563eb' },
+  PENDING:        { label: 'Pending',        cls: 'badge-pending',   dot: '#d97706' },
+  EXPIRED:        { label: 'Expired',        cls: 'badge-expired',   dot: '#94a3b8' },
+  CANCELLED:      { label: 'Cancelled',      cls: 'badge-cancelled', dot: '#ef4444' },
 };
 function StatusBadge({ status }: { status: InvoiceStatus }) {
   const m = STATUS_META[status];

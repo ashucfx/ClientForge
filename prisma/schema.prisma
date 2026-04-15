@@ -18,6 +18,7 @@ enum ClientType {
 
 enum InvoiceStatus {
   PENDING
+  PARTIALLY_PAID
   PAID
   CANCELLED
   EXPIRED
@@ -83,6 +84,16 @@ model Invoice {
   invoiceDate DateTime @default(now())
   dueDate     DateTime
 
+  // Payment gateway
+  paymentGateway   String  @default("RAZORPAY") // "RAZORPAY" | "PAYPAL"
+  paypalInvoiceId  String?
+  paypalPaymentUrl String?
+
+  // Split / installment payment
+  installmentPlan  Boolean @default(false)
+  installmentCount Int     @default(1)      // 1 = single, 2 = two parts, 3 = three parts
+  installments     Json    @default("[]")   // Installment[]
+
   // Email
   emailSentAt      DateTime?
   emailResendCount Int @default(0)
@@ -93,6 +104,7 @@ model Invoice {
   @@index([status])
   @@index([clientType])
   @@index([clientEmail])
+  @@index([paymentGateway])
 }
 
 model ExchangeRateCache {

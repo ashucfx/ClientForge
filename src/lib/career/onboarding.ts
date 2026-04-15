@@ -6,6 +6,7 @@ import { prisma as db } from '@/lib/db';
 import { resolveServices } from './services';
 import { generateMagicToken, magicTokenExpiry } from './auth';
 import { sendCareerEmail } from './email';
+import { derivePackageLabel } from '@/lib/email';
 import type { CareerServiceSlug } from './types';
 import type { LineItem } from '@/types';
 
@@ -81,7 +82,8 @@ export async function onboardFromInvoice(invoice: {
   const magicToken   = generateMagicToken();
   const tokenExpiry  = magicTokenExpiry();
   const portalUrl    = `${PORTAL_URL}/portal/login?token=${magicToken}`;
-  const serviceNames = serviceRecords.map(s => s.name).join(', ');
+  // Derive package label from actual line items (same logic as invoice email)
+  const packageLabel = derivePackageLabel(rawItems);
 
   // ── 3. Existing client by email? (re-purchase) ────────────────
   const existingClient = await db.careerClient.findUnique({
@@ -154,7 +156,7 @@ export async function onboardFromInvoice(invoice: {
     const resendId = await sendCareerEmail({
       to:      email,
       trigger: 'WELCOME',
-      data:    { name: newClient.name, packageLabel: serviceNames, portalUrl },
+      data:    { name: newClient.name, packageLabel, portalUrl },
     });
     await db.careerEmailLog.create({
       data: { clientId: newClient.id, trigger: 'WELCOME', resendId, status: 'sent' },

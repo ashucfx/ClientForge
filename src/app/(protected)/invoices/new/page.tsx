@@ -225,6 +225,7 @@ export default function NewInvoicePage() {
   const [notes,           setNotes]           = useState('');
   const [dueDays,         setDueDays]         = useState(7);
   const [paymentGateway,  setPaymentGateway]  = useState<'RAZORPAY' | 'PAYPAL'>('PAYPAL');
+  const [installmentCount, setInstallmentCount] = useState<1 | 2 | 3>(1);
 
   // Currency state
   const [currencyInfo,  setCurrencyInfo]  = useState<CurrencyInfo | null>({ code: 'INR', symbol: '₹', name: 'Indian Rupee' });
@@ -327,6 +328,7 @@ export default function NewInvoicePage() {
           currencyOverride: currencyOverride.trim() || undefined,
           // INR always uses Razorpay (enforced server-side too)
           paymentGateway: effectiveCurrency === 'INR' ? 'RAZORPAY' : paymentGateway,
+          installmentCount,
           lineItems: validItems,
           discountRate,
           taxRate,
@@ -691,6 +693,75 @@ export default function NewInvoicePage() {
                 </div>
               </SectionCard>
             )}
+
+            {/* 6. Split Payment */}
+            <SectionCard title="Payment Structure" icon={<IconCreditCard />}>
+              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.6 }}>
+                Split the total into equal instalments. Each part gets its own payment link sent to the client.
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+                {([
+                  { value: 1 as const, label: 'Full Payment',       sub: 'Single link',           badge: null },
+                  { value: 2 as const, label: 'Split in 2 Parts',   sub: '50% + 50%',             badge: 'Popular' },
+                  { value: 3 as const, label: 'Split in 3 Parts',   sub: '33% + 33% + 34%',       badge: null },
+                ] as const).map(opt => {
+                  const sel = installmentCount === opt.value;
+                  const color = sel ? '#2B5CE6' : 'var(--border)';
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setInstallmentCount(opt.value)}
+                      style={{
+                        border: `2px solid ${sel ? '#2B5CE6' : 'var(--border)'}`,
+                        background: sel ? '#eef2ff' : '#fff',
+                        borderRadius: 12, padding: '12px 14px',
+                        cursor: 'pointer', textAlign: 'left', transition: 'all .15s',
+                        position: 'relative',
+                      }}
+                    >
+                      {opt.badge && (
+                        <span style={{ position: 'absolute', top: 7, right: 7, background: '#dcfce7', color: '#15803d', fontSize: 10, fontWeight: 700, borderRadius: 20, padding: '2px 6px' }}>
+                          {opt.badge}
+                        </span>
+                      )}
+                      <div style={{ fontSize: 13, fontWeight: 800, color: sel ? '#2B5CE6' : 'var(--text)', marginBottom: 4 }}>{opt.label}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{opt.sub}</div>
+                      <div style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${sel ? '#2B5CE6' : '#d1d5db'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
+                        {sel && <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#2B5CE6' }} />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {installmentCount > 1 && (() => {
+                const effectiveCurrency = currencyOverride.trim() || currencyInfo?.code || 'INR';
+                const sym = currencyInfo?.symbol ?? '$';
+                const grossSubtotal = lineItems.reduce((s, i) => s + round2(i.qty * i.unitPrice), 0);
+                const fee = round2(grossSubtotal * (effectiveCurrency === 'INR' ? 0.02 : 0.035));
+                const total = round2(grossSubtotal + fee);
+                const slice = round2(Math.floor((total / installmentCount) * 100) / 100);
+                const parts = Array.from({ length: installmentCount }, (_, i) =>
+                  i === installmentCount - 1 ? round2(total - slice * (installmentCount - 1)) : slice
+                );
+                return (
+                  <div style={{ marginTop: 14, background: '#f5f8ff', borderRadius: 10, padding: '12px 14px', border: '1px solid #dce6ff' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: 10 }}>Instalment Breakdown</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {parts.map((amt, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+                          <span style={{ color: 'var(--text)' }}>Part {i + 1} — due in ~{Math.round(dueDays * ((i + 1) / installmentCount))} days</span>
+                          <span style={{ fontWeight: 700, color: '#2B5CE6' }}>{sym}{amt.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ marginTop: 8, fontSize: 11, color: 'var(--muted)' }}>
+                      Each part gets its own payment link. Client pays them independently.
+                    </div>
+                  </div>
+                );
+              })()}
+            </SectionCard>
 
             {/* Error */}
             {error && (

@@ -10,6 +10,25 @@ const CLIENT_ID     = process.env.PAYPAL_CLIENT_ID!;
 const CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET!;
 export const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID ?? '';
 
+async function readPaypalError(res: Response): Promise<unknown> {
+  const contentType = res.headers.get('content-type') ?? '';
+  if (contentType.includes('application/json')) {
+    return res.json().catch(() => ({}));
+  }
+  const text = await res.text().catch(() => '');
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+}
+
+function hasPaypalIssue(err: unknown, issue: string): boolean {
+  const details = (err as any)?.details;
+  if (!Array.isArray(details)) return false;
+  return details.some(d => (d as any)?.issue === issue);
+}
+
 // ─── Access token cache (in-memory, per cold start) ──────────────
 let _cachedToken:   string | null = null;
 let _tokenExpiresAt: number       = 0;
@@ -23,6 +42,7 @@ export async function getPaypalAccessToken(): Promise<string> {
     method:  'POST',
     headers: {
       Authorization:  `Basic ${creds}`,
+      Accept:         'application/json',
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: 'grant_type=client_credentials',
@@ -76,6 +96,7 @@ export async function createPaypalInvoice(
     method:  'POST',
     headers: {
       Authorization:       `Bearer ${token}`,
+      Accept:              'application/json',
       'Content-Type':      'application/json',
       'PayPal-Request-Id': `rn-inv-${invoice.id}`, // idempotency
     },
@@ -87,7 +108,13 @@ export async function createPaypalInvoice(
           term_type: 'DUE_ON_DATE_SPECIFIED',
           due_date:  dueDateStr,
         },
-        ...(invoice.notes ? { note: invoice.notes } : {}),
+        ...(invoice.notes ? { note: invoice.notes } : (() => {
+          // Append free items as a note so client sees them even though PayPal excludes $0 lines
+          const freeItems = invoice.lineItems.filter(i => i.unitPrice === 0 && i.qty > 0);
+          return freeItems.length > 0
+            ? { note: `Included free: ${freeItems.map(i => i.description).join(', ')}` }
+            : {};
+        })()),
         memo: `Career Booster Package — ${invoice.invoiceNumber}`,
       },
       invoicer: {
@@ -103,7 +130,7 @@ export async function createPaypalInvoice(
         },
       ],
       items: invoice.lineItems
-        .filter(i => i.qty > 0 && i.unitPrice >= 0)
+        .filter(i => i.qty > 0 && i.unitPrice > 0) // PayPal Live rejects zero-value items
         .map(item => ({
           name:     item.description,
           quantity: String(item.qty),
@@ -121,7 +148,7 @@ export async function createPaypalInvoice(
   });
 
   if (!createRes.ok) {
-    const err = await createRes.json().catch(() => ({}));
+    const err = await readPaypalError(createRes);
     throw new Error(`PayPal create invoice failed: ${JSON.stringify(err)}`);
   }
 
@@ -133,11 +160,18 @@ export async function createPaypalInvoice(
 
   if (!paypalId) throw new Error('PayPal create invoice succeeded but returned no invoice ID');
 
+  // Guard: if all items were zero-price, the PayPal invoice total is 0 — abort early
+  const paidItems = invoice.lineItems.filter(i => i.qty > 0 && i.unitPrice > 0);
+  if (paidItems.length === 0) {
+    throw new Error('PayPal invoice cannot be created: all line items have zero price');
+  }
+
   // 2️⃣ Send the invoice — this activates the payment link
   const sendRes = await fetch(`${PAYPAL_API}/v2/invoicing/invoices/${paypalId}/send`, {
     method:  'POST',
     headers: {
       Authorization:  `Bearer ${token}`,
+      Accept:         'application/json',
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -147,7 +181,14 @@ export async function createPaypalInvoice(
   });
 
   if (!sendRes.ok) {
-    const err = await sendRes.json().catch(() => ({}));
+    const err = await readPaypalError(sendRes);
+    // Live PayPal has a hard restriction for recipients "within India" for invoices.
+    // Sandbox often allows flows that are blocked in production.
+    if (hasPaypalIssue(err, 'INR_FOREIGN_CURRENCY_BLOCKED')) {
+      throw new Error(
+        'PayPal limitation: cannot send PayPal invoices to customers within India in live mode. Use Razorpay or invoice a customer outside India.'
+      );
+    }
     throw new Error(`PayPal send invoice failed: ${JSON.stringify(err)}`);
   }
 
@@ -159,7 +200,7 @@ export async function createPaypalInvoice(
 
   try {
     const getRes = await fetch(`${PAYPAL_API}/v2/invoicing/invoices/${paypalId}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     });
     const full = await getRes.json();
     const linked = (full.links as Array<{ rel: string; href: string }> | undefined)
@@ -172,6 +213,28 @@ export async function createPaypalInvoice(
   return { id: paypalId, paymentUrl };
 }
 
+// ─── CREATE PayPal INSTALLMENT invoice ──────────────────────────
+// Creates a single-item PayPal invoice for one instalment slice.
+export async function createPaypalInstallmentInvoice(
+  invoice: PaypalInvoiceInput,
+  seq: number,
+  total: number,
+  dueDate: Date | string,
+): Promise<PaypalInvoiceResult> {
+  return createPaypalInvoice({
+    ...invoice,
+    id:            `${invoice.id}-inst${seq}`,  // unique idempotency key per instalment
+    invoiceNumber: `${invoice.invoiceNumber}-${seq}`,
+    dueDate,
+    notes:         `Instalment ${seq} of your Career Booster Package.${invoice.notes ? ' ' + invoice.notes : ''}`,
+    lineItems: [{
+      description: `Instalment ${seq} — ${invoice.invoiceNumber}`,
+      qty:         1,
+      unitPrice:   total,
+    }],
+  });
+}
+
 // ─── CANCEL PayPal invoice ───────────────────────────────────────
 export async function cancelPaypalInvoice(paypalInvoiceId: string): Promise<boolean> {
   try {
@@ -182,6 +245,7 @@ export async function cancelPaypalInvoice(paypalInvoiceId: string): Promise<bool
         method:  'POST',
         headers: {
           Authorization:  `Bearer ${token}`,
+          Accept:         'application/json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ send_to_recipient: false }),
@@ -202,7 +266,7 @@ export async function fetchPaypalInvoiceStatus(paypalInvoiceId: string): Promise
 }> {
   const token = await getPaypalAccessToken();
   const res = await fetch(`${PAYPAL_API}/v2/invoicing/invoices/${paypalInvoiceId}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
   });
   if (!res.ok) throw new Error('Failed to fetch PayPal invoice status');
 
@@ -229,6 +293,7 @@ export async function verifyPaypalWebhook(
       method:  'POST',
       headers: {
         Authorization:  `Bearer ${token}`,
+        Accept:         'application/json',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

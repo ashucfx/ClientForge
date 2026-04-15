@@ -8,41 +8,33 @@ const FROM_EMAIL    = process.env.FROM_EMAIL ?? 'info@theripplenexus.com';
 const FROM_NAME     = 'Ripple Nexus';
 const REPLY_TO      = 'info@theripplenexus.com';
 const WEBSITE       = 'https://www.theripplenexus.com';
+const APP_URL       = process.env.NEXT_PUBLIC_APP_URL ?? 'https://clientforge.theripplenexus.com';
 
 // ─────────────────────────────────────────────
-// LOGO SVG (inline, matches brand icon exactly)
+// LOGO — hosted image (works in Gmail, Outlook, Apple Mail)
+// SVG is NOT supported in most email clients; use a hosted PNG/JPG instead.
 // ─────────────────────────────────────────────
-const LOGO_SVG = `<svg width="44" height="44" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ripple Nexus logo">
-  <!-- Green peripheral dots -->
-  <circle cx="50" cy="7"  r="6.5" fill="#5CC8A0"/>
-  <circle cx="84" cy="19" r="6.5" fill="#5CC8A0"/>
-  <circle cx="93" cy="54" r="6.5" fill="#5CC8A0"/>
-  <circle cx="79" cy="88" r="6.5" fill="#5CC8A0"/>
-  <circle cx="21" cy="88" r="6.5" fill="#5CC8A0"/>
-  <circle cx="7"  cy="54" r="6.5" fill="#5CC8A0"/>
-  <circle cx="16" cy="19" r="6.5" fill="#5CC8A0"/>
-  <circle cx="50" cy="93" r="6.5" fill="#5CC8A0"/>
-  <!-- Spoke lines (light blue) -->
-  <line x1="50" y1="50" x2="50" y2="24"  stroke="#7BA7F5" stroke-width="2.8" stroke-linecap="round"/>
-  <line x1="50" y1="50" x2="71" y2="29"  stroke="#7BA7F5" stroke-width="2.8" stroke-linecap="round"/>
-  <line x1="50" y1="50" x2="76" y2="50"  stroke="#7BA7F5" stroke-width="2.8" stroke-linecap="round"/>
-  <line x1="50" y1="50" x2="71" y2="71"  stroke="#7BA7F5" stroke-width="2.8" stroke-linecap="round"/>
-  <line x1="50" y1="50" x2="50" y2="76"  stroke="#7BA7F5" stroke-width="2.8" stroke-linecap="round"/>
-  <line x1="50" y1="50" x2="29" y2="71"  stroke="#7BA7F5" stroke-width="2.8" stroke-linecap="round"/>
-  <line x1="50" y1="50" x2="24" y2="50"  stroke="#7BA7F5" stroke-width="2.8" stroke-linecap="round"/>
-  <line x1="50" y1="50" x2="29" y2="29"  stroke="#7BA7F5" stroke-width="2.8" stroke-linecap="round"/>
-  <!-- Blue spoke-end nodes -->
-  <circle cx="50" cy="24" r="8.5" fill="#2B5CE6"/>
-  <circle cx="71" cy="29" r="8.5" fill="#2B5CE6"/>
-  <circle cx="76" cy="50" r="8.5" fill="#2B5CE6"/>
-  <circle cx="71" cy="71" r="8.5" fill="#2B5CE6"/>
-  <circle cx="50" cy="76" r="8.5" fill="#2B5CE6"/>
-  <circle cx="29" cy="71" r="8.5" fill="#2B5CE6"/>
-  <circle cx="24" cy="50" r="8.5" fill="#2B5CE6"/>
-  <circle cx="29" cy="29" r="8.5" fill="#2B5CE6"/>
-  <!-- Centre hub -->
-  <circle cx="50" cy="50" r="17" fill="#2B5CE6"/>
-</svg>`;
+const LOGO_IMG = (size: number) =>
+  `<img src="${APP_URL}/Logo.jpg" width="${size}" height="${size}" alt="Ripple Nexus" style="display:block;border:0;outline:none;text-decoration:none;border-radius:6px;" />`;
+
+// ─────────────────────────────────────────────
+// PACKAGE LABEL — derived from line items
+// Only say "Career Booster Package" when all three core services are present.
+// ─────────────────────────────────────────────
+export function derivePackageLabel(lineItems: LineItem[]): string {
+  const descs = lineItems.map(i => i.description.toLowerCase());
+  const hasResume      = descs.some(d => /resume|cv\b/i.test(d));
+  const hasLinkedin    = descs.some(d => /linkedin/i.test(d));
+  const hasCoverLetter = descs.some(d => /cover.?letter/i.test(d));
+
+  if (hasResume && hasLinkedin && hasCoverLetter) return 'Career Booster Package';
+
+  const parts: string[] = [];
+  if (hasResume)      parts.push('Resume Rewrite');
+  if (hasLinkedin)    parts.push('LinkedIn Profile Optimisation');
+  if (hasCoverLetter) parts.push('Cover Letter');
+  return parts.length > 0 ? parts.join(' + ') : 'Career Services';
+}
 
 // ─────────────────────────────────────────────
 // SEND INVOICE EMAIL
@@ -143,10 +135,10 @@ function buildInvoiceEmailText(invoice: InvoiceData): string {
   const sym = invoice.currencySymbol;
   const fmt = (n: number) => formatCurrency(n, sym);
 
-  // Build line items from the new lineItems JSON array
   const items: LineItem[] = Array.isArray(invoice.lineItems) && invoice.lineItems.length > 0
     ? invoice.lineItems as unknown as LineItem[]
     : [];
+  const packageLabel = derivePackageLabel(items);
 
   const itemLines = items.map(item => {
     const lt = item.qty * item.unitPrice;
@@ -169,7 +161,7 @@ Your Career Booster Package invoice is ready.
 
 Invoice Number : ${invoice.invoiceNumber}
 Client         : ${invoice.clientName}
-Package        : ${CLIENT_TYPE_LABELS[invoice.clientType]}
+Package        : ${packageLabel}
 Invoice Date   : ${new Date(invoice.invoiceDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
 Due Date       : ${new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
 
@@ -198,6 +190,8 @@ To unsubscribe, email unsubscribe@theripplenexus.com
 function buildConfirmationEmailText(invoice: InvoiceData): string {
   const sym = invoice.currencySymbol;
   const fmt = (n: number) => formatCurrency(n, sym);
+  const items: LineItem[] = Array.isArray(invoice.lineItems) ? invoice.lineItems as unknown as LineItem[] : [];
+  const packageLabel = derivePackageLabel(items);
   return `
 Hi ${invoice.clientName.split(' ')[0]},
 
@@ -205,7 +199,7 @@ Great news — your payment has been received!
 
 Invoice   : ${invoice.invoiceNumber}
 Amount    : ${fmt(invoice.totalPayable)} ${invoice.currency}
-Package   : ${CLIENT_TYPE_LABELS[invoice.clientType]}
+Package   : ${packageLabel}
 Paid On   : ${invoice.paidAt ? new Date(invoice.paidAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Today'}
 
 Our team will begin your Career Booster Package within 24 hours.
@@ -226,6 +220,11 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
   const firstName = invoice.clientName.split(' ')[0];
   const invoiceDateStr = new Date(invoice.invoiceDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const dueDateStr     = new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const lineItemsArr: LineItem[] = Array.isArray(invoice.lineItems) && invoice.lineItems.length > 0
+    ? invoice.lineItems as unknown as LineItem[]
+    : [];
+  const packageLabel = derivePackageLabel(lineItemsArr);
 
   const payUrl = invoice.razorpayLinkUrl || invoice.paypalPaymentUrl || '';
   const isPayPal = !invoice.razorpayLinkUrl && !!invoice.paypalPaymentUrl;
@@ -249,10 +248,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
         <!--<![endif]-->`
     : '';
 
-  // Build line item rows from the new lineItems JSON array
-  const lineItemsArr: LineItem[] = Array.isArray(invoice.lineItems) && invoice.lineItems.length > 0
-    ? invoice.lineItems as unknown as LineItem[]
-    : [];
+  // Line items already extracted above (lineItemsArr)
 
   const lineItemRows = lineItemsArr.map((item, idx) => {
     const lt = round2(item.qty * item.unitPrice);
@@ -356,7 +352,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
 
 <!-- Preheader (inbox preview text — hidden in body) -->
 <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:#eef2ff;line-height:1px;max-width:0;">
-  Hi ${firstName}, your ${CLIENT_TYPE_LABELS[invoice.clientType]} invoice for ${fmt(invoice.totalPayable)} is ready — complete payment to kick off your career transformation.&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
+  Hi ${firstName}, your ${packageLabel} invoice for ${fmt(invoice.totalPayable)} is ready — complete payment to kick off your career transformation.&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
 </div>
 
 <!-- Wrapper -->
@@ -377,7 +373,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
               <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
                   <td valign="middle" style="padding-right:10px;width:44px;">
-                    ${LOGO_SVG}
+                    ${LOGO_IMG(44)}
                   </td>
                   <td valign="middle" style="white-space:nowrap;">
                     <div style="font-family:Helvetica,Arial,sans-serif;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;line-height:1;white-space:nowrap;">
@@ -421,7 +417,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
           Hello, ${firstName},
         </h1>
         <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#4a5568;line-height:1.75;">
-          Your <strong style="color:#2B5CE6;">${CLIENT_TYPE_LABELS[invoice.clientType]}</strong> Career Booster Package invoice is attached and ready.
+          Your <strong style="color:#2B5CE6;">${packageLabel}</strong> invoice is ready.
           Review the details below, then click <strong>Pay Now</strong> to unlock your transformation.
         </p>
       </td>
@@ -440,7 +436,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
             </td>
             <td class="meta-cell" width="50%" style="padding:14px 18px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#7c8db5;text-transform:uppercase;letter-spacing:1.2px;">Package</div>
-              <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#2B5CE6;font-weight:700;margin-top:4px;">${CLIENT_TYPE_LABELS[invoice.clientType]}</div>
+              <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#2B5CE6;font-weight:700;margin-top:4px;">${packageLabel}</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#6b7280;margin-top:2px;">${invoice.country}</div>
             </td>
           </tr>
@@ -651,17 +647,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
               <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
                   <td valign="middle" style="padding-right:10px;">
-                    <svg width="22" height="22" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="50" cy="7"  r="6.5" fill="#5CC8A0"/><circle cx="84" cy="19" r="6.5" fill="#5CC8A0"/>
-                      <circle cx="93" cy="54" r="6.5" fill="#5CC8A0"/><circle cx="7"  cy="54" r="6.5" fill="#5CC8A0"/>
-                      <line x1="50" y1="50" x2="50" y2="24" stroke="#7BA7F5" stroke-width="3"/>
-                      <line x1="50" y1="50" x2="71" y2="29" stroke="#7BA7F5" stroke-width="3"/>
-                      <line x1="50" y1="50" x2="76" y2="50" stroke="#7BA7F5" stroke-width="3"/>
-                      <line x1="50" y1="50" x2="24" y2="50" stroke="#7BA7F5" stroke-width="3"/>
-                      <circle cx="50" cy="24" r="8" fill="#2B5CE6"/><circle cx="71" cy="29" r="8" fill="#2B5CE6"/>
-                      <circle cx="76" cy="50" r="8" fill="#2B5CE6"/><circle cx="24" cy="50" r="8" fill="#2B5CE6"/>
-                      <circle cx="50" cy="50" r="15" fill="#2B5CE6"/>
-                    </svg>
+                    ${LOGO_IMG(22)}
                   </td>
                   <td valign="middle">
                     <div style="font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:#2B5CE6;line-height:1;white-space:nowrap;">
@@ -715,6 +701,8 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
   const sym       = invoice.currencySymbol;
   const fmt       = (n: number) => formatCurrency(n, sym);
   const firstName = invoice.clientName.split(' ')[0];
+  const confItems: LineItem[] = Array.isArray(invoice.lineItems) ? invoice.lineItems as unknown as LineItem[] : [];
+  const packageLabel = derivePackageLabel(confItems);
   const paidOnStr = invoice.paidAt
     ? new Date(invoice.paidAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -812,7 +800,7 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
           <tr>
             <td style="padding:12px 18px;border-top:1px solid #dce6ff;border-right:1px solid #dce6ff;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#7c8db5;text-transform:uppercase;letter-spacing:1.2px;">Package</div>
-              <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#2B5CE6;font-weight:600;margin-top:4px;">${CLIENT_TYPE_LABELS[invoice.clientType]}</div>
+              <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#2B5CE6;font-weight:600;margin-top:4px;">${packageLabel}</div>
             </td>
             <td style="padding:12px 18px;border-top:1px solid #dce6ff;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#7c8db5;text-transform:uppercase;letter-spacing:1.2px;">Paid On</div>

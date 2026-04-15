@@ -74,6 +74,58 @@ export async function createRazorpayPaymentLink(
 }
 
 // ─────────────────────────────────────────────
+// CREATE RAZORPAY INSTALLMENT LINK
+// Like createRazorpayPaymentLink but for a single installment slice.
+// ─────────────────────────────────────────────
+export async function createRazorpayInstallmentLink(
+  invoice: InvoiceData,
+  seq: number,
+  amount: number,
+  dueDate: Date,
+): Promise<RazorpayPaymentLinkResponse> {
+  const amountInSmallestUnit = toSmallestUnit(amount, invoice.currency);
+  const normalizedPhone = normalizePhoneE164(invoice.clientPhone, invoice.country);
+  const contact = toRazorpayContact(normalizedPhone?.e164 ?? invoice.clientPhone);
+
+  const payload = {
+    amount: amountInSmallestUnit,
+    currency: invoice.currency,
+    accept_partial: false,
+    description: `${invoice.invoiceNumber} — Instalment ${seq}`,
+    customer: {
+      name:    invoice.clientName,
+      email:   invoice.clientEmail,
+      contact,
+    },
+    notify: { sms: true, email: true },
+    reminder_enable: true,
+    notes: {
+      invoice_number:   invoice.invoiceNumber,
+      client_type:      invoice.clientType,
+      invoice_id:       invoice.id,
+      installment_seq:  String(seq),
+    },
+    expire_by: Math.floor(dueDate.getTime() / 1000),
+  };
+
+  const response = await fetch('https://api.razorpay.com/v1/payment_links', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: getAuthHeader() },
+    body:    JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    const description: string =
+      body?.error?.description ?? body?.error?.code ?? body?.message ?? JSON.stringify(body);
+    throw new Error(`Razorpay instalment ${seq}: ${description}`);
+  }
+
+  const data = await response.json();
+  return { id: data.id, short_url: data.short_url, amount: data.amount, currency: data.currency, status: data.status };
+}
+
+// ─────────────────────────────────────────────
 // CANCEL RAZORPAY PAYMENT LINK
 // Returns true on success, false if already cancelled/expired (non-fatal)
 // ─────────────────────────────────────────────

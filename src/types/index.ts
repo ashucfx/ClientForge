@@ -1,7 +1,22 @@
 // src/types/index.ts
 
 export type ClientType    = 'FRESHER' | 'MID_CAREER' | 'EXECUTIVE' | 'EXECUTIVE_PLUS';
-export type InvoiceStatus = 'PENDING' | 'PAID' | 'CANCELLED' | 'EXPIRED';
+export type InvoiceStatus = 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED' | 'EXPIRED';
+
+// ─── Installment (split payment) ──────────────────────────────
+export interface Installment {
+  seq:             number;              // 1-based
+  amount:          number;              // fractional amount in invoice currency
+  dueDate:         string;             // ISO date string
+  status:          'PENDING' | 'PAID';
+  paidAt?:         string | null;
+  // Razorpay
+  razorpayLinkId?:  string | null;
+  razorpayLinkUrl?: string | null;
+  // PayPal
+  paypalInvoiceId?:  string | null;
+  paypalPaymentUrl?: string | null;
+}
 
 // ─── Line Item ─────────────────────────────────────────────────
 export interface LineItem {
@@ -106,6 +121,11 @@ export interface InvoiceData {
   paymentGateway:  string;           // "RAZORPAY" | "PAYPAL"
   paypalInvoiceId:  string | null;
   paypalPaymentUrl: string | null;
+
+  // Split payment
+  installmentPlan:  boolean;
+  installmentCount: number;
+  installments:     Installment[];
 
   // Payment
   status:            InvoiceStatus;

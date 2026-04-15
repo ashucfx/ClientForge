@@ -37,10 +37,11 @@ function Toasts({ toasts }: { toasts: Toast[] }) {
 // ─── Status badge ──────────────────────────────
 function StatusBadge({ status }: { status: InvoiceStatus }) {
   const map: Record<InvoiceStatus, { label: string; cls: string; dot: string }> = {
-    PAID:      { label: 'Paid',      cls: 'badge-paid',      dot: '#16a34a' },
-    PENDING:   { label: 'Pending',   cls: 'badge-pending',   dot: '#ca8a04' },
-    EXPIRED:   { label: 'Expired',   cls: 'badge-expired',   dot: '#94a3b8' },
-    CANCELLED: { label: 'Cancelled', cls: 'badge-cancelled', dot: '#dc2626' },
+    PAID:           { label: 'Paid',           cls: 'badge-paid',      dot: '#16a34a' },
+    PARTIALLY_PAID: { label: 'Partially Paid', cls: 'badge-pending',   dot: '#2563eb' },
+    PENDING:        { label: 'Pending',        cls: 'badge-pending',   dot: '#ca8a04' },
+    EXPIRED:        { label: 'Expired',        cls: 'badge-expired',   dot: '#94a3b8' },
+    CANCELLED:      { label: 'Cancelled',      cls: 'badge-cancelled', dot: '#dc2626' },
   };
   const s = map[status];
   return (
