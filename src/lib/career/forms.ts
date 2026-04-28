@@ -10,9 +10,9 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
     formType: 'career_profile',
     title: 'Career Profile Strategy Brief',
     description:
-      'Please fill out this form to provide the necessary details for your resume writing, cover letter, and career strategy services. Your responses will help us tailor these documents to best reflect your career goals, experiences, and professional image.\n\nIf you have any questions, feel free to reach out at info@theripplenexus.com',
+      'Please fill out this form to provide the necessary details for your resume writing, cover letter, and career strategy services. Your responses will help us tailor these documents to best reflect your career goals, experiences, and professional image.\n\nIf you have any questions, feel free to reach out at catalyst@theripplenexus.com',
     disclaimer:
-      'By submitting this form you confirm all information is accurate and you have the right to share it. Ripple Nexus will use this information solely to provide your purchased Career Booster Services.',
+      'By submitting this form you confirm all information is accurate and you have the right to share it. Catalyst will use this information solely to provide your purchased Career Booster Services.',
     fields: [
       // ── Contact Information ──
       {
@@ -158,9 +158,9 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
     formType: 'linkedin_profile',
     title: 'LinkedIn Profile Optimization Brief',
     description:
-      'To ensure we optimise your LinkedIn profile to its fullest potential, please fill out the following form with the necessary details.\n\nYour login credentials are completely safe with us — used solely for optimising your profile and kept strictly confidential.\n\nQuestions? Reach out at info@theripplenexus.com',
+      'To ensure we optimise your LinkedIn profile to its fullest potential, please fill out the following form with the necessary details.\n\nYour login credentials are completely safe with us — used solely for optimising your profile and kept strictly confidential.\n\nQuestions? Reach out at catalyst@theripplenexus.com',
     disclaimer:
-      'By submitting this form you confirm you are the owner of this LinkedIn account and authorise Ripple Nexus to access and optimise your profile. Your credentials will be treated with strict confidentiality and will not be shared with any third party. You are advised to change your password after the work is complete.',
+      'By submitting this form you confirm you are the owner of this LinkedIn account and authorise Catalyst to access and optimise your profile. Your credentials will be treated with strict confidentiality and will not be shared with any third party. You are advised to change your password after the work is complete.',
     fields: [
       // ── Account Access ──
       {
@@ -305,9 +305,9 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
     formType: 'portfolio_website',
     title: 'Portfolio Website Development Brief',
     description:
-      'Please fill out this form so we can build a portfolio website that showcases your work and personal brand. The more detail you provide, the better we can tailor the site to your goals.\n\nQuestions? Reach out at info@theripplenexus.com',
+      'Please fill out this form so we can build a portfolio website that showcases your work and personal brand. The more detail you provide, the better we can tailor the site to your goals.\n\nQuestions? Reach out at catalyst@theripplenexus.com',
     disclaimer:
-      'By submitting this form you confirm all information provided is accurate and you own or have the right to use all content, images, and materials submitted. Ripple Nexus will use this information solely to build your portfolio website.',
+      'By submitting this form you confirm all information provided is accurate and you own or have the right to use all content, images, and materials submitted. Catalyst will use this information solely to build your portfolio website.',
     fields: [
       // ── Personal Details ──
       {

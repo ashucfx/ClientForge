@@ -1,6 +1,6 @@
 // src/lib/razorpay.ts
 
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { toSmallestUnit } from './pricing';
 import type { InvoiceData, RazorpayPaymentLinkResponse } from '@/types';
 import { normalizePhoneE164, toRazorpayContact } from '@/lib/phone';
@@ -162,10 +162,18 @@ export async function cancelRazorpayPaymentLink(linkId: string): Promise<boolean
 export function verifyWebhookSignature(
   body: string,
   signature: string,
-  secret: string
+  secret: string,
 ): boolean {
-  const expectedSignature = createHmac('sha256', secret).update(body).digest('hex');
-  return expectedSignature === signature;
+  const expected = createHmac('sha256', secret).update(body).digest('hex');
+  try {
+    // Timing-safe comparison — prevents timing oracle attacks
+    return timingSafeEqual(
+      Buffer.from(expected, 'hex'),
+      Buffer.from(signature.padEnd(expected.length, '\0'), 'hex'),
+    );
+  } catch {
+    return false;
+  }
 }
 
 // ─────────────────────────────────────────────

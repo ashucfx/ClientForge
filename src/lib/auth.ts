@@ -6,18 +6,14 @@ import { createSessionToken, verifySessionToken } from '@/lib/authToken';
 const COOKIE_NAME = 'cf_admin';
 
 export function getAdminSessionSecret(): string {
-  const secret = process.env.ADMIN_SESSION_SECRET ?? process.env.ADMIN_SECRET ?? '';
-  if (!secret) {
-    throw new Error('Missing ADMIN_SESSION_SECRET (or ADMIN_SECRET)');
-  }
+  const secret = process.env.ADMIN_SESSION_SECRET;
+  if (!secret) throw new Error('ADMIN_SESSION_SECRET env var is required');
   return secret;
 }
 
 export function getAdminPassword(): string {
-  const pwd = process.env.ADMIN_PASSWORD ?? process.env.ADMIN_SECRET ?? '';
-  if (!pwd) {
-    throw new Error('Missing ADMIN_PASSWORD (or ADMIN_SECRET)');
-  }
+  const pwd = process.env.ADMIN_PASSWORD;
+  if (!pwd) throw new Error('ADMIN_PASSWORD env var is required');
   return pwd;
 }
 

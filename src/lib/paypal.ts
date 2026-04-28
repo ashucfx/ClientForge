@@ -1,6 +1,8 @@
 // src/lib/paypal.ts
 // PayPal Invoicing API v2 — create, send, cancel, status, webhook verification
 
+import { BRAND_WEBSITE_URL } from './config';
+
 export const PAYPAL_API =
   process.env.PAYPAL_ENV === 'sandbox'
     ? 'https://api-m.sandbox.paypal.com'
@@ -118,8 +120,8 @@ export async function createPaypalInvoice(
         memo: `Career Booster Package — ${invoice.invoiceNumber}`,
       },
       invoicer: {
-        name:    { full_name: 'Ripple Nexus' },
-        website: 'https://www.theripplenexus.com',
+        name:    { full_name: 'Catalyst' },
+        website: BRAND_WEBSITE_URL,
       },
       primary_recipients: [
         {

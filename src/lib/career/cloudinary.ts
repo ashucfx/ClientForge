@@ -120,12 +120,12 @@ export async function uploadToCloudinary(
   const timestamp = String(Math.floor(Date.now() / 1000));
   const folder = `${FOLDER}/${clientId}`;
 
-  // use_filename + unique_filename=false → Cloudinary preserves the original
-  // filename in the public_id instead of generating a random one.
+  // unique_filename=true → Cloudinary appends a random suffix when a public_id
+  // already exists, preventing overwrites of files with the same name.
   const sigParams: Record<string, string> = {
     folder,
     timestamp,
-    unique_filename: 'false',
+    unique_filename: 'true',
     use_filename:    'true',
   };
   const signature = await buildSignature(sigParams);
@@ -136,7 +136,7 @@ export async function uploadToCloudinary(
   formData.append('timestamp', timestamp);
   formData.append('folder', folder);
   formData.append('use_filename', 'true');
-  formData.append('unique_filename', 'false');
+  formData.append('unique_filename', 'true');
   formData.append('signature', signature);
 
   const res = await fetch(

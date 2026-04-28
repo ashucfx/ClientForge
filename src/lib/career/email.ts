@@ -5,6 +5,7 @@ import { Resend } from 'resend';
 import { render } from '@react-email/render';
 import type { EmailTrigger } from './types';
 import { WelcomeEmail }          from '@/emails/career/WelcomeEmail';
+import { LoginLinkEmail }        from '@/emails/career/LoginLinkEmail';
 import { FormConfirmEmail }      from '@/emails/career/FormConfirmEmail';
 import { DraftReadyEmail }       from '@/emails/career/DraftReadyEmail';
 import { LinkedInDraftEmail }    from '@/emails/career/LinkedInDraftEmail';
@@ -15,10 +16,11 @@ import { MessageNotifyEmail }    from '@/emails/career/MessageNotifyEmail';
 import { RevisionEmail }         from '@/emails/career/RevisionEmail';
 import { DeleteOtpEmail }        from '@/emails/career/DeleteOtpEmail';
 import { prisma as db }          from '@/lib/db';
+import { BRAND_EMAIL }           from '@/lib/config';
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
-const FROM   = `Ripple Nexus <${process.env.FROM_EMAIL ?? 'info@theripplenexus.com'}>`;
-const REPLY  = 'info@theripplenexus.com';
+const FROM   = `Catalyst <${process.env.FROM_EMAIL ?? BRAND_EMAIL}>`;
+const REPLY  = BRAND_EMAIL;
 
 type Attachment = { filename: string; url: string };
 
@@ -124,8 +126,16 @@ async function buildEmail(
       const { name, packageLabel, portalUrl } = data as { name: string; packageLabel: string; portalUrl: string };
       const pkg = packageLabel ?? 'Career';
       return {
-        subject: `Welcome to Ripple Nexus Career Boost - Your services are now active`,
+        subject: `Welcome to Catalyst Career Boost - Your services are now active`,
         html: await render(WelcomeEmail({ name, packageLabel: pkg, portalUrl })),
+      };
+    }
+
+    case 'LOGIN_LINK': {
+      const { name, portalUrl } = data as { name: string; portalUrl: string };
+      return {
+        subject: `Catalyst — Your secure login link`,
+        html: await render(LoginLinkEmail({ name, portalUrl })),
       };
     }
 
@@ -133,7 +143,7 @@ async function buildEmail(
       const { name, formLabel } = data as { name: string; formLabel: string };
       const label = formLabel ?? 'form';
       return {
-        subject: `Ripple Nexus - We have received your ${label}`,
+        subject: `Catalyst - We have received your ${label}`,
         html: await render(FormConfirmEmail({ name, formLabel: label })),
       };
     }
@@ -142,7 +152,7 @@ async function buildEmail(
       const { name, packageLabel, portalUrl } = data as { name: string; packageLabel: string; portalUrl: string };
       const pkg = packageLabel ?? 'Career';
       return {
-        subject: `Ripple Nexus - Your ${pkg} draft is ready for review`,
+        subject: `Catalyst - Your ${pkg} draft is ready for review`,
         html: await render(DraftReadyEmail({ name, packageLabel: pkg, portalUrl })),
       };
     }
@@ -152,7 +162,7 @@ async function buildEmail(
         name: string; portalUrl: string; revisionsLeft?: number;
       };
       return {
-        subject: `Ripple Nexus - Your LinkedIn profile optimisation draft is ready`,
+        subject: `Catalyst - Your LinkedIn profile optimisation draft is ready`,
         html: await render(LinkedInDraftEmail({ name, portalUrl, revisionsLeft: revisionsLeft ?? 2 })),
       };
     }
@@ -163,7 +173,7 @@ async function buildEmail(
       };
       const pkg = packageLabel ?? 'Career';
       return {
-        subject: `Ripple Nexus - Your revised ${pkg} draft is ready`,
+        subject: `Catalyst - Your revised ${pkg} draft is ready`,
         html: await render(RevisedDraftEmail({ name, packageLabel: pkg, portalUrl, revisionsLeft: revisionsLeft ?? 1 })),
       };
     }
@@ -175,7 +185,7 @@ async function buildEmail(
       };
       const pkg = packageLabel ?? 'Career';
       return {
-        subject: `Ripple Nexus - Your ${pkg} deliverables are ready`,
+        subject: `Catalyst - Your ${pkg} deliverables are ready`,
         html: await render(FinalDeliveryEmail({ name, packageLabel: pkg, portalUrl, files: files ?? [] })),
       };
     }
@@ -183,7 +193,7 @@ async function buildEmail(
     case 'LINKEDIN_SECURITY': {
       const { name } = data as { name: string };
       return {
-        subject: `Ripple Nexus - Action required: Secure your LinkedIn account`,
+        subject: `Catalyst - Action required: Secure your LinkedIn account`,
         html: await render(LinkedInSecurityEmail({ name })),
       };
     }
@@ -196,12 +206,12 @@ async function buildEmail(
       const pkg = packageLabel ?? 'Career';
       if (revisionStatus === 'denied') {
         return {
-          subject: `Ripple Nexus - Update on your revision request`,
+          subject: `Catalyst - Update on your revision request`,
           html: await render(RevisionEmail({ name, packageLabel: pkg, portalUrl, status: 'denied' })),
         };
       }
       return {
-        subject: `Ripple Nexus - Your ${pkg} revision is now in progress`,
+        subject: `Catalyst - Your ${pkg} revision is now in progress`,
         html: await render(RevisionEmail({ name, packageLabel: pkg, portalUrl, status: 'approved' })),
       };
     }
@@ -215,7 +225,7 @@ async function buildEmail(
       };
       const fromLabel = senderType === 'admin' ? 'Your career consultant' : 'Your client';
       const subject = (data.subject as string | undefined)
-        ?? `Ripple Nexus - ${fromLabel} has sent you a new message`;
+        ?? `Catalyst - ${fromLabel} has sent you a new message`;
       return {
         subject,
         html: await render(MessageNotifyEmail({ recipientName, senderType, portalUrl, body: customBody })),
@@ -227,7 +237,8 @@ async function buildEmail(
         clientName: string; clientEmail: string; otp: string; expiresMinutes: number;
       };
       return {
-        subject: `Ripple Nexus Admin - Confirm deletion of ${clientName} (OTP: ${otp})`,
+        // OTP intentionally NOT in subject — visible in push notifications and email previews
+        subject: `Catalyst Admin — Action required: Confirm deletion of ${clientName}`,
         html: await render(DeleteOtpEmail({ clientName, clientEmail, otp, expiresMinutes })),
       };
     }

@@ -3,7 +3,7 @@
 
 const COOKIE_NAME = 'cf_portal';
 const DEFAULT_TTL = 60 * 60 * 24 * 7; // 7 days
-const MAGIC_TTL   = 60 * 60 * 72;     // 72 hours for magic links
+const MAGIC_TTL   = 60 * 30;          // 30 minutes for magic links
 
 function getSecret(): string {
   const s = process.env.CAREER_PORTAL_SECRET;

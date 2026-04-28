@@ -11,6 +11,7 @@ export type CareerStatus =
 
 export type EmailTrigger =
   | 'WELCOME'
+  | 'LOGIN_LINK'
   | 'FORM_CONFIRM'
   | 'DRAFT_READY'
   | 'LINKEDIN_DRAFT'
