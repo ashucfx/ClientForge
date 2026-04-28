@@ -190,6 +190,7 @@ model CareerClient {
   comments     CareerComment[]
   services     CareerClientService[]
   messages     CareerMessage[]
+  deleteOtp    CareerDeleteOtp?
 
   @@index([status])
   @@index([email])
@@ -284,12 +285,17 @@ model CareerRevision {
 }
 
 model CareerComment {
-  id         String   @id @default(cuid())
-  clientId   String
-  authorType String   @default("client") // "client" | "admin"
-  authorName String
-  content    String
-  createdAt  DateTime @default(now())
+  id             String    @id @default(cuid())
+  clientId       String
+  authorType     String    @default("client") // "client" | "admin"
+  authorName     String
+  content        String
+  attachments    Json?     // {name,url,mimeType,size}[]
+  readByAdmin    Boolean   @default(false)
+  readByClient   Boolean   @default(false)
+  readByAdminAt  DateTime?
+  readByClientAt DateTime?
+  createdAt      DateTime  @default(now())
 
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -312,9 +318,11 @@ model CareerMessage {
 }
 
 model CareerDeleteOtp {
-  id        String   @id @default(cuid())
-  clientId  String   @unique
-  otpHash   String   // SHA-256 of 6-digit OTP
+  id        String       @id @default(cuid())
+  clientId  String       @unique
+  otpHash   String       // SHA-256 of 6-digit OTP
   expiresAt DateTime
-  createdAt DateTime @default(now())
+  createdAt DateTime     @default(now())
+
+  client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 }

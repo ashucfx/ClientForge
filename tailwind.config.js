@@ -9,18 +9,18 @@ module.exports = {
     extend: {
       colors: {
         brand: {
-          blue: '#1f56d4',
-          'blue-dark': '#1a42a0',
-          'blue-light': '#e8f0fe',
-          green: '#3FBD8B',
-          'green-dark': '#2d9970',
-          'green-light': '#e6f9f1',
-          navy: '#0f1c3d',
+          obsidian: '#0A0B0D',
+          bone: '#F4F1EB',
+          graphite: '#1F2226',
+          parchment: '#E6DFD1',
+          gold: '#B8935B',
+          ink: '#0E1A3A',
         },
       },
       fontFamily: {
-        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
-        mono: ['DM Mono', 'Courier New', 'monospace'],
+        sans: ['Söhne', 'system-ui', 'sans-serif'],
+        serif: ['GT Sectra', 'Canela', 'Georgia', 'serif'],
+        mono: ['Söhne Mono', 'Courier New', 'monospace'],
       },
       fontWeight: {
         600: '600',
