@@ -10,18 +10,18 @@ import { prisma as db } from '@/lib/db';
 import { createHmac } from 'crypto';
 
 function hashPin(pin: string): string {
-  const secret = process.env.CAREER_PORTAL_SECRET ?? 'fallback';
+  const secret = process.env.CAREER_PORTAL_SECRET;
+  if (!secret) throw new Error('CAREER_PORTAL_SECRET is not configured');
   return createHmac('sha256', secret).update(`pin:${pin}`).digest('hex');
 }
 
 export async function POST(req: NextRequest) {
-  // Verify portal session
   const token = cookies().get('cf_portal')?.value ?? '';
   const payload = await verifyPortalToken(token).catch(() => null);
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const pin = String(body?.pin ?? '').trim();
+  const pin  = String(body?.pin ?? '').trim();
 
   if (!/^\d{6}$/.test(pin)) {
     return NextResponse.json({ error: 'PIN must be exactly 6 digits' }, { status: 400 });
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
   await db.careerClient.update({
     where: { id: payload.clientId },
-    data: { pinHash: hashPin(pin) },
+    data:  { pinHash: hashPin(pin) },
   });
 
   return NextResponse.json({ ok: true });

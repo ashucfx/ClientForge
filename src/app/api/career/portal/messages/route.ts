@@ -9,11 +9,11 @@ import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
 
-const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'info@theripplenexus.com';
+const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
 const PORTAL_URL  =
   process.env.NODE_ENV === 'development'
     ? 'http://localhost:3000'
-    : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000');
+    : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com');
 
 export async function GET(req: NextRequest) {
   void req;
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   sendCareerEmail({
     to: ADMIN_EMAIL,
     trigger: 'MESSAGE_NOTIFY',
-    data: { recipientName: 'Ripple Nexus Team', senderType: 'client', portalUrl: adminPortalUrl },
+    data: { recipientName: 'Catalyst Team', senderType: 'client', portalUrl: adminPortalUrl },
   }).catch(console.error);
 
   return NextResponse.json({ message }, { status: 201 });

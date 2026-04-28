@@ -17,7 +17,7 @@ const WEBHOOK_SECRET =
 const PORTAL_URL =
   process.env.NODE_ENV === 'development'
     ? 'http://localhost:3000'
-    : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000');
+    : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com');
 
 function verifySignature(body: string, signature: string): boolean {
   const expected = crypto
@@ -90,8 +90,8 @@ export async function POST(req: NextRequest) {
   if (!payment) return NextResponse.json({ received: true });
 
   const notes  = payment.notes ?? {};
-  const module = notes.module;
-  if (module && module !== 'career') return NextResponse.json({ received: true });
+  const paymentModule = notes.module;
+  if (paymentModule && paymentModule !== 'career') return NextResponse.json({ received: true });
 
   // Parse services — prefer `services` note (comma-separated slugs), fall back to single package
   let slugs: CareerServiceSlug[] = [];

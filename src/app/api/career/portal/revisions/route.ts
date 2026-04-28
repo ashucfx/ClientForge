@@ -9,11 +9,11 @@ import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
 
-const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'info@theripplenexus.com';
+const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
 const PORTAL_URL  =
   process.env.NODE_ENV === 'development'
     ? 'http://localhost:3000'
-    : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000');
+    : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com');
 
 async function getClient() {
   const token = cookies().get(PORTAL_COOKIE)?.value ?? '';
@@ -90,10 +90,10 @@ export async function POST(req: NextRequest) {
     to: ADMIN_EMAIL,
     trigger: 'MESSAGE_NOTIFY',
     data: {
-      recipientName: 'Ripple Nexus Team',
+      recipientName: 'Catalyst Team',
       senderType: 'client',
       portalUrl: `${PORTAL_URL}/career/${client.id}?tab=revisions`,
-      subject: `Ripple Nexus — ${client.name} has requested a revision`,
+      subject: `Catalyst — ${client.name} has requested a revision`,
       body: `${client.name} has submitted a new revision request${fileContext}. Log in to the admin panel to review and approve or deny it.\n\nRequest: "${note.slice(0, 200)}${note.length > 200 ? '…' : ''}"`,
     },
   }).catch(console.error);
