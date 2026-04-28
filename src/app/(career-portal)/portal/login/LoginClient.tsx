@@ -76,7 +76,7 @@ export function LoginClient() {
   if (verifying) return (
     <PortalShell>
       <div className="text-center py-6">
-        <div className="w-12 h-12 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <div className="w-12 h-12 border-2 border-[#B8935B] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
         <p className="text-slate-700 font-semibold">Verifying your link…</p>
         <p className="text-slate-400 text-sm mt-1">You will be redirected in a moment</p>
       </div>
@@ -103,7 +103,7 @@ export function LoginClient() {
           </ul>
         </div>
         <button onClick={() => { setSent(false); setEmail(''); }}
-          className="mt-5 text-sm text-blue-600 hover:text-blue-700 font-medium">
+          className="mt-5 text-sm text-[#B8935B] hover:text-[#9A7540] font-medium">
           ← Use a different email
         </button>
       </div>
@@ -144,10 +144,10 @@ export function LoginClient() {
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Email Address</label>
             <input type="email" required autoFocus value={email} onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 hover:bg-white transition-colors" />
+              className="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] focus:border-transparent bg-slate-50 hover:bg-white transition-colors" />
           </div>
           <button type="submit" disabled={loading || !email}
-            className="w-full py-3 bg-[#1f56d4] text-white text-sm font-bold rounded-xl hover:bg-blue-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+            className="w-full py-3 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all">
             {loading
               ? <span className="flex items-center justify-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Sending…</span>
               : 'Send Login Link'}
@@ -160,23 +160,23 @@ export function LoginClient() {
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Email Address</label>
             <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 hover:bg-white transition-colors" />
+              className="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] focus:border-transparent bg-slate-50 hover:bg-white transition-colors" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">6-Digit PIN</label>
             <input type="password" required inputMode="numeric" maxLength={6}
               value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder="••••••"
-              className="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 hover:bg-white transition-colors tracking-[0.3em]" />
+              className="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] focus:border-transparent bg-slate-50 hover:bg-white transition-colors tracking-[0.3em]" />
           </div>
           <button type="submit" disabled={loading || !email || pin.length !== 6}
-            className="w-full py-3 bg-[#1f56d4] text-white text-sm font-bold rounded-xl hover:bg-blue-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+            className="w-full py-3 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all">
             {loading
               ? <span className="flex items-center justify-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Signing in…</span>
               : 'Sign In with PIN'}
           </button>
           <button type="button" onClick={() => setTab('magic')}
-            className="w-full text-center text-xs text-slate-400 hover:text-blue-600 transition-colors">
+            className="w-full text-center text-xs text-slate-400 hover:text-[#B8935B] transition-colors">
             Forgot PIN? Use login link instead
           </button>
         </form>
@@ -185,8 +185,8 @@ export function LoginClient() {
       <div className="mt-6 pt-5 border-t border-slate-100 text-center">
         <p className="text-xs text-slate-400">
           No account?{' '}
-          <a href="https://www.theripplenexus.com" target="_blank" rel="noopener noreferrer"
-            className="text-blue-600 hover:underline font-medium">
+          <a href="https://catalyst.theripplenexus.com" target="_blank" rel="noopener noreferrer"
+            className="text-[#B8935B] hover:underline font-medium">
             Get a Career Booster package
           </a>
         </p>
@@ -197,17 +197,17 @@ export function LoginClient() {
 
 function PortalShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#FAFAF8] via-[#F5F2EC]/40 to-[#F0EDE6] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <a href="https://www.theripplenexus.com" target="_blank" rel="noopener noreferrer"
+          <a href="https://catalyst.theripplenexus.com" target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-3 group">
-            <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-md border border-slate-200 flex-shrink-0">
-              <Image src="/Logo.jpg" width={48} height={48} alt="Ripple Nexus" className="w-full h-full object-contain" />
+            <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-md border border-slate-200 flex-shrink-0 bg-black flex items-center justify-center">
+              <Image src="/logos/catalyst-symbol-dark.svg" width={32} height={32} alt="Catalyst" className="object-contain" />
             </div>
             <div className="text-left">
-              <p className="text-xl font-bold text-slate-900 leading-tight tracking-tight group-hover:text-blue-700 transition-colors">Ripple Nexus</p>
-              <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full tracking-wide mt-0.5">
+              <p className="text-xl font-bold text-slate-900 leading-tight tracking-tight group-hover:text-[#9A7540] transition-colors">Catalyst</p>
+              <span className="inline-block px-2 py-0.5 bg-[#F0EAE0] text-[#9A7540] text-[10px] font-bold rounded-full tracking-wide mt-0.5">
                 ClientForge Boost
               </span>
             </div>

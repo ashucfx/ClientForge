@@ -18,8 +18,8 @@ interface RevisionItem {
 
 const FILE_ICONS: Record<string, { icon: React.ReactNode; bg: string }> = {
   resume: {
-    icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path stroke="#1f56d4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M9 13h6M9 17h4"/></svg>,
-    bg: 'bg-blue-50 border border-blue-100',
+    icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M9 13h6M9 17h4"/></svg>,
+    bg: 'bg-[#FBF8F3] border border-[#F0EAE0]',
   },
   cover_letter: {
     icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path stroke="#7c3aed" strokeWidth="1.8" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>,
@@ -89,12 +89,12 @@ export default function FilesPage() {
   const finals = files.filter(f => f.fileCategory !== 'draft');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-[#FAFAF8] via-[#F5F2EC]/30 to-[#FAFAF8]">
       {/* Header */}
       <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
           <Link href="/portal/dashboard"
-            className="flex items-center gap-1.5 text-slate-400 hover:text-blue-600 transition-colors flex-shrink-0">
+            className="flex items-center gap-1.5 text-slate-400 hover:text-[#B8935B] transition-colors flex-shrink-0">
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
               <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M19 12H5m7-7l-7 7 7 7"/>
             </svg>
@@ -143,7 +143,7 @@ export default function FilesPage() {
               Your deliverables will appear here once our team uploads them.
             </p>
             <Link href="/portal/dashboard"
-              className="inline-block mt-6 px-5 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-colors">
+              className="inline-block mt-6 px-5 py-2 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] transition-colors">
               Back to Dashboard
             </Link>
           </div>
@@ -325,7 +325,7 @@ export default function FilesPage() {
                           <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                         </a>
                         <a href={`/api/career/portal/deliverables/download?fileId=${file.id}`}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 active:scale-95 transition-all">
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#B8935B] text-white text-xs font-bold rounded-xl hover:bg-[#9A7540] active:scale-95 transition-all">
                           <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                           Download
                         </a>
@@ -345,7 +345,7 @@ export default function FilesPage() {
               <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Revision Requests</h3>
               <button
                 onClick={() => { setRevFile(''); setShowRevModal(true); }}
-                className="text-xs font-semibold text-[#1f56d4] border border-blue-200 px-3 py-1 rounded-lg hover:bg-blue-50 transition-colors">
+                className="text-xs font-semibold text-[#B8935B] border border-[#E8DDD0] px-3 py-1 rounded-lg hover:bg-[#FBF8F3] transition-colors">
                 + New Request
               </button>
             </div>
@@ -368,12 +368,12 @@ export default function FilesPage() {
                       </span>
                     </div>
                     {r.adminNote && (
-                      <div className="mt-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
-                        <p className="text-xs text-blue-700"><strong>Team note:</strong> {r.adminNote}</p>
+                      <div className="mt-2 px-3 py-2 bg-[#FBF8F3] border border-[#F0EAE0] rounded-lg">
+                        <p className="text-xs text-[#9A7540]"><strong>Team note:</strong> {r.adminNote}</p>
                       </div>
                     )}
                     <p className="text-xs text-slate-400 mt-1.5">
-                      {r.requestedBy === 'admin' ? 'Created by Ripple Nexus Team' : 'Requested by you'} · {new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {r.requestedBy === 'admin' ? 'Created by Catalyst Team' : 'Requested by you'} · {new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
                   </div>
                 ))}
@@ -465,14 +465,14 @@ function RevisionModal({
                   value={note}
                   onChange={e => setNote(e.target.value)}
                   placeholder="e.g. Please update my job title on the resume to Senior Software Engineer, and fix the spacing in the skills section..."
-                  className="w-full px-3.5 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 hover:bg-white resize-none transition-colors"
+                  className="w-full px-3.5 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 hover:bg-white resize-none transition-colors"
                 />
                 <p className="text-xs text-slate-400 mt-1 text-right">{note.length}/2000</p>
               </div>
               <button
                 type="submit"
                 disabled={loading || note.trim().length < 5}
-                className="w-full py-2.5 bg-[#1f56d4] text-white text-sm font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                className="w-full py-2.5 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
                 {loading && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                 {loading ? 'Submitting...' : 'Submit Revision Request'}
               </button>

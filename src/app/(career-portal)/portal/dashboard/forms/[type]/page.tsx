@@ -81,7 +81,7 @@ const SECTION_META: Record<string, { icon: React.ReactNode; color: string; desc?
 };
 
 const COLOR_MAP: Record<string, { bg: string; border: string; text: string; iconBg: string }> = {
-  blue:    { bg: 'bg-blue-50',    border: 'border-blue-200',    text: 'text-blue-700',    iconBg: 'bg-blue-100'    },
+  blue:    { bg: 'bg-[#FBF8F3]',    border: 'border-[#E8DDD0]',    text: 'text-[#9A7540]',    iconBg: 'bg-[#F0EAE0]'    },
   indigo:  { bg: 'bg-indigo-50',  border: 'border-indigo-200',  text: 'text-indigo-700',  iconBg: 'bg-indigo-100'  },
   violet:  { bg: 'bg-violet-50',  border: 'border-violet-200',  text: 'text-violet-700',  iconBg: 'bg-violet-100'  },
   amber:   { bg: 'bg-amber-50',   border: 'border-amber-200',   text: 'text-amber-700',   iconBg: 'bg-amber-100'   },
@@ -245,7 +245,7 @@ export default function FormPage() {
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link href="/portal/dashboard"
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#1f56d4] text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all shadow-sm shadow-blue-200">
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] transition-all shadow-sm shadow-[#E8DDD0]">
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M19 12H5m7-7l-7 7 7 7"/></svg>
             Back to Dashboard
           </Link>
@@ -264,11 +264,11 @@ export default function FormPage() {
     <FormShell schema={schema}>
       {/* Revision notice */}
       {previous && (
-        <div className="mb-6 flex items-start gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl">
-          <svg className="flex-shrink-0 mt-0.5 text-blue-600" width="16" height="16" fill="none" viewBox="0 0 24 24">
+        <div className="mb-6 flex items-start gap-3 px-4 py-3 bg-[#FBF8F3] border border-[#E8DDD0] rounded-xl">
+          <svg className="flex-shrink-0 mt-0.5 text-[#B8935B]" width="16" height="16" fill="none" viewBox="0 0 24 24">
             <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
-          <p className="text-blue-700 text-sm">
+          <p className="text-[#9A7540] text-sm">
             <strong>Updating your submission</strong> (v{previous.version}) — submitting will replace your previous answers.
           </p>
         </div>
@@ -278,13 +278,13 @@ export default function FormPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Form completion</span>
-          <span className={`text-xs font-bold ${pct === 100 ? 'text-emerald-600' : 'text-[#1f56d4]'}`}>
+          <span className={`text-xs font-bold ${pct === 100 ? 'text-emerald-600' : 'text-[#B8935B]'}`}>
             {filledCount} / {totalRequired} required fields
           </span>
         </div>
         <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
           <div
-            className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 'bg-gradient-to-r from-[#1f56d4] to-blue-400'}`}
+            className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 'bg-gradient-to-r from-[#B8935B] to-[#C4A070]'}`}
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -297,7 +297,7 @@ export default function FormPage() {
       </div>
 
       {/* Description */}
-      <div className="mb-8 p-5 bg-gradient-to-br from-slate-50 to-blue-50/40 border border-slate-200 rounded-2xl">
+      <div className="mb-8 p-5 bg-gradient-to-br from-slate-50 to-[#FBF8F3]/40 border border-slate-200 rounded-2xl">
         <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{schema.description}</p>
       </div>
 
@@ -345,7 +345,7 @@ export default function FormPage() {
 
               {/* Executive disclaimer for Attachments section */}
               {name === 'Attachments' && (
-                <div className="mx-5 mt-5 flex items-start gap-3 px-4 py-3.5 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-xl">
+                <div className="mx-5 mt-5 flex items-start gap-3 px-4 py-3.5 bg-gradient-to-r from-indigo-50 to-[#FBF8F3] border border-indigo-200 rounded-xl">
                   <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <svg width="15" height="15" fill="none" viewBox="0 0 24 24">
                       <path stroke="#4f46e5" strokeWidth="2" strokeLinecap="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
@@ -355,7 +355,7 @@ export default function FormPage() {
                     <p className="text-xs font-bold text-indigo-800 mb-0.5">Executive & Executive+ Clients</p>
                     <p className="text-xs text-indigo-700 leading-relaxed">
                       If you have an extensive career history, simply attach your existing resume and write{' '}
-                      <strong>"Refer to resume"</strong> in the relevant text fields above.
+                      <strong>&quot;Refer to resume&quot;</strong> in the relevant text fields above.
                       Our team will work directly from your document — no need to re-type everything.
                     </p>
                   </div>
@@ -425,7 +425,7 @@ export default function FormPage() {
 
         {/* Submit button */}
         <button type="submit" disabled={submitting}
-          className="w-full py-4 bg-gradient-to-r from-[#1f56d4] to-blue-500 text-white text-sm font-bold rounded-xl hover:from-blue-700 hover:to-blue-600 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-md shadow-blue-200 flex items-center justify-center gap-2">
+          className="w-full py-4 bg-gradient-to-r from-[#B8935B] to-[#D4AF7A] text-white text-sm font-bold rounded-xl hover:from-[#9A7540] hover:to-[#B8935B] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-md shadow-[#E8DDD0] flex items-center justify-center gap-2">
           {submitting ? (
             <>
               <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -457,7 +457,7 @@ function FieldRenderer({ field, value, error, onChange, fileRef }: {
   fileRef: (el: HTMLInputElement | null) => void;
 }) {
   const base = `w-full px-4 py-3 text-sm border rounded-xl bg-white transition-all outline-none
-    focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400
+    focus:ring-2 focus:ring-[#B8935B] focus:border-transparent placeholder:text-slate-400
     ${error ? 'border-red-300 focus:ring-red-400' : 'border-slate-200 hover:border-slate-300'}`;
 
   const isArr = field.type === 'tags' || field.type === 'checkbox';
@@ -544,7 +544,7 @@ function FieldRenderer({ field, value, error, onChange, fileRef }: {
       {field.type === 'file' && (
         <div>
           <div className={`border-2 border-dashed rounded-xl transition-all ${
-            error ? 'border-red-300 bg-red-50/30' : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/20'
+            error ? 'border-red-300 bg-red-50/30' : 'border-slate-200 hover:border-[#D4AF7A] hover:bg-[#FBF8F3]/20'
           }`}>
             <input type="file" accept={field.accept} ref={fileRef}
               required={field.required} className="hidden"
@@ -625,18 +625,18 @@ function CheckboxGroup({ options, value, onChange, error }: {
           <label key={opt}
             className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all ${
               i > 0 ? 'border-t border-slate-100' : ''
-            } ${checked ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+            } ${checked ? 'bg-[#FBF8F3]' : 'hover:bg-slate-50'}`}>
             <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-              checked ? 'bg-[#1f56d4] border-[#1f56d4]' : 'border-slate-300 bg-white'
+              checked ? 'bg-[#B8935B] border-[#B8935B]' : 'border-slate-300 bg-white'
             }`} onClick={() => toggle(opt)}>
               {checked && <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path stroke="white" strokeWidth="3" strokeLinecap="round" d="M5 13l4 4L19 7"/></svg>}
             </div>
-            <span className={`text-sm select-none transition-colors ${checked ? 'text-blue-700 font-medium' : 'text-slate-700'}`}
+            <span className={`text-sm select-none transition-colors ${checked ? 'text-[#9A7540] font-medium' : 'text-slate-700'}`}
               onClick={() => toggle(opt)}>
               {opt}
             </span>
             {checked && (
-              <svg className="ml-auto text-blue-400 flex-shrink-0" width="14" height="14" fill="none" viewBox="0 0 24 24">
+              <svg className="ml-auto text-[#C4A070] flex-shrink-0" width="14" height="14" fill="none" viewBox="0 0 24 24">
                 <path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/>
               </svg>
             )}
@@ -644,8 +644,8 @@ function CheckboxGroup({ options, value, onChange, error }: {
         );
       })}
       {value.length > 0 && (
-        <div className="px-4 py-2 bg-blue-50 border-t border-blue-100 flex items-center justify-between">
-          <span className="text-xs text-blue-600 font-semibold">{value.length} selected</span>
+        <div className="px-4 py-2 bg-[#FBF8F3] border-t border-[#F0EAE0] flex items-center justify-between">
+          <span className="text-xs text-[#B8935B] font-semibold">{value.length} selected</span>
           <button type="button" onClick={() => onChange([])}
             className="text-xs text-slate-400 hover:text-red-500 transition-colors">Clear</button>
         </div>
@@ -703,15 +703,15 @@ function TagInput({ value, onChange, placeholder, error }: {
   const add = () => { const tag = input.trim(); if (tag && !value.includes(tag)) onChange([...value, tag]); setInput(''); };
   const remove = (tag: string) => onChange(value.filter(t => t !== tag));
   return (
-    <div className={`border rounded-xl bg-white transition-all focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent ${
+    <div className={`border rounded-xl bg-white transition-all focus-within:ring-2 focus-within:ring-[#B8935B] focus-within:border-transparent ${
       error ? 'border-red-300' : 'border-slate-200 hover:border-slate-300'
     }`} onClick={() => inputRef.current?.focus()}>
       <div className="p-3 flex flex-wrap gap-1.5">
         {value.map(tag => (
-          <span key={tag} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
+          <span key={tag} className="inline-flex items-center gap-1 px-3 py-1 bg-[#F0EAE0] text-[#7A5B2E] text-xs font-semibold rounded-full">
             {tag}
             <button type="button" onClick={e => { e.stopPropagation(); remove(tag); }}
-              className="text-blue-400 hover:text-blue-900 ml-0.5">
+              className="text-[#C4A070] hover:text-[#5A3D1A] ml-0.5">
               <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </span>
@@ -749,12 +749,12 @@ function FormShell({ schema, children }: { schema: FormSchema; children: React.R
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-[#FAFAF8] via-[#F5F2EC]/30 to-[#FAFAF8]">
       {/* Sticky header */}
       <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-20 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
           <Link href="/portal/dashboard"
-            className="flex items-center gap-1.5 text-slate-400 hover:text-blue-600 transition-colors flex-shrink-0">
+            className="flex items-center gap-1.5 text-slate-400 hover:text-[#B8935B] transition-colors flex-shrink-0">
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
               <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M19 12H5m7-7l-7 7 7 7"/>
             </svg>
@@ -763,12 +763,12 @@ function FormShell({ schema, children }: { schema: FormSchema; children: React.R
           <div className="w-px h-4 bg-slate-200 flex-shrink-0" />
           {/* Brand */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-7 h-7 rounded-lg overflow-hidden border border-slate-100 flex-shrink-0">
-              <Image src="/Logo.jpg" width={28} height={28} alt="Ripple Nexus" className="w-full h-full object-contain" />
+            <div className="w-7 h-7 rounded-lg overflow-hidden border border-slate-100 flex-shrink-0 bg-black flex items-center justify-center">
+              <Image src="/logos/catalyst-symbol-dark.svg" width={18} height={18} alt="Catalyst" className="object-contain" />
             </div>
             <div className="hidden sm:block">
-              <p className="text-sm font-bold text-slate-900 leading-none">Ripple Nexus</p>
-              <span className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold rounded tracking-wide leading-none mt-0.5">
+              <p className="text-sm font-bold text-slate-900 leading-none">Catalyst</p>
+              <span className="inline-block px-1.5 py-0.5 bg-[#F0EAE0] text-[#9A7540] text-[9px] font-bold rounded tracking-wide leading-none mt-0.5">
                 ClientForge Boost
               </span>
             </div>
@@ -776,7 +776,7 @@ function FormShell({ schema, children }: { schema: FormSchema; children: React.R
           <div className="w-px h-4 bg-slate-200 flex-shrink-0" />
           {/* Form identity */}
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-6 h-6 text-[#1f56d4] flex-shrink-0">
+            <div className="w-6 h-6 text-[#B8935B] flex-shrink-0">
               {formTypeIcon[schema.formType] ?? formTypeIcon.resume}
             </div>
             <div className="min-w-0">
@@ -797,7 +797,7 @@ function FormShell({ schema, children }: { schema: FormSchema; children: React.R
           </div>
           <div>
             <h1 className="text-lg font-bold text-white leading-tight">{schema.title}</h1>
-            <p className="text-blue-300 text-xs mt-0.5">Career Booster Services · Ripple Nexus</p>
+            <p className="text-[#D4AF7A] text-xs mt-0.5">Career Booster Services · Catalyst</p>
           </div>
         </div>
       </div>
@@ -814,9 +814,9 @@ function FormShell({ schema, children }: { schema: FormSchema; children: React.R
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-[#FAFAF8] via-[#F5F2EC]/30 to-[#FAFAF8] flex items-center justify-center">
       <div className="text-center">
-        <div className="w-12 h-12 border-2 border-[#1f56d4] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <div className="w-12 h-12 border-2 border-[#B8935B] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
         <p className="text-slate-500 text-sm font-medium">Loading your form…</p>
       </div>
     </div>

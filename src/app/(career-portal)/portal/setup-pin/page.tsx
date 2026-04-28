@@ -49,7 +49,7 @@ export default function SetupPinPage() {
   if (checking) return (
     <Shell>
       <div className="text-center py-8">
-        <div className="w-10 h-10 border-2 border-[#1f56d4] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <div className="w-10 h-10 border-2 border-[#B8935B] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
         <p className="text-slate-500 text-sm">Loading…</p>
       </div>
     </Shell>
@@ -59,9 +59,9 @@ export default function SetupPinPage() {
     <Shell>
       {/* Lock icon */}
       <div className="flex flex-col items-center mb-7">
-        <div className="w-16 h-16 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-center mb-4">
+        <div className="w-16 h-16 bg-[#FBF8F3] border border-[#E8DDD0] rounded-2xl flex items-center justify-center mb-4">
           <svg width="30" height="30" fill="none" viewBox="0 0 24 24">
-            <path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round"
+            <path stroke="#B8935B" strokeWidth="2" strokeLinecap="round"
               d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
           </svg>
         </div>
@@ -108,7 +108,7 @@ export default function SetupPinPage() {
             value={pin}
             onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
             placeholder="••••••"
-            className="w-full px-4 py-3 text-lg border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 hover:bg-white transition-colors tracking-[0.5em] text-center font-bold"
+            className="w-full px-4 py-3 text-lg border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 hover:bg-white transition-colors tracking-[0.5em] text-center font-bold"
           />
         </div>
 
@@ -124,7 +124,7 @@ export default function SetupPinPage() {
             value={confirm}
             onChange={e => setConfirm(e.target.value.replace(/\D/g, '').slice(0, 6))}
             placeholder="••••••"
-            className="w-full px-4 py-3 text-lg border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 hover:bg-white transition-colors tracking-[0.5em] text-center font-bold"
+            className="w-full px-4 py-3 text-lg border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 hover:bg-white transition-colors tracking-[0.5em] text-center font-bold"
           />
         </div>
 
@@ -132,7 +132,7 @@ export default function SetupPinPage() {
         <div className="flex items-center justify-center gap-2 py-1">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className={`w-2.5 h-2.5 rounded-full transition-all duration-200 ${
-              i < pin.length ? 'bg-[#1f56d4] scale-110' : 'bg-slate-200'
+              i < pin.length ? 'bg-[#B8935B] scale-110' : 'bg-slate-200'
             }`} />
           ))}
         </div>
@@ -140,7 +140,7 @@ export default function SetupPinPage() {
         <button
           type="submit"
           disabled={saving || pin.length !== 6 || confirm.length !== 6}
-          className="w-full py-3 bg-[#1f56d4] text-white text-sm font-bold rounded-xl hover:bg-blue-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+          className="w-full py-3 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
         >
           {saving && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
           {saving ? 'Saving…' : 'Set PIN & Go to Dashboard'}
@@ -156,17 +156,17 @@ export default function SetupPinPage() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#FAFAF8] via-[#F5F2EC]/40 to-[#F0EDE6] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-7">
-          <a href="https://www.theripplenexus.com" target="_blank" rel="noopener noreferrer"
+          <a href="https://catalyst.theripplenexus.com" target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-3 group">
-            <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-md border border-slate-200 flex-shrink-0">
-              <Image src="/Logo.jpg" width={48} height={48} alt="Ripple Nexus" className="w-full h-full object-contain" />
+            <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-md border border-slate-200 flex-shrink-0 bg-black flex items-center justify-center">
+              <Image src="/logos/catalyst-symbol-dark.svg" width={32} height={32} alt="Catalyst" className="object-contain" />
             </div>
             <div className="text-left">
-              <p className="text-xl font-bold text-slate-900 leading-tight tracking-tight group-hover:text-blue-700 transition-colors">Ripple Nexus</p>
-              <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full tracking-wide mt-0.5">
+              <p className="text-xl font-bold text-slate-900 leading-tight tracking-tight group-hover:text-[#9A7540] transition-colors">Catalyst</p>
+              <span className="inline-block px-2 py-0.5 bg-[#F0EAE0] text-[#9A7540] text-[10px] font-bold rounded-full tracking-wide mt-0.5">
                 ClientForge Boost
               </span>
             </div>
