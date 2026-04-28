@@ -45,7 +45,7 @@ function hasLinkedIn(client: {
 const PORTAL_URL =
   process.env.NODE_ENV === 'development'
     ? 'http://localhost:3000'
-    : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000');
+    : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com');
 const VALID_TRIGGERS: EmailTrigger[] = [
   'WELCOME', 'FORM_CONFIRM', 'DRAFT_READY', 'LINKEDIN_DRAFT', 'REVISED_DRAFT',
   'REVISION', 'FINAL_DELIVERY', 'LINKEDIN_SECURITY',

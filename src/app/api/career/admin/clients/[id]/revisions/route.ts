@@ -13,7 +13,7 @@ import type { CareerPackage, CareerServiceSlug } from '@/lib/career/types';
 const PORTAL_URL =
   process.env.NODE_ENV === 'development'
     ? 'http://localhost:3000'
-    : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000');
+    : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com');
 
 /** Derive a human-readable service label for a client (services → packageType → fallback) */
 function clientServiceLabel(client: {

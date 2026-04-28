@@ -6,29 +6,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 import { sendCareerEmail } from '@/lib/career/email';
-import { PACKAGE_LABELS, SERVICE_LABELS, STATUS_LABELS } from '@/lib/career/types';
-import type { CareerStatus, CareerPackage, CareerServiceSlug, EmailTrigger } from '@/lib/career/types';
-
-const PORTAL_URL =
-  process.env.NODE_ENV === 'development'
-    ? 'http://localhost:3000'
-    : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000');
-
-/** Derive the correct service label — always reads from SERVICE_LABELS so DB names can't override */
-function resolvePackageLabel(client: {
-  packageType: string | null;
-  services: { service: { slug: string; name: string } }[];
-}): string {
-  if (client.services.length > 0) {
-    return client.services
-      .map(s => SERVICE_LABELS[s.service.slug as CareerServiceSlug] ?? s.service.name)
-      .join(', ');
-  }
-  if (client.packageType) {
-    return PACKAGE_LABELS[client.packageType as CareerPackage] ?? client.packageType;
-  }
-  return 'Career Services';
-}
+import { STATUS_LABELS } from '@/lib/career/types';
+import type { CareerStatus, EmailTrigger } from '@/lib/career/types';
+import { PORTAL_URL } from '@/lib/config';
+import { resolvePackageLabel } from '@/lib/career/utils';
 
 /** Choose which draft email to send based on the client's services */
 function resolveDraftTrigger(client: {
@@ -54,17 +35,41 @@ const VALID_STATUSES: CareerStatus[] = [
   'DRAFT_SENT', 'REVISION_REQUESTED', 'COMPLETED',
 ];
 
+// Allowed forward and backward transitions — prevents arbitrary status jumps
+const ALLOWED_TRANSITIONS: Record<CareerStatus, CareerStatus[]> = {
+  NOT_STARTED:        ['SUBMITTED', 'UNDER_PROCESS'],
+  SUBMITTED:          ['NOT_STARTED', 'UNDER_PROCESS'],
+  UNDER_PROCESS:      ['SUBMITTED', 'DRAFT_SENT'],
+  DRAFT_SENT:         ['UNDER_PROCESS', 'REVISION_REQUESTED', 'COMPLETED'],
+  REVISION_REQUESTED: ['UNDER_PROCESS', 'DRAFT_SENT'],
+  COMPLETED:          ['DRAFT_SENT'], // allow re-open only to draft_sent
+};
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   const newStatus = body?.status as CareerStatus | undefined;
+  const force     = body?.force === true; // admin override for exceptional cases
 
   if (!newStatus || !VALID_STATUSES.includes(newStatus)) {
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
   }
 
-  // Confirmation is enforced on the frontend; backend just validates and updates
+  // Fetch current status for transition validation
+  const existing = await db.careerClient.findUnique({
+    where:  { id: params.id },
+    select: { status: true },
+  });
+  if (!existing) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+
+  const allowed = ALLOWED_TRANSITIONS[existing.status] ?? [];
+  if (!force && !allowed.includes(newStatus)) {
+    return NextResponse.json({
+      error: `Cannot transition from ${existing.status} to ${newStatus}. Allowed: ${allowed.join(', ') || 'none'}. Pass force:true to override.`,
+    }, { status: 422 });
+  }
+
   const client = await db.careerClient.update({
     where: { id: params.id },
     data: { status: newStatus },

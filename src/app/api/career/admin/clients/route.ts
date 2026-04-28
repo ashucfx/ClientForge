@@ -13,7 +13,7 @@ import { resolveServices } from '@/lib/career/services';
 const PORTAL_URL =
   process.env.NODE_ENV === 'development'
     ? 'http://localhost:3000'
-    : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000');
+    : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com');
 
 export async function GET(req: NextRequest) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -138,4 +138,3 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ client }, { status: 201 });
 }
-

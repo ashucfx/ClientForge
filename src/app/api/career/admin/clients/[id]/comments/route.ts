@@ -1,5 +1,4 @@
 // src/app/api/career/admin/clients/[id]/comments/route.ts
-// Admin can view all comments and post admin replies
 
 export const runtime = 'nodejs';
 
@@ -11,49 +10,65 @@ import { sendCareerEmail } from '@/lib/career/email';
 const PORTAL_URL =
   process.env.NODE_ENV === 'development'
     ? 'http://localhost:3000'
-    : (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000');
+    : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com');
+
+interface Attachment { name: string; url: string; mimeType: string; size: number; }
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const now = new Date();
+
+  // Mark all client messages as read by admin
+  await db.careerComment.updateMany({
+    where: { clientId: params.id, authorType: 'client', readByAdmin: false },
+    data:  { readByAdmin: true, readByAdminAt: now },
+  });
+
   const comments = await db.careerComment.findMany({
-    where: { clientId: params.id },
+    where:   { clientId: params.id },
     orderBy: { createdAt: 'asc' },
   });
 
-  return NextResponse.json({ comments });
+  // Count unread admin messages (client hasn't read yet)
+  const unreadForClient = comments.filter(c => c.authorType === 'admin' && !c.readByClient).length;
+
+  return NextResponse.json({ comments, unreadForClient });
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const content = (body?.content as string | undefined)?.trim();
+  const content     = (body?.content as string | undefined)?.trim();
+  const attachments = (body?.attachments as Attachment[] | undefined) ?? [];
 
-  if (!content || content.length < 2) {
-    return NextResponse.json({ error: 'Comment cannot be empty.' }, { status: 400 });
+  if (!content && attachments.length === 0) {
+    return NextResponse.json({ error: 'Message cannot be empty.' }, { status: 400 });
   }
 
   const client = await db.careerClient.findUnique({
-    where: { id: params.id },
+    where:  { id: params.id },
     select: { id: true, name: true, email: true },
   });
   if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
 
   const comment = await db.careerComment.create({
     data: {
-      clientId: params.id,
-      authorType: 'admin',
-      authorName: 'Ripple Nexus Team',
-      content,
+      clientId:    params.id,
+      authorType:  'admin',
+      authorName:  'Catalyst Team',
+      content:     content ?? '',
+      attachments: attachments.length > 0 ? (attachments as object[]) : undefined,
+      readByAdmin: true,
+      readByAdminAt: new Date(),
     },
   });
 
-  // Email notification to client
   sendCareerEmail({
-    to: client.email,
+    to:      client.email,
     trigger: 'MESSAGE_NOTIFY',
-    data: { recipientName: client.name, senderType: 'admin', portalUrl: `${PORTAL_URL}/portal/dashboard` },
+    data:    { recipientName: client.name, senderType: 'admin', portalUrl: `${PORTAL_URL}/portal/dashboard` },
   }).catch(console.error);
 
   return NextResponse.json({ ok: true, comment }, { status: 201 });

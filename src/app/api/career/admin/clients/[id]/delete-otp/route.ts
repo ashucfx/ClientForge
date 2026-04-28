@@ -20,7 +20,7 @@ function hashOtp(otp: string): string {
   return crypto.createHash('sha256').update(otp).digest('hex');
 }
 
-const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'info@theripplenexus.com';
+const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
 
 // POST /api/career/admin/clients/[id]/delete-otp
 // Sends a 6-digit OTP to the ADMIN email for confirmation
