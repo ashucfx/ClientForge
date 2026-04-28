@@ -3,35 +3,38 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════
-   CLIENTFORGE — DARK NEON DESIGN SYSTEM v4
-   Inspired by the ClientForge logo palette:
-   Electric Blue #2563ff  ·  Cyber Teal #00c98d
+   CATALYST — DESIGN SYSTEM v5
+   Obsidian #0A0B0D · Bone #F4F1EB · Signal Gold #B8935B
 ═══════════════════════════════════════════════ */
 
 /* ─── Design Tokens ──────────────────────────── */
 :root {
-  /* Brand — electric blue ("Client" in logo) */
-  --brand:          #1f56d4;
-  --brand-dark:     #1a42a0;
-  --brand-deeper:   #12327a;
-  --brand-light:    rgba(31,86,212,.14);
-  --brand-faint:    rgba(31,86,212,.08);
+  /* Brand — Signal Gold (primary interactive) */
+  --brand:          #B8935B;
+  --brand-dark:     #9A7540;
+  --brand-deeper:   #7A5B2E;
+  --brand-light:    rgba(184,147,91,.14);
+  --brand-faint:    rgba(184,147,91,.07);
 
-  /* Accent — cyber teal ("Forge" in logo) */
-  --green:          #3FBD8B;
-  --green-dark:     #2d9970;
-  --green-light:    rgba(63,189,139,.16);
+  /* Obsidian — headers, active states */
+  --obsidian:       #0A0B0D;
+  --obsidian-soft:  #1C1812;
+
+  /* Success green (kept separate from brand) */
+  --green:          #3B7A5C;
+  --green-dark:     #2A6047;
+  --green-light:    rgba(59,122,92,.16);
 
   /* Gradients */
-  --brand-gradient:      linear-gradient(135deg, #1f56d4 0%, #2563ff 38%, #3FBD8B 100%);
-  --brand-gradient-soft: linear-gradient(135deg, rgba(31,86,212,.10) 0%, rgba(63,189,139,.10) 100%);
+  --brand-gradient:      linear-gradient(135deg, #0A0B0D 0%, #1C1812 55%, #B8935B 100%);
+  --brand-gradient-soft: linear-gradient(135deg, rgba(184,147,91,.10) 0%, rgba(244,241,235,.50) 100%);
 
-  /* Light backgrounds */
-  --navy:           #ffffff; /* used for sidebar bg */
-  --bg:             #f7f9ff;
+  /* Light backgrounds — warm Bone tint */
+  --navy:           #ffffff;
+  --bg:             #FAFAF8;
   --surface:        #ffffff;
-  --surface-2:      #f3f6ff;
-  --surface-3:      #eaf0ff;
+  --surface-2:      #F5F3EE;
+  --surface-3:      #EDE9DF;
 
   /* Borders */
   --border:         rgba(15,23,42,.10);
@@ -48,7 +51,7 @@
   --text:           var(--text-primary);
   --muted:          var(--text-secondary);
   --blue:           var(--brand);
-  --blue-light:     rgba(31,86,212,.12);
+  --blue-light:     rgba(184,147,91,.12);
 
   /* Status */
   --success:        #3FBD8B;
@@ -57,8 +60,8 @@
   --warning-bg:     rgba(217,119,6,.12);
   --error:          #e11d48;
   --error-bg:       rgba(225,29,72,.10);
-  --info:           #1f56d4;
-  --info-bg:        rgba(31,86,212,.10);
+  --info:           #2563EB;
+  --info-bg:        rgba(37,99,235,.10);
 
   /* Shadows — depth on dark */
   --shadow-xs:      0 1px 2px rgba(15,23,42,.06);
@@ -305,7 +308,7 @@ body {
 }
 .input:focus {
   border-color: var(--brand);
-  box-shadow: 0 0 0 3px rgba(31,86,212,.14), 0 0 12px rgba(31,86,212,.08);
+  box-shadow: 0 0 0 3px rgba(184,147,91,.16), 0 0 12px rgba(184,147,91,.08);
 }
 .input::placeholder { color: var(--text-disabled); }
 .input:disabled     { background: var(--surface-3); color: var(--text-tertiary); cursor: not-allowed; }
@@ -353,19 +356,19 @@ textarea.input { resize: vertical; min-height: 80px; }
 .btn-primary {
   background: var(--brand);
   color: #fff;
-  box-shadow: 0 1px 6px rgba(31,86,212,.28), inset 0 1px 0 rgba(255,255,255,.12);
+  box-shadow: 0 1px 6px rgba(184,147,91,.32), inset 0 1px 0 rgba(255,255,255,.12);
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--brand-dark);
-  box-shadow: 0 8px 24px rgba(31,86,212,.22);
+  box-shadow: 0 8px 24px rgba(184,147,91,.24);
 }
 
 .btn-secondary {
   background: var(--brand-light);
-  color: var(--brand);
-  border: 1px solid rgba(31,86,212,.22);
+  color: var(--brand-deeper);
+  border: 1px solid rgba(184,147,91,.28);
 }
-.btn-secondary:hover:not(:disabled) { background: rgba(31,86,212,.16); }
+.btn-secondary:hover:not(:disabled) { background: rgba(184,147,91,.18); }
 
 .btn-ghost {
   background: transparent;
@@ -381,11 +384,11 @@ textarea.input { resize: vertical; min-height: 80px; }
 .btn-green {
   background: var(--green);
   color: #fff;
-  box-shadow: 0 1px 6px rgba(63,189,139,.26);
+  box-shadow: 0 1px 6px rgba(16,185,129,.26);
 }
 .btn-green:hover:not(:disabled) {
   background: var(--green-dark);
-  box-shadow: 0 8px 24px rgba(63,189,139,.18);
+  box-shadow: 0 8px 24px rgba(16,185,129,.18);
 }
 
 .btn-danger {
@@ -468,7 +471,7 @@ textarea.input { resize: vertical; min-height: 80px; }
 }
 .data-table tbody tr { transition: background .1s; cursor: pointer; }
 .data-table tbody tr:last-child td { border-bottom: none; }
-.data-table tbody tr:hover td { background: rgba(31,86,212,.06); }
+.data-table tbody tr:hover td { background: rgba(184,147,91,.06); }
 
 /* ═══════════════════════════════════════════════
    LINE ITEMS TABLE (Invoice editor)
@@ -496,7 +499,7 @@ textarea.input { resize: vertical; min-height: 80px; }
   vertical-align: middle;
 }
 .items-table tbody tr:last-child td { border-bottom: none; }
-.items-table tbody tr:hover td { background: rgba(31,86,212,.06); }
+.items-table tbody tr:hover td { background: rgba(184,147,91,.06); }
 
 /* Number-right columns */
 .text-right { text-align: right; }
@@ -604,7 +607,7 @@ textarea.input { resize: vertical; min-height: 80px; }
 .preview-header {
   background: var(--brand-gradient);
   padding: 20px 22px;
-  border-bottom: 1px solid rgba(31,86,212,.22);
+  border-bottom: 1px solid rgba(184,147,91,.22);
 }
 .preview-body { padding: 16px 22px; }
 .preview-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
@@ -924,7 +927,7 @@ textarea.input { resize: vertical; min-height: 80px; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Highlight row when table is in edit mode */
-.row-editing td { background: rgba(31,86,212,.08) !important; }
+.row-editing td { background: rgba(184,147,91,.08) !important; }
 
 /* Color dot */
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }

@@ -49,7 +49,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <>
       {/* Brand logo — dark bg logo looks perfect on dark sidebar */}
       <div className="sidebar-logo">
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }} aria-label="Ripple Nexus · ClientForge">
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }} aria-label="Catalyst · ClientForge">
           <Logo variant="horizontal" size={34} />
         </Link>
       </div>
@@ -91,7 +91,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </span>
           Logout
         </button>
-        <span className="sidebar-version">ClientForge · Ripple Nexus</span>
+        <span className="sidebar-version">ClientForge · Powered by Ripple Nexus</span>
       </div>
     </>
   );
