@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CATALYST · Primary Lockup · Horizontal · Dark ground -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 600" width="2400" height="600" font-family="Georgia, 'GT Sectra', 'Canela', serif">
+  <rect width="2400" height="600" fill="#0A0B0D"/>
+  <!-- Inflection mark, left -->
+  <g transform="translate(240,180)">
+    <polygon points="0,240 44,240 192,0 148,0" fill="#F4F1EB"/>
+    <polygon points="192,0 148,0 100,76 144,76" fill="#B8935B"/>
+    <circle cx="170" cy="22" r="4.5" fill="#0A0B0D"/>
+  </g>
+  <!-- Wordmark -->
+  <text x="560" y="380" fill="#F4F1EB" font-size="200" letter-spacing="-6" font-weight="400">CATALYST</text>
+  <!-- Descriptor line -->
+  <text x="562" y="440" fill="#8B8681" font-family="Helvetica, 'Söhne', sans-serif" font-size="22" letter-spacing="8">TALENT POSITIONING ARCHITECTURE</text>
+</svg>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CATALYST · Favicon · Monogram on obsidian · 512 master -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" ry="96" fill="#0A0B0D"/>
+  <g transform="translate(256,256)">
+    <path d="M 60 -120 A 150 150 0 1 0 100 130"
+          stroke="#F4F1EB" stroke-width="30" fill="none" stroke-linecap="butt"/>
+    <path d="M 100 130 A 150 150 0 0 0 145 108"
+          stroke="#B8935B" stroke-width="30" fill="none" stroke-linecap="butt"/>
+    <circle cx="159" cy="96" r="6.5" fill="#F4F1EB"/>
+  </g>
+</svg>

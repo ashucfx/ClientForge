@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CATALYST · Single-color Bone · for dark grounds · Wordmark + Inflection -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 600" width="2400" height="600" font-family="Georgia, 'GT Sectra', serif">
+  <rect width="2400" height="600" fill="#0A0B0D"/>
+  <g transform="translate(240,180)">
+    <polygon points="0,240 44,240 192,0 148,0" fill="#F4F1EB"/>
+    <polygon points="192,0 148,0 100,76 144,76" fill="#F4F1EB" fill-opacity="0.55"/>
+  </g>
+  <text x="560" y="380" fill="#F4F1EB" font-size="200" letter-spacing="-6">CATALYST</text>
+</svg>

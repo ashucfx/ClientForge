@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CATALYST · The Offset C · Monogram · Light ground -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="1000" height="1000">
+  <rect width="1000" height="1000" fill="#F4F1EB"/>
+  <g transform="translate(500,500)">
+    <path d="M 120 -240 A 300 300 0 1 0 200 260"
+          stroke="#0A0B0D" stroke-width="54" fill="none" stroke-linecap="butt"/>
+    <path d="M 200 260 A 300 300 0 0 0 290 216"
+          stroke="#B8935B" stroke-width="54" fill="none" stroke-linecap="butt"/>
+    <circle cx="318" cy="192" r="11" fill="#0A0B0D"/>
+  </g>
+</svg>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CATALYST · The Inflection · Symbol only · Light ground -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="1000" height="1000">
+  <rect width="1000" height="1000" fill="#F4F1EB"/>
+  <g transform="translate(350,300)">
+    <polygon points="0,400 74,400 320,0 246,0" fill="#0A0B0D"/>
+    <polygon points="320,0 246,0 167,126 241,126" fill="#B8935B"/>
+    <circle cx="281" cy="38" r="7" fill="#F4F1EB"/>
+  </g>
+</svg>
