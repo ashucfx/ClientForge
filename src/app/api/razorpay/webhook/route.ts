@@ -73,7 +73,21 @@ export async function POST(request: NextRequest) {
       sendPaymentConfirmationEmail(invoice as any)
         .catch(err => console.error('Confirmation email failed:', err));
       onboardFromInvoice({ ...invoice, razorpayPaymentId })
-        .catch(err => console.error('[webhook] Career onboarding failed:', err));
+        .catch(async (err) => {
+          console.error('[webhook] Career onboarding failed:', err);
+          const { sendCareerEmail } = await import('@/lib/career/email');
+          const adminEmail = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
+          sendCareerEmail({
+            to: adminEmail,
+            trigger: 'MESSAGE_NOTIFY',
+            data: {
+              recipientName: 'Catalyst Team',
+              senderType: 'admin',
+              portalUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/career`,
+              body: `⚠️ ONBOARDING FAILED for ${invoice.clientEmail} (Invoice ${invoice.id}). Error: ${String(err)}. Manual action required.`,
+            },
+          }).catch(console.error);
+        });
     }
   }
 

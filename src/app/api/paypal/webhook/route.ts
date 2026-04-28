@@ -1,8 +1,8 @@
 // src/app/api/paypal/webhook/route.ts
 // Handle PayPal invoice payment webhooks
-// Configure this URL in PayPal Dashboard → Webhooks:
-//   https://clientforge.theripplenexus.com/api/paypal/webhook
-// Subscribe to events: INVOICES.PAYMENT.COMPLETED, INVOICES.CANCELLED
+// Configure in PayPal Dashboard → Webhooks:
+//   https://catalyst.theripplenexus.com/api/paypal/webhook
+// Subscribe to: INVOICES.PAYMENT.COMPLETED, INVOICES.CANCELLED
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,6 +12,8 @@ import { prisma } from '@/lib/db';
 import { verifyPaypalWebhook } from '@/lib/paypal';
 import { sendPaymentConfirmationEmail } from '@/lib/email';
 import { onboardFromInvoice } from '@/lib/career/onboarding';
+import { sendCareerEmail } from '@/lib/career/email';
+import { ADMIN_EMAIL } from '@/lib/config';
 import type { Installment } from '@/types';
 
 export async function POST(request: NextRequest) {
@@ -25,12 +27,19 @@ export async function POST(request: NextRequest) {
     'paypal-transmission-sig':  request.headers.get('paypal-transmission-sig'),
   };
 
-  if (process.env.PAYPAL_WEBHOOK_ID) {
-    const valid = await verifyPaypalWebhook(headers, rawBody).catch(() => false);
-    if (!valid) {
-      console.error('[PayPal webhook] Signature verification failed');
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-    }
+  // Verification is MANDATORY. Reject if PAYPAL_WEBHOOK_ID is not configured.
+  if (!process.env.PAYPAL_WEBHOOK_ID) {
+    console.error('[PayPal webhook] PAYPAL_WEBHOOK_ID is not set — rejecting all PayPal webhooks');
+    return NextResponse.json(
+      { error: 'PayPal webhook not configured on this server' },
+      { status: 500 },
+    );
+  }
+
+  const valid = await verifyPaypalWebhook(headers, rawBody).catch(() => false);
+  if (!valid) {
+    console.error('[PayPal webhook] Signature verification failed');
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
 
   let payload: Record<string, unknown>;
@@ -45,15 +54,13 @@ export async function POST(request: NextRequest) {
     eventType === 'INVOICES.PAYMENT.COMPLETED' ||
     eventType === 'INVOICES.PAYMENT.REGISTERED'
   ) {
-    const resource       = payload.resource as Record<string, unknown> | undefined;
+    const resource        = payload.resource as Record<string, unknown> | undefined;
     const paypalInvoiceId = resource?.id as string | undefined;
     if (!paypalInvoiceId) return NextResponse.json({ error: 'No invoice id in payload' }, { status: 400 });
 
-    // Could be a top-level invoice OR a single installment invoice
     const topLevelInvoice = await prisma.invoice.findFirst({ where: { paypalInvoiceId } });
 
     if (topLevelInvoice) {
-      // Single payment (non-split)
       if (topLevelInvoice.status === 'PAID') return NextResponse.json({ received: true });
 
       const updatedInvoice = await prisma.invoice.update({
@@ -63,8 +70,21 @@ export async function POST(request: NextRequest) {
 
       sendPaymentConfirmationEmail(updatedInvoice as any)
         .catch(err => console.error('[PayPal webhook] Confirmation email failed:', err));
+
       onboardFromInvoice(updatedInvoice)
-        .catch(err => console.error('[PayPal webhook] Career onboarding failed:', err));
+        .catch(async (err) => {
+          console.error('[PayPal webhook] Career onboarding failed:', err);
+          sendCareerEmail({
+            to: ADMIN_EMAIL,
+            trigger: 'MESSAGE_NOTIFY',
+            data: {
+              recipientName: 'Catalyst Team',
+              senderType: 'admin',
+              portalUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/career`,
+              body: `⚠️ ONBOARDING FAILED for ${updatedInvoice.clientEmail} (Invoice ${updatedInvoice.id}). Error: ${String(err)}. Manual action required.`,
+            },
+          }).catch(console.error);
+        });
 
     } else {
       // Check if it matches an instalment's paypalInvoiceId
@@ -88,7 +108,7 @@ export async function POST(request: NextRequest) {
           : inst
       );
 
-      const allPaid  = installs.every(i => i.status === 'PAID');
+      const allPaid   = installs.every(i => i.status === 'PAID');
       const newStatus = allPaid ? 'PAID' : 'PARTIALLY_PAID';
 
       const updatedInvoice = await prisma.invoice.update({
@@ -103,8 +123,21 @@ export async function POST(request: NextRequest) {
       if (allPaid) {
         sendPaymentConfirmationEmail(updatedInvoice as any)
           .catch(err => console.error('[PayPal webhook] Confirmation email failed:', err));
+
         onboardFromInvoice(updatedInvoice)
-          .catch(err => console.error('[PayPal webhook] Career onboarding failed:', err));
+          .catch(async (err) => {
+            console.error('[PayPal webhook] Career onboarding failed:', err);
+            sendCareerEmail({
+              to: ADMIN_EMAIL,
+              trigger: 'MESSAGE_NOTIFY',
+              data: {
+                recipientName: 'Catalyst Team',
+                senderType: 'admin',
+                portalUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/career`,
+                body: `⚠️ ONBOARDING FAILED for ${updatedInvoice.clientEmail} (Invoice ${updatedInvoice.id}). Error: ${String(err)}. Manual action required.`,
+              },
+            }).catch(console.error);
+          });
       }
     }
   }
