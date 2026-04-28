@@ -1,15 +1,13 @@
 // src/emails/career/base/EmailBase.tsx
-// Official Ripple Nexus branded email base
-// Colors: Primary #1f56d4 · Green #3FBD8B · Dark #0f172a · Gray #666666
+// Catalyst branded email base
+// Palette: Obsidian #0A0B0D · Signal Gold #B8935B · Bone #F4F1EB
 
 import {
   Html, Head, Body, Container, Section, Row, Column,
-  Text, Hr, Preview, Img,
+  Text, Hr, Preview
 } from '@react-email/components';
 import * as React from 'react';
-
-// Hosted logo URL — JPG with white background
-const LOGO_URL = 'https://clientforge.theripplenexus.com/Logo.jpg';
+import { BRAND_EMAIL, BRAND_WEBSITE_LABEL, BRAND_WEBSITE_URL } from '@/lib/config';
 
 interface EmailBaseProps {
   preview: string;
@@ -21,8 +19,8 @@ interface EmailBaseProps {
 export function EmailBase({
   preview,
   children,
-  accentColor = '#1f56d4',
-  subBrand = 'ClientForge Boost',
+  accentColor = '#B8935B',
+  subBrand = 'Catalyst',
 }: EmailBaseProps) {
   return (
     <Html lang="en" dir="ltr">
@@ -38,30 +36,41 @@ export function EmailBase({
       <Body style={body}>
         <Container style={container}>
 
-          {/* Header bar */}
-          <Section style={{ ...header, borderTop: `4px solid ${accentColor}` }}>
-            <Row>
-              <Column style={{ width: '56px', paddingRight: '14px', verticalAlign: 'middle' }}>
-                <Img
-                  src={LOGO_URL}
-                  width="44"
-                  height="44"
-                  alt="Ripple Nexus"
-                  style={{ borderRadius: '10px', display: 'block' }}
-                />
+          {/* ── Header ─────────────────────────────────── */}
+          <Section style={header}>
+            {/* Gold accent bar */}
+            <div style={{ height: '3px', background: 'linear-gradient(90deg, #B8935B 0%, #D4AF7A 60%, #B8935B 100%)' }} />
+            <Row style={{ padding: '20px 28px 18px' }}>
+              {/* Catalyst Logo */}
+              <Column style={{ width: '40px', paddingRight: '14px', verticalAlign: 'middle' }}>
+                <EmailLogoMark size={36} />
               </Column>
+              {/* Brand name */}
               <Column style={{ verticalAlign: 'middle' }}>
-                <Text style={brandPrimary}>Ripple Nexus</Text>
-                <Text style={{ ...brandSub, color: accentColor }}>{subBrand}</Text>
+                <Text style={brandPrimary}>CATALYST</Text>
+                <Text style={brandSub}>{subBrand}</Text>
               </Column>
+              {/* Right tag */}
               <Column style={{ verticalAlign: 'middle', textAlign: 'right' as const }}>
-                <Text style={{ ...headerLink, margin: 0 }}>Career Booster Services</Text>
+                <span style={{
+                  display: 'inline-block',
+                  padding: '3px 10px',
+                  background: 'rgba(184,147,91,0.18)',
+                  border: '1px solid rgba(184,147,91,0.40)',
+                  borderRadius: '20px',
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  color: '#D4AF7A',
+                  letterSpacing: '0.5px',
+                }}>
+                  Catalyst
+                </span>
               </Column>
             </Row>
           </Section>
 
-          {/* Thin accent line */}
-          <div style={{ height: '2px', background: `linear-gradient(90deg, ${accentColor} 0%, transparent 100%)`, margin: 0 }} />
+          {/* Thin gold fade line */}
+          <div style={{ height: '1px', background: `linear-gradient(90deg, ${accentColor} 0%, transparent 100%)` }} />
 
           {/* Content */}
           <Section className="email-pad" style={contentPad}>
@@ -70,20 +79,25 @@ export function EmailBase({
 
           <Hr style={divider} />
 
-          {/* Footer */}
+          {/* ── Footer ─────────────────────────────────── */}
           <Section style={footer}>
             <Row>
               <Column style={{ textAlign: 'center' as const }}>
-                <Text style={footerBrand}>Ripple Nexus</Text>
-                <Text style={footerTagline}>Pioneering Digital Governance. Securely. Scalably. Compliantly.</Text>
+                <div style={{ margin: '0 auto 10px', width: '30px' }}>
+                  <EmailLogoMark size={30} />
+                </div>
+                <Text style={footerBrand}>CATALYST</Text>
                 <Text style={footerLinks}>
-                  <a href="https://www.theripplenexus.com" style={footerLink}>theripplenexus.com</a>
+                  <a href={BRAND_WEBSITE_URL} style={footerLink}>{BRAND_WEBSITE_LABEL}</a>
                   {'  ·  '}
-                  <a href="mailto:info@theripplenexus.com" style={footerLink}>info@theripplenexus.com</a>
+                  <a href={`mailto:${BRAND_EMAIL}`} style={footerLink}>{BRAND_EMAIL}</a>
                 </Text>
-                <Text style={footerDisclaimer}>
-                  © {new Date().getFullYear()} Ripple Nexus. All rights reserved.
-                  This email was sent because a ClientForge Boost package is active for this address.
+                <Text style={{ ...footerDisclaimer, marginBottom: '12px' }}>
+                  © {new Date().getFullYear()} Catalyst. All rights reserved.{' '}
+                  This email was sent because a Catalyst package is active for this address.
+                </Text>
+                <Text style={{ margin: 0, fontSize: '10px', color: '#94a3b8', textAlign: 'center', letterSpacing: '0.5px' }}>
+                  Powered by <span style={{ fontWeight: 500, color: '#64748b' }}>Ripple Nexus</span>
                 </Text>
               </Column>
             </Row>
@@ -96,6 +110,62 @@ export function EmailBase({
 }
 
 // ── Shared primitives ─────────────────────────────────────────────────────────
+
+function EmailLogoMark({ size }: { size: number }) {
+  const fontSize = Math.round(size * 0.62);
+  const dotSize = Math.max(4, Math.round(size * 0.13));
+  const dotOffset = Math.max(5, Math.round(size * 0.16));
+
+  return (
+    <table
+      cellPadding={0}
+      cellSpacing={0}
+      role="presentation"
+      width={size}
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        background: '#0A0B0D',
+        borderRadius: '8px',
+        border: '1px solid rgba(184,147,91,0.35)',
+      }}
+    >
+      <tbody>
+        <tr>
+          <td
+            align="center"
+            valign="middle"
+            style={{
+              fontFamily: 'Georgia, "Times New Roman", serif',
+              fontSize: `${fontSize}px`,
+              lineHeight: `${size}px`,
+              fontWeight: 700,
+              color: '#F4F1EB',
+              letterSpacing: 0,
+            }}
+          >
+            C
+            <span
+              style={{
+                display: 'inline-block',
+                width: `${dotSize}px`,
+                height: `${dotSize}px`,
+                background: '#B8935B',
+                borderRadius: '50%',
+                fontSize: 0,
+                lineHeight: 0,
+                marginLeft: `-${dotOffset}px`,
+                verticalAlign: 'middle',
+              }}
+            >
+              &nbsp;
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
 
 export function EmailHeading({ children }: { children: React.ReactNode }) {
   return <Text style={headingStyle}>{children}</Text>;
@@ -118,7 +188,7 @@ export function EmailBody({
 export function EmailButton({
   href,
   children,
-  color = '#1f56d4',
+  color = '#B8935B',
 }: {
   href: string;
   children: React.ReactNode;
@@ -140,7 +210,7 @@ export function EmailButton({
 
 export function InfoBox({
   children,
-  color = '#1f56d4',
+  color = '#B8935B',
 }: {
   children: React.ReactNode;
   color?: string;
@@ -149,7 +219,7 @@ export function InfoBox({
     <Section
       style={{
         borderLeft: `3px solid ${color}`,
-        backgroundColor: `${color}08`,
+        backgroundColor: `${color}14`,
         borderRadius: '0 8px 8px 0',
         padding: '14px 20px',
         margin: '20px 0',
@@ -186,7 +256,7 @@ export function StatusPill({ label, color }: { label: string; color: string }) {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const body: React.CSSProperties = {
-  backgroundColor: '#f1f5f9',
+  backgroundColor: '#F0EDE6',
   fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
   margin: 0,
   padding: '32px 0',
@@ -196,38 +266,33 @@ const container: React.CSSProperties = {
   maxWidth: '600px',
   margin: '0 auto',
   backgroundColor: '#ffffff',
-  borderRadius: '12px',
+  borderRadius: '14px',
   overflow: 'hidden',
-  boxShadow: '0 2px 20px rgba(0,0,0,0.07)',
+  boxShadow: '0 4px 28px rgba(10,11,13,0.14)',
 };
 
 const header: React.CSSProperties = {
-  background: 'linear-gradient(135deg, #0f2756 0%, #1f56d4 100%)',
-  padding: '20px 28px',
+  background: 'linear-gradient(135deg, #0A0B0D 0%, #1C1812 60%, #2A1F0E 100%)',
+  padding: 0,
 };
 
 const brandPrimary: React.CSSProperties = {
   margin: 0,
-  fontSize: '17px',
-  fontWeight: 700,
-  color: '#f8fafc',
+  fontSize: '16px',
+  fontWeight: 400,
+  fontFamily: 'Georgia, "Times New Roman", serif',
+  color: '#F4F1EB',
   lineHeight: '1.2',
-  letterSpacing: '-0.2px',
+  letterSpacing: '1.5px',
 };
 
 const brandSub: React.CSSProperties = {
-  margin: '2px 0 0',
-  fontSize: '10px',
+  margin: '3px 0 0',
+  fontSize: '9px',
   fontWeight: 600,
-  letterSpacing: '1.5px',
-  textTransform: 'uppercase',
-};
-
-const headerLink: React.CSSProperties = {
-  fontSize: '10px',
-  color: '#93c5fd',
-  letterSpacing: '0.3px',
-  textDecoration: 'none',
+  letterSpacing: '1.8px',
+  textTransform: 'uppercase' as const,
+  color: 'rgba(184,147,91,0.80)',
 };
 
 const contentPad: React.CSSProperties = {
@@ -235,31 +300,24 @@ const contentPad: React.CSSProperties = {
 };
 
 const divider: React.CSSProperties = {
-  borderColor: '#e2e8f0',
+  borderColor: '#EDE9DF',
   borderWidth: '1px',
   margin: 0,
 };
 
 const footer: React.CSSProperties = {
-  backgroundColor: '#f8fafc',
+  backgroundColor: '#F5F3EE',
   padding: '24px 32px',
 };
 
 const footerBrand: React.CSSProperties = {
   margin: '0 0 2px',
-  fontSize: '13px',
-  fontWeight: 700,
-  color: '#1f56d4',
+  fontSize: '12px',
+  fontWeight: 400,
+  fontFamily: 'Georgia, "Times New Roman", serif',
+  color: '#B8935B',
   textAlign: 'center' as const,
-};
-
-const footerTagline: React.CSSProperties = {
-  margin: '0 0 10px',
-  fontSize: '10px',
-  color: '#94a3b8',
-  textAlign: 'center' as const,
-  letterSpacing: '0.3px',
-  fontStyle: 'italic',
+  letterSpacing: '2px',
 };
 
 const footerLinks: React.CSSProperties = {
@@ -270,7 +328,7 @@ const footerLinks: React.CSSProperties = {
 };
 
 const footerLink: React.CSSProperties = {
-  color: '#1f56d4',
+  color: '#9A7540',
   textDecoration: 'none',
   fontWeight: 500,
 };
@@ -287,7 +345,7 @@ const headingStyle: React.CSSProperties = {
   margin: '0 0 10px',
   fontSize: '26px',
   fontWeight: 700,
-  color: '#0f172a',
+  color: '#0A0B0D',
   lineHeight: '1.3',
   letterSpacing: '-0.3px',
 };

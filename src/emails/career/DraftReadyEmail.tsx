@@ -15,8 +15,8 @@ export function DraftReadyEmail({ name, packageLabel, portalUrl }: DraftReadyEma
   const label = packageLabel ?? 'Career';
   return (
     <EmailBase
-      preview={`Your ${label} draft is ready - log in to your ClientForge Boost portal and review it now`}
-      accentColor="#1f56d4"
+      preview={`Your ${label} draft is ready - log in to your Catalyst portal and review it now`}
+      accentColor="#B8935B"
     >
       <Section style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '12px 18px', margin: '0 0 24px' }}>
         <Text style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#1e40af', letterSpacing: '0.3px' }}>
@@ -28,7 +28,7 @@ export function DraftReadyEmail({ name, packageLabel, portalUrl }: DraftReadyEma
       <EmailBody>
         Excellent news — your <strong style={{ color: '#0f172a' }}>{label}</strong> has been
         carefully crafted by our team and is now awaiting your review in your{' '}
-        <strong style={{ color: '#1f56d4' }}>ClientForge Boost</strong> portal.
+        <strong style={{ color: '#B8935B' }}>Catalyst</strong> portal.
         Please log in, review it thoroughly, and share your feedback so we can perfect it.
       </EmailBody>
 
@@ -45,7 +45,7 @@ export function DraftReadyEmail({ name, packageLabel, portalUrl }: DraftReadyEma
         ].map((item, i) => (
           <Row key={i} style={{ marginBottom: '10px' }}>
             <Column style={{ width: '20px', verticalAlign: 'top' }}>
-              <Text style={{ margin: '3px 0 0', fontSize: '12px', fontWeight: 700, color: '#1f56d4' }}>-</Text>
+              <Text style={{ margin: '3px 0 0', fontSize: '12px', fontWeight: 700, color: '#B8935B' }}>-</Text>
             </Column>
             <Column style={{ verticalAlign: 'top', paddingLeft: '6px' }}>
               <Text style={{ margin: '2px 0 0', fontSize: '14px', color: '#475569', lineHeight: '1.5' }}>{item}</Text>
@@ -61,7 +61,7 @@ export function DraftReadyEmail({ name, packageLabel, portalUrl }: DraftReadyEma
 
       <Text style={{ margin: '16px 0 0', fontSize: '12px', color: '#94a3b8', lineHeight: '1.6', borderLeft: '3px solid #bfdbfe', paddingLeft: '12px' }}>
         Once satisfied, approve the draft in your portal to proceed to final delivery.
-        Need help? Reply to this email or reach us at info@theripplenexus.com.
+        Need help? Reply to this email or reach us at catalyst@theripplenexus.com.
       </Text>
     </EmailBase>
   );

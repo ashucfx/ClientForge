@@ -12,7 +12,7 @@ export function FormConfirmEmail({ name, formLabel }: FormConfirmEmailProps) {
   return (
     <EmailBase
       preview={`Details received, ${firstName} — our team will begin work on your ${label} shortly`}
-      accentColor="#3FBD8B"
+      accentColor="#10B981"
     >
       <Section style={{ width: '52px', height: '52px', borderRadius: '50%', backgroundColor: '#dcfce7', margin: '0 0 20px', textAlign: 'center' as const }}>
         <Text style={{ margin: 0, fontSize: '24px', color: '#16a34a', lineHeight: '52px', fontWeight: 700, textAlign: 'center' as const }}>✓</Text>
@@ -35,7 +35,7 @@ export function FormConfirmEmail({ name, formLabel }: FormConfirmEmailProps) {
         ].map(([milestone, time], i) => (
           <Row key={i} style={{ marginBottom: '12px' }}>
             <Column style={{ width: '8px', verticalAlign: 'top', paddingTop: '6px' }}>
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#3FBD8B' }} />
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }} />
             </Column>
             <Column style={{ verticalAlign: 'top', paddingLeft: '12px' }}>
               <Text style={{ margin: '0 0 1px', fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{milestone}</Text>
@@ -47,12 +47,12 @@ export function FormConfirmEmail({ name, formLabel }: FormConfirmEmailProps) {
 
       <EmailBody>
         We will email you the moment your draft is ready. Track your progress any time by
-        logging into your <strong style={{ color: '#1f56d4' }}>ClientForge Boost</strong> portal.
+        logging into your <strong style={{ color: '#B8935B' }}>Catalyst</strong> portal.
       </EmailBody>
 
       <Text style={{ margin: '16px 0 0', fontSize: '12px', color: '#94a3b8', lineHeight: '1.6', fontStyle: 'italic' }}>
         Need to update something? Simply re-submit the form in your portal — we will use the latest version.
-        For anything else, reply to this email or write to info@theripplenexus.com.
+        For anything else, reply to this email or write to catalyst@theripplenexus.com.
       </Text>
     </EmailBase>
   );

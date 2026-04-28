@@ -22,7 +22,7 @@ export function DeleteOtpEmail({ clientName, clientEmail, otp, expiresMinutes }:
       <EmailHeading>Confirm Account Deletion</EmailHeading>
 
       <EmailBody>
-        You requested to permanently delete the following Career Booster client account.
+        You requested to permanently delete the following Catalyst client account.
         Use the OTP below to confirm this irreversible action.
       </EmailBody>
 
@@ -77,8 +77,8 @@ export function DeleteOtpEmail({ clientName, clientEmail, otp, expiresMinutes }:
       <EmailBody>
         If you did not initiate this deletion, please secure your admin account immediately and
         contact{' '}
-        <a href="mailto:info@theripplenexus.com" style={{ color: '#1f56d4' }}>
-          info@theripplenexus.com
+        <a href="mailto:catalyst@theripplenexus.com" style={{ color: '#B8935B' }}>
+          catalyst@theripplenexus.com
         </a>
       </EmailBody>
     </EmailBase>

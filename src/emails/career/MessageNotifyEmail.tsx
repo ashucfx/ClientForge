@@ -14,29 +14,29 @@ interface Props {
 
 export function MessageNotifyEmail({ recipientName, senderType, portalUrl, body }: Props) {
   const fromLabel = senderType === 'admin' ? 'Your career consultant' : 'Your client';
-  const defaultBody = `${fromLabel} has sent you a new message regarding your Career Booster project. Please log in to your portal to read and reply.`;
+  const defaultBody = `${fromLabel} has sent you a new message regarding your Catalyst project. Please log in to your portal to read and reply.`;
   const preview = body ? body.slice(0, 90) : `${fromLabel} has sent you a new message`;
 
   return (
-    <EmailBase preview={preview} accentColor="#1f56d4">
+    <EmailBase preview={preview} accentColor="#B8935B">
       <EmailHeading>New message received</EmailHeading>
       <EmailBody>Hi {recipientName},</EmailBody>
       <EmailBody>{body ?? defaultBody}</EmailBody>
 
-      <InfoBox color="#1f56d4">
+      <InfoBox color="#B8935B">
         Messages are available in the <strong>Messages</strong> section of your portal.
         We aim to respond within 1 business day.
       </InfoBox>
 
-      <EmailButton href={portalUrl} color="#1f56d4">
+      <EmailButton href={portalUrl} color="#B8935B">
         View Message
       </EmailButton>
 
       <Section style={{ marginTop: '16px' }}>
         <Text style={{ margin: 0, fontSize: '13px', color: '#94a3b8', textAlign: 'center' as const }}>
           Questions? Reply to this email or contact us at{' '}
-          <a href="mailto:info@theripplenexus.com" style={{ color: '#1f56d4' }}>
-            info@theripplenexus.com
+          <a href="mailto:catalyst@theripplenexus.com" style={{ color: '#B8935B' }}>
+            catalyst@theripplenexus.com
           </a>
         </Text>
       </Section>

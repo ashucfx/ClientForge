@@ -75,7 +75,7 @@ export function LinkedInSecurityEmail({ name }: LinkedInSecurityEmailProps) {
             <Column style={{ width: '28px', verticalAlign: 'top', paddingTop: '2px' }}>
               <Text style={{
                 margin: 0, width: '22px', height: '22px', borderRadius: '50%',
-                backgroundColor: '#1f56d4', color: '#fff',
+                backgroundColor: '#B8935B', color: '#fff',
                 fontSize: '11px', fontWeight: 700, textAlign: 'center', lineHeight: '22px',
               }}>{num}</Text>
             </Column>

@@ -106,7 +106,7 @@ export function RevisionEmail({ name, packageLabel, portalUrl, status }: Revisio
         </>
       )}
 
-      <EmailButton href={portalUrl} color={isApproved ? '#f59e0b' : '#1f56d4'}>
+      <EmailButton href={portalUrl} color={isApproved ? '#f59e0b' : '#B8935B'}>
         {isApproved ? 'Track Progress in Your Portal' : 'View Your Portal'}
       </EmailButton>
 

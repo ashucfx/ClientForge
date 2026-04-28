@@ -17,19 +17,19 @@ export function WelcomeEmail({ name, packageLabel, portalUrl }: WelcomeEmailProp
   return (
     <EmailBase
       preview={`Welcome ${firstName} — your ${packageLabel} package is now active. Let's build something exceptional.`}
-      accentColor="#1f56d4"
+      accentColor="#B8935B"
     >
       <EmailHeading>Welcome, {firstName}. Your career transformation starts now.</EmailHeading>
       <EmailBody>
         Your <strong style={{ color: '#0f172a' }}>{packageLabel}</strong> package has been
-        successfully activated under <strong style={{ color: '#1f56d4' }}>ClientForge Boost</strong> by Ripple Nexus.
+        successfully activated under <strong style={{ color: '#B8935B' }}>Catalyst</strong> by Catalyst.
         Our specialists will begin work as soon as you submit your details through the portal below.
       </EmailBody>
 
       {/* Package card */}
       <Section style={packageCard}>
         <Row>
-          <Column style={{ width: '4px', backgroundColor: '#1f56d4', borderRadius: '4px', marginRight: '16px' }} />
+          <Column style={{ width: '4px', backgroundColor: '#B8935B', borderRadius: '4px', marginRight: '16px' }} />
           <Column style={{ paddingLeft: '16px', verticalAlign: 'middle' }}>
             <Text style={pkgLabel}>Package Activated</Text>
             <Text style={pkgValue}>{packageLabel}</Text>
@@ -65,15 +65,15 @@ export function WelcomeEmail({ name, packageLabel, portalUrl }: WelcomeEmailProp
 
       <EmailBody style={{ fontSize: '14px' }}>
         Questions at any stage? Simply reply to this email or reach us at{' '}
-        <a href="mailto:info@theripplenexus.com" style={{ color: '#1f56d4', textDecoration: 'none', fontWeight: 600 }}>
-          info@theripplenexus.com
+        <a href="mailto:catalyst@theripplenexus.com" style={{ color: '#B8935B', textDecoration: 'none', fontWeight: 600 }}>
+          catalyst@theripplenexus.com
         </a>
         . We are here to ensure your complete satisfaction.
       </EmailBody>
 
       <Text style={securityNote}>
         This portal link is personal and unique to your account — do not share it.
-        If you did not purchase this package, please contact us immediately at info@theripplenexus.com.
+        If you did not purchase this package, please contact us immediately at catalyst@theripplenexus.com.
       </Text>
     </EmailBase>
   );
@@ -126,7 +126,7 @@ const stepNum: React.CSSProperties = {
   margin: '2px 0 0',
   fontSize: '11px',
   fontWeight: 700,
-  color: '#1f56d4',
+  color: '#B8935B',
   letterSpacing: '0.5px',
 };
 
