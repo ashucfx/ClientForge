@@ -230,8 +230,8 @@ export default function Dashboard() {
         {/* Page title row */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 className="page-title">ClientForge</h1>
-            <p className="page-subtitle">by Ripple Nexus</p>
+            <h1 className="page-title">Catalyst ClientForge</h1>
+            <p className="page-subtitle">Powered by Ripple Nexus</p>
           </div>
           <Link href="/invoices/new" className="btn btn-primary btn-lg" style={{ gap: 8 }}>
             <span style={{ fontSize: 20, lineHeight: 1 }}>+</span> New Invoice

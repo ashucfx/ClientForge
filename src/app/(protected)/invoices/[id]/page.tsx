@@ -549,8 +549,8 @@ export default function InvoiceDetailPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <Logo variant="horizontal" size={38} dark />
-                    <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 16 }}>info@theripplenexus.com</div>
-                    <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>www.theripplenexus.com</div>
+                    <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 16 }}>catalyst@theripplenexus.com</div>
+                    <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>catalyst.theripplenexus.com</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '12px 18px' }}>
@@ -578,7 +578,7 @@ export default function InvoiceDetailPage() {
               </div>
 
               {/* Accent bar */}
-              <div style={{ height: 3, background: 'linear-gradient(90deg,#3FBD8B,#1f56d4,#3FBD8B)' }} />
+              <div style={{ height: 3, background: 'linear-gradient(90deg,#B8935B,#D4AF7A,#B8935B)' }} />
 
               {/* Client + Package */}
               <div style={{ background: '#f8faff', borderBottom: '1px solid var(--border-blue)', padding: '20px 36px' }}>
@@ -810,7 +810,7 @@ export default function InvoiceDetailPage() {
                   ['Status',   <StatusBadge key="s" status={invoice.status} />],
                   ['Gateway',  <span key="gw" style={{
                     background: invoice.paymentGateway === 'PAYPAL' ? '#e0f0ff' : '#eef2ff',
-                    color:      invoice.paymentGateway === 'PAYPAL' ? '#003087' : '#1f56d4',
+                    color:      invoice.paymentGateway === 'PAYPAL' ? '#003087' : '#B8935B',
                     borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700,
                   }}>{invoice.paymentGateway ?? 'RAZORPAY'}</span>],
                   ['Email',    invoice.emailSentAt ? `Sent ${format(new Date(invoice.emailSentAt), 'dd MMM')}` : 'Not sent'],

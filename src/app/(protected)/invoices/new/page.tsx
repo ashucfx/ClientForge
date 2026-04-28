@@ -19,7 +19,7 @@ const CLIENT_META: Record<ClientType, { sub: string; color: string }> = {
   FRESHER:        { sub: 'Entry-level & graduates',  color: '#6366f1' },
   MID_CAREER:     { sub: '3–10 years experience',    color: '#ec4899' },
   EXECUTIVE:      { sub: '10+ yrs · Leadership',     color: '#f59e0b' },
-  EXECUTIVE_PLUS: { sub: 'C-Suite & Board level',    color: '#1f56d4' },
+  EXECUTIVE_PLUS: { sub: 'C-Suite & Board level',    color: '#B8935B' },
 };
 
 // ─── Helpers ───────────────────────────────────
@@ -649,7 +649,7 @@ export default function NewInvoicePage() {
                       label: 'Razorpay',
                       sub: 'Works internationally too',
                       fee: '3% + GST (may vary)',
-                      color: '#1f56d4',
+                      color: '#B8935B',
                       badge: null,
                     },
                   ] as const).map(opt => {

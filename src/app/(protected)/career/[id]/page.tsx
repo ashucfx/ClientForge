@@ -48,7 +48,7 @@ const STATUS_OPTIONS: CareerStatus[] = [
 ];
 const STATUS_STYLES: Record<CareerStatus, { bg: string; text: string; dot: string }> = {
   NOT_STARTED:        { bg: 'bg-slate-100',   text: 'text-slate-600',  dot: 'bg-slate-400'   },
-  SUBMITTED:          { bg: 'bg-blue-100',    text: 'text-blue-700',   dot: 'bg-blue-500'    },
+  SUBMITTED:          { bg: 'bg-[#F0EAE0]',    text: 'text-[#9A7540]',   dot: 'bg-[#B8935B]'    },
   UNDER_PROCESS:      { bg: 'bg-amber-100',   text: 'text-amber-700',  dot: 'bg-amber-500'   },
   DRAFT_SENT:         { bg: 'bg-purple-100',  text: 'text-purple-700', dot: 'bg-purple-500'  },
   REVISION_REQUESTED: { bg: 'bg-orange-100',  text: 'text-orange-700', dot: 'bg-orange-500'  },
@@ -122,7 +122,7 @@ export default function CareerClientDetailPage() {
   if (!client) return (
     <div className="p-8 text-center">
       <p className="text-slate-500">Client not found.</p>
-      <Link href="/career" className="mt-3 inline-block text-blue-600 text-sm hover:underline">← Back to Career Booster Services</Link>
+      <Link href="/career" className="mt-3 inline-block text-[#B8935B] text-sm hover:underline">← Back to Career Booster Services</Link>
     </div>
   );
 
@@ -134,7 +134,7 @@ export default function CareerClientDetailPage() {
       {/* Breadcrumb + action buttons */}
       <div className="flex items-center justify-between gap-3">
         <nav className="flex items-center gap-2 text-sm">
-          <Link href="/career" className="text-slate-400 hover:text-blue-600 transition-colors">Career Booster Services</Link>
+          <Link href="/career" className="text-slate-400 hover:text-[#B8935B] transition-colors">Career Booster Services</Link>
           <span className="text-slate-300">/</span>
           <span className="text-slate-700 font-medium truncate max-w-[200px]">{client.name}</span>
         </nav>
@@ -154,12 +154,12 @@ export default function CareerClientDetailPage() {
 
       {/* Hero card */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="h-1.5 bg-gradient-to-r from-blue-600 via-blue-500 to-emerald-400" />
+        <div className="h-1.5 bg-gradient-to-r from-[#B8935B] via-[#B8935B] to-emerald-400" />
         <div className="p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             {/* Left: identity */}
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+              <div className="w-12 h-12 rounded-xl bg-[#B8935B] flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
                 {client.name[0]?.toUpperCase()}
               </div>
               <div>
@@ -170,9 +170,15 @@ export default function CareerClientDetailPage() {
             </div>
             {/* Right: badges */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-200 uppercase tracking-wide">
+              <span className="px-3 py-1 bg-[#FBF8F3] text-[#9A7540] text-xs font-bold rounded-full border border-[#E8DDD0] uppercase tracking-wide">
                 {client.services?.length > 0
-                  ? client.services.map(s => SERVICE_LABELS[s.slug as CareerServiceSlug] ?? s.name).join(', ')
+                  ? (() => {
+                      const slugs = client.services.map(s => s.slug);
+                      if (slugs.includes('FULL_PACKAGE') || ['RESUME', 'COVER_LETTER', 'LINKEDIN'].every(s => slugs.includes(s))) {
+                        return 'Career Booster Package';
+                      }
+                      return client.services.map(s => SERVICE_LABELS[s.slug as CareerServiceSlug] ?? s.name).join(', ');
+                    })()
                   : client.packageType ? PACKAGE_LABELS[client.packageType] : 'Career Services'}
               </span>
               <span className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full ${s.bg} ${s.text}`}>
@@ -302,7 +308,7 @@ export default function CareerClientDetailPage() {
                   <>
                     <p className="text-xs text-slate-400 mb-4">
                       For security, a 6-digit OTP will be emailed to{' '}
-                      <strong>info@theripplenexus.com</strong>. Enter it to confirm deletion.
+                      <strong>catalyst@theripplenexus.com</strong>. Enter it to confirm deletion.
                     </p>
                     <div className="flex gap-3 justify-end">
                       <button onClick={() => setShowDelete(false)}
@@ -336,8 +342,8 @@ export default function CareerClientDetailPage() {
 
                 {(deleteStep === 'confirm' || deleteStep === 'deleting') && (
                   <>
-                    <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 mb-4">
-                      OTP sent to <strong>info@theripplenexus.com</strong>. It expires in 10 minutes.
+                    <p className="text-xs text-[#9A7540] bg-[#FBF8F3] border border-[#E8DDD0] rounded-xl px-3 py-2 mb-4">
+                      OTP sent to <strong>catalyst@theripplenexus.com</strong>. It expires in 10 minutes.
                     </p>
                     <div className="mb-4">
                       <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Enter 6-digit OTP</label>
@@ -574,12 +580,12 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
               Change status to <strong className="text-slate-700">{STATUS_LABELS[pendingStatus]}</strong>?
             </p>
             {autoEmailForStatus[pendingStatus] && (
-              <div className="mt-3 flex items-start gap-2.5 px-3.5 py-2.5 bg-blue-50 border border-blue-200 rounded-xl">
+              <div className="mt-3 flex items-start gap-2.5 px-3.5 py-2.5 bg-[#FBF8F3] border border-[#E8DDD0] rounded-xl">
                 <svg className="mt-0.5 flex-shrink-0" width="14" height="14" fill="none" viewBox="0 0 24 24">
-                  <path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                  <path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                 </svg>
-                <p className="text-xs text-blue-700 leading-relaxed">
-                  <strong>"{autoEmailForStatus[pendingStatus]!.label}"</strong> email will be sent to{' '}
+                <p className="text-xs text-[#9A7540] leading-relaxed">
+                  <strong>&quot;{autoEmailForStatus[pendingStatus]!.label}&quot;</strong> email will be sent to{' '}
                   <span className="font-medium">{client.name}</span> automatically.
                 </p>
               </div>
@@ -590,7 +596,7 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
                 Cancel
               </button>
               <button onClick={confirmStatusChange} disabled={statusLoading}
-                className="px-4 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50">
+                className="px-4 py-2 text-sm font-bold text-white bg-[#B8935B] rounded-xl hover:bg-[#9A7540] transition-colors disabled:opacity-50">
                 {statusLoading ? 'Updating...' : 'Yes, Update'}
               </button>
             </div>
@@ -611,7 +617,7 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
                 className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
                   isCurrent
                     ? `${style.bg} ${style.text} border-transparent cursor-default`
-                    : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-600 hover:text-blue-700'
+                    : 'border-slate-200 hover:border-[#D4AF7A] hover:bg-[#FBF8F3] text-slate-600 hover:text-[#9A7540]'
                 } disabled:opacity-60`}>
                 <span className="flex items-center gap-2.5">
                   <span className={`w-2 h-2 rounded-full ${isCurrent ? style.dot : 'bg-slate-300'}`} />
@@ -619,7 +625,7 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
                 </span>
                 <span className="flex items-center gap-2">
                   {autoEmail && !isCurrent && (
-                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 border border-blue-200 rounded font-semibold whitespace-nowrap">
+                    <span className="text-[10px] px-1.5 py-0.5 bg-[#FBF8F3] text-[#B8935B] border border-[#E8DDD0] rounded font-semibold whitespace-nowrap">
                       Sends: {autoEmail.label}
                     </span>
                   )}
@@ -720,13 +726,13 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
                     <label
                       className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                         selectedTrigger === t.value
-                          ? 'border-blue-300 bg-blue-50'
+                          ? 'border-[#D4AF7A] bg-[#FBF8F3]'
                           : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                       }`}>
                       <input type="radio" name="trigger" value={t.value}
                         checked={selectedTrigger === t.value}
                         onChange={() => { setSelectedTrigger(t.value); setActioningId(null); setActionNote(''); }}
-                        className="mt-1 accent-blue-600 flex-shrink-0" />
+                        className="mt-1 accent-[#B8935B] flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-semibold text-slate-800">{t.label}</p>
@@ -763,7 +769,7 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
                                 <div className="flex items-start justify-between gap-2 mb-2">
                                   <div className="flex-1 min-w-0">
                                     {r.fileLabel && (
-                                      <p className="text-xs font-bold text-blue-700 mb-0.5">Re: {r.fileLabel}</p>
+                                      <p className="text-xs font-bold text-[#9A7540] mb-0.5">Re: {r.fileLabel}</p>
                                     )}
                                     <p className="text-xs text-slate-700 leading-relaxed line-clamp-2">{r.note}</p>
                                     <p className="text-[10px] text-slate-400 mt-1">{fmt(r.createdAt)} · by {r.requestedBy === 'client' ? 'Client' : 'Admin'}</p>
@@ -785,11 +791,11 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
                                       value={actionNote}
                                       onChange={e => setActionNote(e.target.value)}
                                       placeholder={actionDecision === 'DENIED' ? 'Reason for denial (recommended)…' : 'Optional note to client…'}
-                                      className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                                      className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C4A070] resize-none"
                                     />
                                     <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
                                       <input type="checkbox" checked={actionEmailOn} onChange={e => setActionEmailOn(e.target.checked)}
-                                        className="accent-blue-600" />
+                                        className="accent-[#B8935B]" />
                                       Send email notifying client
                                     </label>
                                     <div className="flex gap-2">
@@ -877,7 +883,7 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
               </div>
             )}
             <p className="mt-2 text-xs text-amber-600">
-              Client will receive: <strong>"Your {draftEmailLabel} draft is ready"</strong>
+              Client will receive an email titled: <strong>&quot;Catalyst - Your {draftEmailLabel} draft is ready for review&quot;</strong>
             </p>
           </div>
         )}
@@ -911,7 +917,7 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
         </p>
         <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
           <code className="text-xs text-slate-600 flex-1 truncate">
-            {`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/portal/login`}
+            {`${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/portal/login`}
           </code>
           <button
             onClick={() => navigator.clipboard.writeText(`${window.location.origin}/portal/login`).then(() => showToast('Copied!'))}
@@ -978,7 +984,7 @@ function FormsTab({ forms, packageType }: { forms: FormSubmission[]; packageType
             <button onClick={() => setExpanded(isOpen ? null : type)}
               className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-3">
-                <span className="text-[#1f56d4]">
+                <span className="text-[#B8935B]">
                   {type === 'resume' ? (
                     <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M9 13h6M9 17h4"/></svg>
                   ) : type === 'linkedin' ? (
@@ -1087,10 +1093,10 @@ function FilesTab({ client, onUpdated }: { client: ClientDetail; onUpdated: () =
   const hasRevisions = false; // unknown on frontend — backend checks this
   function previewEmailTrigger(): string {
     if (!sendEmail) return '';
-    if (fileCategory === 'final') return 'Final Delivery';
-    if (LINKEDIN_TYPES.has(fileType)) return 'LinkedIn Draft Ready';
+    if (fileCategory === 'final') return 'Catalyst - Your deliverables are ready';
+    if (LINKEDIN_TYPES.has(fileType)) return 'Catalyst - Your LinkedIn profile optimisation draft is ready';
     // We don't know revision count on frontend — backend decides REVISED_DRAFT vs DRAFT_READY
-    return 'Draft Ready (or Revised Draft if client has prior revisions)';
+    return 'Catalyst - Your draft is ready for review';
   }
   const emailPreview = previewEmailTrigger();
 
@@ -1178,12 +1184,12 @@ function FilesTab({ client, onUpdated }: { client: ClientDetail; onUpdated: () =
               <input type="text"
                 placeholder={fileCategory === 'draft' ? 'e.g. Resume Draft v1' : 'e.g. Final Resume'}
                 value={label} onChange={e => setLabel(e.target.value)}
-                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B]" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">Document Type</label>
               <select value={fileType} onChange={e => setFileType(e.target.value)}
-                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B]">
                 {FILE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
@@ -1192,23 +1198,23 @@ function FilesTab({ client, onUpdated }: { client: ClientDetail; onUpdated: () =
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">File</label>
             <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt"
-              className="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-slate-200 rounded-xl p-1" />
+              className="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#FBF8F3] file:text-[#9A7540] hover:file:bg-[#F0EAE0] border border-slate-200 rounded-xl p-1" />
           </div>
 
           {/* Email notification checkbox */}
           <label className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-all ${
             sendEmail
-              ? 'bg-blue-50 border-blue-200'
+              ? 'bg-[#FBF8F3] border-[#E8DDD0]'
               : 'bg-slate-50 border-slate-200 hover:border-slate-300'
           }`}>
             <input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)}
-              className="mt-0.5 accent-blue-600 flex-shrink-0" />
+              className="mt-0.5 accent-[#B8935B] flex-shrink-0" />
             <div>
               <p className="text-sm font-semibold text-slate-700">
                 Notify client by email after upload
               </p>
               {sendEmail && (
-                <p className="text-xs text-blue-600 mt-0.5">
+                <p className="text-xs text-[#B8935B] mt-0.5">
                   Will send: <strong>{emailPreview}</strong>
                 </p>
               )}
@@ -1219,7 +1225,7 @@ function FilesTab({ client, onUpdated }: { client: ClientDetail; onUpdated: () =
           </label>
 
           <button onClick={upload} disabled={uploading || !label.trim()}
-            className="w-full py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
+            className="w-full py-2.5 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors">
             {uploading
               ? <span className="flex items-center justify-center gap-2"><Spinner /><span>Uploading...</span></span>
               : `Upload ${fileCategory === 'draft' ? 'Draft' : 'Final Deliverable'}`}
@@ -1269,17 +1275,17 @@ function FileRow({ file, clientId, onDelete, deleting }: {
 }) {
   return (
     <div className="flex items-center gap-4 p-4">
-      <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
+      <div className="w-10 h-10 rounded-xl bg-[#FBF8F3] border border-[#F0EAE0] flex items-center justify-center flex-shrink-0">
         {file.fileType === 'resume' ? (
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M9 13h6M9 17h4"/></svg>
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M9 13h6M9 17h4"/></svg>
         ) : file.fileType === 'linkedin_banner' ? (
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#1f56d4" strokeWidth="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke="#1f56d4" strokeWidth="2"/><path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M21 15l-5-5L5 21"/></svg>
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#B8935B" strokeWidth="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke="#B8935B" strokeWidth="2"/><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M21 15l-5-5L5 21"/></svg>
         ) : file.fileType === 'linkedin_profile_picture' ? (
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke="#1f56d4" strokeWidth="2"/><path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M4 20c0-4 3.582-7 8-7s8 3 8 7"/></svg>
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke="#B8935B" strokeWidth="2"/><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M4 20c0-4 3.582-7 8-7s8 3 8 7"/></svg>
         ) : file.fileType === 'cover_letter' ? (
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
         ) : (
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#1f56d4" strokeWidth="2" strokeLinecap="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
         )}
       </div>
       <div className="flex-1 min-w-0">
@@ -1295,7 +1301,7 @@ function FileRow({ file, clientId, onDelete, deleting }: {
           Preview
         </a>
         <a href={`/api/career/admin/clients/${clientId}/files/download?fileId=${file.id}`}
-          className="px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium transition-colors">
+          className="px-3 py-1.5 text-xs bg-[#FBF8F3] text-[#9A7540] rounded-lg hover:bg-[#F0EAE0] font-medium transition-colors">
           Download
         </a>
         <button onClick={() => onDelete(file.id)} disabled={deleting === file.id}
@@ -1373,7 +1379,7 @@ function ActivityTab({ logs }: { logs: ActivityLog[] }) {
     <div className="space-y-2">
       {logs.map(log => (
         <div key={log.id} className="flex items-start gap-3 bg-white border border-slate-100 rounded-xl px-4 py-3 shadow-sm">
-          <div className="w-2 h-2 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" />
+          <div className="w-2 h-2 rounded-full bg-[#C4A070] mt-1.5 flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-slate-800">
               {ACTION_LABELS[log.action] ?? log.action.replace(/_/g, ' ')}
@@ -1491,7 +1497,7 @@ function RevisionAdminTab({ clientId, clientName, clientPackage }: {
           </p>
         </div>
         <button onClick={() => setShowForm(v => !v)}
-          className="px-4 py-2 text-xs font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors">
+          className="px-4 py-2 text-xs font-bold bg-[#B8935B] text-white rounded-xl hover:bg-[#9A7540] transition-colors">
           + New Revision
         </button>
       </div>
@@ -1506,22 +1512,22 @@ function RevisionAdminTab({ clientId, clientName, clientPackage }: {
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">File / Deliverable (optional)</label>
               <input type="text" value={fileLabel} onChange={e => setFileLabel(e.target.value)}
                 placeholder="e.g. Resume v1, LinkedIn Banner"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Revision Instructions *</label>
               <textarea required rows={4} value={note} onChange={e => setNote(e.target.value)}
                 placeholder="Describe what needs to be revised…"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 resize-none" />
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 resize-none" />
             </div>
             <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
               <input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 accent-blue-600" />
+                className="w-4 h-4 rounded border-slate-300 accent-[#B8935B]" />
               Send revision email to client ({clientPackage})
             </label>
             <div className="flex gap-2">
               <button type="submit" disabled={saving || note.trim().length < 5}
-                className="px-5 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2">
+                className="px-5 py-2 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center gap-2">
                 {saving && <Spinner />}
                 {saving ? 'Creating…' : 'Create Revision'}
               </button>
@@ -1558,8 +1564,8 @@ function RevisionAdminTab({ clientId, clientName, clientPackage }: {
                   {r.fileLabel && <p className="text-xs font-semibold text-slate-500 mb-1">Re: {r.fileLabel}</p>}
                   <p className="text-sm text-slate-800 leading-relaxed">{r.note}</p>
                   {r.adminNote && (
-                    <div className="mt-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
-                      <p className="text-xs text-blue-700"><strong>Admin note:</strong> {r.adminNote}</p>
+                    <div className="mt-2 px-3 py-2 bg-[#FBF8F3] border border-[#F0EAE0] rounded-lg">
+                      <p className="text-xs text-[#9A7540]"><strong>Admin note:</strong> {r.adminNote}</p>
                     </div>
                   )}
                 </div>
@@ -1578,10 +1584,10 @@ function RevisionAdminTab({ clientId, clientName, clientPackage }: {
                       </div>
                       <textarea rows={2} value={confirmNote} onChange={e => setConfirmNote(e.target.value)}
                         placeholder={confirmDecision === 'DENIED' ? 'Reason for denial (recommended)…' : 'Optional note to client…'}
-                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 resize-none" />
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 resize-none" />
                       <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
                         <input type="checkbox" checked={confirmEmail} onChange={e => setConfirmEmail(e.target.checked)}
-                          className="w-4 h-4 accent-blue-600" />
+                          className="w-4 h-4 accent-[#B8935B]" />
                         Send email to client
                       </label>
                       <div className="flex gap-2">
@@ -1625,49 +1631,196 @@ function RevisionAdminTab({ clientId, clientName, clientPackage }: {
 
 // ── Comments Admin Tab ────────────────────────────────────────────────────────
 
+interface Attachment { name: string; url: string; mimeType: string; size: number; }
+
 interface CommentItem {
-  id: string; authorType: string; authorName: string; content: string; createdAt: string;
+  id: string;
+  authorType: string;
+  authorName: string;
+  content: string;
+  attachments: Attachment[] | null;
+  readByAdmin: boolean;
+  readByClient: boolean;
+  readByAdminAt: string | null;
+  readByClientAt: string | null;
+  createdAt: string;
+}
+
+function AttachmentChip({ a, onRemove }: { a: Attachment; onRemove?: () => void }) {
+  const isImage = a.mimeType.startsWith('image/');
+  const ext = a.name.split('.').pop()?.toUpperCase() ?? 'FILE';
+  return (
+    <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-medium
+      ${isImage ? 'bg-[#FBF8F3] border-[#E8DDD0] text-[#9A7540]' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+      {isImage ? (
+        <img src={a.url} alt={a.name} className="w-6 h-6 rounded object-cover flex-shrink-0" />
+      ) : (
+        <span className="w-6 h-5 flex items-center justify-center bg-slate-200 rounded text-[9px] font-bold text-slate-500 flex-shrink-0">{ext}</span>
+      )}
+      <a href={a.url} target="_blank" rel="noopener noreferrer" className="max-w-[120px] truncate hover:underline">{a.name}</a>
+      {onRemove && (
+        <button type="button" onClick={onRemove} className="ml-0.5 text-slate-400 hover:text-red-500 transition-colors leading-none">×</button>
+      )}
+    </div>
+  );
+}
+
+function MessageBubble({ c, isAdmin }: { c: CommentItem; isAdmin: boolean }) {
+  const mine = isAdmin ? c.authorType === 'admin' : c.authorType === 'client';
+  const seenAt = mine
+    ? (isAdmin ? c.readByClientAt : c.readByAdminAt)
+    : null;
+  const atts = c.attachments ?? [];
+
+  return (
+    <div className={`flex gap-2.5 ${mine ? 'flex-row-reverse' : ''}`}>
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
+        c.authorType === 'admin' ? 'bg-[#B8935B] text-white' : 'bg-slate-200 text-slate-600'
+      }`}>
+        {c.authorType === 'admin' ? 'C' : c.authorName[0]?.toUpperCase() ?? '?'}
+      </div>
+      <div className={`max-w-[72%] flex flex-col gap-1 ${mine ? 'items-end' : 'items-start'}`}>
+        {/* Bubble */}
+        {(c.content || atts.length === 0) && (
+          <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
+            mine
+              ? 'bg-[#B8935B] text-white rounded-tr-sm'
+              : 'bg-slate-100 text-slate-800 rounded-tl-sm'
+          }`}>
+            {c.content}
+          </div>
+        )}
+        {/* Attachments */}
+        {atts.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {atts.map((a, i) => {
+              const isImg = a.mimeType.startsWith('image/');
+              const ext = a.name.split('.').pop()?.toUpperCase() ?? 'FILE';
+              return isImg ? (
+                <a key={i} href={a.url} target="_blank" rel="noopener noreferrer"
+                  className="block rounded-xl overflow-hidden border border-slate-200 hover:opacity-90 transition-opacity">
+                  <img src={a.url} alt={a.name} className="max-h-40 max-w-[220px] object-cover" />
+                </a>
+              ) : (
+                <a key={i} href={a.url} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                  <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] font-bold text-slate-500">{ext}</span>
+                  <span className="max-w-[140px] truncate">{a.name}</span>
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" className="text-slate-400 flex-shrink-0">
+                    <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                  </svg>
+                </a>
+              );
+            })}
+          </div>
+        )}
+        {/* Meta: time + read receipt */}
+        <div className={`flex items-center gap-2 px-1 ${mine ? 'flex-row-reverse' : ''}`}>
+          <span className="text-[11px] text-slate-400">
+            {c.authorType === 'admin' ? 'Catalyst Team' : c.authorName} · {fmt(c.createdAt, true)}
+          </span>
+          {mine && seenAt && (
+            <span className="text-[10px] text-[#B8935B] font-medium flex items-center gap-0.5">
+              <svg width="10" height="10" fill="none" viewBox="0 0 24 24">
+                <path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2.5"/>
+              </svg>
+              Seen {fmt(seenAt, true)}
+            </span>
+          )}
+          {mine && !seenAt && (
+            <span className="text-[10px] text-slate-300">Sent</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientName: string }) {
-  const [comments,  setComments]  = useState<CommentItem[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [reply,     setReply]     = useState('');
-  const [posting,   setPosting]   = useState(false);
-  const [error,     setError]     = useState('');
+  const [comments,     setComments]     = useState<CommentItem[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [reply,        setReply]        = useState('');
+  const [posting,      setPosting]      = useState(false);
+  const [error,        setError]        = useState('');
+  const [pendingFiles, setPendingFiles] = useState<Attachment[]>([]);
+  const [uploading,    setUploading]    = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const threadRef    = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const load = () => {
     fetch(`/api/career/admin/clients/${clientId}/comments`)
       .then(r => r.json() as Promise<{ comments: CommentItem[] }>)
       .then(d => { setComments(d.comments ?? []); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [clientId]);
+  };
+
+  useEffect(() => { load(); }, [clientId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (threadRef.current) {
+      threadRef.current.scrollTop = threadRef.current.scrollHeight;
+    }
+  }, [comments]);
+
+  const handleFileSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    if (pendingFiles.length + files.length > 3) {
+      setError('Max 3 attachments per message.'); return;
+    }
+    setUploading(true); setError('');
+    for (const file of Array.from(files)) {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`/api/career/admin/clients/${clientId}/upload`, { method: 'POST', body: form });
+      if (res.ok) {
+        const att = await res.json() as Attachment;
+        setPendingFiles(prev => [...prev, att]);
+      } else {
+        const d = await res.json().catch(() => ({})) as { error?: string };
+        setError(d.error ?? 'Upload failed.');
+      }
+    }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const postReply = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reply.trim()) return;
+    if (!reply.trim() && pendingFiles.length === 0) return;
     setPosting(true); setError('');
     const res = await fetch(`/api/career/admin/clients/${clientId}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: reply.trim() }),
+      body: JSON.stringify({ content: reply.trim(), attachments: pendingFiles }),
     });
     if (res.ok) {
       const d = await res.json() as { comment: CommentItem };
       setComments(prev => [...prev, d.comment]);
-      setReply('');
+      setReply(''); setPendingFiles([]);
     } else {
       const d = await res.json().catch(() => ({})) as { error?: string };
-      setError(d.error ?? 'Failed to post reply.');
+      setError(d.error ?? 'Failed to send message.');
     }
     setPosting(false);
   };
 
+  const unreadCount = comments.filter(c => c.authorType === 'client' && !c.readByAdmin).length;
+
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      {/* Header */}
       <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-bold text-slate-800">Client Messages</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-800">Messages</h3>
+            {unreadCount > 0 && (
+              <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full leading-none">
+                {unreadCount} new
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-400 mt-0.5">Conversation with {clientName}</p>
         </div>
         {!loading && (
@@ -1676,66 +1829,81 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
       </div>
 
       {/* Thread */}
-      <div className="p-5 space-y-4 max-h-[480px] overflow-y-auto">
+      <div ref={threadRef} className="p-5 space-y-4 max-h-[520px] overflow-y-auto">
         {loading ? (
           <div className="space-y-3">
-            {[1,2].map(i => <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />)}
+            {[1,2,3].map(i => <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />)}
           </div>
         ) : comments.length === 0 ? (
-          <div className="text-center py-10">
+          <div className="text-center py-12">
             <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
                 <path stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
               </svg>
             </div>
             <p className="text-sm text-slate-500 font-medium">No messages yet</p>
-            <p className="text-xs text-slate-400 mt-1">Client hasn&apos;t sent any messages. You can initiate below.</p>
+            <p className="text-xs text-slate-400 mt-1">Start the conversation below.</p>
           </div>
-        ) : comments.map(c => (
-          <div key={c.id} className={`flex gap-3 ${c.authorType === 'admin' ? 'flex-row-reverse' : ''}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-              c.authorType === 'admin' ? 'bg-[#1f56d4] text-white' : 'bg-slate-200 text-slate-600'
-            }`}>
-              {c.authorType === 'admin' ? 'RN' : c.authorName[0]?.toUpperCase() ?? 'C'}
-            </div>
-            <div className={`max-w-[72%] ${c.authorType === 'admin' ? 'items-end flex flex-col' : ''}`}>
-              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                c.authorType === 'admin'
-                  ? 'bg-[#1f56d4] text-white rounded-tr-sm'
-                  : 'bg-slate-100 text-slate-800 rounded-tl-sm'
-              }`}>
-                {c.content}
-              </div>
-              <p className="text-xs text-slate-400 mt-1 px-1">
-                {c.authorType === 'admin' ? 'Ripple Nexus Team' : c.authorName}
-                {' · '}{fmt(c.createdAt, true)}
-              </p>
-            </div>
-          </div>
-        ))}
+        ) : (
+          comments.map(c => <MessageBubble key={c.id} c={c} isAdmin={true} />)
+        )}
       </div>
 
-      {/* Reply input */}
+      {/* Pending attachments preview */}
+      {pendingFiles.length > 0 && (
+        <div className="px-4 pb-2 flex flex-wrap gap-2">
+          {pendingFiles.map((a, i) => (
+            <AttachmentChip key={i} a={a} onRemove={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))} />
+          ))}
+        </div>
+      )}
+
+      {/* Compose */}
       <div className="border-t border-slate-100 p-4">
         {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
-        <form onSubmit={postReply} className="flex gap-2">
-          <input
-            type="text"
+        <form onSubmit={postReply} className="flex flex-col gap-2">
+          <textarea
             value={reply}
             onChange={e => setReply(e.target.value)}
-            placeholder={`Reply to ${clientName}…`}
-            className="flex-1 px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
+            onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { void postReply(e as unknown as React.FormEvent); } }}
+            placeholder={`Message ${clientName}… (Ctrl+Enter to send)`}
+            rows={3}
+            className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 resize-none leading-relaxed"
           />
-          <button type="submit" disabled={posting || !reply.trim()}
-            className="px-4 py-2.5 bg-[#1f56d4] text-white text-sm font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
-            {posting ? <Spinner /> : (
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-                <path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
-              </svg>
-            )}
-            {posting ? '' : 'Send'}
-          </button>
+          <div className="flex items-center justify-between gap-2">
+            {/* Attach button */}
+            <div className="flex items-center gap-2">
+              <button type="button" disabled={uploading || pendingFiles.length >= 3}
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach file (PNG, JPG, PDF, DOCX — max 10 MB)"
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40 transition-colors">
+                {uploading ? (
+                  <span className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
+                    <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+                  </svg>
+                )}
+                {uploading ? 'Uploading…' : 'Attach'}
+              </button>
+              {pendingFiles.length > 0 && (
+                <span className="text-xs text-slate-400">{pendingFiles.length}/3 file{pendingFiles.length !== 1 ? 's' : ''}</span>
+              )}
+            </div>
+            <button type="submit" disabled={posting || uploading || (!reply.trim() && pendingFiles.length === 0)}
+              className="px-5 py-2 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center gap-1.5">
+              {posting ? <Spinner /> : (
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
+                  <path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                </svg>
+              )}
+              {posting ? 'Sending…' : 'Send'}
+            </button>
+          </div>
         </form>
+        <input ref={fileInputRef} type="file" className="hidden" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.docx,.doc"
+          onChange={e => void handleFileSelect(e.target.files)} />
+        <p className="text-[10px] text-slate-300 mt-2">PNG · JPG · PDF · DOCX · max 10 MB · max 3 per message</p>
       </div>
     </div>
   );
@@ -1749,28 +1917,50 @@ function FormDataViewer({ data, compact = false }: { data: Record<string, unknow
       {Object.entries(data).map(([key, value]) => {
         if (value === null || value === undefined || value === '') return null;
         const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        const isFile = typeof value === 'object' && value !== null && 'name' in value;
+        const isFile = typeof value === 'object' && value !== null && 'name' in value && !Array.isArray(value);
         const isArray = Array.isArray(value);
+        const fileObj = isFile ? (value as { name: string; size?: number; dataUrl?: string }) : null;
         const strVal = isFile
-          ? (value as { name: string }).name
+          ? fileObj!.name
           : isArray
             ? (value as string[]).join(', ')
             : String(value);
         const isLong = strVal.length > 80;
+        const isImage = fileObj?.dataUrl?.startsWith('data:image/');
         return (
           <div key={key} className={compact ? 'text-xs' : 'text-sm'}>
             <dt className={`font-semibold text-slate-500 ${compact ? 'text-xs' : 'text-xs'} uppercase tracking-wide mb-0.5`}>
               {label}
             </dt>
             {isFile ? (
-              <dd className="text-blue-600 flex items-center gap-1">
-                <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                <span className="font-medium">{strVal}</span>
+              <dd>
+                {isImage && fileObj?.dataUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={fileObj.dataUrl} alt={fileObj.name} className="max-h-40 rounded-lg border border-slate-200 mb-2 object-contain" />
+                )}
+                {fileObj?.dataUrl ? (
+                  <a
+                    href={fileObj.dataUrl}
+                    download={fileObj.name}
+                    className="inline-flex items-center gap-1.5 text-[#B8935B] hover:text-[#7A5B2E] hover:underline font-medium"
+                  >
+                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    {strVal}
+                    <span className="text-xs text-slate-400 font-normal">
+                      {fileObj.size ? `(${(fileObj.size / 1024).toFixed(0)} KB)` : ''}
+                    </span>
+                  </a>
+                ) : (
+                  <span className="text-[#B8935B] flex items-center gap-1">
+                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                    <span className="font-medium">{strVal}</span>
+                  </span>
+                )}
               </dd>
             ) : isArray ? (
               <dd className="flex flex-wrap gap-1">
                 {(value as string[]).map(tag => (
-                  <span key={tag} className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
+                  <span key={tag} className="px-2 py-0.5 bg-[#F0EAE0] text-[#7A5B2E] text-xs rounded-full font-medium">
                     {tag}
                   </span>
                 ))}
@@ -1793,7 +1983,7 @@ function Card({ title, icon, children }: { title: string; icon: React.ReactNode;
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
       <h3 className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wide mb-4">
-        <span className="text-[#1f56d4] flex-shrink-0">{icon}</span>{title}
+        <span className="text-[#B8935B] flex-shrink-0">{icon}</span>{title}
       </h3>
       {children}
     </div>
@@ -1802,7 +1992,7 @@ function Card({ title, icon, children }: { title: string; icon: React.ReactNode;
 
 function CountBadge({ n }: { n: number }) {
   return (
-    <span className="ml-1.5 px-1.5 py-0.5 bg-blue-500 text-white text-xs font-bold rounded-full leading-none">
+    <span className="ml-1.5 px-1.5 py-0.5 bg-[#B8935B] text-white text-xs font-bold rounded-full leading-none">
       {n}
     </span>
   );
@@ -1916,14 +2106,14 @@ function EditClientModal({
             <div key={id}>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">{label}</label>
               <input type={type} required={required} value={(form as Record<string, string>)[id]} onChange={set(id)}
-                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50" />
             </div>
           ))}
 
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Package</label>
             <select value={form.packageType} onChange={set('packageType')}
-              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
+              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50">
               {packages.map(p => <option key={p} value={p}>{PACKAGE_LABELS[p]}</option>)}
             </select>
           </div>
@@ -1932,12 +2122,12 @@ function EditClientModal({
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Amount Paid</label>
               <input type="number" min="0" step="0.01" value={form.amountPaid} onChange={set('amountPaid')}
-                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50" />
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Currency</label>
               <input type="text" maxLength={3} value={form.currency} onChange={set('currency')}
-                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 uppercase" />
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 uppercase" />
             </div>
           </div>
 
@@ -1945,7 +2135,7 @@ function EditClientModal({
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Internal Notes</label>
             <textarea rows={3} value={form.notes} onChange={set('notes')}
               placeholder="Optional admin notes…"
-              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 resize-none" />
+              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 resize-none" />
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -1954,7 +2144,7 @@ function EditClientModal({
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 py-2.5 text-sm font-bold text-white bg-[#1f56d4] rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              className="flex-1 py-2.5 text-sm font-bold text-white bg-[#B8935B] rounded-xl hover:bg-[#9A7540] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
               {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
               {saving ? 'Saving…' : 'Save Changes'}
             </button>

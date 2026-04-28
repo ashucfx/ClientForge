@@ -8,7 +8,7 @@ import type { CareerStatus, CareerServiceSlug, CareerPackage } from '@/lib/caree
 
 const STATUS_COLORS: Record<CareerStatus, string> = {
   NOT_STARTED:        'bg-slate-100 text-slate-600',
-  SUBMITTED:          'bg-blue-100 text-blue-700',
+  SUBMITTED:          'bg-[#F0EAE0] text-[#9A7540]',
   UNDER_PROCESS:      'bg-amber-100 text-amber-700',
   DRAFT_SENT:         'bg-purple-100 text-purple-700',
   REVISION_REQUESTED: 'bg-orange-100 text-orange-700',
@@ -38,15 +38,20 @@ interface Client {
   _count: { forms: number; deliverables: number };
 }
 
+function isCareerBoosterCombo(slugs: string[]): boolean {
+  if (slugs.includes('FULL_PACKAGE')) return true;
+  return ['RESUME', 'COVER_LETTER', 'LINKEDIN'].every(s => slugs.includes(s));
+}
+
 function clientServiceLabel(c: Client): string {
   if (c.services && c.services.length > 0) {
-    return c.services
-      .map(s => SERVICE_LABELS[s.service.slug as CareerServiceSlug] ?? s.service.name)
+    const slugs = c.services.map(s => s.service.slug);
+    if (isCareerBoosterCombo(slugs)) return 'Career Booster Package';
+    return slugs
+      .map(slug => SERVICE_LABELS[slug as CareerServiceSlug] ?? slug)
       .join(', ');
   }
   if (c.packageType) {
-    // SERVICE_LABELS uses CareerServiceSlug keys (FULL_PACKAGE),
-    // PACKAGE_LABELS uses CareerPackage keys (FULL) — try both
     return (
       SERVICE_LABELS[c.packageType as CareerServiceSlug] ??
       PACKAGE_LABELS[c.packageType as CareerPackage] ??
@@ -90,7 +95,7 @@ export default function CareerClientsPage() {
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+          className="px-4 py-2 bg-[#B8935B] text-white text-sm font-semibold rounded-lg hover:bg-[#9A7540] transition-colors"
         >
           + Add Client
         </button>
@@ -103,12 +108,12 @@ export default function CareerClientsPage() {
           placeholder="Search name or email…"
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1); }}
-          className="px-3 py-2 text-sm border border-slate-200 rounded-lg w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 text-sm border border-slate-200 rounded-lg w-64 focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
         />
         <select
           value={filterStatus}
           onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
-          className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
         >
           <option value="">All Statuses</option>
           {(Object.keys(STATUS_LABELS) as CareerStatus[]).map(s => (
@@ -159,7 +164,7 @@ export default function CareerClientsPage() {
                 <td className="px-4 py-3">
                   <Link
                     href={`/career/${c.id}`}
-                    className="px-3 py-1 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                    className="px-3 py-1 text-xs font-semibold text-[#B8935B] border border-[#E8DDD0] rounded-lg hover:bg-[#FBF8F3] transition-colors"
                   >
                     View →
                   </Link>
@@ -260,7 +265,7 @@ function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
     onClose();
   };
 
-  const inputCls = 'w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors';
+  const inputCls = 'w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B8935B] transition-colors';
 
   return (
     <div
@@ -345,12 +350,12 @@ function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
                     onClick={() => toggleService(slug)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all text-left ${
                       checked
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        ? 'border-[#B8935B] bg-[#FBF8F3] text-[#9A7540]'
                         : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
                     <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
-                      checked ? 'bg-blue-600 border-blue-600' : 'border-slate-300 bg-white'
+                      checked ? 'bg-[#B8935B] border-[#B8935B]' : 'border-slate-300 bg-white'
                     }`}>
                       {checked && (
                         <svg width="10" height="10" fill="none" viewBox="0 0 10 10">
@@ -364,7 +369,7 @@ function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
               })}
             </div>
             {selectedServices.size > 0 && (
-              <p className="text-xs text-blue-600 mt-1.5 font-medium">
+              <p className="text-xs text-[#B8935B] mt-1.5 font-medium">
                 {selectedServices.size} service{selectedServices.size > 1 ? 's' : ''} selected
               </p>
             )}
@@ -377,7 +382,7 @@ function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
               <select
                 value={form.currency}
                 onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
-                className="w-32 flex-shrink-0 px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 font-semibold text-slate-700"
+                className="w-32 flex-shrink-0 px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 font-semibold text-slate-700"
               >
                 {CURRENCIES.map(c => (
                   <option key={c.code} value={c.code}>{c.label}</option>
@@ -418,7 +423,7 @@ function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
             <button
               type="submit"
               disabled={loading || selectedServices.size === 0}
-              className="w-full py-3 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-sm shadow-blue-200"
+              className="w-full py-3 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-sm shadow-[#E8DDD0]"
             >
               {loading
                 ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Adding client…</>
