@@ -64,7 +64,7 @@ export default function LoginClient() {
             </div>
 
             <div style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
-              Product by <span style={{ color: 'var(--brand)', fontWeight: 700 }}>Ripple Nexus</span>
+              Powered by <span style={{ color: 'var(--brand)', fontWeight: 700 }}>Ripple Nexus</span>
             </div>
 
             <div
@@ -157,7 +157,7 @@ export default function LoginClient() {
             </form>
 
             <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--border)', textAlign: 'center', fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '.3px' }}>
-              ClientForge · by <span style={{ color: 'var(--green)', fontWeight: 800 }}>Ripple Nexus</span>
+              Catalyst ClientForge · Powered by <span style={{ color: 'var(--brand)', fontWeight: 600 }}>Ripple Nexus</span>
             </div>
           </div>
         </div>
