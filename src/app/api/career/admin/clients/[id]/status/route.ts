@@ -42,7 +42,7 @@ const ALLOWED_TRANSITIONS: Record<CareerStatus, CareerStatus[]> = {
   UNDER_PROCESS:      ['SUBMITTED', 'DRAFT_SENT'],
   DRAFT_SENT:         ['UNDER_PROCESS', 'REVISION_REQUESTED', 'COMPLETED'],
   REVISION_REQUESTED: ['UNDER_PROCESS', 'DRAFT_SENT'],
-  COMPLETED:          ['DRAFT_SENT'], // allow re-open only to draft_sent
+  COMPLETED:          ['NOT_STARTED', 'SUBMITTED', 'UNDER_PROCESS', 'DRAFT_SENT', 'REVISION_REQUESTED'],
 };
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -93,6 +93,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const hasLinkedInService =
     client.services.some(s => ['LINKEDIN', 'FULL_PACKAGE'].includes(s.service.slug)) ||
     ['LINKEDIN', 'FULL'].includes(client.packageType ?? '');
+  const portalUrl = `${PORTAL_URL}/portal/dashboard`;
 
   // Determine which email to send: DRAFT_SENT is service-aware, rest are static
   const trigger: EmailTrigger | undefined =
@@ -100,8 +101,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       ? resolveDraftTrigger(client)
       : STATIC_EMAIL_MAP[newStatus];
 
+  const emailTriggersToSend: { trigger: EmailTrigger; data: Record<string, unknown> }[] = [];
+
   if (trigger) {
-    const portalUrl = `${PORTAL_URL}/portal/dashboard`;
     let files: { label: string; url: string }[] = [];
 
     if (trigger === 'FINAL_DELIVERY') {
@@ -111,31 +113,55 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       });
       files = deliverables.map(d => ({ label: d.label, url: d.fileUrl }));
 
-      // Always send LinkedIn security steps alongside final delivery for LinkedIn clients
-      if (hasLinkedInService) {
-        sendCareerEmail({
-          to: client.email,
-          trigger: 'LINKEDIN_SECURITY',
-          data: { name: client.name },
-        }).catch(console.error);
+      const alreadySentFinal = await db.careerEmailLog.findFirst({
+        where: { clientId: client.id, trigger: 'FINAL_DELIVERY', status: 'sent' },
+      });
+
+      if (!alreadySentFinal) {
+        emailTriggersToSend.push({
+          trigger,
+          data: { name: client.name, packageLabel: serviceLabel, portalUrl, files },
+        });
       }
+
+      // Always send LinkedIn security steps alongside final delivery for LinkedIn clients,
+      // but only once per client.
+      if (hasLinkedInService) {
+        const alreadySentLinkedInSecurity = await db.careerEmailLog.findFirst({
+          where: { clientId: client.id, trigger: 'LINKEDIN_SECURITY', status: 'sent' },
+        });
+
+        if (!alreadySentLinkedInSecurity) {
+          emailTriggersToSend.push({
+            trigger: 'LINKEDIN_SECURITY',
+            data: { name: client.name },
+          });
+        }
+      }
+    } else {
+      emailTriggersToSend.push({
+        trigger,
+        data: { name: client.name, packageLabel: serviceLabel, portalUrl, files },
+      });
     }
 
-    sendCareerEmail({
-      to: client.email,
-      trigger,
-      clientId: client.id,
-      data: { name: client.name, packageLabel: serviceLabel, portalUrl, files },
-    }).catch(async (err) => {
-      console.error('[status PATCH] Email failed:', err);
-    });
+    for (const item of emailTriggersToSend) {
+      sendCareerEmail({
+        to: client.email,
+        trigger: item.trigger,
+        clientId: client.id,
+        data: item.data,
+      }).catch((err) => {
+        console.error('[status PATCH] Email failed:', err);
+      });
+    }
   }
 
   return NextResponse.json({
     ok: true,
     status: client.status,
     statusLabel: STATUS_LABELS[newStatus],
-    emailTriggered: !!trigger,
-    emailTrigger: trigger ?? null,
+    emailTriggered: emailTriggersToSend.length > 0,
+    emailTrigger: emailTriggersToSend[0]?.trigger ?? null,
   });
 }

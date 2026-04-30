@@ -517,15 +517,20 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
   const confirmStatusChange = async () => {
     if (!pendingStatus) return;
     setStatusLoading(true);
-    setPendingStatus(null);
     const res = await fetch(`/api/career/admin/clients/${client.id}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: pendingStatus }),
     });
-    const d = await res.json() as { statusLabel?: string; emailTriggered?: boolean; emailTrigger?: string };
+    const d = await res.json().catch(() => ({})) as {
+      statusLabel?: string;
+      emailTriggered?: boolean;
+      emailTrigger?: string;
+      error?: string;
+    };
     setStatusLoading(false);
     if (res.ok) {
+      setPendingStatus(null);
       const autoLabel = d.emailTrigger
         ? clientTriggers.find(t => t.value === d.emailTrigger)?.label
           ?? EMAIL_TRIGGERS.find(t => t.value === d.emailTrigger)?.label
@@ -534,6 +539,8 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
         ? `Status updated to "${d.statusLabel}" - "${autoLabel}" email sent automatically`
         : `Status updated to "${d.statusLabel}"`);
       onUpdated();
+    } else {
+      showToast(`Error: ${d.error ?? 'Status update failed'}`);
     }
   };
 

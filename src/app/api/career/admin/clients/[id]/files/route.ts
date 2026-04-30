@@ -156,14 +156,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         const hasRevisions = clientFull.revisions.length > 0;
         emailTrigger = resolveDraftTrigger(fileType, hasRevisions);
 
-        // LinkedIn dedup — only send ONE LinkedIn draft email per client
-        if (LINKEDIN_FILE_TYPES.has(fileType)) {
-          const alreadySent = await db.careerEmailLog.findFirst({
-            where: { clientId: params.id, trigger: 'LINKEDIN_DRAFT', status: 'sent' },
-          });
-          if (alreadySent) {
-            return NextResponse.json({ file: deliverable, emailTrigger: null }, { status: 201 });
-          }
+        // Dedup draft emails by trigger so retries do not resend the same draft type.
+        const alreadySentDraftEmail = await db.careerEmailLog.findFirst({
+          where: { clientId: params.id, trigger: emailTrigger, status: 'sent' },
+        });
+
+        if (alreadySentDraftEmail) {
+          return NextResponse.json({ file: deliverable, emailTrigger: null }, { status: 201 });
         }
 
         sendCareerEmail({
