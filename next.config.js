@@ -6,10 +6,10 @@ const nextConfig = {
     workerThreads: true,
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
     domains: [],
@@ -25,6 +25,21 @@ const nextConfig = {
           { key: 'X-Frame-Options',        value: 'DENY' },
           // Prevent MIME-type sniffing
           { key: 'X-Content-Type-Options', value: 'nosniff' },
+          // Content Security Policy — prevent XSS and data exfiltration
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "font-src 'self' https://fonts.gstatic.com",
+              "img-src 'self' data: blob: https://res.cloudinary.com",
+              "connect-src 'self' https://api.razorpay.com https://lumberjack-cx.razorpay.com https://api-m.paypal.com https://api-m.sandbox.paypal.com",
+              "frame-src https://api.razorpay.com https://checkout.razorpay.com",
+              "object-src 'none'",
+              "base-uri 'self'",
+            ].join('; '),
+          },
           // Control referrer information leakage
           { key: 'Referrer-Policy',        value: 'strict-origin-when-cross-origin' },
           // Disable browser features not used by this app
