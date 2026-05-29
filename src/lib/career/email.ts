@@ -59,7 +59,38 @@ async function sendWithRetry(
   throw lastErr;
 }
 
+/** 
+ * Push email to database queue instead of sending directly.
+ * Processed by /api/cron/email.
+ */
 export async function sendCareerEmail({
+  to,
+  trigger,
+  data,
+  attachmentUrls = [],
+  clientId,
+}: SendEmailParams): Promise<string | null> {
+  // Store the raw params so the cron worker can process it
+  const queueData = {
+    data,
+    attachmentUrls
+  };
+
+  const queued = await db.emailQueue.create({
+    data: {
+      to,
+      trigger,
+      clientId,
+      data: queueData as any,
+    }
+  });
+
+  return queued.id; // Return the queue ID instead of Resend ID
+}
+
+/** Actual worker function to send an email (called by cron) */
+export async function processCareerEmail({
+
   to,
   trigger,
   data,
