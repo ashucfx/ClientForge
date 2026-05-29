@@ -9,6 +9,8 @@ import { prisma as db } from '@/lib/db';
 import { sendCareerEmail } from '@/lib/career/email';
 import { PACKAGE_LABELS, SERVICE_LABELS } from '@/lib/career/types';
 import type { CareerPackage, CareerServiceSlug } from '@/lib/career/types';
+import { waitUntil } from '@vercel/functions';
+
 
 const PORTAL_URL =
   process.env.NODE_ENV === 'development'
@@ -71,17 +73,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   });
 
   if (doSendEmail) {
-    // Tell client their revision is now being worked on
-    sendCareerEmail({
-      to: client.email,
-      trigger: 'REVISION',
-      data: {
-        name: client.name,
-        portalUrl: `${PORTAL_URL}/portal/dashboard`,
-        packageLabel: clientServiceLabel(client),
-        revisionStatus: 'approved',
-      },
-    }).catch(err => console.error('[admin/revisions POST] Email failed:', err));
+    waitUntil(
+      sendCareerEmail({
+        to: client.email,
+        trigger: 'REVISION',
+        data: {
+          name: client.name,
+          portalUrl: `${PORTAL_URL}/portal/dashboard`,
+          packageLabel: clientServiceLabel(client),
+          revisionStatus: 'approved',
+        },
+      }).catch(err => console.error('[admin/revisions POST] Email failed:', err))
+    );
   }
 
   return NextResponse.json({ ok: true, revision }, { status: 201 });
@@ -125,16 +128,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     });
 
     if (client) {
-      sendCareerEmail({
-        to: client.email,
-        trigger: 'REVISION',
-        data: {
-          name: client.name,
-          portalUrl: `${PORTAL_URL}/portal/dashboard`,
-          packageLabel: clientServiceLabel(client),
-          revisionStatus: status === 'APPROVED' ? 'approved' : 'denied',
-        },
-      }).catch(err => console.error('[admin/revisions PATCH] Email failed:', err));
+      waitUntil(
+        sendCareerEmail({
+          to: client.email,
+          trigger: 'REVISION',
+          data: {
+            name: client.name,
+            portalUrl: `${PORTAL_URL}/portal/dashboard`,
+            packageLabel: clientServiceLabel(client),
+            revisionStatus: status === 'APPROVED' ? 'approved' : 'denied',
+          },
+        }).catch(err => console.error('[admin/revisions PATCH] Email failed:', err))
+      );
     }
   }
 

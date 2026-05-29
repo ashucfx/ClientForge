@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 import { sendCareerEmail } from '@/lib/career/email';
+import { waitUntil } from '@vercel/functions';
+
 
 const PORTAL_URL =
   process.env.NODE_ENV === 'development'
@@ -55,11 +57,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   // Email notification to client
   const portalUrl = `${PORTAL_URL}/portal/dashboard`;
-  sendCareerEmail({
-    to: client.email,
-    trigger: 'MESSAGE_NOTIFY',
-    data: { recipientName: client.name, senderType: 'admin', portalUrl },
-  }).catch(console.error);
+  waitUntil(
+    sendCareerEmail({
+      to: client.email,
+      trigger: 'MESSAGE_NOTIFY',
+      data: { recipientName: client.name, senderType: 'admin', portalUrl },
+    }).catch(console.error)
+  );
 
   return NextResponse.json({ message }, { status: 201 });
 }
