@@ -44,9 +44,18 @@ export async function PATCH(
     // If pricing fields are being updated, recalculate all derived amounts
     const pricingChanged =
       body.resumeBaseInr   !== undefined ||
-      body.linkedinBaseInr !== undefined;
+      body.linkedinBaseInr !== undefined ||
+      body.lineItems       !== undefined;
 
-    let updateData: Record<string, unknown> = { ...body };
+    const allowedFields = [
+      'clientName', 'clientEmail', 'clientPhone', 'companyName',
+      'dueDate', 'notes', 'status', 'resumeBaseInr', 'linkedinBaseInr',
+      'revisionCharge', 'lineItems'
+    ];
+    let updateData: Record<string, unknown> = {};
+    for (const key of allowedFields) {
+      if (body[key] !== undefined) updateData[key] = body[key];
+    }
 
     if (pricingChanged && existing.status === 'PENDING') {
       const newResumeInr   = body.resumeBaseInr   ?? existing.resumeBaseInr;
