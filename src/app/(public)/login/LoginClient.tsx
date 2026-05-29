@@ -9,9 +9,11 @@ export default function LoginClient() {
   const sp = useSearchParams();
   const nextUrl = useMemo(() => sp.get('next') || '/', [sp]);
 
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,8 +23,9 @@ export default function LoginClient() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password }),
       });
+
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? 'Login failed');
       router.replace(nextUrl);
@@ -97,6 +100,22 @@ export default function LoginClient() {
             <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div className="field">
                 <label style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.9px', color: 'var(--text-tertiary)', display: 'block', marginBottom: 6 }}>
+                  Email
+                </label>
+                <input
+                  className="input"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@theripplenexus.com"
+                  autoFocus
+                  autoComplete="username"
+                  required
+                />
+              </div>
+
+              <div className="field">
+                <label style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.9px', color: 'var(--text-tertiary)', display: 'block', marginBottom: 6 }}>
                   Password
                 </label>
                 <input
@@ -105,10 +124,11 @@ export default function LoginClient() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter admin password"
-                  autoFocus
                   autoComplete="current-password"
+                  required
                 />
               </div>
+
 
               {error && (
                 <div
