@@ -1,7 +1,7 @@
 'use client';
 // src/app/(career-portal)/portal/dashboard/page.tsx
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -148,6 +148,14 @@ export default function PortalDashboardPage() {
     if (pendingFiles.length + files.length > 3) {
       alert('Max 3 attachments per message.'); return;
     }
+
+    for (const file of files) {
+      if (file.size > 4 * 1024 * 1024) {
+        alert(`File ${file.name} exceeds 4MB edge limit. Please compress it.`);
+        return;
+      }
+    }
+
     setUploading(true);
     for (const file of files) {
       const fd = new FormData();
@@ -156,6 +164,12 @@ export default function PortalDashboardPage() {
       if (res.ok) {
         const att = await res.json() as Attachment;
         setPendingFiles(prev => [...prev, att]);
+      } else {
+        if (res.status === 413) {
+          alert(`File ${file.name} rejected by server: Payload Too Large (>4.5MB).`);
+        } else {
+          alert(`Upload failed for ${file.name}`);
+        }
       }
     }
     setUploading(false);
@@ -188,18 +202,22 @@ export default function PortalDashboardPage() {
     router.push('/portal/login');
   };
 
+  // Map status to step key
+  const currentKey = useMemo(() => {
+    if (!me) return '';
+    if (me.status === 'REVISION_REQUESTED') return 'REVISION_IN_PROGRESS';
+    return me.status;
+  }, [me]);
+
+  const progressIdx = useMemo(() => STATUS_STEPS.findIndex(s => s.key === currentKey), [currentKey]);
+  
+  const allFormsSubmitted = useMemo(() => {
+    if (!me) return false;
+    return me.availableForms.every(f => me.submittedForms.includes(f));
+  }, [me]);
+
   if (loading) return <DashboardSkeleton />;
   if (!me) return null;
-
-  // Map status to step key
-  const statusToStep = (s: CareerStatus): string => {
-    if (s === 'REVISION_REQUESTED') return 'REVISION_IN_PROGRESS';
-    return s;
-  };
-  const currentKey = statusToStep(me.status);
-  const progressIdx = STATUS_STEPS.findIndex(s => s.key === currentKey);
-  const allFormsSubmitted = me.availableForms.every(f => me.submittedForms.includes(f));
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#FAFAF8] via-[#F5F2EC]/30 to-[#FAFAF8]">
       {/* ── Navbar ── */}
@@ -217,18 +235,18 @@ export default function PortalDashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-xl">
-              <div className="w-6 h-6 rounded-full bg-[#B8935B] flex items-center justify-center text-white text-xs font-bold">
+            <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 bg-slate-100 rounded-xl">
+              <div className="w-6 h-6 rounded-full bg-[#B8935B] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                 {me.name[0]?.toUpperCase()}
               </div>
-              <span className="text-xs font-medium text-slate-700 max-w-[140px] truncate">{me.name}</span>
+              <span className="text-xs font-medium text-slate-700 max-w-[80px] sm:max-w-[140px] truncate">{me.name.split(' ')[0]}</span>
             </div>
-            <button onClick={logout}
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 px-3 py-1.5 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+            <button onClick={logout} aria-label="Sign out"
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 px-2 sm:px-3 py-1.5 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
                 <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
               </svg>
-              Sign out
+              <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>
         </div>
@@ -563,7 +581,8 @@ export default function PortalDashboardPage() {
                   type="button"
                   disabled={uploading || pendingFiles.length >= 3}
                   onClick={() => fileInputRef.current?.click()}
-                  title="Attach file (PNG, JPG, PDF, DOCX — max 10 MB)"
+                  title="Attach file (PNG, JPG, PDF, DOCX — max 4 MB)"
+                  aria-label="Attach file"
                   className="p-2.5 border border-slate-200 text-slate-500 rounded-xl hover:bg-[#FBF8F3] hover:border-[#D4AF7A] hover:text-[#B8935B] disabled:opacity-40 transition-colors"
                 >
                   {uploading
@@ -574,6 +593,7 @@ export default function PortalDashboardPage() {
                 <button
                   type="submit"
                   disabled={postingComment || (!newComment.trim() && pendingFiles.length === 0)}
+                  aria-label="Send message"
                   className="p-2.5 bg-[#B8935B] text-white rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors"
                 >
                   {postingComment
@@ -584,7 +604,7 @@ export default function PortalDashboardPage() {
               </div>
             </div>
             <input ref={fileInputRef} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.doc,.docx" className="hidden" onChange={handleFileSelect} />
-            <p className="text-[10px] text-slate-300 mt-1.5 px-1">PNG, JPG, PDF, DOCX · max 10 MB · max 3 files</p>
+            <p className="text-[10px] text-slate-300 mt-1.5 px-1">PNG, JPG, PDF, DOCX · max 4 MB · max 3 files</p>
           </form>
         </div>
 
@@ -615,14 +635,19 @@ function PortalAttachmentChip({ att, onRemove }: { att: Attachment; onRemove?: (
   const isImg = att.mimeType.startsWith('image/');
   return (
     <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#FBF8F3] border border-[#E8DFD0] rounded-lg text-xs text-slate-700 max-w-[180px]">
-      <span className="text-base leading-none">{isImg ? '🖼' : '📎'}</span>
+      {isImg ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={att.url} alt="preview" className="w-4 h-4 rounded-sm object-cover border border-slate-200 flex-shrink-0" />
+      ) : (
+        <span className="text-base leading-none">📎</span>
+      )}
       <a href={att.url} target="_blank" rel="noopener noreferrer" download={att.name}
         className="truncate hover:text-[#B8935B] transition-colors flex-1 min-w-0">
         {att.name}
       </a>
       <span className="text-slate-400 flex-shrink-0">{fmtBytes(att.size)}</span>
       {onRemove && (
-        <button type="button" onClick={onRemove}
+        <button type="button" onClick={onRemove} aria-label="Remove attachment"
           className="text-slate-400 hover:text-red-500 transition-colors flex-shrink-0 ml-0.5">
           ×
         </button>
@@ -655,7 +680,7 @@ function PortalMessageBubble({ c, myName }: { c: CommentItem; myName: string }) 
         ))}
         {/* Bubble */}
         {c.content && (
-          <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
+          <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words [word-break:break-word] ${
             isClient
               ? 'bg-slate-100 text-slate-800 rounded-tr-sm'
               : 'bg-[#FBF8F3] border border-[#F0EAE0] text-slate-700 rounded-tl-sm'
@@ -721,14 +746,31 @@ function QuickLink({ href, icon, title, desc, external = false }: {
 
 function DashboardSkeleton() {
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="h-14 bg-white border-b border-slate-200" />
-      <div className="max-w-3xl mx-auto px-4 py-7 space-y-5 animate-pulse">
-        <div className="h-8 w-48 bg-slate-200 rounded-xl" />
-        <div className="h-28 bg-slate-200 rounded-2xl" />
-        <div className="h-64 bg-slate-200 rounded-2xl" />
-        <div className="h-48 bg-slate-200 rounded-2xl" />
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#FAFAF8] via-[#F5F2EC]/30 to-[#FAFAF8]">
+      <header className="bg-white/90 border-b border-slate-200 h-14 flex items-center px-4">
+        <div className="max-w-3xl mx-auto w-full flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-slate-200 animate-pulse" />
+            <div className="w-24 h-4 bg-slate-200 rounded animate-pulse" />
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-24 sm:w-32 h-8 rounded-xl bg-slate-200 animate-pulse" />
+            <div className="w-10 sm:w-20 h-8 rounded-xl bg-slate-200 animate-pulse" />
+          </div>
+        </div>
+      </header>
+      <main className="max-w-3xl mx-auto px-4 py-7 space-y-5">
+        <div className="space-y-2">
+          <div className="h-8 w-48 bg-slate-200 rounded-lg animate-pulse" />
+          <div className="h-4 w-64 bg-slate-100 rounded animate-pulse" />
+        </div>
+        <div className="h-32 bg-slate-200 rounded-2xl animate-pulse" />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="h-24 bg-slate-200 rounded-2xl animate-pulse" />
+          <div className="h-24 bg-slate-200 rounded-2xl animate-pulse" />
+        </div>
+        <div className="h-64 bg-slate-200 rounded-2xl animate-pulse" />
+      </main>
     </div>
   );
 }
