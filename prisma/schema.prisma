@@ -5,8 +5,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum ClientType {
@@ -247,6 +248,7 @@ model CareerDeliverable {
   sizeBytes    Int      @default(0)
   originalName String   @default("")
   fileCategory String   @default("final") // "draft" | "final"
+  resourceType String   @default("raw")   // "raw" | "image" | "video"
   uploadedBy   String
   emailSent    Boolean  @default(false)
   createdAt    DateTime @default(now())
@@ -269,6 +271,7 @@ model CareerEmailLog {
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
+  @@index([clientId, trigger, status])
 }
 
 model CareerActivityLog {
@@ -415,5 +418,6 @@ model EmailQueue {
   updatedAt   DateTime @updatedAt
 
   @@index([status, nextRunAt])
+  @@index([clientId, trigger])
 }
 
