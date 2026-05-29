@@ -6,7 +6,13 @@ import { PORTAL_URL } from '@/lib/config';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Authenticate cron caller — Vercel injects CRON_SECRET automatically
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const now = new Date();
   let processedCount = 0;
 
@@ -24,12 +30,15 @@ export async function GET() {
     select: { id: true, email: true, name: true },
   });
 
-  for (const client of ghostWarningClients) {
-    const existingLog = await db.careerEmailLog.findFirst({
-      where: { clientId: client.id, trigger: 'GHOST_WARNING', status: 'sent' },
-    });
+  const ghostWarningClientIds = ghostWarningClients.map(c => c.id);
+  const existingWarningLogs = await db.careerEmailLog.findMany({
+    where: { clientId: { in: ghostWarningClientIds }, trigger: 'GHOST_WARNING', status: 'sent' },
+    select: { clientId: true },
+  });
+  const alreadyWarned = new Set(existingWarningLogs.map(l => l.clientId));
 
-    if (!existingLog) {
+  for (const client of ghostWarningClients) {
+    if (!alreadyWarned.has(client.id)) {
       await sendCareerEmail({
         to: client.email,
         trigger: 'MESSAGE_NOTIFY', // Re-using generic template
@@ -64,6 +73,13 @@ export async function GET() {
     select: { id: true, email: true, name: true },
   });
 
+  const ghostClosureClientIds = ghostClosureClients.map(c => c.id);
+  const existingClosureLogs = await db.careerEmailLog.findMany({
+    where: { clientId: { in: ghostClosureClientIds }, trigger: 'GHOST_CLOSURE', status: 'sent' },
+    select: { clientId: true },
+  });
+  const alreadyClosed = new Set(existingClosureLogs.map(l => l.clientId));
+
   for (const client of ghostClosureClients) {
     // Auto-close order
     await db.careerClient.update({
@@ -71,11 +87,7 @@ export async function GET() {
       data: { status: 'COMPLETED', completedAt: new Date() },
     });
 
-    const existingLog = await db.careerEmailLog.findFirst({
-      where: { clientId: client.id, trigger: 'GHOST_CLOSURE', status: 'sent' },
-    });
-
-    if (!existingLog) {
+    if (!alreadyClosed.has(client.id)) {
       await sendCareerEmail({
         to: client.email,
         trigger: 'MESSAGE_NOTIFY',
@@ -110,12 +122,15 @@ export async function GET() {
     select: { id: true, email: true, name: true },
   });
 
-  for (const client of reviewClients) {
-    const existingLog = await db.careerEmailLog.findFirst({
-      where: { clientId: client.id, trigger: 'REVIEW_REQUEST', status: 'sent' },
-    });
+  const reviewClientIds = reviewClients.map(c => c.id);
+  const existingReviewLogs = await db.careerEmailLog.findMany({
+    where: { clientId: { in: reviewClientIds }, trigger: 'REVIEW_REQUEST', status: 'sent' },
+    select: { clientId: true },
+  });
+  const alreadyReviewed = new Set(existingReviewLogs.map(l => l.clientId));
 
-    if (!existingLog) {
+  for (const client of reviewClients) {
+    if (!alreadyReviewed.has(client.id)) {
       await sendCareerEmail({
         to: client.email,
         trigger: 'MESSAGE_NOTIFY',

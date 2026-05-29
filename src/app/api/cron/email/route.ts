@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma as db } from '@/lib/db';
-import { processCareerEmail } from '@/lib/career/email';
+import { processCareerEmail, sendCareerEmail } from '@/lib/career/email';
 import type { EmailTrigger } from '@/lib/career/types';
+import { ADMIN_EMAIL } from '@/lib/config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Authenticate cron caller — Vercel injects CRON_SECRET automatically
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   // 1. Fetch pending emails that are ready to run
   const now = new Date();
   
@@ -43,6 +49,7 @@ export async function GET() {
         data: payload?.data ?? {},
         attachmentUrls: payload?.attachmentUrls ?? [],
         clientId: email.clientId ?? undefined,
+        replyTo: payload?.replyTo ?? undefined,
       });
 
       await db.emailQueue.update({
@@ -70,6 +77,20 @@ export async function GET() {
           nextRunAt: new Date(Date.now() + (newAttempts === 1 ? 5 : 15) * 60 * 1000)
         }
       });
+
+      if (!willRetry) {
+        // Send a direct email to admin about the failure
+        await sendCareerEmail({
+          to: ADMIN_EMAIL,
+          trigger: 'MESSAGE_NOTIFY',
+          data: {
+            recipientName: 'Catalyst Admin',
+            senderType: 'system',
+            body: `CRITICAL: Email to ${email.to} permanently failed after 3 attempts. Error: ${err.message ?? String(err)}. Please check the Vercel logs and Resend dashboard.`,
+            portalUrl: `https://catalyst.theripplenexus.com`
+          }
+        }).catch(e => console.error('Failed to notify admin of permanent failure:', e));
+      }
 
       results.push({ id: email.id, status: willRetry ? 'FAILED' : 'PERMANENTLY_FAILED', error: err.message });
     }
