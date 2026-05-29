@@ -182,8 +182,8 @@ export default function FormPage() {
       const input = fileRefs.current[field.id];
       const file  = input?.files?.[0];
       if (file) {
-        if (file.size > 5 * 1024 * 1024) {
-          setErrors(e => ({ ...e, [field.id]: `Max 5 MB` }));
+        if (file.size > 4 * 1024 * 1024) {
+          setErrors(e => ({ ...e, [field.id]: `Max 4 MB` }));
           setSubmitting(false); return;
         }
         payload[field.id] = { name: file.name, size: file.size, dataUrl: await readAsDataUrl(file) };
@@ -195,7 +195,11 @@ export default function FormPage() {
     });
     if (res.status === 401) { router.replace('/portal/login'); return; }
     if (!res.ok) {
-      const d = await res.json() as { error?: string };
+      if (res.status === 413) {
+        setSubmitError('Form data exceeds Vercel 4.5MB edge limit. Please compress any uploaded files.');
+        setSubmitting(false); return;
+      }
+      const d = await res.json().catch(() => ({ error: 'Submission failed' })) as { error?: string };
       setSubmitError(d.error ?? 'Submission failed. Please try again.');
       setSubmitting(false); return;
     }
@@ -310,6 +314,25 @@ export default function FormPage() {
         </div>
       )}
 
+      {/* Executive disclaimer shortcut */}
+      {schema.fields.some(f => f.section === 'Attachments') && (
+        <div className="mb-8 flex items-start gap-3 px-5 py-4 bg-gradient-to-r from-indigo-50 to-[#FBF8F3] border border-indigo-200 rounded-2xl shadow-sm">
+          <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+              <path stroke="#4f46e5" strokeWidth="2" strokeLinecap="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-indigo-800 mb-1">Executive & Executive+ Clients</p>
+            <p className="text-sm text-indigo-700 leading-relaxed">
+              If you have an extensive career history, simply attach your existing resume in the Attachments section and write{' '}
+              <strong>&quot;Refer to resume&quot;</strong> in the relevant text fields below.
+              Our team will work directly from your document — no need to re-type everything.
+            </p>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} noValidate className="space-y-6">
 
         {/* Section cards */}
@@ -342,25 +365,6 @@ export default function FormPage() {
                   </div>
                 )}
               </div>
-
-              {/* Executive disclaimer for Attachments section */}
-              {name === 'Attachments' && (
-                <div className="mx-5 mt-5 flex items-start gap-3 px-4 py-3.5 bg-gradient-to-r from-indigo-50 to-[#FBF8F3] border border-indigo-200 rounded-xl">
-                  <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24">
-                      <path stroke="#4f46e5" strokeWidth="2" strokeLinecap="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-indigo-800 mb-0.5">Executive & Executive+ Clients</p>
-                    <p className="text-xs text-indigo-700 leading-relaxed">
-                      If you have an extensive career history, simply attach your existing resume and write{' '}
-                      <strong>&quot;Refer to resume&quot;</strong> in the relevant text fields above.
-                      Our team will work directly from your document — no need to re-type everything.
-                    </p>
-                  </div>
-                </div>
-              )}
 
               {/* Fields */}
               <div className="p-5 space-y-5">
@@ -456,8 +460,10 @@ function FieldRenderer({ field, value, error, onChange, fileRef }: {
   onChange: (v: FieldValue) => void;
   fileRef: (el: HTMLInputElement | null) => void;
 }) {
+  const [showPassword, setShowPassword] = useState(false);
+
   const base = `w-full px-4 py-3 text-sm border rounded-xl bg-white transition-all outline-none
-    focus:ring-2 focus:ring-[#B8935B] focus:border-transparent placeholder:text-slate-400
+    focus:ring-2 focus:ring-[#9A7540] focus:border-transparent placeholder:text-slate-400
     ${error ? 'border-red-300 focus:ring-red-400' : 'border-slate-200 hover:border-slate-300'}`;
 
   const isArr = field.type === 'tags' || field.type === 'checkbox';
@@ -534,9 +540,20 @@ function FieldRenderer({ field, value, error, onChange, fileRef }: {
               Please change your LinkedIn password once work is complete.
             </p>
           </div>
-          <input type="password" value={(value as string) ?? ''} onChange={e => onChange(e.target.value)}
-            placeholder={field.placeholder} required={field.required}
-            autoComplete="new-password" className={base} />
+          <div className="relative">
+            <input type={showPassword ? 'text' : 'password'} value={(value as string) ?? ''} onChange={e => onChange(e.target.value)}
+              placeholder={field.placeholder} required={field.required}
+              autoComplete="new-password" className={`${base} pr-12`} />
+            <button type="button" onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1"
+              aria-label={showPassword ? "Hide password" : "Show password"}>
+              {showPassword ? (
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+              ) : (
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+              )}
+            </button>
+          </div>
         </div>
       )}
 
@@ -570,14 +587,14 @@ function FieldRenderer({ field, value, error, onChange, fileRef }: {
                   </div>
                   <p className="text-sm font-semibold text-slate-700">Click to upload</p>
                   <p className="text-xs text-slate-400 mt-1">
-                    {field.accept?.replace(/\./g, '').toUpperCase().replace(/,/g, ' · ')} · Max 5 MB
+                    {field.accept?.replace(/\./g, '').toUpperCase().replace(/,/g, ' · ')} · Max 4 MB
                   </p>
                 </div>
               )}
             </label>
           </div>
           {value && typeof value === 'object' && 'name' in value && (
-            <button type="button" onClick={() => onChange(null)}
+            <button type="button" onClick={() => onChange(null)} aria-label="Remove file"
               className="mt-1.5 text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1 transition-colors">
               <svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
               Remove file
@@ -646,7 +663,7 @@ function CheckboxGroup({ options, value, onChange, error }: {
       {value.length > 0 && (
         <div className="px-4 py-2 bg-[#FBF8F3] border-t border-[#F0EAE0] flex items-center justify-between">
           <span className="text-xs text-[#B8935B] font-semibold">{value.length} selected</span>
-          <button type="button" onClick={() => onChange([])}
+          <button type="button" onClick={() => onChange([])} aria-label="Clear all selections"
             className="text-xs text-slate-400 hover:text-red-500 transition-colors">Clear</button>
         </div>
       )}
@@ -703,14 +720,14 @@ function TagInput({ value, onChange, placeholder, error }: {
   const add = () => { const tag = input.trim(); if (tag && !value.includes(tag)) onChange([...value, tag]); setInput(''); };
   const remove = (tag: string) => onChange(value.filter(t => t !== tag));
   return (
-    <div className={`border rounded-xl bg-white transition-all focus-within:ring-2 focus-within:ring-[#B8935B] focus-within:border-transparent ${
+    <div className={`border rounded-xl bg-white transition-all focus-within:ring-2 focus-within:ring-[#9A7540] focus-within:border-transparent ${
       error ? 'border-red-300' : 'border-slate-200 hover:border-slate-300'
     }`} onClick={() => inputRef.current?.focus()}>
       <div className="p-3 flex flex-wrap gap-1.5">
         {value.map(tag => (
           <span key={tag} className="inline-flex items-center gap-1 px-3 py-1 bg-[#F0EAE0] text-[#7A5B2E] text-xs font-semibold rounded-full">
             {tag}
-            <button type="button" onClick={e => { e.stopPropagation(); remove(tag); }}
+            <button type="button" onClick={e => { e.stopPropagation(); remove(tag); }} aria-label={`Remove tag ${tag}`}
               className="text-[#C4A070] hover:text-[#5A3D1A] ml-0.5">
               <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
@@ -727,7 +744,7 @@ function TagInput({ value, onChange, placeholder, error }: {
       {value.length > 0 && (
         <div className="px-3 py-2 border-t border-slate-100 flex items-center justify-between">
           <span className="text-xs text-slate-400">{value.length} tag{value.length !== 1 ? 's' : ''}</span>
-          <button type="button" onClick={() => onChange([])} className="text-xs text-red-400 hover:text-red-600 font-medium">Clear all</button>
+          <button type="button" onClick={() => onChange([])} aria-label="Clear all tags" className="text-xs text-red-400 hover:text-red-600 font-medium">Clear all</button>
         </div>
       )}
     </div>
@@ -790,7 +807,7 @@ function FormShell({ schema, children }: { schema: FormSchema; children: React.R
       </header>
 
       {/* Hero banner */}
-      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e3a5f] to-[#0f172a] border-b border-slate-800">
+      <div className="bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#0A0B0D] border-b border-[#2A1F0E]">
         <div className="max-w-2xl mx-auto px-4 py-5 flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white flex-shrink-0">
             {formTypeIcon[schema.formType] ?? formTypeIcon.resume}
