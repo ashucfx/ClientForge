@@ -22,7 +22,9 @@ if (!salt || !rawPassword) {
   process.exit(1);
 }
 
-const passwordHash = crypto.createHash('sha256').update(rawPassword + salt).digest('hex');
+const newSalt = crypto.randomBytes(16).toString('hex');
+const scryptHash = crypto.scryptSync(rawPassword, newSalt, 64).toString('hex');
+const passwordHash = `${newSalt}:${scryptHash}`;
 
 async function main() {
   const existing = await prisma.adminUser.findUnique({ where: { email } });
