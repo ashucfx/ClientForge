@@ -161,11 +161,20 @@ export async function POST(request: NextRequest) {
         country, companyName,
         currency: currencyCode, currencySymbol, exchangeRate,
         lineItems:             safeItems as object[],
+        invoiceLineItems: {
+          create: safeItems.map(i => ({
+            description: i.description,
+            qty: i.qty,
+            unitPrice: i.unitPrice,
+            lineTotal: i.lineTotal
+          }))
+        },
         discountRate, taxRate, discountAmount, taxAmount,
         subtotalConverted, processingFeeRate, processingFeeConverted, totalPayable,
         notes, invoiceDate, dueDate,
         installmentPlan:  isSplit,
         installmentCount: installmentCount,
+
       },
     });
 
@@ -228,10 +237,19 @@ export async function POST(request: NextRequest) {
         gatewayUpdate = {
           paymentGateway: gateway,
           installments: installs as object[],
+          invoiceInstallments: {
+            create: installs.map(i => ({
+              seq: i.seq,
+              amount: i.amount,
+              dueDate: new Date(i.dueDate),
+              status: i.status,
+            }))
+          },
           ...(gateway === 'RAZORPAY'
             ? { razorpayLinkId: installs[0].razorpayLinkId, razorpayLinkUrl: installs[0].razorpayLinkUrl }
             : { paypalInvoiceId: installs[0].paypalInvoiceId, paypalPaymentUrl: installs[0].paypalPaymentUrl }),
         };
+
       }
     } catch (gwErr) {
       await prisma.invoice.delete({ where: { id: invoice.id } }).catch(() => {});

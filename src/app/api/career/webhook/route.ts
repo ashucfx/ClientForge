@@ -5,6 +5,8 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { waitUntil } from '@vercel/functions';
+
 import { prisma as db } from '@/lib/db';
 import { generateMagicToken, magicTokenExpiry } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
@@ -163,26 +165,30 @@ export async function POST(req: NextRequest) {
   const serviceNames = serviceRecords.map(s => s.name).join(', ');
   const portalUrl = `${PORTAL_URL}/portal/login?token=${magicToken}`;
 
-  try {
-    const resendId = await sendCareerEmail({
-      to: email,
-      trigger: 'WELCOME',
-      data: { name: client.name, packageLabel: serviceNames, portalUrl },
-    });
-    await db.careerEmailLog.create({
-      data: { clientId: client.id, trigger: 'WELCOME', resendId, status: 'sent' },
-    });
-  } catch (emailErr) {
-    console.error('[career/webhook] Welcome email failed:', emailErr);
-    await db.careerEmailLog.create({
-      data: {
-        clientId: client.id,
-        trigger: 'WELCOME',
-        status: 'failed',
-        metadata: { error: String(emailErr) },
-      },
-    });
-  }
+  waitUntil(
+    (async () => {
+      try {
+        const resendId = await sendCareerEmail({
+          to: email,
+          trigger: 'WELCOME',
+          data: { name: client.name, packageLabel: serviceNames, portalUrl },
+        });
+        await db.careerEmailLog.create({
+          data: { clientId: client.id, trigger: 'WELCOME', resendId, status: 'sent' },
+        });
+      } catch (emailErr) {
+        console.error('[career/webhook] Welcome email failed:', emailErr);
+        await db.careerEmailLog.create({
+          data: {
+            clientId: client.id,
+            trigger: 'WELCOME',
+            status: 'failed',
+            metadata: { error: String(emailErr) },
+          },
+        });
+      }
+    })()
+  );
 
   return NextResponse.json({ received: true });
 }

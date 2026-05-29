@@ -1,5 +1,7 @@
 // src/app/api/razorpay/webhook/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { waitUntil } from '@vercel/functions';
+
 import { prisma } from '@/lib/db';
 import { verifyWebhookSignature } from '@/lib/razorpay';
 import { sendPaymentConfirmationEmail } from '@/lib/email';
@@ -22,7 +24,30 @@ export async function POST(request: NextRequest) {
 
   const payload = JSON.parse(rawBody);
   const event   = payload.event;
-  console.log('Razorpay webhook event:', event);
+  const eventId = request.headers.get('x-razorpay-event-id') ?? `razorpay-${Date.now()}`;
+  console.log('Razorpay webhook event:', event, 'ID:', eventId);
+
+  // Idempotency check
+  if (eventId && !eventId.startsWith('razorpay-')) {
+    try {
+      await prisma.webhookEvent.create({
+        data: {
+          provider: 'RAZORPAY',
+          eventId: eventId,
+          eventType: event,
+          payload: payload,
+          status: 'PROCESSED'
+        }
+      });
+    } catch (e: any) {
+      if (e.code === 'P2002') {
+        console.log(`Webhook ${eventId} already processed, skipping.`);
+        return NextResponse.json({ received: true });
+      }
+      // If it's another DB error, log it but let it crash so Razorpay retries
+      throw e;
+    }
+  }
 
   // ── PAYMENT LINK PAID ────────────────────────────────────────
   if (event === 'payment_link.paid') {
@@ -65,30 +90,44 @@ export async function POST(request: NextRequest) {
         status: newStatus,
         razorpayPaymentId,
         ...(newStatus === 'PAID' ? { paidAt: new Date() } : {}),
-        ...(existing.installmentPlan ? { installments: updatedInstallments as object[] } : {}),
+        ...(existing.installmentPlan && installmentSeq !== null ? { 
+          installments: updatedInstallments as object[],
+          invoiceInstallments: {
+            updateMany: {
+              where: { seq: installmentSeq },
+              data: { status: 'PAID', paidAt: new Date() }
+            }
+          }
+        } : {}),
+
       },
     });
 
     if (newStatus === 'PAID') {
-      sendPaymentConfirmationEmail(invoice as any)
-        .catch(err => console.error('Confirmation email failed:', err));
-      onboardFromInvoice({ ...invoice, razorpayPaymentId })
-        .catch(async (err) => {
-          console.error('[webhook] Career onboarding failed:', err);
-          const { sendCareerEmail } = await import('@/lib/career/email');
-          const adminEmail = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
-          sendCareerEmail({
-            to: adminEmail,
-            trigger: 'MESSAGE_NOTIFY',
-            data: {
-              recipientName: 'Catalyst Team',
-              senderType: 'admin',
-              portalUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/career`,
-              body: `⚠️ ONBOARDING FAILED for ${invoice.clientEmail} (Invoice ${invoice.id}). Error: ${String(err)}. Manual action required.`,
-            },
-          }).catch(console.error);
-        });
+      waitUntil(
+        sendPaymentConfirmationEmail(invoice as any)
+          .catch(err => console.error('Confirmation email failed:', err))
+      );
+      waitUntil(
+        onboardFromInvoice({ ...invoice, razorpayPaymentId })
+          .catch(async (err) => {
+            console.error('[webhook] Career onboarding failed:', err);
+            const { sendCareerEmail } = await import('@/lib/career/email');
+            const adminEmail = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
+            await sendCareerEmail({
+              to: adminEmail,
+              trigger: 'MESSAGE_NOTIFY',
+              data: {
+                recipientName: 'Catalyst Team',
+                senderType: 'admin',
+                portalUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/career`,
+                body: `⚠️ ONBOARDING FAILED for ${invoice.clientEmail} (Invoice ${invoice.id}). Error: ${String(err)}. Manual action required.`,
+              },
+            }).catch(console.error);
+          })
+      );
     }
+
   }
 
   // ── PAYMENT LINK EXPIRED ─────────────────────────────────────

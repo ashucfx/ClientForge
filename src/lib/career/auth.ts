@@ -1,5 +1,8 @@
 // src/lib/career/auth.ts
-// Portal JWT-like token auth — HMAC-SHA256 (Edge-compatible, no jsonwebtoken)
+// Portal JWT-like token auth — uses jose for secure JWTs, falls back to legacy HMAC for existing clients
+
+import { SignJWT, jwtVerify } from 'jose';
+
 
 const COOKIE_NAME = 'cf_portal';
 const DEFAULT_TTL = 60 * 60 * 24 * 7; // 7 days
@@ -58,27 +61,41 @@ export interface PortalPayload {
 export async function createPortalToken(clientId: string, email: string): Promise<string> {
   const secret = getSecret();
   const now = Math.floor(Date.now() / 1000);
-  const payload: PortalPayload = { clientId, email, iat: now, exp: now + DEFAULT_TTL };
-  const payloadB64 = b64urlEncode(new TextEncoder().encode(JSON.stringify(payload)));
-  const sig = b64urlEncode(await hmac(secret, payloadB64));
-  return `${payloadB64}.${sig}`;
+  
+  return new SignJWT({ clientId, email, v: 2 })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt(now)
+    .setExpirationTime(now + DEFAULT_TTL)
+    .sign(new TextEncoder().encode(secret));
 }
+
 
 export async function verifyPortalToken(token: string): Promise<PortalPayload | null> {
   try {
     const secret = getSecret();
-    const parts = token.split('.');
-    if (parts.length !== 2) return null;
-    const [payloadB64, sigB64] = parts;
-    const expected = await hmac(secret, payloadB64);
-    if (!timingSafe(expected, b64urlDecode(sigB64))) return null;
-    const payload = JSON.parse(new TextDecoder().decode(b64urlDecode(payloadB64))) as PortalPayload;
-    if (Math.floor(Date.now() / 1000) > payload.exp) return null;
-    return payload;
+    
+    // 1. Try standard jose JWT verification first
+    try {
+      const { payload } = await jwtVerify(token, new TextEncoder().encode(secret), { algorithms: ['HS256'] });
+      if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+      return payload as unknown as PortalPayload;
+    } catch (joseError) {
+      // 2. Fall back to legacy HMAC-SHA256 logic for existing sessions (Zero-Downtime Migration)
+      const parts = token.split('.');
+      if (parts.length !== 2) return null;
+      const [payloadB64, sigB64] = parts;
+      const expected = await hmac(secret, payloadB64);
+      if (!timingSafe(expected, b64urlDecode(sigB64))) return null;
+      
+      const payload = JSON.parse(new TextDecoder().decode(b64urlDecode(payloadB64))) as PortalPayload;
+      if (Math.floor(Date.now() / 1000) > payload.exp) return null;
+      return payload;
+    }
   } catch {
     return null;
   }
 }
+
 
 // ── Magic Link Token (short-lived, one-time) ─────────────────────────────────
 
