@@ -1,6 +1,6 @@
 // src/emails/career/FinalDeliveryEmail.tsx
 
-import { Section, Text, Row, Column } from '@react-email/components';
+import { Section, Text, Row, Column, Button } from '@react-email/components';
 import * as React from 'react';
 import { EmailBase, EmailHeading, EmailBody, EmailButton, EmailSubheading } from './base/EmailBase';
 
@@ -16,10 +16,9 @@ export function FinalDeliveryEmail({ name, packageLabel, portalUrl, files }: Fin
   return (
     <EmailBase
       preview={`Your ${label} is complete — download your professionally crafted files from Catalyst`}
-      accentColor="#10B981"
     >
-      <Section style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)', borderRadius: '10px', padding: '28px 24px', textAlign: 'center' as const, margin: '0 0 28px' }}>
-        <Text style={{ margin: '0 0 6px', fontSize: '13px', fontWeight: 700, color: '#10B981', textTransform: 'uppercase' as const, letterSpacing: '1.5px' }}>Final Delivery</Text>
+      <Section style={{ backgroundColor: '#0A0B0D', background: 'linear-gradient(135deg, #0A0B0D 0%, #1C1812 60%, #2A1F0E 100%)', borderRadius: '10px', padding: '28px 24px', textAlign: 'center' as const, margin: '0 0 28px' }}>
+        <Text style={{ margin: '0 0 6px', fontSize: '13px', fontWeight: 700, color: '#B8935B', textTransform: 'uppercase' as const, letterSpacing: '1.5px' }}>Final Delivery</Text>
         <Text style={{ margin: '0 0 4px', fontSize: '22px', fontWeight: 700, color: '#f8fafc', textAlign: 'center' as const }}>Your files are ready to download</Text>
         <Text style={{ margin: 0, fontSize: '13px', color: '#94a3b8', textAlign: 'center' as const }}>{label}</Text>
       </Section>
@@ -42,7 +41,7 @@ export function FinalDeliveryEmail({ name, packageLabel, portalUrl, files }: Fin
                   <Text style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{file.label}</Text>
                 </Column>
                 <Column style={{ width: '100px', verticalAlign: 'middle', textAlign: 'right' as const }}>
-                  <a href={file.url} style={{ display: 'inline-block', padding: '6px 16px', backgroundColor: '#B8935B', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 700, textDecoration: 'none' }} target="_blank" rel="noopener noreferrer">Download</a>
+                  <Button href={file.url} style={{ display: 'inline-block', padding: '6px 16px', backgroundColor: '#B8935B', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 700, textDecoration: 'none' }}>Download</Button>
                 </Column>
               </Row>
             ))}

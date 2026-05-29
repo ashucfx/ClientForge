@@ -4,7 +4,7 @@
 
 import {
   Html, Head, Body, Container, Section, Row, Column,
-  Text, Hr, Preview
+  Text, Hr, Preview, Button, Font
 } from '@react-email/components';
 import * as React from 'react';
 import { BRAND_EMAIL, BRAND_WEBSITE_LABEL, BRAND_WEBSITE_URL } from '@/lib/config';
@@ -25,16 +25,41 @@ export function EmailBase({
   return (
     <Html lang="en" dir="ltr">
       <Head>
+        <meta name="color-scheme" content="light dark" />
+        <meta name="supported-color-schemes" content="light dark" />
+        <Font
+          fontFamily="Inter"
+          fallbackFontFamily="Helvetica"
+          webFont={{ url: 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfMZhrib2Bg-4.ttf', format: 'truetype' }}
+          fontWeight={400}
+          fontStyle="normal"
+        />
+        <Font
+          fontFamily="Playfair Display"
+          fallbackFontFamily="Georgia"
+          webFont={{ url: 'https://fonts.gstatic.com/s/playfairdisplay/v30/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvXDXbtM.ttf', format: 'truetype' }}
+          fontWeight={400}
+          fontStyle="normal"
+        />
         <style>{`
           @media only screen and (max-width: 600px) {
             .email-container { width: 100% !important; }
             .email-pad { padding: 28px 20px !important; }
           }
+          @media (prefers-color-scheme: dark) {
+            body { background-color: #0A0B0D !important; }
+            .email-container { background-color: #1a1a1a !important; }
+            .text-body { color: #cbd5e1 !important; }
+            .text-heading { color: #f8fafc !important; }
+            .footer-container { background-color: #111111 !important; }
+            .footer-text { color: #64748b !important; }
+            .divider { border-color: #333333 !important; }
+          }
         `}</style>
       </Head>
       <Preview>{preview}</Preview>
       <Body style={body}>
-        <Container style={container}>
+        <Container className="email-container" style={container}>
 
           {/* ── Header ─────────────────────────────────── */}
           <Section style={header}>
@@ -77,26 +102,26 @@ export function EmailBase({
             {children}
           </Section>
 
-          <Hr style={divider} />
+          <Hr className="divider" style={divider} />
 
           {/* ── Footer ─────────────────────────────────── */}
-          <Section style={footer}>
+          <Section className="footer-container" style={footer}>
             <Row>
               <Column style={{ textAlign: 'center' as const }}>
                 <div style={{ margin: '0 auto 10px', width: '30px' }}>
                   <EmailLogoMark size={30} />
                 </div>
-                <Text style={footerBrand}>CATALYST</Text>
-                <Text style={footerLinks}>
+                <Text className="footer-text" style={footerBrand}>CATALYST</Text>
+                <Text className="footer-text" style={footerLinks}>
                   <a href={BRAND_WEBSITE_URL} style={footerLink}>{BRAND_WEBSITE_LABEL}</a>
                   {'  ·  '}
                   <a href={`mailto:${BRAND_EMAIL}`} style={footerLink}>{BRAND_EMAIL}</a>
                 </Text>
-                <Text style={{ ...footerDisclaimer, marginBottom: '12px' }}>
+                <Text className="footer-text" style={{ ...footerDisclaimer, marginBottom: '12px' }}>
                   © {new Date().getFullYear()} Catalyst. All rights reserved.{' '}
                   This email was sent because a Catalyst package is active for this address.
                 </Text>
-                <Text style={{ margin: 0, fontSize: '10px', color: '#94a3b8', textAlign: 'center', letterSpacing: '0.5px' }}>
+                <Text className="footer-text" style={{ margin: 0, fontSize: '10px', color: '#94a3b8', textAlign: 'center', letterSpacing: '0.5px' }}>
                   Powered by <span style={{ fontWeight: 500, color: '#64748b' }}>Ripple Nexus</span>
                 </Text>
               </Column>
@@ -136,7 +161,7 @@ function EmailLogoMark({ size }: { size: number }) {
             align="center"
             valign="middle"
             style={{
-              fontFamily: 'Georgia, "Times New Roman", serif',
+              fontFamily: '"Playfair Display", Georgia, "Times New Roman", serif',
               fontSize: `${fontSize}px`,
               lineHeight: `${size}px`,
               fontWeight: 700,
@@ -168,11 +193,11 @@ function EmailLogoMark({ size }: { size: number }) {
 }
 
 export function EmailHeading({ children }: { children: React.ReactNode }) {
-  return <Text style={headingStyle}>{children}</Text>;
+  return <Text className="text-heading" style={headingStyle}>{children}</Text>;
 }
 
 export function EmailSubheading({ children }: { children: React.ReactNode }) {
-  return <Text style={subheadingStyle}>{children}</Text>;
+  return <Text className="text-heading" style={subheadingStyle}>{children}</Text>;
 }
 
 export function EmailBody({
@@ -182,7 +207,7 @@ export function EmailBody({
   children: React.ReactNode;
   style?: React.CSSProperties;
 }) {
-  return <Text style={{ ...bodyStyle, ...style }}>{children}</Text>;
+  return <Text className="text-body" style={{ ...bodyStyle, ...style }}>{children}</Text>;
 }
 
 export function EmailButton({
@@ -196,14 +221,12 @@ export function EmailButton({
 }) {
   return (
     <Section style={{ textAlign: 'center' as const, margin: '32px 0' }}>
-      <a
+      <Button
         href={href}
         style={{ ...ctaBtn, backgroundColor: color }}
-        target="_blank"
-        rel="noopener noreferrer"
       >
         {children}
-      </a>
+      </Button>
     </Section>
   );
 }
@@ -257,7 +280,7 @@ export function StatusPill({ label, color }: { label: string; color: string }) {
 
 const body: React.CSSProperties = {
   backgroundColor: '#F0EDE6',
-  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+  fontFamily: '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
   margin: 0,
   padding: '32px 0',
 };
@@ -272,6 +295,7 @@ const container: React.CSSProperties = {
 };
 
 const header: React.CSSProperties = {
+  backgroundColor: '#0A0B0D',
   background: 'linear-gradient(135deg, #0A0B0D 0%, #1C1812 60%, #2A1F0E 100%)',
   padding: 0,
 };
@@ -280,7 +304,7 @@ const brandPrimary: React.CSSProperties = {
   margin: 0,
   fontSize: '16px',
   fontWeight: 400,
-  fontFamily: 'Georgia, "Times New Roman", serif',
+  fontFamily: '"Playfair Display", Georgia, "Times New Roman", serif',
   color: '#F4F1EB',
   lineHeight: '1.2',
   letterSpacing: '1.5px',
@@ -314,7 +338,7 @@ const footerBrand: React.CSSProperties = {
   margin: '0 0 2px',
   fontSize: '12px',
   fontWeight: 400,
-  fontFamily: 'Georgia, "Times New Roman", serif',
+  fontFamily: '"Playfair Display", Georgia, "Times New Roman", serif',
   color: '#B8935B',
   textAlign: 'center' as const,
   letterSpacing: '2px',
