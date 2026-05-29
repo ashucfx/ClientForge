@@ -22,6 +22,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  const { services, forms, ...rest } = client;
+
   // Optimize payload: strip massive base64 file payloads from ALL versions
   // to prevent Vercel 504 timeouts and React rendering freezes.
   const optimizedForms = forms.map((f) => {
