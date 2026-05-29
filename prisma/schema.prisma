@@ -16,6 +16,24 @@ enum ClientType {
   EXECUTIVE_PLUS
 }
 
+enum AdminRole {
+  SUPER_ADMIN
+  EDITOR
+  VIEWER
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  role         AdminRole @default(EDITOR)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+
 enum InvoiceStatus {
   PENDING
   PARTIALLY_PAID
@@ -98,6 +116,10 @@ model Invoice {
   emailSentAt      DateTime?
   emailResendCount Int @default(0)
 
+  // ── Relational Data (New Phase 3) ──────────
+  invoiceLineItems    InvoiceLineItem[]
+  invoiceInstallments InvoiceInstallment[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -179,6 +201,8 @@ model CareerClient {
   invoiceId         String?
   notes               String?
   expectedDeliveryAt  DateTime?
+  draftSentAt         DateTime?
+  completedAt         DateTime?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -326,3 +350,70 @@ model CareerDeleteOtp {
 
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RELATIONAL INVOICE STRUCTURES (PHASE 3)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model InvoiceLineItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  description String
+  qty         Int
+  unitPrice   Float
+  lineTotal   Float
+  createdAt   DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model InvoiceInstallment {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  seq         Int      // e.g. 1, 2, 3
+  amount      Float
+  dueDate     DateTime
+  status      String   @default("PENDING") // PENDING, PAID, CANCELLED, EXPIRED
+  paidAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RELIABILITY & QUEUES (PHASE 2)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  provider    String   // e.g., 'RAZORPAY', 'PAYPAL'
+  eventId     String   @unique // The unique ID from the provider (e.g., razorpay_payment_id or event_id)
+  eventType   String   // e.g., 'payment.captured'
+  payload     Json     // The raw payload
+  status      String   @default("PROCESSED") // 'PROCESSED', 'FAILED'
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([provider, eventId])
+}
+
+model EmailQueue {
+  id          String   @id @default(cuid())
+  to          String
+  trigger     String
+  clientId    String?
+  data        Json?    // Email template data
+  status      String   @default("PENDING") // 'PENDING', 'PROCESSING', 'SENT', 'FAILED'
+  error       String?
+  attempts    Int      @default(0)
+  nextRunAt   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status, nextRunAt])
+}
+
