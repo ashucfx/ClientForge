@@ -235,7 +235,7 @@ export default function CareerClientDetailPage() {
 
       {/* ── FORMS ── */}
       {activeTab === 'forms' && (
-        <FormsTab forms={client.forms} packageType={client.packageType ?? null} />
+        <FormsTab forms={client.forms} packageType={client.packageType ?? null} clientId={client.id} />
       )}
 
       {/* ── FILES ── */}
@@ -963,7 +963,7 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
 
 // ── Forms Tab ─────────────────────────────────────────────────────────────────
 
-function FormsTab({ forms, packageType }: { forms: FormSubmission[]; packageType: CareerPackage | null }) {
+function FormsTab({ forms, packageType, clientId }: { forms: FormSubmission[]; packageType: CareerPackage | null; clientId: string }) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   if (forms.length === 0) {
@@ -1020,7 +1020,7 @@ function FormsTab({ forms, packageType }: { forms: FormSubmission[]; packageType
             {/* Body */}
             {isOpen && (
               <div className="border-t border-slate-100 p-5">
-                <FormDataViewer data={latest.formData} />
+                <FormDataViewer data={latest.formData} clientId={clientId} />
                 {submissions.length > 1 && (
                   <div className="mt-4 pt-4 border-t border-slate-100">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
@@ -1036,7 +1036,7 @@ function FormsTab({ forms, packageType }: { forms: FormSubmission[]; packageType
                             v{s.version} · {fmt(s.submittedAt)}
                           </summary>
                           <div className="mt-2 ml-4">
-                            <FormDataViewer data={s.formData} compact />
+                            <FormDataViewer data={s.formData} compact clientId={clientId} />
                           </div>
                         </details>
                       ))}
@@ -1920,7 +1920,7 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function FormDataViewer({ data, compact = false }: { data: Record<string, unknown>; compact?: boolean }) {
+function FormDataViewer({ data, compact = false, clientId }: { data: Record<string, unknown>; compact?: boolean; clientId: string }) {
   return (
     <div className={`space-y-${compact ? '2' : '3'}`}>
       {Object.entries(data).map(([key, value]) => {
@@ -1945,7 +1945,7 @@ function FormDataViewer({ data, compact = false }: { data: Record<string, unknow
               <dd>
                 {fileObj?.submissionId && fileObj?.fieldKey ? (
                   <a
-                    href={`/api/career/admin/clients/${id}/form-files?submissionId=${fileObj.submissionId}&fieldKey=${fileObj.fieldKey}`}
+                    href={`/api/career/admin/clients/${clientId}/form-files?submissionId=${fileObj.submissionId}&fieldKey=${fileObj.fieldKey}`}
                     target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 text-[#B8935B] hover:text-[#7A5B2E] hover:underline font-medium"
                   >
