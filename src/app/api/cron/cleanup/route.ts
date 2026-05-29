@@ -7,7 +7,13 @@ import { deleteFromCloudinary } from '@/lib/career/cloudinary';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Authenticate cron caller — Vercel injects CRON_SECRET automatically
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const now = new Date();
   let warningCount = 0;
   let deletionCount = 0;
@@ -26,12 +32,15 @@ export async function GET() {
     select: { id: true, email: true, name: true },
   });
 
-  for (const client of warningClients) {
-    const existingLog = await db.careerEmailLog.findFirst({
-      where: { clientId: client.id, trigger: 'CLEANUP_WARNING', status: 'sent' },
-    });
+  const warningClientIds = warningClients.map(c => c.id);
+  const existingWarningLogs = await db.careerEmailLog.findMany({
+    where: { clientId: { in: warningClientIds }, trigger: 'CLEANUP_WARNING', status: 'sent' },
+    select: { clientId: true },
+  });
+  const alreadyWarned = new Set(existingWarningLogs.map(l => l.clientId));
 
-    if (!existingLog) {
+  for (const client of warningClients) {
+    if (!alreadyWarned.has(client.id)) {
       await sendCareerEmail({
         to: client.email,
         trigger: 'MESSAGE_NOTIFY', // Re-using generic template
@@ -66,20 +75,29 @@ export async function GET() {
     select: { id: true },
   });
 
+  const cleanupClientIds = cleanupClients.map(c => c.id);
+  const allDraftsToDelete = await db.careerDeliverable.findMany({
+    where: {
+      clientId: { in: cleanupClientIds },
+      fileCategory: 'draft',
+    },
+  });
+
+  // Group drafts by client
+  const draftsByClient = allDraftsToDelete.reduce((acc, draft) => {
+    if (!acc[draft.clientId]) acc[draft.clientId] = [];
+    acc[draft.clientId].push(draft);
+    return acc;
+  }, {} as Record<string, typeof allDraftsToDelete>);
+
   for (const client of cleanupClients) {
-    // Only fetch 'draft' files. 'final' deliverables are kept.
-    const draftsToDelete = await db.careerDeliverable.findMany({
-      where: {
-        clientId: client.id,
-        fileCategory: 'draft',
-      },
-    });
+    const draftsToDelete = draftsByClient[client.id] || [];
 
     if (draftsToDelete.length > 0) {
       for (const draft of draftsToDelete) {
         // 1. Delete from Cloudinary
         try {
-          await deleteFromCloudinary(draft.publicId);
+          await deleteFromCloudinary(draft.publicId, draft.resourceType);
         } catch (err) {
           console.error(`Failed to delete file from Cloudinary (publicId: ${draft.publicId}):`, err);
           continue; // Skip DB deletion if Cloudinary fails, so we can retry next time

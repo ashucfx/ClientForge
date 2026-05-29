@@ -117,13 +117,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         fileType,
         mimeType:    uploaded.mimeType,
         sizeBytes:   uploaded.sizeBytes,
+        resourceType: uploaded.resourceType,
         originalName: file.name || uploaded.originalName,
         fileCategory,
         uploadedBy:  'admin',
       },
     });
   } catch (dbErr) {
-    await deleteFromCloudinary(uploaded.publicId).catch(console.error);
+    await deleteFromCloudinary(uploaded.publicId, uploaded.resourceType).catch(console.error);
     throw dbErr;
   }
 
@@ -254,7 +255,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   });
   if (!file) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  await deleteFromCloudinary(file.publicId).catch(console.error);
+  await deleteFromCloudinary(file.publicId, file.resourceType).catch(console.error);
   await db.careerDeliverable.delete({ where: { id: fileId } });
 
   return NextResponse.json({ ok: true });
