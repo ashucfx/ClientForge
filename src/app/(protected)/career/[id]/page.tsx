@@ -1660,6 +1660,7 @@ function AttachmentChip({ a, onRemove }: { a: Attachment; onRemove?: () => void 
     <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-medium
       ${isImage ? 'bg-[#FBF8F3] border-[#E8DDD0] text-[#9A7540]' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
       {isImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
         <img src={a.url} alt={a.name} className="w-6 h-6 rounded object-cover flex-shrink-0" />
       ) : (
         <span className="w-6 h-5 flex items-center justify-center bg-slate-200 rounded text-[9px] font-bold text-slate-500 flex-shrink-0">{ext}</span>
@@ -1706,6 +1707,7 @@ function MessageBubble({ c, isAdmin }: { c: CommentItem; isAdmin: boolean }) {
               return isImg ? (
                 <a key={i} href={a.url} target="_blank" rel="noopener noreferrer"
                   className="block rounded-xl overflow-hidden border border-slate-200 hover:opacity-90 transition-opacity">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={a.url} alt={a.name} className="max-h-40 max-w-[220px] object-cover" />
                 </a>
               ) : (
