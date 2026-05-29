@@ -1,7 +1,25 @@
 // src/lib/auth.ts
 import { cookies } from 'next/headers';
+import type { NextRequest } from 'next/server';
 import crypto from 'crypto';
 import { createSessionToken, verifySessionToken } from '@/lib/authToken';
+
+export function verifyCsrf(req: NextRequest): boolean {
+  // Enforce application/json for API routes (forces preflight CORS check, mitigating simple POST CSRF)
+  const contentType = req.headers.get('content-type') || '';
+  if (!contentType.includes('application/json') && !contentType.includes('multipart/form-data')) {
+    return false;
+  }
+
+  // Strict Origin verification
+  const origin = req.headers.get('origin');
+  const allowedOrigin = process.env.NEXT_PUBLIC_APP_URL;
+  if (origin && allowedOrigin && origin !== allowedOrigin && origin !== allowedOrigin.replace('http://', 'https://')) {
+    return false;
+  }
+
+  return true;
+}
 
 
 const COOKIE_NAME = 'cf_admin';
@@ -19,8 +37,33 @@ export function getAdminPassword(): string {
 }
 
 export function hashPassword(password: string): string {
-  const salt = getAdminSessionSecret();
-  return crypto.createHash('sha256').update(password + salt).digest('hex');
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+export function verifyPassword(password: string, stored: string): boolean {
+  // Backwards compatibility for old SHA-256 hashes (which don't contain a colon)
+  if (!stored.includes(':')) {
+    const salt = getAdminSessionSecret();
+    const legacyHash = crypto.createHash('sha256').update(password + salt).digest('hex');
+    try {
+      return crypto.timingSafeEqual(Buffer.from(stored, 'utf8'), Buffer.from(legacyHash, 'utf8'));
+    } catch {
+      return false;
+    }
+  }
+
+  // New scrypt verification
+  const [salt, hash] = stored.split(':');
+  if (!salt || !hash) return false;
+  
+  const attempt = crypto.scryptSync(password, salt, 64).toString('hex');
+  try {
+    return crypto.timingSafeEqual(Buffer.from(hash, 'utf8'), Buffer.from(attempt, 'utf8'));
+  } catch {
+    return false;
+  }
 }
 
 export async function createAdminSessionToken(

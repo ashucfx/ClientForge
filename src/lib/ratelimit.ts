@@ -3,6 +3,8 @@
 // Works across all serverless instances — no Redis required.
 // For high-traffic production, replace with Upstash Redis.
 
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 import { prisma as db } from '@/lib/db';
 
 export interface RateLimitResult {
@@ -11,14 +13,21 @@ export interface RateLimitResult {
   retryAfterSeconds: number;
 }
 
+// Lazy-initialize Redis only if environment variables exist
+const getRedisLimiter = (limit: number, windowMs: number) => {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    return null;
+  }
+  return new Ratelimit({
+    redis: Redis.fromEnv(),
+    limiter: Ratelimit.slidingWindow(limit, `${windowMs} ms`),
+    analytics: false,
+  });
+};
+
 /**
- * Check and record an attempt keyed by `key` (e.g. "pin:{email}" or "ml:{email}").
- * Stores attempts in CareerActivityLog with action = `ratelimit:{action}`.
- *
- * @param key      Unique key for this rate-limit bucket (e.g. "pin:user@email.com")
- * @param action   Short name used as the DB action tag (e.g. "pin_attempt")
- * @param limit    Max allowed attempts in the window
- * @param windowMs Window duration in milliseconds
+ * Check and record an attempt keyed by `key`.
+ * Uses Upstash Redis if configured, otherwise falls back to DB-backed CareerActivityLog.
  */
 export async function rateLimit(
   key: string,
@@ -26,10 +35,26 @@ export async function rateLimit(
   limit: number,
   windowMs: number,
 ): Promise<RateLimitResult> {
+  const redisLimiter = getRedisLimiter(limit, windowMs);
+  
+  if (redisLimiter) {
+    try {
+      const { success, remaining, reset } = await redisLimiter.limit(`rl:${action}:${key}`);
+      return {
+        allowed: success,
+        remaining,
+        retryAfterSeconds: Math.ceil((reset - Date.now()) / 1000),
+      };
+    } catch (err) {
+      console.warn('Redis rate limit failed, falling back to DB:', err);
+      // Fall through to DB fallback
+    }
+  }
+
+  // --- DB Fallback ---
   const cutoff = new Date(Date.now() - windowMs);
   const dbAction = `ratelimit:${action}`;
 
-  // Count recent attempts within the window
   const count = await db.careerActivityLog.count({
     where: {
       action:      dbAction,
@@ -46,7 +71,6 @@ export async function rateLimit(
     };
   }
 
-  // Record this attempt (non-blocking — don't await to keep response fast)
   db.careerActivityLog.create({
     data: { clientId: 'SYSTEM', action: dbAction, performedBy: key },
   }).catch(() => null);
