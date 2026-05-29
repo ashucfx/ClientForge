@@ -109,14 +109,13 @@ export async function POST(req: NextRequest) {
   });
 
   // Sync services on re-purchase (upsert each mapping)
-  if (/* existing client */ !(await db.careerClientService.count({ where: { clientId: client.id } }))) {
-    for (const s of serviceRecords) {
-      await db.careerClientService.upsert({
-        where: { clientId_serviceId: { clientId: client.id, serviceId: s.id } },
-        create: { clientId: client.id, serviceId: s.id },
-        update: {},
-      });
-    }
+  // Always sync services for returning clients (upsert handles duplicates)
+  for (const s of serviceRecords) {
+    await db.careerClientService.upsert({
+      where: { clientId_serviceId: { clientId: client.id, serviceId: s.id } },
+      create: { clientId: client.id, serviceId: s.id },
+      update: {},
+    });
   }
 
   const serviceNames = serviceRecords.map(s => s.name).join(', ');
