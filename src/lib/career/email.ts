@@ -85,6 +85,27 @@ export async function sendCareerEmail({
     }
   });
 
+  // Execute immediately to bypass minutely cron restrictions on Vercel Hobby
+  processCareerEmail({ to, trigger, data, attachmentUrls, clientId })
+    .then(async () => {
+      await db.emailQueue.update({
+        where: { id: queued.id },
+        data: { status: 'SENT', attempts: 1 }
+      });
+    })
+    .catch(async (err) => {
+      console.error(`Failed to send immediate email ${queued.id}:`, err);
+      await db.emailQueue.update({
+        where: { id: queued.id },
+        data: {
+          status: 'FAILED',
+          error: err.message ?? String(err),
+          attempts: 1,
+          nextRunAt: new Date(Date.now() + 5 * 60 * 1000)
+        }
+      });
+    });
+
   return queued.id; // Return the queue ID instead of Resend ID
 }
 
