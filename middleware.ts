@@ -18,8 +18,12 @@ function isPublicPath(pathname: string): boolean {
   if (pathname === '/login') return true;
   if (pathname.startsWith('/api/auth/')) return true;
 
-  // External webhook (authenticated by signature, not cookies)
+  // External webhooks (authenticated by their own signature, not cookies)
   if (pathname === '/api/razorpay/webhook' || pathname.startsWith('/api/razorpay/webhook/')) return true;
+  if (pathname === '/api/paypal/webhook' || pathname.startsWith('/api/paypal/webhook/')) return true;
+
+  // Cron jobs — authenticated by CRON_SECRET inside each route handler
+  if (pathname.startsWith('/api/cron/')) return true;
 
   // Career Booster — career webhook + portal has its own JWT auth
   if (pathname === '/api/career/webhook') return true;
