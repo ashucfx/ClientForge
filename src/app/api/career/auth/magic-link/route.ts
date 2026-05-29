@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma as db } from '@/lib/db';
 import { generateMagicToken, magicTokenExpiry } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
+import { verifyCsrf } from '@/lib/auth';
 import { checkMagicLinkRateLimit } from '@/lib/ratelimit';
 import { withRetry } from '@/lib/career/utils';
 import { PORTAL_URL } from '@/lib/config';
@@ -14,6 +15,10 @@ import { PACKAGE_LABELS } from '@/lib/career/types';
 import type { CareerPackage } from '@/lib/career/types';
 
 export async function POST(req: NextRequest) {
+  if (!verifyCsrf(req)) {
+    return NextResponse.json({ error: 'CSRF token validation failed' }, { status: 403 });
+  }
+
   const body  = await req.json().catch(() => null);
   const email = (body?.email as string | undefined)?.toLowerCase().trim();
 
@@ -36,11 +41,7 @@ export async function POST(req: NextRequest) {
     // Always return 200 — do not reveal whether email exists
     if (!client) return NextResponse.json({ ok: true });
 
-    // Don't regenerate if a valid unexpired token already exists
-    if (client.magicToken && client.magicTokenExpiry && client.magicTokenExpiry > new Date()) {
-      // Already has a valid token — silently skip (client should check their inbox)
-      return NextResponse.json({ ok: true });
-    }
+    // Always regenerate — the user explicitly asked for a new link
 
     const magicToken  = generateMagicToken();
     const tokenExpiry = magicTokenExpiry();

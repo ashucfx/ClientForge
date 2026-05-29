@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
 import { prisma as db } from '@/lib/db';
 import { createPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
+import { verifyCsrf } from '@/lib/auth';
 import { checkPinRateLimit, clearPinFailures } from '@/lib/ratelimit';
 import { withRetry } from '@/lib/career/utils';
 
@@ -17,6 +18,10 @@ function hashPin(pin: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  if (!verifyCsrf(req)) {
+    return NextResponse.json({ error: 'CSRF token validation failed' }, { status: 403 });
+  }
+
   const body  = await req.json().catch(() => null);
   const email = (body?.email as string | undefined)?.toLowerCase().trim();
   const pin   = String(body?.pin ?? '').trim();
@@ -63,7 +68,7 @@ export async function POST(req: NextRequest) {
       secure:   process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path:     '/',
-      maxAge:   60 * 60 * 24 * 30, // 30 days
+      maxAge:   60 * 60 * 24 * 7, // 7 days — matches JWT TTL in career/auth.ts
     });
     return res;
   } catch {
