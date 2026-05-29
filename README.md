@@ -1,292 +1,102 @@
 # ClientForge by Ripple Nexus
 
-Internal client operations workspace by Ripple Nexus. Today it powers Career Booster billing (payment links, multi-currency, branded emails) and is designed to expand into broader invoicing + client onboarding workflows.
+ClientForge is the enterprise-grade Operations Workspace and Client Portal for Ripple Nexus. It handles complex, multi-currency invoicing, client onboarding, deliverable management, secure file sharing, and automated lifecycle communication for the Career Booster program and beyond.
+
+Built for **Vercel** edge deployments with a strict focus on security, performance, and production reliability.
 
 ---
 
-## 🗂️ Folder Structure
+## 🌟 Core Features
 
-```
-ripple-nexus/
-├── .env.local                         # Environment variables (real keys inside)
-├── .env.example                       # Template for reference
-├── next.config.js
-├── tailwind.config.js
-├── tsconfig.json
-├── prisma/
-│   └── schema.prisma                  # PostgreSQL schema (Invoice + ExchangeRateCache)
-└── src/
-    ├── app/
-    │   ├── layout.tsx                 # Root layout (Plus Jakarta Sans font)
-    │   ├── globals.css                # Design tokens, animations
-    │   ├── page.tsx                   # 📊 Dashboard — invoice list + stats
-    │   ├── invoices/
-    │   │   ├── page.tsx               # Redirects → /
-    │   │   ├── new/
-    │   │   │   └── page.tsx           # ➕ Create Invoice form (live pricing preview)
-    │   │   └── [id]/
-    │   │       └── page.tsx           # 📄 Invoice detail view (full premium UI)
-    │   └── api/
-    │       ├── invoices/
-    │       │   ├── route.ts           # GET list / POST create
-    │       │   ├── stats/route.ts     # GET dashboard stats
-    │       │   └── [id]/
-    │       │       ├── route.ts       # GET single / PATCH update
-    │       │       └── resend-email/
-    │       │           └── route.ts   # POST resend invoice email
-    │       ├── currency/
-    │       │   └── route.ts           # GET exchange rates + live pricing preview
-    │       └── razorpay/
-    │           ├── create-link/
-    │           │   └── route.ts       # POST regenerate payment link
-    │           └── webhook/
-    │               └── route.ts       # POST Razorpay webhook (mark PAID)
-    ├── lib/
-    │   ├── db.ts                      # Prisma singleton
-    │   ├── pricing.ts                 # Base prices, fee logic, calculator, formatter
-    │   ├── currency.ts                # Country→currency map, exchange rate fetcher
-    │   ├── razorpay.ts                # Payment link creation + webhook verification
-    │   └── email.ts                   # Resend integration + HTML email templates
-    └── types/
-        └── index.ts                   # Shared TypeScript types
-```
+- **Billing & Invoices**: Multi-currency support (INR via Razorpay, USD/International via PayPal). Dynamic pricing, live exchange rates, and automated receipt generation.
+- **Career Portal (Client-Facing)**: Secure client dashboard protected by Magic Links and PIN login. Clients can download deliverables, request revisions, and chat directly with the admin team.
+- **Admin Workspace**: Centralized hub to manage clients, upload files (resumes, LinkedIn banners), track email deliverability, and handle revision requests.
+- **Robust File Storage**: Cloudinary integration for deliverables, hardened to respect Vercel's strict 4.5MB serverless payload limits.
+- **Automation Engine**: Consolidated background cron jobs (`/api/cron/daily`) to handle reminder emails, invoice expiration, and account lifecycles—optimized specifically for the Vercel Free Plan.
+- **Asynchronous Webhooks**: Both Razorpay and PayPal webhooks utilize `@vercel/functions` `waitUntil()` to process heavy database and email tasks in the background, preventing serverless timeouts.
+- **Enterprise Security**: Rate limiting on authentication routes, strict database typings via Prisma, and edge middleware for route protection.
 
 ---
 
 ## ⚡ Quick Start
 
 ### 1. Prerequisites
-
 - Node.js 18+
-- PostgreSQL (local or hosted — Supabase/Neon free tier works perfectly)
-- npm or pnpm
+- PostgreSQL (Supabase or Neon free tier recommended)
+- Cloudinary Account (for file uploads)
+- Resend Account (for transactional emails)
 
 ### 2. Install dependencies
-
 ```bash
-cd ripple-nexus
 npm install
 ```
 
-### 3. Configure environment
+### 3. Configure Environment Variables
+Copy `.env.example` to `.env.local` and fill in all required keys. See `.env.example` for detailed instructions on acquiring keys.
 
-`.env.local` is already populated with your **live Razorpay keys**:
+**Critical Requirements for Deployment:**
+- `NEXT_PUBLIC_APP_URL`
+- `DATABASE_URL` (Pooling enabled, e.g. `?pgbouncer=true`)
+- `DIRECT_URL` (No pooling, for migrations)
+- Payment Keys: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`
+- Email & Storage: `RESEND_API_KEY`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+- Security: `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`, `CAREER_PORTAL_SECRET`
 
-```
-RAZORPAY_KEY_ID=rzp_live_SajWG4jNWIcHmU
-RAZORPAY_KEY_SECRET=f8yvo1nUfNfNdi3V7dsLc1TF
-```
-
-You still need to fill in:
-
-```bash
-# Your PostgreSQL connection string
-DATABASE_URL=postgresql://user:password@host:5432/ripple_nexus
-
-# Resend email API key — get free at https://resend.com
-RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-# Update this after setting webhook in Razorpay dashboard
-RAZORPAY_WEBHOOK_SECRET=your_webhook_secret
-
-# For production, set your actual domain
-NEXT_PUBLIC_APP_URL=https://invoices.ripplenexus.com
-```
-
-### 4. Set up database
-
-```bash
-npx prisma generate      # Generate Prisma client
-npx prisma db push       # Push schema to your PostgreSQL
-# OR for migrations:
-npx prisma migrate dev --name init
-```
-
-### 5. Run development server
-
-```bash
-npm run dev
-# → http://localhost:3000
-```
-
----
-
-## 🔑 Keys Already Configured
-
-| Service | Key | Status |
-|---------|-----|--------|
-| Razorpay Key ID | `rzp_live_SajWG4jNWIcHmU` | ✅ Live |
-| Razorpay Secret | `f8yvo1nUfNfNdi3V7dsLc1TF` | ✅ Live |
-| Resend | — | ⚠️ Add yours |
-| Exchange Rate API | — | ✅ Uses free fallback (open.er-api.com) |
-
-> ⚠️ **Security**: Never commit `.env.local` to Git. It's in `.gitignore` by default.
-
----
-
-## 💳 Razorpay Webhook Setup
-
-1. Log in to [Razorpay Dashboard](https://dashboard.razorpay.com)
-2. Go to **Settings → Webhooks → Add New Webhook**
-3. Set URL: `https://your-domain.com/api/razorpay/webhook`
-4. Select events: `payment_link.paid`, `payment_link.expired`
-5. Copy the **Webhook Secret** → paste into `.env.local` as `RAZORPAY_WEBHOOK_SECRET`
-
-For local testing, use [ngrok](https://ngrok.com):
-```bash
-ngrok http 3000
-# Use the https URL as your webhook URL
-```
-
----
-
-## 📧 Email Setup (Resend)
-
-1. Sign up at [resend.com](https://resend.com) (free: 3,000 emails/month)
-2. Add and verify your domain (`ripplenexus.com`)
-3. Create an API key → paste as `RESEND_API_KEY`
-4. Set `FROM_EMAIL=invoices@ripplenexus.com`
-
----
-
-## 🌍 Currency System
-
-- **Auto-detection**: Country selected → currency auto-mapped (40+ countries)
-- **Manual override**: Admin can type any ISO 4217 code (e.g. `AED`, `SGD`)
-- **Exchange rates**: Fetched live from `open.er-api.com` (no key needed) or `exchangerate-api.com` (optional key for higher limits)
-- **Cache**: Rates cached in memory for 6 hours to avoid excessive API calls
-- **INR payments**: 2% processing fee
-- **International**: 3.5% processing fee
-- **Locked on creation**: Currency cannot change after invoice is generated
-
----
-
-## 💰 Pricing Reference
-
-| Client Type | Resume (INR) | LinkedIn (INR) | Cover Letter |
-|-------------|-------------|---------------|-------------|
-| Fresher | ₹1,499 | ₹999 | FREE |
-| Mid-Career | ₹1,999 | ₹1,299 | FREE |
-| Executive | ₹3,499 | ₹1,999 | FREE |
-| Executive Plus | ₹4,999 | ₹2,499 | FREE |
-
-All prices converted to client's local currency at live exchange rates.
-
----
-
-## 🏗️ Key API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/invoices` | List all invoices (filters: status, clientType) |
-| POST | `/api/invoices` | Create new invoice |
-| GET | `/api/invoices/:id` | Get single invoice |
-| PATCH | `/api/invoices/:id` | Update invoice |
-| POST | `/api/invoices/:id/resend-email` | Resend invoice email |
-| GET | `/api/invoices/stats` | Dashboard statistics |
-| GET | `/api/currency` | Get exchange rates + live pricing preview |
-| POST | `/api/razorpay/create-link` | (Re)create Razorpay payment link |
-| POST | `/api/razorpay/webhook` | Razorpay webhook (mark paid) |
-
----
-
-## 🗄️ Database Schema
-
-```prisma
-model Invoice {
-  id                String        # cuid
-  invoiceNumber     String        # e.g. RN-2404-8371
-  clientName/Email/Phone/Type/Country
-  currency          String        # ISO 4217, LOCKED on create
-  currencySymbol    String
-  exchangeRate      Float         # INR→currency rate at creation
-  resumeBaseInr / linkedinBaseInr / coverLetterBaseInr
-  resumeConverted / linkedinConverted / coverLetterConverted
-  subtotalConverted / processingFeeRate / processingFeeConverted
-  totalPayable      Float         # Final amount in client currency
-  status            PENDING|PAID|CANCELLED|EXPIRED
-  razorpayLinkId / razorpayLinkUrl / razorpayPaymentId
-  paidAt            DateTime?
-  emailSentAt / emailResendCount
-  invoiceDate / dueDate (7 days)
-}
-```
-
----
-
-## 🚀 Production Deployment
-
-### Vercel (Recommended)
-
-```bash
-npm install -g vercel
-vercel --prod
-```
-
-Add all `.env.local` variables in Vercel dashboard under **Settings → Environment Variables**.
-
-### Docker
-
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY . .
-RUN npm ci && npm run build
-EXPOSE 3000
-CMD ["npm", "start"]
-```
-
-### Database — Recommended Hosts
-- **Supabase** (free PostgreSQL, great DX): supabase.com
-- **Neon** (serverless PostgreSQL, generous free tier): neon.tech
-- **PlanetScale** (MySQL-compatible): planetscale.com
-
----
-
-## 🔐 Security Checklist
-
-- [x] Razorpay webhook signature verified via HMAC-SHA256
-- [x] Currency locked on invoice creation — cannot be changed
-- [x] Razorpay amount matches invoice exactly (smallest unit)
-- [x] Input validation via Zod on all POST routes
-- [x] Admin-only access via middleware + login
-- [ ] Rate limit invoice creation endpoint
-- [ ] Add CORS headers for production
-
-### Admin Authentication
-
-This app is private by default: all routes (including `/api/*`) are protected by `middleware.ts`, and access is granted only after signing in at `/login`.
-
-Set these in production:
-
-```bash
-ADMIN_PASSWORD=your_admin_password
-ADMIN_SESSION_SECRET=your_long_random_secret
-```
-
----
-
-## 🐛 Troubleshooting
-
-**Prisma client not found**
+### 4. Database Setup
+Push the strict Prisma schema to your database:
 ```bash
 npx prisma generate
+npx prisma db push
+```
+Create your first admin user (uses `ADMIN_PASSWORD` from `.env.local`):
+```bash
+node create-admin.js
 ```
 
-**Exchange rate API failing**
-The system automatically falls back to hardcoded approximate rates. For production, get a free key at [exchangerate-api.com](https://www.exchangerate-api.com).
+### 5. Run Development Server
+```bash
+npm run dev
+```
+- Admin Dashboard: `http://localhost:3000/login`
+- Client Portal: `http://localhost:3000/portal/login`
 
-**Razorpay "Currency not supported"**
-Some currencies are not supported by Razorpay international payments. The system will create the payment link — if Razorpay rejects it, fall back to INR or USD.
+---
 
-**Emails not sending**
-- Verify Resend API key is correct
-- Confirm your sending domain is verified in Resend dashboard
-- Check `FROM_EMAIL` domain matches your verified domain
+## 🚀 Production Deployment (Vercel)
+
+ClientForge is heavily optimized for Vercel. 
+
+1. Push your code to GitHub.
+2. Import the repository into Vercel.
+3. Add **all** environment variables from `.env.local` into Vercel's Environment Variables settings.
+4. Deploy.
+
+### Post-Deployment Checklist
+- **Cron Jobs**: Vercel will automatically read `vercel.json` and schedule the master cron job (`/api/cron/daily`) to run every day at 10:00 AM UTC. Verify this in the Vercel Dashboard under **Settings → Cron Jobs**.
+- **Webhooks**: Register your production `NEXT_PUBLIC_APP_URL/api/razorpay/webhook` in Razorpay and `NEXT_PUBLIC_APP_URL/api/paypal/webhook` in PayPal.
+
+---
+
+## 🗄️ Database Architecture (Prisma)
+
+ClientForge uses a highly relational PostgreSQL schema to link Billing and Deliverables.
+- `Invoice`: Handles line items, currencies, and payment gateway references (`razorpayLinkId`, `razorpayPaymentId`).
+- `CareerClient`: The central identity for portal access.
+- `CareerDeliverable`: Tracks files uploaded to Cloudinary, ensuring strict limits and access control.
+- `RevisionItem` & `CommentItem`: Powers the communication and revision workflows between the admin and the client.
+- `EmailLog` & `EmailQueue`: Tracks every transactional email sent, enabling the cron engine to retry failed deliveries.
+
+---
+
+## 🔐 Security Posture
+
+- **Rate Limiting**: Applied to `/api/auth/login`, `/api/career/auth/magic-link`, and `/api/career/auth/pin-login` to prevent brute-force attacks.
+- **Edge Middleware**: Blocks unauthorized access to `/api/career/admin/*` and protected frontend routes before the request even hits the Node.js runtime.
+- **Payload Limits**: Hard 4MB upload limit enforced across the UI, API, and Edge to prevent `413 Payload Too Large` crashes on Vercel.
+- **Strict Build Enforcement**: `ignoreBuildErrors: false` ensures no code is deployed if there are unhandled TypeScript or React Hook violations.
 
 ---
 
 ## 📞 Support
 
-Built for Ripple Nexus internal use.  
-Razorpay Live Key: `rzp_live_SajWG4jNWIcHmU`
+Built for Ripple Nexus internal operations.
