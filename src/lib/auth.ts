@@ -1,7 +1,8 @@
 // src/lib/auth.ts
-
 import { cookies } from 'next/headers';
+import crypto from 'crypto';
 import { createSessionToken, verifySessionToken } from '@/lib/authToken';
+
 
 const COOKIE_NAME = 'cf_admin';
 
@@ -17,7 +18,15 @@ export function getAdminPassword(): string {
   return pwd;
 }
 
-export async function createAdminSessionToken(opts?: { ttlSeconds?: number }): Promise<string> {
+export function hashPassword(password: string): string {
+  const salt = getAdminSessionSecret();
+  return crypto.createHash('sha256').update(password + salt).digest('hex');
+}
+
+export async function createAdminSessionToken(
+  payload: { adminId: string; email: string; role: string },
+  opts?: { ttlSeconds?: number }
+): Promise<string> {
   const configuredTtl = process.env.ADMIN_SESSION_TTL_SECONDS
     ? Number(process.env.ADMIN_SESSION_TTL_SECONDS)
     : undefined;
@@ -26,11 +35,13 @@ export async function createAdminSessionToken(opts?: { ttlSeconds?: number }): P
       ? opts.ttlSeconds
       : (Number.isFinite(configuredTtl) && (configuredTtl as number) > 0 ? (configuredTtl as number) : 60 * 60 * 8); // 8 hours default
 
-  return createSessionToken(getAdminSessionSecret(), { ttlSeconds });
+  return createSessionToken(getAdminSessionSecret(), payload, { ttlSeconds });
 }
 
+
 export async function verifyAdminSessionToken(token: string): Promise<boolean> {
-  return verifySessionToken(getAdminSessionSecret(), token);
+  const payload = await verifySessionToken(getAdminSessionSecret(), token);
+  return payload !== null;
 }
 
 export async function isAdminRequest(): Promise<boolean> {
