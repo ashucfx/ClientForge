@@ -1943,26 +1943,22 @@ function FormDataViewer({ data, compact = false }: { data: Record<string, unknow
             </dt>
             {isFile ? (
               <dd>
-                {isImage && fileObj?.dataUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={fileObj.dataUrl} alt={fileObj.name} className="max-h-40 rounded-lg border border-slate-200 mb-2 object-contain" />
-                )}
-                {fileObj?.dataUrl ? (
+                {fileObj?.submissionId && fileObj?.fieldKey ? (
                   <a
-                    href={fileObj.dataUrl}
-                    download={fileObj.name}
+                    href={`/api/career/admin/clients/${id}/form-files?submissionId=${fileObj.submissionId}&fieldKey=${fileObj.fieldKey}`}
+                    target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 text-[#B8935B] hover:text-[#7A5B2E] hover:underline font-medium"
                   >
                     <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                    {strVal}
+                    Download {strVal}
                     <span className="text-xs text-slate-400 font-normal">
                       {fileObj.size ? `(${(fileObj.size / 1024).toFixed(0)} KB)` : ''}
                     </span>
                   </a>
                 ) : (
-                  <span className="text-[#B8935B] flex items-center gap-1">
+                  <span className="text-slate-400 italic flex items-center gap-1">
                     <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                    <span className="font-medium">{strVal}</span>
+                    <span className="font-medium">{strVal} (File data stripped)</span>
                   </span>
                 )}
               </dd>
