@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
     if (!recentEmail) {
       await sendCareerEmail({
         to: ADMIN_EMAIL,
+        replyTo: client.email,
         trigger: 'MESSAGE_NOTIFY',
         clientId: client.id,
         data: { recipientName: 'Catalyst Team', senderType: 'client', portalUrl: adminPortalUrl },

@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     where: { clientId: payload.clientId },
     orderBy: { createdAt: 'desc' },
     select: {
-      id: true, label: true, fileUrl: true,
+      id: true, label: true,
       fileType: true, mimeType: true,
       fileCategory: true, originalName: true,
       createdAt: true,
