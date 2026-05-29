@@ -5,14 +5,17 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { IconGrid, IconPlus, IconList, IconLogout, IconTarget } from '@/components/Icons';
+import { IconGrid, IconPlus, IconList, IconLogout, IconTarget, IconUser } from '@/components/Icons';
 import { Logo } from '@/components/Logo';
+
 
 const NAV_MAIN = [
   { href: '/',             Icon: IconGrid, label: 'Dashboard'    },
   { href: '/invoices/new', Icon: IconPlus, label: 'New Invoice'  },
   { href: '/invoices',     Icon: IconList, label: 'All Invoices' },
+  { href: '/team',         Icon: IconUser, label: 'Team & Access' },
 ];
+
 
 const NAV_CAREER = [
   { href: '/career', Icon: IconTarget, label: 'Career Booster Services' },

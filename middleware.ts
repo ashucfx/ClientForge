@@ -46,8 +46,21 @@ export async function middleware(request: NextRequest) {
       throw new Error('ADMIN_SESSION_SECRET is not configured');
     }
 
-    const ok = await verifySessionToken(secret, token);
-    if (ok) return NextResponse.next();
+    const payload = await verifySessionToken(secret, token);
+    if (payload && payload.adminId) {
+      // In a strict environment, we'd also check if the admin exists in the DB here,
+      // but since middleware runs on Edge, we rely on the JWT signature and expiration.
+      // Passing the admin role via headers to backend routes
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set('x-admin-id', payload.adminId);
+      requestHeaders.set('x-admin-role', payload.role);
+
+      return NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
+    }
   } catch {
     // Fall through to redirect/401 below
   }
