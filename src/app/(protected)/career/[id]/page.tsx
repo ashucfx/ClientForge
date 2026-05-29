@@ -1928,7 +1928,7 @@ function FormDataViewer({ data, compact = false }: { data: Record<string, unknow
         const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         const isFile = typeof value === 'object' && value !== null && 'name' in value && !Array.isArray(value);
         const isArray = Array.isArray(value);
-        const fileObj = isFile ? (value as { name: string; size?: number; dataUrl?: string }) : null;
+        const fileObj = isFile ? (value as { name: string; size?: number; dataUrl?: string; submissionId?: string; fieldKey?: string }) : null;
         const strVal = isFile
           ? fileObj!.name
           : isArray
