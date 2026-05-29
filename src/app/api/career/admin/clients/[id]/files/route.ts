@@ -11,6 +11,8 @@ import { sendCareerEmail } from '@/lib/career/email';
 import type { EmailTrigger } from '@/lib/career/types';
 import { PORTAL_URL } from '@/lib/config';
 import { resolvePackageLabel } from '@/lib/career/utils';
+import { waitUntil } from '@vercel/functions';
+
 
 const MAX_DRAFT_FILES = 7;
 const MAX_FINAL_FILES = 10;
@@ -165,17 +167,25 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           return NextResponse.json({ file: deliverable, emailTrigger: null }, { status: 201 });
         }
 
-        sendCareerEmail({
-          to:       clientFull.email,
-          trigger:  emailTrigger,
-          clientId: params.id,
-          data: {
-            name: clientFull.name,
-            packageLabel: fileTypeToEmailLabel(fileType, overallLabel),
-            portalUrl,
-            revisionsLeft,
-          },
-        }).catch(err => console.error('[files POST] Draft email failed:', err));
+        waitUntil(
+          sendCareerEmail({
+            to:       clientFull.email,
+            trigger:  emailTrigger,
+            clientId: params.id,
+            data: {
+              name: clientFull.name,
+              packageLabel: fileTypeToEmailLabel(fileType, overallLabel),
+              portalUrl,
+              revisionsLeft,
+            },
+          }).catch(err => console.error('[files POST] Draft email failed:', err))
+        );
+
+        // Auto-sync status to DRAFT_SENT and reset draftSentAt clock
+        await db.careerClient.update({
+          where: { id: params.id },
+          data: { status: 'DRAFT_SENT', draftSentAt: new Date() }
+        });
 
       } else {
         // Final deliverable — dedup: only send FINAL_DELIVERY email once per client
@@ -196,25 +206,35 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
             ['LINKEDIN', 'FULL'].includes(clientFull.packageType ?? '');
 
           if (hasLinkedIn) {
-            sendCareerEmail({
-              to:      clientFull.email,
-              trigger: 'LINKEDIN_SECURITY',
-              data:    { name: clientFull.name },
-            }).catch(console.error);
+            waitUntil(
+              sendCareerEmail({
+                to:      clientFull.email,
+                trigger: 'LINKEDIN_SECURITY',
+                data:    { name: clientFull.name },
+              }).catch(console.error)
+            );
           }
 
-          sendCareerEmail({
-            to:       clientFull.email,
-            trigger:  emailTrigger,
-            clientId: params.id,
-            data: {
-              name:         clientFull.name,
-              packageLabel: overallLabel,
-              portalUrl,
-              files:        allFinals.map(f => ({ label: f.label, url: f.fileUrl })),
-            },
-          }).catch(err => console.error('[files POST] Final email failed:', err));
+          waitUntil(
+            sendCareerEmail({
+              to:       clientFull.email,
+              trigger:  emailTrigger,
+              clientId: params.id,
+              data: {
+                name:         clientFull.name,
+                packageLabel: overallLabel,
+                portalUrl,
+                files:        allFinals.map(f => ({ label: f.label, url: f.fileUrl })),
+              },
+            }).catch(err => console.error('[files POST] Final email failed:', err))
+          );
         }
+
+        // Auto-sync status to COMPLETED and set completedAt clock
+        await db.careerClient.update({
+          where: { id: params.id },
+          data: { status: 'COMPLETED', completedAt: new Date() }
+        });
       }
     }
   }

@@ -10,6 +10,8 @@ import { STATUS_LABELS } from '@/lib/career/types';
 import type { CareerStatus, EmailTrigger } from '@/lib/career/types';
 import { PORTAL_URL } from '@/lib/config';
 import { resolvePackageLabel } from '@/lib/career/utils';
+import { waitUntil } from '@vercel/functions';
+
 
 /** Choose which draft email to send based on the client's services */
 function resolveDraftTrigger(client: {
@@ -70,9 +72,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }, { status: 422 });
   }
 
+  const updateData: any = { status: newStatus };
+  if (newStatus === 'DRAFT_SENT') updateData.draftSentAt = new Date();
+  if (newStatus === 'COMPLETED') updateData.completedAt = new Date();
+
   const client = await db.careerClient.update({
     where: { id: params.id },
-    data: { status: newStatus },
+    data: updateData,
     select: {
       id: true, name: true, email: true,
       packageType: true, status: true,
@@ -145,19 +151,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       });
     }
 
-    for (const item of emailTriggersToSend) {
-      sendCareerEmail({
-        to: client.email,
-        trigger: item.trigger,
-        clientId: client.id,
-        data: item.data,
-      }).catch((err) => {
-        console.error('[status PATCH] Email failed:', err);
-      });
-    }
+    waitUntil((async () => {
+      for (const item of emailTriggersToSend) {
+        await sendCareerEmail({
+          to: client.email,
+          trigger: item.trigger,
+          clientId: client.id,
+          data: item.data,
+        }).catch((err) => {
+          console.error('[status PATCH] Email failed:', err);
+        });
+      }
+    })());
   }
 
   return NextResponse.json({
+
     ok: true,
     status: client.status,
     statusLabel: STATUS_LABELS[newStatus],
