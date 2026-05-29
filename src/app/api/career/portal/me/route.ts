@@ -77,6 +77,25 @@ export async function GET(req: NextRequest) {
   const revisionCount  = client.revisions.length;
   const revisionsLeft  = Math.max(0, 2 - revisionCount);
 
+  // Fallback for legacy clients without expectedDeliveryAt
+  let fallbackDeliveryAt = null;
+  if (!client.expectedDeliveryAt && client.forms.length > 0) {
+    // Find the earliest form submission
+    const earliestForm = client.forms.reduce((earliest: any, current: any) => {
+      return new Date(current.submittedAt) < new Date(earliest.submittedAt) ? current : earliest;
+    });
+    
+    // Add 5 business days
+    const d = new Date(earliestForm.submittedAt);
+    let added = 0;
+    while (added < 5) {
+      d.setDate(d.getDate() + 1);
+      const dow = d.getDay();
+      if (dow !== 0 && dow !== 6) added++;
+    }
+    fallbackDeliveryAt = d.toISOString();
+  }
+
   return NextResponse.json({
     id: client.id,
     name: client.name,
@@ -88,7 +107,7 @@ export async function GET(req: NextRequest) {
     hasPinSet: !!client.pinHash,
     currency: client.currency,
     createdAt: client.createdAt,
-    expectedDeliveryAt: client.expectedDeliveryAt ?? null,
+    expectedDeliveryAt: client.expectedDeliveryAt ?? fallbackDeliveryAt,
     revisionCount,
     revisionsLeft,
     availableForms,

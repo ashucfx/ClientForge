@@ -8,6 +8,8 @@ import { cookies } from 'next/headers';
 import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
+import { waitUntil } from '@vercel/functions';
+
 
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
 const PORTAL_URL  =
@@ -86,17 +88,19 @@ export async function POST(req: NextRequest) {
 
   // Notify admin that a revision has been requested
   const fileContext = fileLabel ? ` regarding "${fileLabel}"` : '';
-  sendCareerEmail({
-    to: ADMIN_EMAIL,
-    trigger: 'MESSAGE_NOTIFY',
-    data: {
-      recipientName: 'Catalyst Team',
-      senderType: 'client',
-      portalUrl: `${PORTAL_URL}/career/${client.id}?tab=revisions`,
-      subject: `Catalyst — ${client.name} has requested a revision`,
-      body: `${client.name} has submitted a new revision request${fileContext}. Log in to the admin panel to review and approve or deny it.\n\nRequest: "${note.slice(0, 200)}${note.length > 200 ? '…' : ''}"`,
-    },
-  }).catch(console.error);
+  waitUntil(
+    sendCareerEmail({
+      to: ADMIN_EMAIL,
+      trigger: 'MESSAGE_NOTIFY',
+      data: {
+        recipientName: 'Catalyst Team',
+        senderType: 'client',
+        portalUrl: `${PORTAL_URL}/career/${client.id}?tab=revisions`,
+        subject: `Catalyst — ${client.name} has requested a revision`,
+        body: `${client.name} has submitted a new revision request${fileContext}. Log in to the admin panel to review and approve or deny it.\n\nRequest: "${note.slice(0, 200)}${note.length > 200 ? '…' : ''}"`,
+      },
+    }).catch(console.error)
+  );
 
   return NextResponse.json({ ok: true, revision }, { status: 201 });
 }

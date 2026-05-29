@@ -10,6 +10,8 @@ import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
 import { getFormsForServices, PACKAGE_FORMS, normalizeFormType, legacyAliasesFor } from '@/lib/career/types';
 import type { FormType, CareerServiceSlug } from '@/lib/career/types';
+import { waitUntil } from '@vercel/functions';
+
 
 const VALID_FORM_TYPES: FormType[] = ['career_profile', 'linkedin_profile', 'portfolio_website'];
 
@@ -133,15 +135,17 @@ export async function POST(req: NextRequest, { params }: { params: { type: strin
     },
   });
 
-  sendCareerEmail({
-    to: client.email,
-    trigger: 'FORM_CONFIRM',
-    data: { name: client.name, formLabel: FORM_LABELS[formType] },
-  }).then(async (resendId) => {
-    await db.careerEmailLog.create({
-      data: { clientId: client.id, trigger: 'FORM_CONFIRM', resendId, status: 'sent' },
-    });
-  }).catch(console.error);
+  waitUntil(
+    sendCareerEmail({
+      to: client.email,
+      trigger: 'FORM_CONFIRM',
+      data: { name: client.name, formLabel: FORM_LABELS[formType] },
+    }).then(async (resendId) => {
+      await db.careerEmailLog.create({
+        data: { clientId: client.id, trigger: 'FORM_CONFIRM', resendId, status: 'sent' },
+      });
+    }).catch(console.error)
+  );
 
   return NextResponse.json({ ok: true, submissionId: submission.id, version: nextVersion });
 }

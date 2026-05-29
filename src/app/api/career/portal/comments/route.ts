@@ -7,6 +7,8 @@ import { cookies } from 'next/headers';
 import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
+import { waitUntil } from '@vercel/functions';
+
 
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
 const PORTAL_URL  =
@@ -77,16 +79,18 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  sendCareerEmail({
-    to:      ADMIN_EMAIL,
-    trigger: 'MESSAGE_NOTIFY',
-    data: {
-      recipientName: 'Catalyst Team',
-      senderType:    'client',
-      portalUrl:     `${PORTAL_URL}/career/${client.id}`,
-      body:          `${client.name} sent a new message. Open the admin panel to view and reply.`,
-    },
-  }).catch(console.error);
+  waitUntil(
+    sendCareerEmail({
+      to:      ADMIN_EMAIL,
+      trigger: 'MESSAGE_NOTIFY',
+      data: {
+        recipientName: 'Catalyst Team',
+        senderType:    'client',
+        portalUrl:     `${PORTAL_URL}/career/${client.id}`,
+        body:          `${client.name} sent a new message. Open the admin panel to view and reply.`,
+      },
+    }).catch(console.error)
+  );
 
   return NextResponse.json({ ok: true, comment }, { status: 201 });
 }

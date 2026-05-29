@@ -8,6 +8,8 @@ import { cookies } from 'next/headers';
 import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
+import { waitUntil } from '@vercel/functions';
+
 
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
 const PORTAL_URL  =
@@ -61,13 +63,30 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Email notification to admin
+  // Email notification to admin with 5-minute debounce
   const adminPortalUrl = `${PORTAL_URL}/career/${client.id}`;
-  sendCareerEmail({
-    to: ADMIN_EMAIL,
-    trigger: 'MESSAGE_NOTIFY',
-    data: { recipientName: 'Catalyst Team', senderType: 'client', portalUrl: adminPortalUrl },
-  }).catch(console.error);
+  
+  waitUntil((async () => {
+    // Check for recent emails to debounce
+    const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const recentEmail = await db.careerEmailLog.findFirst({
+      where: {
+        clientId: client.id,
+        trigger: 'MESSAGE_NOTIFY',
+        sentAt: { gte: fiveMinsAgo }
+      }
+    });
+
+    if (!recentEmail) {
+      await sendCareerEmail({
+        to: ADMIN_EMAIL,
+        trigger: 'MESSAGE_NOTIFY',
+        clientId: client.id,
+        data: { recipientName: 'Catalyst Team', senderType: 'client', portalUrl: adminPortalUrl },
+      }).catch(console.error);
+    }
+  })());
 
   return NextResponse.json({ message }, { status: 201 });
+
 }
