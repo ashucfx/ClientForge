@@ -22,19 +22,24 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const { services, forms, ...rest } = client;
-  
-  // Optimize payload: only send formData for the latest version of each form type.
-  // Historical versions can contain massive base64 file payloads which crash the serverless edge response.
-  const optimizedForms = forms.map((f, i, arr) => {
-    const isLatest = !arr.some(other => other.formType === f.formType && other.version > f.version);
-    if (!isLatest) {
-      return { 
-        ...f, 
-        formData: { _omitted: 'Payload omitted for performance. Only the latest version is loaded.' } 
-      };
+  // Optimize payload: strip massive base64 file payloads from ALL versions
+  // to prevent Vercel 504 timeouts and React rendering freezes.
+  const optimizedForms = forms.map((f) => {
+    let cleanData = f.formData as Record<string, any>;
+    if (typeof cleanData === 'object' && cleanData !== null) {
+      cleanData = JSON.parse(JSON.stringify(cleanData)); // deep clone
+      for (const key of Object.keys(cleanData)) {
+        const val = cleanData[key];
+        if (typeof val === 'object' && val !== null && 'dataUrl' in val) {
+          if (typeof val.dataUrl === 'string') {
+            val.dataUrl = null; // STRIP IT!
+            val.submissionId = f.id;
+            val.fieldKey = key;
+          }
+        }
+      }
     }
-    return f;
+    return { ...f, formData: cleanData };
   });
 
   return NextResponse.json({
