@@ -22,11 +22,25 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  // Flatten services: [{ service: { slug, name } }] → [{ slug, name }]
-  const { services, ...rest } = client;
+  const { services, forms, ...rest } = client;
+  
+  // Optimize payload: only send formData for the latest version of each form type.
+  // Historical versions can contain massive base64 file payloads which crash the serverless edge response.
+  const optimizedForms = forms.map((f, i, arr) => {
+    const isLatest = !arr.some(other => other.formType === f.formType && other.version > f.version);
+    if (!isLatest) {
+      return { 
+        ...f, 
+        formData: { _omitted: 'Payload omitted for performance. Only the latest version is loaded.' } 
+      };
+    }
+    return f;
+  });
+
   return NextResponse.json({
     client: {
       ...rest,
+      forms: optimizedForms,
       services: services.map(s => ({ slug: s.service.slug, name: s.service.name })),
     },
   });
