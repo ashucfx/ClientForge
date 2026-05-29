@@ -180,12 +180,13 @@ export async function uploadToCloudinary(
   };
 }
 
-export async function deleteFromCloudinary(publicId: string): Promise<void> {
+export async function deleteFromCloudinary(publicId: string, knownResourceType?: string): Promise<void> {
   const timestamp = String(Math.floor(Date.now() / 1000));
 
-  // Try each resource type — Cloudinary requires the correct type for deletion.
-  // Files uploaded via /auto/upload may land as 'image', 'video', or 'raw'.
-  for (const resourceType of ['raw', 'image', 'video']) {
+  // Try the known resource type first if provided, otherwise try all 3
+  const typesToTry = knownResourceType ? [knownResourceType] : ['raw', 'image', 'video'];
+
+  for (const resourceType of typesToTry) {
     const signature = await buildSignature({ public_id: publicId, resource_type: resourceType, timestamp });
     const body = new URLSearchParams({ public_id: publicId, api_key: API_KEY, timestamp, resource_type: resourceType, signature });
 

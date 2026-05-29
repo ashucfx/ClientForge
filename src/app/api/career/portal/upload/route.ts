@@ -16,7 +16,7 @@ const ALLOWED = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/msword',
 ]);
-const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_SIZE = 4 * 1024 * 1024; // 4 MB
 
 export async function POST(req: NextRequest) {
   const token = cookies().get(PORTAL_COOKIE)?.value ?? '';
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unsupported file type. Allowed: PNG, JPG, PDF, DOCX.' }, { status: 400 });
   }
   if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: 'File too large (max 10 MB).' }, { status: 400 });
+    return NextResponse.json({ error: 'File too large (max 4 MB).' }, { status: 400 });
   }
 
   const validation = await validateFileContent(file, file.type);
