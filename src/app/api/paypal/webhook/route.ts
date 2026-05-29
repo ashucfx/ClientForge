@@ -14,6 +14,7 @@ import { sendPaymentConfirmationEmail } from '@/lib/email';
 import { onboardFromInvoice } from '@/lib/career/onboarding';
 import { sendCareerEmail } from '@/lib/career/email';
 import { ADMIN_EMAIL } from '@/lib/config';
+import { waitUntil } from '@vercel/functions';
 import type { Installment } from '@/types';
 
 export async function POST(request: NextRequest) {
@@ -68,31 +69,38 @@ export async function POST(request: NextRequest) {
         data:  { status: 'PAID', paidAt: new Date() },
       });
 
-      sendPaymentConfirmationEmail(updatedInvoice as any)
-        .catch(err => console.error('[PayPal webhook] Confirmation email failed:', err));
+      waitUntil(
+        sendPaymentConfirmationEmail(updatedInvoice as any)
+          .catch(err => console.error('[PayPal webhook] Confirmation email failed:', err))
+      );
 
-      onboardFromInvoice(updatedInvoice)
-        .catch(async (err) => {
-          console.error('[PayPal webhook] Career onboarding failed:', err);
-          sendCareerEmail({
-            to: ADMIN_EMAIL,
-            trigger: 'MESSAGE_NOTIFY',
-            data: {
-              recipientName: 'Catalyst Team',
-              senderType: 'admin',
-              portalUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/career`,
-              body: `⚠️ ONBOARDING FAILED for ${updatedInvoice.clientEmail} (Invoice ${updatedInvoice.id}). Error: ${String(err)}. Manual action required.`,
-            },
-          }).catch(console.error);
-        });
+      waitUntil(
+        onboardFromInvoice(updatedInvoice)
+          .catch(async (err) => {
+            console.error('[PayPal webhook] Career onboarding failed:', err);
+            sendCareerEmail({
+              to: ADMIN_EMAIL,
+              trigger: 'MESSAGE_NOTIFY',
+              data: {
+                recipientName: 'Catalyst Team',
+                senderType: 'admin',
+                portalUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/career`,
+                body: `⚠️ ONBOARDING FAILED for ${updatedInvoice.clientEmail} (Invoice ${updatedInvoice.id}). Error: ${String(err)}. Manual action required.`,
+              },
+            }).catch(console.error);
+          })
+      );
 
     } else {
       // Check if it matches an instalment's paypalInvoiceId
-      const splitInvoice = await prisma.invoice.findFirst({
-        where: {
-          installmentPlan: true,
-          installments:    { path: ['$[*].paypalInvoiceId'], array_contains: paypalInvoiceId },
-        },
+      // PostgreSQL doesn't support array_contains with path on JSON columns in Prisma
+      // Fetch pending split invoices and filter in-memory
+      const splitInvoices = await prisma.invoice.findMany({
+        where: { installmentPlan: true, status: { not: 'PAID' } },
+      });
+      const splitInvoice = splitInvoices.find(inv => {
+        const installs = inv.installments as unknown as Installment[];
+        return Array.isArray(installs) && installs.some(i => i.paypalInvoiceId === paypalInvoiceId);
       });
 
       if (!splitInvoice) {
@@ -121,23 +129,27 @@ export async function POST(request: NextRequest) {
       });
 
       if (allPaid) {
-        sendPaymentConfirmationEmail(updatedInvoice as any)
-          .catch(err => console.error('[PayPal webhook] Confirmation email failed:', err));
+        waitUntil(
+          sendPaymentConfirmationEmail(updatedInvoice as any)
+            .catch(err => console.error('[PayPal webhook] Confirmation email failed:', err))
+        );
 
-        onboardFromInvoice(updatedInvoice)
-          .catch(async (err) => {
-            console.error('[PayPal webhook] Career onboarding failed:', err);
-            sendCareerEmail({
-              to: ADMIN_EMAIL,
-              trigger: 'MESSAGE_NOTIFY',
-              data: {
-                recipientName: 'Catalyst Team',
-                senderType: 'admin',
-                portalUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/career`,
-                body: `⚠️ ONBOARDING FAILED for ${updatedInvoice.clientEmail} (Invoice ${updatedInvoice.id}). Error: ${String(err)}. Manual action required.`,
-              },
-            }).catch(console.error);
-          });
+        waitUntil(
+          onboardFromInvoice(updatedInvoice)
+            .catch(async (err) => {
+              console.error('[PayPal webhook] Career onboarding failed:', err);
+              sendCareerEmail({
+                to: ADMIN_EMAIL,
+                trigger: 'MESSAGE_NOTIFY',
+                data: {
+                  recipientName: 'Catalyst Team',
+                  senderType: 'admin',
+                  portalUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/career`,
+                  body: `⚠️ ONBOARDING FAILED for ${updatedInvoice.clientEmail} (Invoice ${updatedInvoice.id}). Error: ${String(err)}. Manual action required.`,
+                },
+              }).catch(console.error);
+            })
+        );
       }
     }
   }

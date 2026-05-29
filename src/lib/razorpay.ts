@@ -165,11 +165,13 @@ export function verifyWebhookSignature(
   secret: string,
 ): boolean {
   const expected = createHmac('sha256', secret).update(body).digest('hex');
+  // Reject immediately if lengths differ — prevents padding-based bypass
+  if (expected.length !== signature.length) return false;
   try {
-    // Timing-safe comparison — prevents timing oracle attacks
+    // Timing-safe comparison using UTF-8 (safe for hex digests)
     return timingSafeEqual(
-      Buffer.from(expected, 'hex'),
-      Buffer.from(signature.padEnd(expected.length, '\0'), 'hex'),
+      Buffer.from(expected, 'utf8'),
+      Buffer.from(signature, 'utf8'),
     );
   } catch {
     return false;
