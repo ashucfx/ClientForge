@@ -22,9 +22,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'CSRF token validation failed' }, { status: 403 });
     }
 
-    const body = await request.json().catch(() => null) as { email?: string; password?: string } | null;
+    const body = await request.json().catch(() => null) as { email?: string; password?: string; brand?: string } | null;
     const email = body?.email ?? '';
     const password = body?.password ?? '';
+    const brand = body?.brand ?? 'catalyst';
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
@@ -38,8 +39,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid credentials or inactive account' }, { status: 401 });
     }
 
-    if (!verifyPassword(password, adminUser.passwordHash)) {
+    if (!(await verifyPassword(password, adminUser.passwordHash))) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    }
+
+    // Verify brand access strictly
+    const isSuperAdmin = adminUser.role === 'SUPER_ADMIN';
+    if (!isSuperAdmin && !adminUser.brandAccess.includes(brand)) {
+      return NextResponse.json(
+        { error: `Account does not have access to the ${brand === 'catalyst' ? 'Catalyst' : 'Ripple Nexus'} portal.` },
+        { status: 403 }
+      );
     }
 
     // Update last login
@@ -52,9 +62,14 @@ export async function POST(request: NextRequest) {
       adminId: adminUser.id,
       email: adminUser.email,
       role: adminUser.role,
+      brandAccess: adminUser.brandAccess,
+      activeTenant: brand, // 🔐 Cryptographically embedded — cannot be tampered via XSS
     });
     
-    const res = NextResponse.json({ ok: true, role: adminUser.role });
+    // Determine post-login redirect based on tenant
+    const redirectTo = brand === 'ripple_nexus' ? '/rn/dashboard' : '/';
+    
+    const res = NextResponse.json({ ok: true, role: adminUser.role, brandAccess: adminUser.brandAccess, redirectTo });
 
 
     res.cookies.set({
@@ -65,6 +80,17 @@ export async function POST(request: NextRequest) {
       secure:   process.env.NODE_ENV === 'production',
       path:     '/',
       maxAge:   60 * 60 * 8, // 8 hours — matches token TTL
+    });
+    
+    // Set the active brand cookie — now httpOnly so XSS cannot forge tenant context
+    res.cookies.set({
+      name:     'cf_active_brand',
+      value:    brand,
+      httpOnly: true, // 🔐 Fixed: was false — XSS could tamper brand context
+      sameSite: 'lax',
+      path:     '/',
+      maxAge:   60 * 60 * 8,
+      secure:   process.env.NODE_ENV === 'production',
     });
     return res;
   } catch (e) {

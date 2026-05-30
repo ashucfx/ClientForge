@@ -2,7 +2,10 @@
 import { cookies } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import crypto from 'crypto';
+import { promisify } from 'util';
 import { createSessionToken, verifySessionToken } from '@/lib/authToken';
+
+const scryptAsync = promisify(crypto.scrypt);
 
 export function verifyCsrf(req: NextRequest): boolean {
   // Enforce application/json for API routes (forces preflight CORS check, mitigating simple POST CSRF)
@@ -36,13 +39,14 @@ export function getAdminPassword(): string {
   return pwd;
 }
 
-export function hashPassword(password: string): string {
+export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  const derivedKey = (await scryptAsync(password, salt, 64)) as Buffer;
+  const hash = derivedKey.toString('hex');
   return `${salt}:${hash}`;
 }
 
-export function verifyPassword(password: string, stored: string): boolean {
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   // Backwards compatibility for old SHA-256 hashes (which don't contain a colon)
   if (!stored.includes(':')) {
     const salt = getAdminSessionSecret();
@@ -58,8 +62,9 @@ export function verifyPassword(password: string, stored: string): boolean {
   const [salt, hash] = stored.split(':');
   if (!salt || !hash) return false;
   
-  const attempt = crypto.scryptSync(password, salt, 64).toString('hex');
   try {
+    const derivedKey = (await scryptAsync(password, salt, 64)) as Buffer;
+    const attempt = derivedKey.toString('hex');
     return crypto.timingSafeEqual(Buffer.from(hash, 'utf8'), Buffer.from(attempt, 'utf8'));
   } catch {
     return false;
@@ -67,7 +72,7 @@ export function verifyPassword(password: string, stored: string): boolean {
 }
 
 export async function createAdminSessionToken(
-  payload: { adminId: string; email: string; role: string },
+  payload: { adminId: string; email: string; role: string; brandAccess: string[]; activeTenant: string },
   opts?: { ttlSeconds?: number }
 ): Promise<string> {
   const configuredTtl = process.env.ADMIN_SESSION_TTL_SECONDS
@@ -78,7 +83,7 @@ export async function createAdminSessionToken(
       ? opts.ttlSeconds
       : (Number.isFinite(configuredTtl) && (configuredTtl as number) > 0 ? (configuredTtl as number) : 60 * 60 * 8); // 8 hours default
 
-  return createSessionToken(getAdminSessionSecret(), payload, { ttlSeconds });
+  return createSessionToken(getAdminSessionSecret(), { ...payload, activeTenant: payload.activeTenant }, { ttlSeconds });
 }
 
 
@@ -94,6 +99,29 @@ export async function isAdminRequest(): Promise<boolean> {
     return verifyAdminSessionToken(token);
   } catch {
     return false;
+  }
+}
+
+export async function getAdminSession(): Promise<{ adminId: string; role: string; brandAccess: string[]; activeTenant: string } | null> {
+  try {
+    const token = cookies().get(COOKIE_NAME)?.value;
+    if (!token) return null;
+    const payload = await verifySessionToken(getAdminSessionSecret(), token);
+    if (!payload) return null;
+    // Derive activeTenant from JWT first (v3+), fall back to first brand in brandAccess for legacy tokens
+    const brandAccess = Array.isArray(payload.brandAccess) ? payload.brandAccess : [];
+    let activeTenant = payload.activeTenant as string;
+    if (!activeTenant) {
+      activeTenant = brandAccess.includes('catalyst') ? 'catalyst' : (brandAccess[0] ?? 'catalyst');
+    }
+    return {
+      adminId: payload.adminId,
+      role: payload.role,
+      brandAccess,
+      activeTenant,
+    };
+  } catch {
+    return null;
   }
 }
 

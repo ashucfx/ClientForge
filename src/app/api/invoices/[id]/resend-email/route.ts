@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { sendInvoiceEmail } from '@/lib/email';
-import { isAdminRequest } from '@/lib/auth';
+import { getAdminSession } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,12 +11,16 @@ export async function POST(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  if (!(await isAdminRequest())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const invoice = await prisma.invoice.findUnique({ where: { id: params.id } });
   if (!invoice) {
     return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+  }
+  if (session.role !== 'SUPER_ADMIN' && !session.brandAccess.includes(invoice.brandId)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   try {

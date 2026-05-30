@@ -203,3 +203,47 @@ export function IconPlus({ size = 18, style }: { size?: number; style?: CSSPrope
     </StrokeIcon>
   );
 }
+
+export function IconBuilding({ size = 18, style }: { size?: number; style?: CSSProperties }) {
+  return (
+    <StrokeIcon size={size} style={style}>
+      <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+      <path d="M9 22v-4h6v4" />
+      <path d="M8 6h.01" />
+      <path d="M16 6h.01" />
+      <path d="M12 6h.01" />
+      <path d="M12 10h.01" />
+      <path d="M12 14h.01" />
+      <path d="M16 10h.01" />
+      <path d="M16 14h.01" />
+      <path d="M8 10h.01" />
+      <path d="M8 14h.01" />
+    </StrokeIcon>
+  );
+}
+
+export function IconHome({ size = 18, style }: { size?: number; style?: CSSProperties }) {
+  return (
+    <StrokeIcon size={size} style={style}>
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9 22 9 12 15 12 15 22" />
+    </StrokeIcon>
+  );
+}
+
+export function IconFolder({ size = 18, style }: { size?: number; style?: CSSProperties }) {
+  return (
+    <StrokeIcon size={size} style={style}>
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    </StrokeIcon>
+  );
+}
+
+export function IconInbox({ size = 18, style }: { size?: number; style?: CSSProperties }) {
+  return (
+    <StrokeIcon size={size} style={style}>
+      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+    </StrokeIcon>
+  );
+}

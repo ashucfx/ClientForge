@@ -13,6 +13,7 @@ export default function LoginClient() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [brand, setBrand] = useState<'catalyst' | 'ripple_nexus'>('catalyst');
 
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -23,12 +24,14 @@ export default function LoginClient() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, brand }),
       });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? 'Login failed');
-      router.replace(nextUrl);
+      // Use tenant-aware redirect from API response, fall back to nextUrl
+      const destination = data.redirectTo ?? nextUrl;
+      window.location.href = destination;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
       setBusy(false);
@@ -54,14 +57,14 @@ export default function LoginClient() {
           <div className="relative hidden md:flex flex-col justify-between p-10" style={{ background: 'var(--brand-gradient-soft)' }}>
             <div>
               <div className="flex items-center gap-3">
-                <Logo variant="horizontal" size={44} />
+                <Logo variant="horizontal" size={44} brandId={brand} />
               </div>
               <div className="mt-6" style={{ color: 'var(--text-primary)' }}>
                 <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.6px', lineHeight: 1.15 }}>
-                  ClientForge
+                  {brand === 'catalyst' ? 'Catalyst ClientForge' : 'Ripple Nexus ClientForge'}
                 </div>
                 <div style={{ marginTop: 8, color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.5 }}>
-                  A light, modern admin workspace for invoices, links, and client operations.
+                  A light, modern admin workspace for {brand === 'catalyst' ? 'Career Booster operations' : 'B2B agency operations'}.
                 </div>
               </div>
             </div>
@@ -85,7 +88,7 @@ export default function LoginClient() {
 
           <div className="p-8 md:p-10">
             <div className="md:hidden flex justify-center mb-6">
-              <Logo variant="horizontal" size={42} />
+              <Logo variant="horizontal" size={42} brandId={brand} />
             </div>
 
             <div style={{ textAlign: 'center', marginBottom: 26 }}>
@@ -95,6 +98,33 @@ export default function LoginClient() {
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 6 }}>
                 Access your private workspace
               </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginBottom: 24, padding: 4, background: 'var(--surface-2)', borderRadius: 12 }}>
+              <button
+                type="button"
+                onClick={() => setBrand('catalyst')}
+                style={{
+                  flex: 1, padding: '10px 0', fontSize: 13, fontWeight: 700, borderRadius: 8,
+                  background: brand === 'catalyst' ? 'var(--surface)' : 'transparent',
+                  color: brand === 'catalyst' ? 'var(--brand)' : 'var(--text-secondary)',
+                  boxShadow: brand === 'catalyst' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+                }}
+              >
+                Catalyst
+              </button>
+              <button
+                type="button"
+                onClick={() => setBrand('ripple_nexus')}
+                style={{
+                  flex: 1, padding: '10px 0', fontSize: 13, fontWeight: 700, borderRadius: 8,
+                  background: brand === 'ripple_nexus' ? 'var(--surface)' : 'transparent',
+                  color: brand === 'ripple_nexus' ? '#7C5CFF' : 'var(--text-secondary)',
+                  boxShadow: brand === 'ripple_nexus' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+                }}
+              >
+                Ripple Nexus
+              </button>
             </div>
 
             <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -158,8 +188,8 @@ export default function LoginClient() {
                   fontSize: 14,
                   fontWeight: 800,
                   letterSpacing: '.2px',
-                  background: busy ? 'var(--brand-dark)' : 'var(--brand-gradient)',
-                  boxShadow: busy ? 'none' : '0 10px 28px rgba(31,86,212,.18)',
+                  background: busy ? 'var(--brand-dark)' : (brand === 'catalyst' ? 'var(--brand-gradient)' : '#7C5CFF'),
+                  boxShadow: busy ? 'none' : (brand === 'catalyst' ? '0 10px 28px rgba(31,86,212,.18)' : '0 10px 28px rgba(124,92,255,.2)'),
                 }}
                 disabled={busy || !password}
               >

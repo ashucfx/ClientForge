@@ -4,27 +4,9 @@ import type { InvoiceData, LineItem } from '@/types';
 import { BRAND_EMAIL, BRAND_WEBSITE_LABEL, BRAND_WEBSITE_URL } from './config';
 import { CLIENT_TYPE_LABELS, formatCurrency, round2 } from './pricing';
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY!;
-const FROM_EMAIL    = process.env.FROM_EMAIL ?? BRAND_EMAIL;
-const FROM_NAME     = 'Catalyst';
-const REPLY_TO      = BRAND_EMAIL;
-const WEBSITE       = BRAND_WEBSITE_URL;
+import { getBrand } from './brand/registry';
 
-// ─────────────────────────────────────────────
-// LOGO — pure HTML mark so email clients never show a broken image icon.
-// ─────────────────────────────────────────────
-const LOGO_IMG = (size: number) => {
-  const fontSize = Math.round(size * 0.62);
-  const dotSize = Math.max(4, Math.round(size * 0.13));
-  const dotOffset = Math.max(5, Math.round(size * 0.16));
-  return `<table cellpadding="0" cellspacing="0" role="presentation" width="${size}" height="${size}" style="width:${size}px;height:${size}px;background:#0A0B0D;border-radius:8px;border:1px solid rgba(184,147,91,0.35);">
-    <tr>
-      <td align="center" valign="middle" style="font-family:Georgia,'Times New Roman',serif;font-size:${fontSize}px;line-height:${size}px;font-weight:700;color:#F4F1EB;letter-spacing:0;position:relative;">
-        C<span style="display:inline-block;width:${dotSize}px;height:${dotSize}px;background:#B8935B;border-radius:50%;font-size:0;line-height:0;margin-left:-${dotOffset}px;vertical-align:middle;">&nbsp;</span>
-      </td>
-    </tr>
-  </table>`;
-};
+const RESEND_API_KEY = process.env.RESEND_API_KEY!;
 
 // ─────────────────────────────────────────────
 // PACKAGE LABEL — derived from line items
@@ -52,23 +34,25 @@ export async function sendInvoiceEmail(
   invoice: InvoiceData,
   pdfBase64?: string
 ): Promise<void> {
+  const brand = getBrand(invoice.brandId);
+
   // Catchy, spam-safe subject
   const subject =
-    `Invoice ${invoice.invoiceNumber}: Your Career Booster Package — Catalyst`;
+    `Invoice ${invoice.invoiceNumber}: Your ${brand.id === 'catalyst' ? 'Career Booster Package' : 'Service'} — ${brand.name}`;
 
   const html = buildInvoiceEmailHTML(invoice);
   const text = buildInvoiceEmailText(invoice);
 
   const payload: Record<string, unknown> = {
-    from:     `${FROM_NAME} <${FROM_EMAIL}>`,
-    reply_to: REPLY_TO,
+    from:     `${brand.name} <${brand.fromEmail}>`,
+    reply_to: brand.replyTo,
     to:       [invoice.clientEmail],
     subject,
     html,
     text,
     headers: {
       // RFC-2369 List-Unsubscribe — improves deliverability
-      'List-Unsubscribe':       `<mailto:${REPLY_TO}?subject=unsubscribe>`,
+      'List-Unsubscribe':       `<mailto:${brand.replyTo}?subject=unsubscribe>`,
       'List-Unsubscribe-Post':  'List-Unsubscribe=One-Click',
       'X-Entity-Ref-ID':        invoice.id,
     },
@@ -76,13 +60,14 @@ export async function sendInvoiceEmail(
       { name: 'invoice_id',  value: invoice.id },
       { name: 'status',      value: invoice.status },
       { name: 'client_type', value: invoice.clientType },
+      { name: 'brand',       value: brand.id },
     ],
   };
 
   if (pdfBase64) {
     payload.attachments = [
       {
-        filename: `Invoice-${invoice.invoiceNumber}-Catalyst.pdf`,
+        filename: `Invoice-${invoice.invoiceNumber}-${brand.name}.pdf`,
         content:  pdfBase64,
       },
     ];
@@ -107,6 +92,7 @@ export async function sendInvoiceEmail(
 // SEND PAYMENT CONFIRMATION EMAIL
 // ─────────────────────────────────────────────
 export async function sendPaymentConfirmationEmail(invoice: InvoiceData): Promise<void> {
+  const brand = getBrand(invoice.brandId);
   const html = buildConfirmationEmailHTML(invoice);
   const text = buildConfirmationEmailText(invoice);
 
@@ -117,14 +103,14 @@ export async function sendPaymentConfirmationEmail(invoice: InvoiceData): Promis
       Authorization:   `Bearer ${RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from:     `${FROM_NAME} <${FROM_EMAIL}>`,
-      reply_to: REPLY_TO,
+      from:     `${brand.name} <${brand.fromEmail}>`,
+      reply_to: brand.replyTo,
       to:       [invoice.clientEmail],
-      subject:  `Payment Received — ${invoice.invoiceNumber} | Your Career Boost is Underway`,
+      subject:  `Payment Received — ${invoice.invoiceNumber} | ${brand.id === 'catalyst' ? 'Your Career Boost is Underway' : 'Project Kickoff Initiated'}`,
       html,
       text,
       headers: {
-        'List-Unsubscribe':      `<mailto:${REPLY_TO}?subject=unsubscribe>`,
+        'List-Unsubscribe':      `<mailto:${brand.replyTo}?subject=unsubscribe>`,
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
         'X-Entity-Ref-ID':       invoice.id,
       },
@@ -141,6 +127,7 @@ export async function sendPaymentConfirmationEmail(invoice: InvoiceData): Promis
 // PLAIN-TEXT FALLBACK — INVOICE
 // ─────────────────────────────────────────────
 function buildInvoiceEmailText(invoice: InvoiceData): string {
+  const brand = getBrand(invoice.brandId);
   const sym = invoice.currencySymbol;
   const fmt = (n: number) => formatCurrency(n, sym);
 
@@ -166,7 +153,7 @@ function buildInvoiceEmailText(invoice: InvoiceData): string {
   return `
 Hi ${invoice.clientName.split(' ')[0]},
 
-Your Career Booster Package invoice is ready.
+Your ${brand.id === 'catalyst' ? 'Career Booster Package ' : ''}invoice is ready.
 
 Invoice Number : ${invoice.invoiceNumber}
 Client         : ${invoice.clientName}
@@ -186,10 +173,10 @@ ${invoice.razorpayLinkUrl ? `PAY NOW: ${invoice.razorpayLinkUrl}` : invoice.payp
 
 Terms: No refunds after work commences. Delivery within 2–4 business days. 2 revisions included.
 
-Questions? Reply to this email or write to ${REPLY_TO}
+Questions? Reply to this email or write to ${brand.replyTo}
 
-Catalyst | ${WEBSITE}
-To unsubscribe, email ${REPLY_TO}
+${brand.name} | ${brand.websiteUrl}
+To unsubscribe, email ${brand.replyTo}
 `.trim();
 }
 
@@ -197,6 +184,7 @@ To unsubscribe, email ${REPLY_TO}
 // PLAIN-TEXT FALLBACK — CONFIRMATION
 // ─────────────────────────────────────────────
 function buildConfirmationEmailText(invoice: InvoiceData): string {
+  const brand = getBrand(invoice.brandId);
   const sym = invoice.currencySymbol;
   const fmt = (n: number) => formatCurrency(n, sym);
   const items: LineItem[] = Array.isArray(invoice.lineItems) ? invoice.lineItems as unknown as LineItem[] : [];
@@ -211,13 +199,13 @@ Amount    : ${fmt(invoice.totalPayable)} ${invoice.currency}
 Package   : ${packageLabel}
 Paid On   : ${invoice.paidAt ? new Date(invoice.paidAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Today'}
 
-Our team will begin your Career Booster Package within 24 hours.
+Our team will begin your ${brand.id === 'catalyst' ? 'Career Booster Package' : 'project'} within 24 hours.
 Expected delivery: 2-4 business days.
 
-Questions? Write to ${REPLY_TO}
+Questions? Write to ${brand.replyTo}
 
-Catalyst | ${WEBSITE}
-To unsubscribe, email ${REPLY_TO}
+${brand.name} | ${brand.websiteUrl}
+To unsubscribe, email ${brand.replyTo}
 `.trim();
 }
 
@@ -225,6 +213,7 @@ To unsubscribe, email ${REPLY_TO}
 // EMAIL HTML TEMPLATE — INVOICE
 // ─────────────────────────────────────────────
 function buildInvoiceEmailHTML(invoice: InvoiceData): string {
+  const brand     = getBrand(invoice.brandId);
   const sym       = invoice.currencySymbol;
   const fmt       = (n: number) => formatCurrency(n, sym);
   const firstName = invoice.clientName.split(' ')[0];
@@ -242,7 +231,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
     ? `<!--[if mso]>
         <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
           href="${payUrl}" style="height:52px;v-text-anchor:middle;width:260px;" arcsize="15%"
-          stroke="f" fillcolor="#B8935B">
+          stroke="f" fillcolor="${brand.primaryColor}">
           <w:anchorlock/>
           <center style="color:#ffffff;font-family:Helvetica,sans-serif;font-size:17px;font-weight:700;">
             Pay Now &mdash; ${fmt(invoice.totalPayable)}
@@ -252,7 +241,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
         <!--[if !mso]><!-->
         <a href="${payUrl}"
            target="_blank"
-           style="display:inline-block;background:linear-gradient(135deg,#B8935B 0%,#9A7540 100%);color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:8px;font-family:Helvetica,Arial,sans-serif;font-size:17px;font-weight:800;letter-spacing:0.3px;box-shadow:0 4px 16px rgba(184,147,91,0.45);mso-hide:all;">
+           style="display:inline-block;background:linear-gradient(135deg,${brand.primaryColor} 0%,${brand.primaryDark} 100%);color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:8px;font-family:Helvetica,Arial,sans-serif;font-size:17px;font-weight:800;letter-spacing:0.3px;box-shadow:0 4px 16px ${brand.primaryLight};mso-hide:all;">
           Pay Now &mdash; ${fmt(invoice.totalPayable)}
         </a>
         <!--<![endif]-->`
@@ -265,8 +254,8 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
     const isFree = lt === 0;
     const isLast = idx === lineItemsArr.length - 1;
     const borderStyle = isLast ? '' : 'border-bottom:1px solid #EDE9DF;';
-    const iconBg = isFree ? '#f0fdf4' : '#F5F2EC';
-    const iconColor = isFree ? '#16a34a' : '#B8935B';
+    const iconBg = isFree ? '#f0fdf4' : (brand.id === 'catalyst' ? '#F5F2EC' : brand.emailBg);
+    const iconColor = isFree ? '#16a34a' : brand.primaryColor;
     const iconNum = String(idx + 1);
     return `<tr>
         <td style="padding:12px 16px;${borderStyle}">
@@ -324,7 +313,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <meta name="x-apple-disable-message-reformatting"/>
   <meta name="format-detection" content="telephone=no, date=no, address=no, email=no, url=no"/>
-  <title>Invoice ${invoice.invoiceNumber} — Catalyst</title>
+  <title>Invoice ${invoice.invoiceNumber} — ${brand.name}</title>
   <!--[if mso]>
   <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
   <![endif]-->
@@ -356,17 +345,17 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
       /* Footer: stack brand & ref */
       .footer-ref       { display:none !important; }
     }
-  </style>
+</style>
 </head>
-<body style="margin:0;padding:0;background-color:#F0EDE6;word-break:break-word;">
+<body style="margin:0;padding:0;background-color:${brand.id === 'catalyst' ? '#F0EDE6' : brand.emailBg};word-break:break-word;">
 
 <!-- Preheader (inbox preview text — hidden in body) -->
-<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:#F0EDE6;line-height:1px;max-width:0;">
-  Hi ${firstName}, your ${packageLabel} invoice for ${fmt(invoice.totalPayable)} is ready — complete payment to kick off your career transformation.&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:${brand.id === 'catalyst' ? '#F0EDE6' : brand.emailBg};line-height:1px;max-width:0;">
+  Hi ${firstName}, your ${packageLabel} invoice for ${fmt(invoice.totalPayable)} is ready.&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
 </div>
 
 <!-- Wrapper -->
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#F0EDE6">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${brand.id === 'catalyst' ? '#F0EDE6' : brand.emailBg}">
 <tr><td align="center" style="padding:28px 12px;">
 
   <!-- Email Card -->
@@ -375,7 +364,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
 
     <!-- ══════════════════ HEADER ══════════════════ -->
     <tr>
-      <td style="background:linear-gradient(135deg,#0A0B0D 0%,#B8935B 55%,#1C1812 100%);padding:28px 36px 24px;">
+      <td style="background:${brand.gradient};padding:28px 36px 24px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
           <tr>
             <!-- Logo + Brand -->
@@ -383,14 +372,14 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
               <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
                   <td valign="middle" style="padding-right:10px;width:44px;">
-                    ${LOGO_IMG(44)}
+                    ${brand.logoEmailHtml(44)}
                   </td>
                   <td valign="middle" style="white-space:nowrap;">
-                    <div style="font-family:Georgia,'Times New Roman',serif;font-size:18px;font-weight:400;color:#F4F1EB;letter-spacing:2px;line-height:1;white-space:nowrap;">
-                      CATALYST
+                    <div style="font-family:${brand.fontSerif};font-size:18px;font-weight:400;color:${brand.id === 'catalyst' ? '#F4F1EB' : '#F4F5FA'};letter-spacing:2px;line-height:1;white-space:nowrap;">
+                      ${brand.name.toUpperCase()}
                     </div>
-                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:9px;color:rgba(184,147,91,0.80);letter-spacing:1.8px;text-transform:uppercase;margin-top:4px;white-space:nowrap;">
-                      Career Booster Services
+                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:9px;color:${brand.id === 'catalyst' ? 'rgba(184,147,91,0.80)' : 'rgba(34,211,238,0.80)'};letter-spacing:1.8px;text-transform:uppercase;margin-top:4px;white-space:nowrap;">
+                      ${brand.tagline}
                     </div>
                   </td>
                 </tr>
@@ -416,7 +405,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
 
     <!-- ══════════════════ ACCENT BAR ══════════════════ -->
     <tr>
-      <td height="3" style="background:linear-gradient(90deg,#B8935B 0%,#D4AF7A 50%,#B8935B 100%);font-size:0;line-height:0;">&nbsp;</td>
+      <td height="3" style="background:${brand.accentBar};font-size:0;line-height:0;">&nbsp;</td>
     </tr>
 
     <!-- ══════════════════ GREETING ══════════════════ -->
@@ -427,8 +416,8 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
           Hello, ${firstName},
         </h1>
         <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#4a5568;line-height:1.75;">
-          Your <strong style="color:#B8935B;">${packageLabel}</strong> invoice is ready.
-          Review the details below, then click <strong>Pay Now</strong> to unlock your transformation.
+          Your <strong style="color:${brand.primaryColor};">${packageLabel}</strong> invoice is ready.
+          Review the details below, then click <strong>Pay Now</strong>.
         </p>
       </td>
     </tr>
@@ -446,7 +435,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
             </td>
             <td class="meta-cell" width="50%" style="padding:14px 18px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#7c8db5;text-transform:uppercase;letter-spacing:1.2px;">Package</div>
-              <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#B8935B;font-weight:700;margin-top:4px;">${packageLabel}</div>
+              <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:${brand.primaryColor};font-weight:700;margin-top:4px;">${packageLabel}</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#6b7280;margin-top:2px;">${invoice.country}</div>
             </td>
           </tr>
@@ -509,7 +498,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
     <tr>
       <td class="mobile-pad" style="padding:14px 36px 0;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-               style="background:linear-gradient(135deg,#0A0B0D 0%,#B8935B 100%);border-radius:12px;">
+               style="background:linear-gradient(135deg,#0A0B0D 0%,${brand.primaryColor} 100%);border-radius:12px;">
           <tr>
             <td style="padding:18px 22px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -535,7 +524,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
       <td class="mobile-pad" style="padding:28px 36px 8px;" align="center">
         <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:320px;">
           <tr>
-            <td align="center" style="border-radius:8px;" bgcolor="#B8935B">
+            <td align="center" style="border-radius:8px;" bgcolor="${brand.primaryColor}">
               ${payBtnHTML}
             </td>
           </tr>
@@ -547,7 +536,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
         </div>
         <div style="margin-top:8px;font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#b0b8cc;">
           Or paste this link in your browser:<br/>
-          <a href="${payUrl}" style="color:#B8935B;word-break:break-all;">${payUrl}</a>
+          <a href="${payUrl}" style="color:${brand.primaryColor};word-break:break-all;">${payUrl}</a>
         </div>
       </td>
     </tr>` : ''}
@@ -562,7 +551,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
           <tr>
             <!-- Step 1 -->
             <td class="tl-step" width="25%" align="center" valign="top" style="padding:0 6px;">
-              <div style="width:36px;height:36px;background:#F5F2EC;border-radius:50%;margin:0 auto 8px;text-align:center;line-height:36px;font-size:15px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#B8935B;">1</div>
+              <div style="width:36px;height:36px;background:${brand.id === 'catalyst' ? '#F5F2EC' : brand.emailBg};border-radius:50%;margin:0 auto 8px;text-align:center;line-height:36px;font-size:15px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:${brand.primaryColor};">1</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#0d1b4b;text-align:center;">Payment</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#9ca3af;text-align:center;margin-top:2px;">Instant</div>
             </td>
@@ -570,7 +559,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
             <td class="tl-arrow" width="8%" align="center" valign="top" style="padding-top:10px;font-size:18px;color:#c7d2fe;">&rarr;</td>
             <!-- Step 2 -->
             <td class="tl-step" width="25%" align="center" valign="top" style="padding:0 6px;">
-              <div style="width:36px;height:36px;background:#F5F2EC;border-radius:50%;margin:0 auto 8px;text-align:center;line-height:36px;font-size:15px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#B8935B;">2</div>
+              <div style="width:36px;height:36px;background:${brand.id === 'catalyst' ? '#F5F2EC' : brand.emailBg};border-radius:50%;margin:0 auto 8px;text-align:center;line-height:36px;font-size:15px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:${brand.primaryColor};">2</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#0d1b4b;text-align:center;">Kickoff</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#9ca3af;text-align:center;margin-top:2px;">Within 24 hrs</div>
             </td>
@@ -578,7 +567,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
             <td class="tl-arrow" width="8%" align="center" valign="top" style="padding-top:10px;font-size:18px;color:#c7d2fe;">&rarr;</td>
             <!-- Step 3 -->
             <td class="tl-step" width="25%" align="center" valign="top" style="padding:0 6px;">
-              <div style="width:36px;height:36px;background:#F5F2EC;border-radius:50%;margin:0 auto 8px;text-align:center;line-height:36px;font-size:15px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#B8935B;">3</div>
+              <div style="width:36px;height:36px;background:${brand.id === 'catalyst' ? '#F5F2EC' : brand.emailBg};border-radius:50%;margin:0 auto 8px;text-align:center;line-height:36px;font-size:15px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:${brand.primaryColor};">3</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#0d1b4b;text-align:center;">Delivery</div>
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#9ca3af;text-align:center;margin-top:2px;">2–4 business days</div>
             </td>
@@ -588,6 +577,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
     </tr>
 
     <!-- ══════════════════ TESTIMONIAL / VALUE PROP ══════════════════ -->
+    ${brand.id === 'catalyst' ? `
     <tr>
       <td class="mobile-pad" style="padding:22px 36px 0;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
@@ -605,7 +595,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
           </tr>
         </table>
       </td>
-    </tr>
+    </tr>` : ''}
 
     <!-- ══════════════════ TRUST BADGES ══════════════════ -->
     <tr>
@@ -614,19 +604,19 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
           <tr>
             <td class="badge-cell" width="33%" align="center" style="padding:0 4px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#6b7280;text-align:center;">
-                <div style="width:32px;height:32px;background:#F5F2EC;border-radius:50%;margin:0 auto 6px;text-align:center;line-height:32px;font-size:11px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#B8935B;">SSL</div>
+                <div style="width:32px;height:32px;background:${brand.id === 'catalyst' ? '#F5F2EC' : brand.emailBg};border-radius:50%;margin:0 auto 6px;text-align:center;line-height:32px;font-size:11px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:${brand.primaryColor};">SSL</div>
                 <strong style="color:#0d1b4b;">Secure Payment</strong><br/>256-bit SSL
               </div>
             </td>
             <td class="badge-cell" width="33%" align="center" style="padding:0 4px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#6b7280;text-align:center;">
-                <div style="width:32px;height:32px;background:#F5F2EC;border-radius:50%;margin:0 auto 6px;text-align:center;line-height:32px;font-size:11px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#B8935B;">2-4</div>
+                <div style="width:32px;height:32px;background:${brand.id === 'catalyst' ? '#F5F2EC' : brand.emailBg};border-radius:50%;margin:0 auto 6px;text-align:center;line-height:32px;font-size:11px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:${brand.primaryColor};">2-4</div>
                 <strong style="color:#0d1b4b;">Fast Delivery</strong><br/>2–4 Business Days
               </div>
             </td>
             <td class="badge-cell" width="33%" align="center" style="padding:0 4px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#6b7280;text-align:center;">
-                <div style="width:32px;height:32px;background:#F5F2EC;border-radius:50%;margin:0 auto 6px;text-align:center;line-height:32px;font-size:11px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:#B8935B;">x2</div>
+                <div style="width:32px;height:32px;background:${brand.id === 'catalyst' ? '#F5F2EC' : brand.emailBg};border-radius:50%;margin:0 auto 6px;text-align:center;line-height:32px;font-size:11px;font-weight:800;font-family:Helvetica,Arial,sans-serif;color:${brand.primaryColor};">x2</div>
                 <strong style="color:#0d1b4b;">2 Revisions</strong><br/>Satisfaction Driven
               </div>
             </td>
@@ -657,16 +647,16 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
               <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
                   <td valign="middle" style="padding-right:10px;">
-                    ${LOGO_IMG(22)}
+                    ${brand.logoEmailHtml(22)}
                   </td>
                   <td valign="middle">
-                    <div style="font-family:Georgia,'Times New Roman',serif;font-size:13px;font-weight:400;color:#B8935B;letter-spacing:2px;line-height:1;white-space:nowrap;">
-                      CATALYST
+                    <div style="font-family:${brand.fontSerif};font-size:13px;font-weight:400;color:${brand.primaryColor};letter-spacing:2px;line-height:1;white-space:nowrap;">
+                      ${brand.name.toUpperCase()}
                     </div>
                     <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#9ca3af;margin-top:3px;">
-                      <a href="mailto:${REPLY_TO}" style="color:#9ca3af;text-decoration:none;">${REPLY_TO}</a>
+                      <a href="mailto:${brand.replyTo}" style="color:#9ca3af;text-decoration:none;">${brand.replyTo}</a>
                       &nbsp;&bull;&nbsp;
-                      <a href="${WEBSITE}" style="color:#9ca3af;text-decoration:none;">${BRAND_WEBSITE_LABEL}</a>
+                      <a href="${brand.websiteUrl}" style="color:#9ca3af;text-decoration:none;">${brand.websiteLabel}</a>
                     </div>
                   </td>
                 </tr>
@@ -683,9 +673,9 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
           <tr>
             <td colspan="2" style="padding-top:12px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#c4c9d8;line-height:1.6;text-align:center;border-top:1px solid #e8eeff;padding-top:10px;">
-                You received this email because you requested a Career Booster Package from Catalyst.
+                ${brand.footerLegal}
                 &nbsp;|&nbsp;
-                <a href="mailto:${REPLY_TO}?subject=unsubscribe" style="color:#c4c9d8;">Unsubscribe</a>
+                <a href="mailto:${brand.replyTo}?subject=unsubscribe" style="color:#c4c9d8;">Unsubscribe</a>
               </div>
             </td>
           </tr>
@@ -708,6 +698,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
 // EMAIL HTML TEMPLATE — PAYMENT CONFIRMATION
 // ─────────────────────────────────────────────
 function buildConfirmationEmailHTML(invoice: InvoiceData): string {
+  const brand     = getBrand(invoice.brandId);
   const sym       = invoice.currencySymbol;
   const fmt       = (n: number) => formatCurrency(n, sym);
   const firstName = invoice.clientName.split(' ')[0];
@@ -724,7 +715,7 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
   <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <meta name="x-apple-disable-message-reformatting"/>
-  <title>Payment Confirmed — Catalyst</title>
+  <title>Payment Confirmed — ${brand.name}</title>
   <style>
     body, table, td, p, a { -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
     table, td { mso-table-lspace:0pt; mso-table-rspace:0pt; border-collapse:collapse; }
@@ -734,14 +725,14 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
     }
   </style>
 </head>
-<body style="margin:0;padding:0;background-color:#F0EDE6;">
+<body style="margin:0;padding:0;background-color:${brand.id === 'catalyst' ? '#F0EDE6' : brand.emailBg};">
 
 <!-- Preheader -->
-<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:#F0EDE6;line-height:1px;max-width:0;">
-  Payment received! Your Career Booster Package is now active. Work begins within 24 hours.&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:${brand.id === 'catalyst' ? '#F0EDE6' : brand.emailBg};line-height:1px;max-width:0;">
+  Payment received! Your ${brand.id === 'catalyst' ? 'Career Booster Package' : 'Project'} is now active. Work begins within 24 hours.&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
 </div>
 
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#F0EDE6">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${brand.id === 'catalyst' ? '#F0EDE6' : brand.emailBg}">
 <tr><td align="center" style="padding:28px 12px;">
 
   <table role="presentation" class="email-container" width="620" cellpadding="0" cellspacing="0"
@@ -749,25 +740,25 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
 
     <!-- Header -->
     <tr>
-      <td style="background:linear-gradient(135deg,#0A0B0D 0%,#B8935B 55%,#1C1812 100%);padding:40px 36px;text-align:center;">
-        <!-- Catalyst logo -->
+      <td style="background:${brand.gradient};padding:40px 36px;text-align:center;">
+        <!-- Logo -->
         <div style="margin-bottom:16px;">
           <table align="center" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;">
-            <tr><td>${LOGO_IMG(52)}</td></tr>
+            <tr><td>${brand.logoEmailHtml(52)}</td></tr>
           </table>
         </div>
         <h1 style="margin:0 0 8px;font-family:Helvetica,Arial,sans-serif;font-size:28px;font-weight:900;color:#ffffff;letter-spacing:-0.3px;">
           Payment Confirmed!
         </h1>
         <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:15px;color:rgba(255,255,255,0.88);line-height:1.6;">
-          Thank you, <strong>${firstName}</strong>. Your Career Booster Package is now active<br/>and our team is ready to get to work.
+          Thank you, <strong>${firstName}</strong>. Your ${brand.id === 'catalyst' ? 'Career Booster Package' : 'Project'} is now active<br/>and our team is ready to get to work.
         </p>
       </td>
     </tr>
 
     <!-- Accent bar -->
     <tr>
-      <td height="3" style="background:linear-gradient(90deg,#B8935B 0%,#D4AF7A 50%,#B8935B 100%);font-size:0;line-height:0;">&nbsp;</td>
+      <td height="3" style="background:${brand.accentBar};font-size:0;line-height:0;">&nbsp;</td>
     </tr>
 
     <!-- Payment Summary -->
@@ -782,13 +773,13 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
             </td>
             <td width="50%" style="padding:14px 18px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#7c8db5;text-transform:uppercase;letter-spacing:1.2px;">Amount Paid</div>
-              <div style="font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#B8935B;font-weight:800;margin-top:4px;">${fmt(invoice.totalPayable)} ${invoice.currency}</div>
+              <div style="font-family:Helvetica,Arial,sans-serif;font-size:15px;color:${brand.primaryColor};font-weight:800;margin-top:4px;">${fmt(invoice.totalPayable)} ${invoice.currency}</div>
             </td>
           </tr>
           <tr>
             <td style="padding:12px 18px;border-top:1px solid #EDE9DF;border-right:1px solid #EDE9DF;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#7c8db5;text-transform:uppercase;letter-spacing:1.2px;">Package</div>
-              <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#B8935B;font-weight:600;margin-top:4px;">${packageLabel}</div>
+              <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:${brand.primaryColor};font-weight:600;margin-top:4px;">${packageLabel}</div>
             </td>
             <td style="padding:12px 18px;border-top:1px solid #EDE9DF;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#7c8db5;text-transform:uppercase;letter-spacing:1.2px;">Paid On</div>
@@ -808,25 +799,25 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
           <tr>
             <td valign="top" width="28" style="padding-top:2px;">
-              <div style="width:22px;height:22px;background:#F5F2EC;border-radius:50%;text-align:center;line-height:22px;font-size:12px;font-weight:700;font-family:Helvetica,Arial,sans-serif;color:#B8935B;">1</div>
+              <div style="width:22px;height:22px;background:${brand.id === 'catalyst' ? '#F5F2EC' : brand.emailBg};border-radius:50%;text-align:center;line-height:22px;font-size:12px;font-weight:700;font-family:Helvetica,Arial,sans-serif;color:${brand.primaryColor};">1</div>
             </td>
             <td style="padding:0 0 12px 10px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#0d1b4b;font-weight:600;">Our team begins work within 24 hours</div>
-              <div style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#6b7280;margin-top:2px;">We'll review your profile and start crafting your materials.</div>
+              <div style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#6b7280;margin-top:2px;">We'll review your details and get started.</div>
             </td>
           </tr>
           <tr>
             <td valign="top" width="28" style="padding-top:2px;">
-              <div style="width:22px;height:22px;background:#F5F2EC;border-radius:50%;text-align:center;line-height:22px;font-size:12px;font-weight:700;font-family:Helvetica,Arial,sans-serif;color:#B8935B;">2</div>
+              <div style="width:22px;height:22px;background:${brand.id === 'catalyst' ? '#F5F2EC' : brand.emailBg};border-radius:50%;text-align:center;line-height:22px;font-size:12px;font-weight:700;font-family:Helvetica,Arial,sans-serif;color:${brand.primaryColor};">2</div>
             </td>
             <td style="padding:0 0 12px 10px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#0d1b4b;font-weight:600;">Delivery within 2–4 business days</div>
-              <div style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#6b7280;margin-top:2px;">You'll receive your polished career documents via email.</div>
+              <div style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#6b7280;margin-top:2px;">You'll receive your deliverables via email.</div>
             </td>
           </tr>
           <tr>
             <td valign="top" width="28" style="padding-top:2px;">
-              <div style="width:22px;height:22px;background:#F5F2EC;border-radius:50%;text-align:center;line-height:22px;font-size:12px;font-weight:700;font-family:Helvetica,Arial,sans-serif;color:#B8935B;">3</div>
+              <div style="width:22px;height:22px;background:${brand.id === 'catalyst' ? '#F5F2EC' : brand.emailBg};border-radius:50%;text-align:center;line-height:22px;font-size:12px;font-weight:700;font-family:Helvetica,Arial,sans-serif;color:${brand.primaryColor};">3</div>
             </td>
             <td style="padding:0 0 0 10px;">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#0d1b4b;font-weight:600;">2 rounds of revisions included</div>
@@ -847,7 +838,7 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
               <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#065f46;line-height:1.7;">
                 Questions or need to share additional information?
                 Reply directly to this email or reach us at&nbsp;
-                <a href="mailto:${REPLY_TO}" style="color:#0d9466;font-weight:600;">${REPLY_TO}</a>
+                <a href="mailto:${brand.replyTo}" style="color:#0d9466;font-weight:600;">${brand.replyTo}</a>
               </p>
             </td>
           </tr>
@@ -859,17 +850,17 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
     <tr>
       <td style="background:#F5F3EE;padding:20px 36px;border-top:1px solid #EDE9DF;border-radius:0 0 16px 16px;text-align:center;">
         <table align="center" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto 10px;">
-          <tr><td>${LOGO_IMG(30)}</td></tr>
+          <tr><td>${brand.logoEmailHtml(30)}</td></tr>
         </table>
-        <div style="font-family:Georgia,'Times New Roman',serif;font-size:13px;font-weight:400;color:#B8935B;letter-spacing:2px;margin-bottom:6px;">
-          CATALYST
+        <div style="font-family:${brand.fontSerif};font-size:13px;font-weight:400;color:${brand.primaryColor};letter-spacing:2px;margin-bottom:6px;">
+          ${brand.name.toUpperCase()}
         </div>
         <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#9ca3af;">
-          <a href="${WEBSITE}" style="color:#9ca3af;text-decoration:none;">${BRAND_WEBSITE_LABEL}</a>
+          <a href="${brand.websiteUrl}" style="color:#9ca3af;text-decoration:none;">${brand.websiteLabel}</a>
           &nbsp;&bull;&nbsp;
-          <a href="mailto:${REPLY_TO}" style="color:#9ca3af;text-decoration:none;">${REPLY_TO}</a>
+          <a href="mailto:${brand.replyTo}" style="color:#9ca3af;text-decoration:none;">${brand.replyTo}</a>
           &nbsp;&bull;&nbsp;
-          <a href="mailto:${REPLY_TO}?subject=unsubscribe" style="color:#9ca3af;text-decoration:none;">Unsubscribe</a>
+          <a href="mailto:${brand.replyTo}?subject=unsubscribe" style="color:#9ca3af;text-decoration:none;">Unsubscribe</a>
         </div>
       </td>
     </tr>

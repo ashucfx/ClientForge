@@ -9,9 +9,13 @@ import { CLIENT_TYPE_LABELS, BASE_PRICING, FEE_RATES, round2 } from '@/lib/prici
 import { getCallingCodeForCountryName, normalizePhoneE164 } from '@/lib/phone';
 import type { ClientType, LineItem, CurrencyInfo } from '@/types';
 import { Logo } from '@/components/Logo';
-import { IconAlert, IconCheck, IconCreditCard, IconLink, IconList, IconMail, IconSettings, IconSpinner, IconTarget, IconUser } from '@/components/Icons';
+import { IconAlert, IconCheck, IconCreditCard, IconLink, IconList, IconMail, IconSettings, IconSpinner, IconTarget, IconUser, IconBuilding } from '@/components/Icons';
 import AppShell from '@/components/AppShell';
 import { format, addDays } from 'date-fns';
+import { isRnModuleEnabledClient } from '@/lib/brand/flags';
+import type { BrandId } from '@/lib/brand/types';
+import { useAdmin } from '@/components/AdminProvider';
+import { useBrand } from '@/components/BrandProvider';
 
 const CLIENT_TYPES: ClientType[] = ['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS'];
 
@@ -20,6 +24,7 @@ const CLIENT_META: Record<ClientType, { sub: string; color: string }> = {
   MID_CAREER:     { sub: '3–10 years experience',    color: '#ec4899' },
   EXECUTIVE:      { sub: '10+ yrs · Leadership',     color: '#f59e0b' },
   EXECUTIVE_PLUS: { sub: 'C-Suite & Board level',    color: '#B8935B' },
+  AGENCY_CLIENT:  { sub: 'B2B Enterprise',           color: '#7C5CFF' },
 };
 
 // ─── Helpers ───────────────────────────────────
@@ -71,13 +76,13 @@ function SectionCard({ title, icon, children, noPad }: { title: string; icon: Re
 function InvoicePreview({
   clientName, clientEmail, clientType, country, companyName,
   lineItems, discountRate, taxRate, notes, dueDays,
-  currencyInfo, exchangeRate,
+  currencyInfo, exchangeRate, brandId,
 }: {
   clientName: string; clientEmail: string; clientType: ClientType;
   country: string; companyName: string;
   lineItems: LineItem[]; discountRate: number; taxRate: number;
   notes: string; dueDays: number;
-  currencyInfo: CurrencyInfo | null; exchangeRate: number;
+  currencyInfo: CurrencyInfo | null; exchangeRate: number; brandId: BrandId;
 }) {
   const sym  = currencyInfo?.symbol ?? '₹';
   const code = currencyInfo?.code   ?? 'INR';
@@ -96,9 +101,9 @@ function InvoicePreview({
   return (
     <div className="preview-card" style={{ background: '#fff', borderRadius: 14, border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden', fontSize: 13 }}>
       {/* Header */}
-      <div style={{ background: 'var(--brand-gradient)', padding: '22px 24px' }}>
+      <div style={{ background: brandId === 'ripple_nexus' ? 'linear-gradient(135deg, #7C5CFF 0%, #22D3EE 100%)' : 'var(--brand-gradient)', padding: '22px 24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Logo size={28} variant="horizontal" dark />
+          <Logo size={28} variant="horizontal" dark brandId={brandId} />
           <div style={{ textAlign: 'right' }}>
             <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>Invoice</div>
             <div style={{ color: '#fff', fontWeight: 800, fontSize: 15, marginTop: 2 }}>PREVIEW</div>
@@ -186,7 +191,7 @@ function InvoicePreview({
             <span>Processing Fee ({(feeRate * 100).toFixed(1)}%)</span><span>+{fmt(fee, sym)}</span>
           </div>
         </div>
-        <div style={{ marginTop: 10, background: 'var(--brand-gradient)', borderRadius: 10, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ marginTop: 10, background: brandId === 'ripple_nexus' ? 'linear-gradient(135deg, #7C5CFF 0%, #22D3EE 100%)' : 'var(--brand-gradient)', borderRadius: 10, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: 600 }}>Total Payable</span>
           <span style={{ color: '#fff', fontWeight: 900, fontSize: 18 }}>{fmt(total, sym)}</span>
         </div>
@@ -208,8 +213,14 @@ function InvoicePreview({
 // ─── Main page ─────────────────────────────────
 export default function NewInvoicePage() {
   const router = useRouter();
+  const { hasCatalystAccess, hasRnAccess, isSuperAdmin } = useAdmin();
+  const { activeBrand } = useBrand();
 
   // Client fields
+  const [rnEnabled,   setRnEnabled]   = useState(false);
+  const [brandId,     setBrandId]     = useState<BrandId>(
+    activeBrand === 'all' ? (hasCatalystAccess ? 'catalyst' : 'ripple_nexus') : activeBrand
+  );
   const [clientName,  setClientName]  = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [clientPhone, setClientPhone] = useState('');
@@ -231,6 +242,10 @@ export default function NewInvoicePage() {
   const [currencyInfo,  setCurrencyInfo]  = useState<CurrencyInfo | null>({ code: 'INR', symbol: '₹', name: 'Indian Rupee' });
   const [exchangeRate,  setExchangeRate]  = useState(1);
   const [rateLoading,   setRateLoading]   = useState(false);
+
+  // Ripple Nexus Services
+  const [rnServices, setRnServices] = useState<{ id: string; name: string; slug: string; workflowStages: string[] }[]>([]);
+  const [selectedRnServiceId, setSelectedRnServiceId] = useState<string>('');
 
   // UI state
   const [submitting, setSubmitting] = useState(false);
@@ -264,6 +279,43 @@ export default function NewInvoicePage() {
     const t = setTimeout(fetchRate, 400);
     return () => clearTimeout(t);
   }, [fetchRate]);
+
+  useEffect(() => {
+    setRnEnabled(isRnModuleEnabledClient());
+    if (isRnModuleEnabledClient()) {
+      fetch('/api/rn/services').then(r => r.json()).then(d => {
+        if (d.services) setRnServices(d.services);
+      }).catch(console.error);
+    }
+  }, []);
+
+  // Handle brand swap side effects
+  useEffect(() => {
+    if (brandId === 'ripple_nexus') {
+      setClientType('AGENCY_CLIENT');
+      setLineItems([makeItem('B2B Service / Retainer', 1, 0)]);
+    } else {
+      setClientType('FRESHER');
+      setLineItems(defaultItemsForType('FRESHER', exchangeRate));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brandId]);
+
+  useEffect(() => {
+    if (brandId === 'ripple_nexus' && selectedRnServiceId) {
+      const srv = rnServices.find(s => s.id === selectedRnServiceId);
+      if (srv && srv.workflowStages && srv.workflowStages.length > 0) {
+        // Map B2B workflow stages into invoice milestones
+        const items = srv.workflowStages.map((stage, idx) => 
+          makeItem(`Milestone ${idx + 1}: ${stage.replace(/_/g, ' ')}`, 1, 0)
+        );
+        setLineItems(items);
+      } else if (srv) {
+        setLineItems([makeItem(`Service: ${srv.name}`, 1, 0)]);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRnServiceId, brandId, rnServices]);
 
   // Re-populate default items when client type or exchange rate changes
   const initialized = useRef(false);
@@ -325,6 +377,8 @@ export default function NewInvoicePage() {
           companyName: companyName.trim() || undefined,
           country,
           clientType,
+          brandId,
+          rnServiceId: brandId === 'ripple_nexus' ? selectedRnServiceId : undefined,
           currencyOverride: currencyOverride.trim() || undefined,
           // INR always uses Razorpay (enforced server-side too)
           paymentGateway: effectiveCurrency === 'INR' ? 'RAZORPAY' : paymentGateway,
@@ -378,6 +432,50 @@ export default function NewInvoicePage() {
 
           {/* ── Left: Form ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          
+            {rnEnabled && (hasCatalystAccess && hasRnAccess) && (
+              <SectionCard title="Brand & Operational Unit" icon={<IconBuilding />}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <button
+                    type="button"
+                    onClick={() => setBrandId('catalyst')}
+                    style={{
+                      border: `2px solid ${brandId === 'catalyst' ? 'var(--brand)' : 'var(--border)'}`,
+                      background: brandId === 'catalyst' ? 'var(--surface-2)' : '#fff',
+                      borderRadius: 12, padding: '14px', cursor: 'pointer',
+                      textAlign: 'left', transition: 'all .15s',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: brandId === 'catalyst' ? 'var(--brand)' : 'var(--text)' }}>
+                        Catalyst
+                      </span>
+                      {brandId === 'catalyst' && <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--brand)' }} />}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Career Booster Services</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setBrandId('ripple_nexus')}
+                    style={{
+                      border: `2px solid ${brandId === 'ripple_nexus' ? '#7C5CFF' : 'var(--border)'}`,
+                      background: brandId === 'ripple_nexus' ? '#f3f0ff' : '#fff',
+                      borderRadius: 12, padding: '14px', cursor: 'pointer',
+                      textAlign: 'left', transition: 'all .15s',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: brandId === 'ripple_nexus' ? '#7C5CFF' : 'var(--text)' }}>
+                        Ripple Nexus
+                      </span>
+                      {brandId === 'ripple_nexus' && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#7C5CFF' }} />}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>B2B Agency & Software</div>
+                  </button>
+                </div>
+              </SectionCard>
+            )}
 
             {/* 1. Client Info */}
             <SectionCard title="Client Information" icon={<IconUser />}>
@@ -456,47 +554,70 @@ export default function NewInvoicePage() {
               </div>
             </SectionCard>
 
-            {/* 2. Career Level */}
-            <SectionCard title="Career Level" icon={<IconTarget />}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                {CLIENT_TYPES.map(t => {
-                  const meta = CLIENT_META[t];
-                  const sel  = clientType === t;
-                  const base = BASE_PRICING[t];
-                  const baseInr = base.resume + base.linkedin;
-                  const converted = round2(baseInr / exchangeRate);
-                  const fromLabel = (currencyInfo?.code ?? 'INR') === 'INR'
-                    ? `from ${sym}${baseInr.toLocaleString('en-IN')}`
-                    : `from ${fmt(converted, sym)}${currencyInfo?.code ? ` ${currencyInfo.code}` : ''}`;
-                  return (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setClientType(t)}
-                      style={{
-                        border: `2px solid ${sel ? meta.color : 'var(--border)'}`,
-                        background: sel ? `${meta.color}12` : '#fff',
-                        borderRadius: 12, padding: '14px', cursor: 'pointer',
-                        textAlign: 'left', transition: 'all .15s',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: sel ? meta.color : 'var(--text)' }}>
-                          {CLIENT_TYPE_LABELS[t]}
-                        </span>
-                        <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${sel ? meta.color : '#d1d5db'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {sel && <div style={{ width: 8, height: 8, borderRadius: '50%', background: meta.color }} />}
+            {/* 2. Career Level (Catalyst Only) */}
+            {brandId === 'catalyst' && (
+              <SectionCard title="Career Level" icon={<IconTarget />}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {CLIENT_TYPES.map(t => {
+                    const meta = CLIENT_META[t];
+                    const sel  = clientType === t;
+                    const base = BASE_PRICING[t];
+                    const baseInr = base.resume + base.linkedin;
+                    const converted = round2(baseInr / exchangeRate);
+                    const fromLabel = (currencyInfo?.code ?? 'INR') === 'INR'
+                      ? `from ${sym}${baseInr.toLocaleString('en-IN')}`
+                      : `from ${fmt(converted, sym)}${currencyInfo?.code ? ` ${currencyInfo.code}` : ''}`;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setClientType(t)}
+                        style={{
+                          border: `2px solid ${sel ? meta.color : 'var(--border)'}`,
+                          background: sel ? `${meta.color}12` : '#fff',
+                          borderRadius: 12, padding: '14px', cursor: 'pointer',
+                          textAlign: 'left', transition: 'all .15s',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: sel ? meta.color : 'var(--text)' }}>
+                            {CLIENT_TYPE_LABELS[t]}
+                          </span>
+                          <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${sel ? meta.color : '#d1d5db'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            {sel && <div style={{ width: 8, height: 8, borderRadius: '50%', background: meta.color }} />}
+                          </div>
                         </div>
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{meta.sub}</div>
-                      <div style={{ fontSize: 11, color: meta.color, fontWeight: 600, marginTop: 6 }}>
-                        {fromLabel}{exchangeRate !== 1 ? ' (auto)' : ''}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </SectionCard>
+                        <div style={{ fontSize: 11, color: 'var(--muted)' }}>{meta.sub}</div>
+                        <div style={{ fontSize: 11, color: meta.color, fontWeight: 600, marginTop: 6 }}>
+                          {fromLabel}{exchangeRate !== 1 ? ' (auto)' : ''}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </SectionCard>
+            )}
+
+            {/* 2b. B2B Service (Ripple Nexus Only) */}
+            {brandId === 'ripple_nexus' && (
+              <SectionCard title="B2B Service" icon={<IconTarget />}>
+                <FieldLabel label="Select Service Module" required />
+                <select 
+                  className="input" 
+                  value={selectedRnServiceId} 
+                  onChange={e => setSelectedRnServiceId(e.target.value)}
+                  style={{ marginBottom: 12 }}
+                >
+                  <option value="">-- Custom / Other --</option>
+                  {rnServices.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                  Selecting a service module automatically links this invoice to the Ripple Nexus service pipeline upon payment.
+                </div>
+              </SectionCard>
+            )}
 
             {/* 3. Line Items */}
             <SectionCard title="Line Items" icon={<IconList />} noPad>
@@ -854,6 +975,7 @@ export default function NewInvoicePage() {
                 dueDays={dueDays}
                 currencyInfo={currencyInfo}
                 exchangeRate={exchangeRate}
+                brandId={brandId}
               />
             </div>
           </div>

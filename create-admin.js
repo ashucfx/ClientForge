@@ -22,11 +22,13 @@ if (!salt || !rawPassword) {
   process.exit(1);
 }
 
-const newSalt = crypto.randomBytes(16).toString('hex');
-const scryptHash = crypto.scryptSync(rawPassword, newSalt, 64).toString('hex');
-const passwordHash = `${newSalt}:${scryptHash}`;
+const util = require('util');
+const scryptAsync = util.promisify(crypto.scrypt);
 
 async function main() {
+  const newSalt = crypto.randomBytes(16).toString('hex');
+  const scryptHashBuffer = await scryptAsync(rawPassword, newSalt, 64);
+  const passwordHash = `${newSalt}:${scryptHashBuffer.toString('hex')}`;
   const existing = await prisma.adminUser.findUnique({ where: { email } });
   if (existing) {
     console.log(`Admin user ${email} already exists. Updating password...`);

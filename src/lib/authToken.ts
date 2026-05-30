@@ -8,6 +8,10 @@ export interface AdminSessionPayload extends JWTPayload {
   adminId: string;
   email: string;
   role: string;
+  /** The brand the admin actively logged into — cryptographically embedded, cannot be tampered */
+  activeTenant?: string;
+  /** All brands this admin has access to */
+  brandAccess?: string[];
 }
 
 function getSecretKey(secret: string): Uint8Array {
@@ -16,13 +20,13 @@ function getSecretKey(secret: string): Uint8Array {
 
 export async function createSessionToken(
   secret: string,
-  payload: { adminId: string; email: string; role: string },
+  payload: { adminId: string; email: string; role: string; activeTenant?: string; brandAccess?: string[] },
   opts?: { ttlSeconds?: number }
 ): Promise<string> {
   const ttlSeconds = opts?.ttlSeconds ?? 60 * 60 * 24 * 14; // 14 days
   const now = Math.floor(Date.now() / 1000);
   
-  return new SignJWT({ ...payload, v: 2 })
+  return new SignJWT({ ...payload, v: 3 })
     .setProtectedHeader({ alg: ALGORITHM })
     .setIssuedAt(now)
     .setExpirationTime(now + ttlSeconds)

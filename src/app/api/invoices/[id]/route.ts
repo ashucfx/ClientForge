@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { cancelRazorpayPaymentLink, createRazorpayPaymentLink } from '@/lib/razorpay';
 import { cancelPaypalInvoice } from '@/lib/paypal';
 import { calculatePricing, round2 } from '@/lib/pricing';
-import { isAdminRequest } from '@/lib/auth';
+import { getAdminSession } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,11 +16,15 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  if (!(await isAdminRequest())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const invoice = await prisma.invoice.findUnique({ where: { id: params.id } });
   if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+  if (session.role !== 'SUPER_ADMIN' && !session.brandAccess.includes(invoice.brandId)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   return NextResponse.json({ invoice });
 }
 
@@ -33,13 +37,17 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    if (!(await isAdminRequest())) {
+    const session = await getAdminSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const body = await request.json();
 
     const existing = await prisma.invoice.findUnique({ where: { id: params.id } });
     if (!existing) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+    if (session.role !== 'SUPER_ADMIN' && !session.brandAccess.includes(existing.brandId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // If pricing fields are being updated, recalculate all derived amounts
     const pricingChanged =
@@ -134,11 +142,15 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    if (!(await isAdminRequest())) {
+    const session = await getAdminSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const invoice = await prisma.invoice.findUnique({ where: { id: params.id } });
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+    if (session.role !== 'SUPER_ADMIN' && !session.brandAccess.includes(invoice.brandId)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Cancel the active payment link (best-effort) before deletion
     if (invoice.status === 'PENDING') {

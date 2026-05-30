@@ -15,6 +15,7 @@ enum ClientType {
   MID_CAREER
   EXECUTIVE
   EXECUTIVE_PLUS
+  AGENCY_CLIENT  // NEW — Ripple Nexus agency service clients
 }
 
 enum AdminRole {
@@ -28,6 +29,7 @@ model AdminUser {
   email        String    @unique
   passwordHash String
   role         AdminRole @default(EDITOR)
+  brandAccess  String[]  @default(["catalyst", "ripple_nexus"]) // RBAC brand isolation
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
@@ -116,6 +118,14 @@ model Invoice {
   // Email
   emailSentAt      DateTime?
   emailResendCount Int @default(0)
+
+  // ── Brand context (NEW — additive, @default ensures all existing invoices = 'catalyst') ──
+  // 'catalyst'     → Career Booster invoice — Catalyst branding, Catalyst email theme
+  // 'ripple_nexus' → Agency invoice — Ripple Nexus branding, RN email theme
+  brandId          String @default("catalyst")
+  rnServiceId      String? // For Ripple Nexus: which service module this invoice is for
+
+  @@index([brandId])
 
   // ── Relational Data (New Phase 3) ──────────
   invoiceLineItems    InvoiceLineItem[]
@@ -421,3 +431,199 @@ model EmailQueue {
   @@index([clientId, trigger])
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RIPPLE NEXUS MODULE  [NEW — all tables below are additive, zero impact on existing]
+// Career* tables above are 100% untouched.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Service modules — defines the workflow stages and policies for each RN service
+model RnServiceModule {
+  id             String   @id @default(cuid())
+  slug           String   @unique  // 'web_development' | 'seo_optimization' | 'ai_automation' | 'branding' | 'saas_development' | 'consulting' | 'marketing'
+  name           String            // "Website Development"
+  workflowStages Json              // string[] — ordered stage names e.g. ["DISCOVERY","WIREFRAME","DESIGN","DEVELOPMENT","QA","LAUNCHED"]
+  revisionLimit  Int      @default(3)
+  revisionCharge Float    @default(0)   // extra revision charge in INR base
+  defaultSlaDays Int      @default(30)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  clients        RnClient[]
+
+  @@index([slug])
+}
+
+// Ripple Nexus agency clients — completely separate from CareerClient
+model RnClient {
+  id               String    @id @default(cuid())
+  name             String
+  email            String
+  phone            String?
+  country          String?
+  companyName      String?
+  serviceModuleId  String
+
+  // Workflow state
+  currentStage     String    @default("NOT_STARTED")
+  completedStages  Json      @default("[]")   // string[]
+  stageEnteredAt   DateTime  @default(now())
+
+  // Payment reference
+  invoiceId        String?
+  amountPaid       Float     @default(0)
+  currency         String    @default("INR")
+
+  // Portal access
+  magicToken       String?
+  magicTokenExpiry DateTime?
+  pinHash          String?   // HMAC-SHA256 of 6-digit PIN
+  lastLoginAt      DateTime?
+
+  // Project timeline
+  expectedDeliveryAt DateTime?
+  completedAt        DateTime?
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  serviceModule    RnServiceModule      @relation(fields: [serviceModuleId], references: [id])
+  forms            RnFormSubmission[]
+  deliverables     RnDeliverable[]
+  revisions        RnRevision[]
+  messages         RnMessage[]
+  emailLogs        RnEmailLog[]
+  activityLogs     RnActivityLog[]
+  deleteOtp        RnDeleteOtp?
+
+  @@index([email])
+  @@index([serviceModuleId, currentStage])
+}
+
+model RnFormSubmission {
+  id          String   @id @default(cuid())
+  clientId    String
+  formSlug    String   // 'discovery' | 'requirements' | 'feedback'
+  formData    Json
+  version     Int      @default(1)
+  submittedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model RnDeliverable {
+  id           String   @id @default(cuid())
+  clientId     String
+  label        String
+  fileUrl      String
+  publicId     String
+  fileType     String
+  mimeType     String
+  sizeBytes    Int      @default(0)
+  originalName String   @default("")
+  fileCategory String   @default("final")   // 'draft' | 'milestone' | 'final'
+  resourceType String   @default("raw")    // 'raw' | 'image' | 'video'
+  stageContext String?                      // which workflow stage this belongs to
+  uploadedBy   String
+  emailSent    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([clientId, fileCategory])
+}
+
+model RnRevision {
+  id           String   @id @default(cuid())
+  clientId     String
+  requestedBy  String   @default("client")  // 'client' | 'admin'
+  note         String
+  fileLabel    String?
+  status       String   @default("PENDING") // 'PENDING' | 'APPROVED' | 'DENIED'
+  adminNote    String?
+  chargeAmount Float    @default(0)          // 0 = free revision within limit
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model RnMessage {
+  id           String   @id @default(cuid())
+  clientId     String
+  authorType   String   @default("client")  // 'client' | 'admin'
+  authorName   String
+  content      String
+  attachments  Json?    // {name,url,mimeType,size}[]
+  readByAdmin  Boolean  @default(false)
+  readByClient Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model RnEmailLog {
+  id       String   @id @default(cuid())
+  clientId String
+  trigger  String
+  resendId String?
+  status   String   @default("sent")  // 'sent' | 'failed'
+  metadata Json?
+  sentAt   DateTime @default(now())
+
+  client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([clientId, trigger, status])
+}
+
+model RnActivityLog {
+  id          String   @id @default(cuid())
+  clientId    String
+  action      String
+  performedBy String   @default("system")
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model RnDeleteOtp {
+  id        String   @id @default(cuid())
+  clientId  String   @unique
+  otpHash   String   // SHA-256 of 6-digit OTP
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENTERPRISE AUDIT & SECURITY (PHASE 3)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String   // 'catalyst' | 'ripple_nexus' | 'system'
+  adminId   String   // The user who performed the action
+  action    String   // e.g., 'INVOICE_CREATED', 'PRICING_EDITED', 'FILE_UPLOADED'
+  entity    String   // e.g., 'Invoice', 'RnClient'
+  entityId  String   // ID of the mutated record
+  changes   Json?    // { before: {...}, after: {...} }
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([entity, entityId])
+  @@index([adminId])
+}

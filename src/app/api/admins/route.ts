@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     const admin = await prisma.adminUser.create({
       data: {
         email: email.toLowerCase(),
-        passwordHash: hashPassword(password),
+        passwordHash: await hashPassword(password),
         role,
         isActive: true,
       },

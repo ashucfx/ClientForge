@@ -1,23 +1,27 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { verifySessionToken } from '@/lib/authToken';
+import { getAdminSession } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const COOKIE_NAME = 'cf_admin';
-
-function getSecret(): string {
-  return process.env.ADMIN_SESSION_SECRET ?? process.env.ADMIN_SECRET ?? '';
-}
+import { AdminProvider } from '@/components/AdminProvider';
+import { BrandProvider } from '@/components/BrandProvider';
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  const secret = getSecret();
-  const token = cookies().get(COOKIE_NAME)?.value ?? '';
+  // getAdminSession verifies the JWT and returns activeTenant from the signed payload
+  const session = await getAdminSession();
+  if (!session) redirect('/login');
 
-  const ok = secret ? await verifySessionToken(secret, token) : false;
-  if (!ok) redirect('/login');
+  const { adminId, role, brandAccess, activeTenant } = session;
 
-  return children;
+  return (
+    <AdminProvider adminId={adminId} role={role} brandAccess={brandAccess}>
+      {/* activeTenant is derived from the cryptographically verified JWT, not a plain cookie */}
+      <BrandProvider initialBrand={activeTenant}>
+        {children}
+      </BrandProvider>
+    </AdminProvider>
+  );
 }
 

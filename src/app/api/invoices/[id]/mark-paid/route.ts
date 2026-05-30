@@ -5,7 +5,7 @@
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { isAdminRequest } from '@/lib/auth';
+import { getAdminSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { fetchPaymentLinkStatus } from '@/lib/razorpay';
 import { fetchPaypalInvoiceStatus } from '@/lib/paypal';
@@ -16,7 +16,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  if (!(await isAdminRequest())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -25,6 +26,10 @@ export async function POST(
 
   const invoice = await prisma.invoice.findUnique({ where: { id: params.id } });
   if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+
+  if (session.role !== 'SUPER_ADMIN' && !session.brandAccess.includes(invoice.brandId)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   // ── SYNC with gateway ──────────────────────────────────────────
   if (action === 'sync') {

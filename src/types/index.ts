@@ -1,6 +1,6 @@
 // src/types/index.ts
 
-export type ClientType    = 'FRESHER' | 'MID_CAREER' | 'EXECUTIVE' | 'EXECUTIVE_PLUS';
+export type ClientType    = 'FRESHER' | 'MID_CAREER' | 'EXECUTIVE' | 'EXECUTIVE_PLUS' | 'AGENCY_CLIENT';
 export type InvoiceStatus = 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED' | 'EXPIRED';
 
 // ─── Installment (split payment) ──────────────────────────────
@@ -137,6 +137,10 @@ export interface InvoiceData {
   // Dates
   invoiceDate: Date;
   dueDate:     Date;
+
+  // Brand context
+  brandId:          string;
+  rnServiceId:      string | null;
 
   // Email
   emailSentAt:      Date | null;

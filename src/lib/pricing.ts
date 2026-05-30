@@ -26,6 +26,11 @@ export const BASE_PRICING: Record<ClientType, ClientTypePricing> = {
     linkedin:    1299,
     coverLetter: 0,
   },
+  AGENCY_CLIENT: {
+    resume:      0,
+    linkedin:    0,
+    coverLetter: 0,
+  },
 };
 
 // ─────────────────────────────────────────────
@@ -36,6 +41,7 @@ export const REVISION_FEE: Record<ClientType, number> = {
   MID_CAREER:     249,
   EXECUTIVE:      349,
   EXECUTIVE_PLUS: 499,
+  AGENCY_CLIENT:  0,
 };
 
 // ─────────────────────────────────────────────
@@ -46,6 +52,7 @@ export const CLIENT_TYPE_LABELS: Record<ClientType, string> = {
   MID_CAREER:     'Mid-Career Professional',
   EXECUTIVE:      'Executive',
   EXECUTIVE_PLUS: 'Executive Plus',
+  AGENCY_CLIENT:  'Agency Client',
 };
 
 // ─────────────────────────────────────────────
@@ -87,6 +94,11 @@ export const SERVICE_DESCRIPTIONS: Record<ClientType, {
       'Full LinkedIn brand architecture — complete profile, Featured section, About narrative, and ongoing optimization strategy for maximum C-suite and board visibility.',
     coverLetter:
       'Bespoke cover letter for each target organization — researched, personalized, and positioning you as the definitive strategic hire.',
+  },
+  AGENCY_CLIENT: {
+    resume: 'Custom Ripple Nexus Services',
+    linkedin: '',
+    coverLetter: '',
   },
 };
 

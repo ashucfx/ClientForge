@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Catalyst · ClientForge',
+  title: 'ClientForge',
   description: 'Client operations workspace — Powered by Ripple Nexus',
   icons: {
     icon: [

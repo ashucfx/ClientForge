@@ -9,6 +9,10 @@ import type { InvoiceData, ClientType, InvoiceStatus } from '@/types';
 import { formatCurrency, CLIENT_TYPE_LABELS } from '@/lib/pricing';
 import { IconCheck, IconDocument, IconPending, IconSearch, IconTrendUp } from '@/components/Icons';
 import AppShell from '@/components/AppShell';
+import { isRnModuleEnabledClient } from '@/lib/brand/flags';
+import { useBrand } from '@/components/BrandProvider';
+import type { BrandId } from '@/lib/brand/types';
+import { useAdmin } from '@/components/AdminProvider';
 
 // ─── Toast ───────────────────────────────────────────────────────
 type ToastItem = { id: number; msg: string; type: 'success' | 'error' | 'warn' };
@@ -61,6 +65,7 @@ const TIER_CLS: Record<ClientType, string> = {
   MID_CAREER:     'tag-mid-career',
   EXECUTIVE:      'tag-executive',
   EXECUTIVE_PLUS: 'tag-executive-plus',
+  AGENCY_CLIENT:  'tag-agency-client',
 };
 function TierTag({ type }: { type: ClientType }) {
   return (
@@ -161,7 +166,7 @@ function RevenueBar({ invoices }: { invoices: InvoiceData[] }) {
 export default function Dashboard() {
   const router = useRouter();
   const { toasts, show } = useToast();
-
+  const { activeBrand } = useBrand();
   const [invoices, setInvoices]         = useState<InvoiceData[]>([]);
   const [loading, setLoading]           = useState(true);
   const [search, setSearch]             = useState('');
@@ -183,13 +188,29 @@ export default function Dashboard() {
     const p = new URLSearchParams({ limit: '200' });
     if (statusFilter) p.set('status', statusFilter);
     if (typeFilter)   p.set('clientType', typeFilter);
-    const res  = await fetch(`/api/invoices?${p}`);
+
+    // Phase 5C: Use tenant-namespaced API endpoints — no brandId param needed
+    // brandId is enforced server-side via JWT activeTenant claim
+    let apiUrl: string;
+    if (activeBrand === 'ripple_nexus') {
+      apiUrl = `/api/rn/invoices?${p}`;
+    } else if (activeBrand === 'catalyst') {
+      apiUrl = `/api/catalyst/invoices?${p}`;
+    } else {
+      // 'all' — SUPER_ADMIN cross-brand view: use legacy shared endpoint
+      apiUrl = `/api/invoices?${p}`;
+    }
+
+    const res  = await fetch(apiUrl);
     const data = await res.json();
     setInvoices(data.invoices ?? []);
     setLoading(false);
-  }, [statusFilter, typeFilter]);
+  }, [statusFilter, typeFilter, activeBrand]);
 
-  useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
+  useEffect(() => { 
+    fetchInvoices(); 
+  }, [fetchInvoices]);
+
 
   // Client-side search
   const visible = invoices.filter(inv => {
@@ -230,20 +251,35 @@ export default function Dashboard() {
         {/* Page title row */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 className="page-title">Catalyst ClientForge</h1>
-            <p className="page-subtitle">Powered by Ripple Nexus</p>
+            <h1 className="page-title">
+              {activeBrand === 'ripple_nexus' ? 'Ripple Nexus ClientForge' : 'Catalyst ClientForge'}
+            </h1>
+            <p className="page-subtitle">
+              {activeBrand === 'ripple_nexus' ? 'B2B Agency Operations' : 'Career Booster Operations'}
+            </p>
           </div>
           <Link href="/invoices/new" className="btn btn-primary btn-lg" style={{ gap: 8 }}>
             <span style={{ fontSize: 20, lineHeight: 1 }}>+</span> New Invoice
           </Link>
         </div>
 
-        {/* KPI Row */}
+        {/* KPI Row - Matches Active Brand Style */}
         <div className="grid-4" style={{ marginBottom: 24 }}>
-          <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: 'var(--brand)' }} />} bg="#eff6ff" accent />
-          <KpiCard label="Pending" value={stats.pending} icon={<IconPending style={{ color: 'var(--brand)' }} />} bg="#e0f2fe" sub="Awaiting payment" />
-          <KpiCard label="Paid" value={stats.paid} icon={<IconCheck style={{ color: '#3FBD8B' }} />} bg="#d1fae5" sub="Completed" />
-          <KpiCard label="Paid Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: 'var(--brand)' }} />} bg="#eef2ff" sub={`${stats.paid} of ${stats.total} paid`} />
+          {activeBrand === 'ripple_nexus' ? (
+            <>
+              <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: '#7C5CFF' }} />} bg="#f3f0ff" accent />
+              <KpiCard label="Pending" value={stats.pending} icon={<IconPending style={{ color: '#7C5CFF' }} />} bg="#e0e7ff" sub="Awaiting payment" />
+              <KpiCard label="Paid" value={stats.paid} icon={<IconCheck style={{ color: '#7C5CFF' }} />} bg="#ede9fe" sub="Completed" />
+              <KpiCard label="Paid Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: '#7C5CFF' }} />} bg="#f5f3ff" sub={`${stats.paid} of ${stats.total} paid`} />
+            </>
+          ) : (
+            <>
+              <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: 'var(--brand)' }} />} bg="#eff6ff" accent />
+              <KpiCard label="Pending" value={stats.pending} icon={<IconPending style={{ color: 'var(--brand)' }} />} bg="#e0f2fe" sub="Awaiting payment" />
+              <KpiCard label="Paid" value={stats.paid} icon={<IconCheck style={{ color: '#3FBD8B' }} />} bg="#d1fae5" sub="Completed" />
+              <KpiCard label="Paid Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: 'var(--brand)' }} />} bg="#eef2ff" sub={`${stats.paid} of ${stats.total} paid`} />
+            </>
+          )}
         </div>
 
         {/* Revenue bar */}
@@ -254,6 +290,7 @@ export default function Dashboard() {
 
         {/* Filters / Search bar */}
         <div className="card" style={{ padding: '14px 18px', marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+
           <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
             <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }}>
               <IconSearch />
@@ -275,12 +312,18 @@ export default function Dashboard() {
             <option value="CANCELLED">Cancelled</option>
           </select>
 
-          <select className="input" style={{ width: 160, flexShrink: 0 }} value={typeFilter} onChange={e => setType(e.target.value)}>
+            <select className="input" style={{ width: 160, flexShrink: 0 }} value={typeFilter} onChange={e => setType(e.target.value)}>
             <option value="">All Packages</option>
-            <option value="FRESHER">Fresher</option>
-            <option value="MID_CAREER">Mid-Career</option>
-            <option value="EXECUTIVE">Executive</option>
-            <option value="EXECUTIVE_PLUS">Executive Plus</option>
+            {activeBrand === 'ripple_nexus' ? (
+              <option value="AGENCY_CLIENT">Agency Client</option>
+            ) : (
+              <>
+                <option value="FRESHER">Fresher</option>
+                <option value="MID_CAREER">Mid-Career</option>
+                <option value="EXECUTIVE">Executive</option>
+                <option value="EXECUTIVE_PLUS">Executive Plus</option>
+              </>
+            )}
           </select>
 
           {(search || statusFilter || typeFilter) && (
@@ -328,7 +371,10 @@ export default function Dashboard() {
                   <tr key={inv.id} onClick={() => router.push(`/invoices/${inv.id}`)}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span className="mono" style={{ fontWeight: 700, color: 'var(--brand)', fontSize: 13 }}>{inv.invoiceNumber}</span>
+                        <span className="mono" style={{ fontWeight: 700, color: inv.brandId === 'ripple_nexus' ? '#7C5CFF' : 'var(--brand)', fontSize: 13 }}>{inv.invoiceNumber}</span>
+                        {inv.brandId === 'ripple_nexus' && (
+                          <span className="badge" style={{ background: '#ede9fe', color: '#5b21b6', fontSize: 10 }}>nexus</span>
+                        )}
                         {inv.customPricing && (
                           <span className="badge" style={{ background: '#fef9c3', color: '#78350f', fontSize: 10 }}>edited</span>
                         )}

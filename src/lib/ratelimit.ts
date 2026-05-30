@@ -25,6 +25,13 @@ const getRedisLimiter = (limit: number, windowMs: number) => {
   });
 };
 
+// In-memory fallback for local dev when Redis is not configured
+interface FallbackHit {
+  count: number;
+  resetAt: number;
+}
+const fallbackCache = new Map<string, FallbackHit>();
+
 /**
  * Check and record an attempt keyed by `key`.
  * Uses Upstash Redis if configured, otherwise falls back to DB-backed CareerActivityLog.
@@ -51,33 +58,37 @@ export async function rateLimit(
     }
   }
 
-  // --- DB Fallback ---
-  const cutoff = new Date(Date.now() - windowMs);
-  const dbAction = `ratelimit:${action}`;
-
-  const count = await db.careerActivityLog.count({
-    where: {
-      action:      dbAction,
-      performedBy: key,
-      createdAt:   { gte: cutoff },
-    },
-  });
-
-  if (count >= limit) {
+  // --- In-Memory Fallback (Local Dev) ---
+  const now = Date.now();
+  const cacheKey = `rl:${action}:${key}`;
+  
+  let hit = fallbackCache.get(cacheKey);
+  
+  if (!hit || now > hit.resetAt) {
+    hit = { count: 0, resetAt: now + windowMs };
+  }
+  
+  if (hit.count >= limit) {
     return {
       allowed: false,
       remaining: 0,
-      retryAfterSeconds: Math.ceil(windowMs / 1000),
+      retryAfterSeconds: Math.ceil((hit.resetAt - now) / 1000),
     };
   }
-
-  db.careerActivityLog.create({
-    data: { clientId: 'SYSTEM', action: dbAction, performedBy: key },
-  }).catch(() => null);
+  
+  hit.count += 1;
+  fallbackCache.set(cacheKey, hit);
+  
+  // Cleanup old entries occasionally to prevent memory leaks in long-running processes
+  if (Math.random() < 0.05) {
+    for (const [k, v] of Array.from(fallbackCache.entries())) {
+      if (now > v.resetAt) fallbackCache.delete(k);
+    }
+  }
 
   return {
     allowed: true,
-    remaining: limit - count - 1,
+    remaining: limit - hit.count,
     retryAfterSeconds: 0,
   };
 }
@@ -100,7 +111,8 @@ export async function checkMagicLinkRateLimit(email: string): Promise<RateLimitR
 
 /** Clear pin fail attempts after a successful login (optional — reduces lockout after password reset). */
 export async function clearPinFailures(email: string): Promise<void> {
-  await db.careerActivityLog.deleteMany({
-    where: { action: 'ratelimit:pin_fail', performedBy: `pin_fail:${email}` },
-  }).catch(() => null);
+  const cacheKey = `rl:pin_fail:pin_fail:${email}`;
+  fallbackCache.delete(cacheKey);
+  // We can't easily clear Upstash Redis sliding window limits without deleting the keys
+  // which might have complex internal names, so we just clear the fallback for local dev.
 }

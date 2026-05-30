@@ -1,4 +1,8 @@
 // src/app/api/invoices/route.ts
+// @deprecated For tenant-specific requests, use:
+//   - /api/catalyst/invoices  → Catalyst invoices (requires activeTenant=catalyst in JWT)
+//   - /api/rn/invoices        → Ripple Nexus invoices (requires activeTenant=ripple_nexus in JWT)
+// This endpoint remains active for SUPER_ADMIN cross-brand views ('all' mode) only.
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getCurrencyForCountry, getExchangeRate } from '@/lib/currency';
@@ -7,9 +11,11 @@ import { createRazorpayPaymentLink, createRazorpayInstallmentLink } from '@/lib/
 import { createPaypalInvoice, createPaypalInstallmentInvoice } from '@/lib/paypal';
 import { sendInvoiceEmail } from '@/lib/email';
 import { normalizePhoneE164 } from '@/lib/phone';
-import { isAdminRequest } from '@/lib/auth';
+import { getAdminSession } from '@/lib/auth';
+import { logAudit } from '@/lib/audit/logger';
 import { z } from 'zod';
 import { addDays } from 'date-fns';
+import { headers } from 'next/headers';
 import type { LineItem, Installment } from '@/types';
 
 export const runtime = 'nodejs';
@@ -25,12 +31,14 @@ const LineItemSchema = z.object({
 });
 
 const CreateInvoiceSchema = z.object({
+  brandId:          z.enum(['catalyst', 'ripple_nexus']).default('catalyst'),
+  rnServiceId:      z.string().optional(),
   clientName:       z.string().min(2),
   clientEmail:      z.string().email(),
   clientPhone:      z.string().min(6),
   companyName:      z.string().optional(),
   country:          z.string().min(2),
-  clientType:       z.enum(['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS']),
+  clientType:       z.enum(['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS', 'AGENCY_CLIENT']),
   currencyOverride: z.string().optional(),
   paymentGateway:   z.enum(['RAZORPAY', 'PAYPAL']).optional(),
   installmentCount: z.number().int().min(1).max(3).default(1), // 1 = full, 2 = split 2, 3 = split 3
@@ -52,7 +60,8 @@ function splitAmount(total: number, count: number): number[] {
 
 // ─── GET /api/invoices ─────────────────────────
 export async function GET(request: NextRequest) {
-  if (!(await isAdminRequest())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const { searchParams } = new URL(request.url);
@@ -85,6 +94,23 @@ export async function GET(request: NextRequest) {
     ];
   }
 
+  // ── RBAC Brand Enforcement ──
+  const { role, brandAccess } = session;
+  const isSuperAdmin = role === 'SUPER_ADMIN';
+  
+  const brandId = searchParams.get('brandId');
+  if (brandId) {
+    if (!isSuperAdmin && !brandAccess.includes(brandId)) {
+      console.log('API INVOICES 403:', { isSuperAdmin, brandAccess, brandId });
+      return NextResponse.json({ error: 'Unauthorized brand access' }, { status: 403 });
+    }
+    where.brandId = brandId;
+  } else if (!isSuperAdmin) {
+    where.brandId = { in: brandAccess };
+  }
+
+  console.log('API INVOICES QUERY WHERE:', where);
+
   const [invoices, total] = await Promise.all([
     prisma.invoice.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
     prisma.invoice.count({ where }),
@@ -96,9 +122,6 @@ export async function GET(request: NextRequest) {
 // ─── POST /api/invoices ────────────────────────
 export async function POST(request: NextRequest) {
   try {
-    if (!(await isAdminRequest())) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
     const body   = await request.json();
     const parsed = CreateInvoiceSchema.safeParse(body);
 
@@ -107,12 +130,24 @@ export async function POST(request: NextRequest) {
     }
 
     const {
+      brandId,
+      rnServiceId,
       clientName, clientEmail, clientPhone, companyName,
       country, clientType, currencyOverride,
       paymentGateway: requestedGateway,
       installmentCount,
       lineItems, discountRate, taxRate, notes, dueDays,
     } = parsed.data;
+
+    const session = await getAdminSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const { role, brandAccess } = session;
+
+    if (role !== 'SUPER_ADMIN' && !brandAccess.includes(brandId)) {
+      return NextResponse.json({ error: 'Unauthorized to create invoice for this brand' }, { status: 403 });
+    }
 
     const normalizedPhone = normalizePhoneE164(clientPhone, country);
     if (!normalizedPhone) {
@@ -157,6 +192,8 @@ export async function POST(request: NextRequest) {
     const invoice = await prisma.invoice.create({
       data: {
         invoiceNumber:    generateInvoiceNumber(),
+        brandId,
+        rnServiceId: brandId === 'ripple_nexus' ? rnServiceId : undefined,
         clientName, clientEmail, clientPhone: normalizedPhone.e164, clientType,
         country, companyName,
         currency: currencyCode, currencySymbol, exchangeRate,
@@ -267,6 +304,14 @@ export async function POST(request: NextRequest) {
     } catch (emailErr) {
       console.error('[Email] Invoice email failed:', emailErr);
     }
+
+    await logAudit(
+      { tenantId: brandId, adminId: session.adminId, role: session.role, brandAccess: session.brandAccess },
+      'INVOICE_CREATED',
+      'Invoice',
+      fullInvoice.id,
+      { invoiceNumber: fullInvoice.invoiceNumber, amount: fullInvoice.totalPayable }
+    );
 
     return NextResponse.json({ invoice: fullInvoice }, { status: 201 });
   } catch (err) {

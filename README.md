@@ -1,20 +1,20 @@
 # ClientForge by Ripple Nexus
 
-ClientForge is the enterprise-grade Operations Workspace and Client Portal for Ripple Nexus. It handles complex, multi-currency invoicing, client onboarding, deliverable management, secure file sharing, and automated lifecycle communication for the Career Booster program and beyond.
+ClientForge is the enterprise-grade Operations Workspace and Client Portal for Ripple Nexus. It handles complex, multi-currency invoicing, client onboarding, deliverable management, secure file sharing, and automated lifecycle communication for both **Ripple Nexus** (B2B Agency) and **Catalyst** (Career Booster program).
 
-Built for **Vercel** edge deployments with a strict focus on security, performance, and production reliability.
+Built for **Vercel** edge deployments with a strict focus on multi-tenant security, performance, and production reliability.
 
 ---
 
 ## 🌟 Core Features
 
-- **Billing & Invoices**: Multi-currency support (INR via Razorpay, USD/International via PayPal). Dynamic pricing, live exchange rates, and automated receipt generation.
-- **Career Portal (Client-Facing)**: Secure client dashboard protected by Magic Links and PIN login. Clients can download deliverables, request revisions, and chat directly with the admin team.
-- **Admin Workspace**: Centralized hub to manage clients, upload files (resumes, LinkedIn banners), track email deliverability, and handle revision requests.
+- **Multi-Tenant Architecture**: Robust edge middleware dynamically routes traffic, enforces RBAC, and segregates data between Ripple Nexus and Catalyst contexts using cryptographically signed JWTs.
+- **Billing & Invoices**: Multi-currency support (INR via Razorpay, USD/International via PayPal). Dynamic pricing, live exchange rates, automated receipt generation, and tenant-aware branding.
+- **Client Portals**: Dedicated secure client dashboards protected by Magic Links and PIN login. Clients can download deliverables, request revisions, and chat directly with the admin team.
+- **Admin Workspace**: Centralized hub to manage clients, upload files, track email deliverability, and handle multi-brand workflows.
 - **Robust File Storage**: Cloudinary integration for deliverables, hardened to respect Vercel's strict 4.5MB serverless payload limits.
-- **Automation Engine**: Consolidated background cron jobs (`/api/cron/daily`) to handle reminder emails, invoice expiration, and account lifecycles—optimized specifically for the Vercel Free Plan.
 - **Asynchronous Webhooks**: Both Razorpay and PayPal webhooks utilize `@vercel/functions` `waitUntil()` to process heavy database and email tasks in the background, preventing serverless timeouts.
-- **Enterprise Security**: Rate limiting on authentication routes, strict database typings via Prisma, and edge middleware for route protection.
+- **Enterprise Security**: Rate limiting on authentication routes, strict database typings via Prisma, and edge middleware for route protection and tenant isolation.
 
 ---
 
@@ -48,17 +48,14 @@ Push the strict Prisma schema to your database:
 npx prisma generate
 npx prisma db push
 ```
-Create your first admin user (uses `ADMIN_PASSWORD` from `.env.local`):
-```bash
-node create-admin.js
-```
 
 ### 5. Run Development Server
 ```bash
 npm run dev
 ```
 - Admin Dashboard: `http://localhost:3000/login`
-- Client Portal: `http://localhost:3000/portal/login`
+- Catalyst Portal: `http://localhost:3000/portal/login`
+- Ripple Nexus Portal: `http://localhost:3000/rn/portal/[token]`
 
 ---
 
@@ -79,21 +76,23 @@ ClientForge is heavily optimized for Vercel.
 
 ## 🗄️ Database Architecture (Prisma)
 
-ClientForge uses a highly relational PostgreSQL schema to link Billing and Deliverables.
-- `Invoice`: Handles line items, currencies, and payment gateway references (`razorpayLinkId`, `razorpayPaymentId`).
-- `CareerClient`: The central identity for portal access.
-- `CareerDeliverable`: Tracks files uploaded to Cloudinary, ensuring strict limits and access control.
-- `RevisionItem` & `CommentItem`: Powers the communication and revision workflows between the admin and the client.
-- `EmailLog` & `EmailQueue`: Tracks every transactional email sent, enabling the cron engine to retry failed deliveries.
+ClientForge uses a highly relational PostgreSQL schema.
+- **Tenant Isolation**: `brandId` and `rnServiceId` strictly enforce data ownership.
+- **Invoices**: Handles line items, currencies, and payment gateway references.
+- **Clients**: Separate models for `CareerClient` (Catalyst) and `RnClient` (Ripple Nexus).
+- **Deliverables**: Tracks files uploaded to Cloudinary, ensuring strict limits and access control.
+- **Communication**: `RevisionItem`, `CommentItem`, and `Message` power the multi-tenant communication workflows.
+- **Email System**: `EmailLog` & `EmailQueue` track every transactional email sent, enabling the cron engine to retry failed deliveries.
 
 ---
 
 ## 🔐 Security Posture
 
-- **Rate Limiting**: Applied to `/api/auth/login`, `/api/career/auth/magic-link`, and `/api/career/auth/pin-login` to prevent brute-force attacks.
-- **Edge Middleware**: Blocks unauthorized access to `/api/career/admin/*` and protected frontend routes before the request even hits the Node.js runtime.
-- **Payload Limits**: Hard 4MB upload limit enforced across the UI, API, and Edge to prevent `413 Payload Too Large` crashes on Vercel.
-- **Strict Build Enforcement**: `ignoreBuildErrors: false` ensures no code is deployed if there are unhandled TypeScript or React Hook violations.
+- **Cryptographic Tenant Enforcements**: JWTs encode the `activeTenant` claim, preventing session leakage between Ripple Nexus and Catalyst contexts.
+- **Edge Middleware**: Blocks unauthorized access before requests hit the Node.js runtime and automatically resolves routing logic based on the user's cryptographically verified role.
+- **Rate Limiting**: Applied to `/api/auth/login` and portal auth routes to prevent brute-force attacks.
+- **CSRF & XSS Protection**: `cf_active_brand` and session cookies are secured with `httpOnly: true` and `sameSite: lax`.
+- **Payload Limits**: Hard 4MB upload limit enforced to prevent `413 Payload Too Large` crashes.
 
 ---
 

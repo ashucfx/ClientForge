@@ -109,6 +109,21 @@ async function buildSignature(params: Record<string, string>): Promise<string> {
   return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+export async function getUploadSignature(folder: string) {
+  if (!CLOUD_NAME || !API_KEY || !API_SECRET) {
+    throw new Error('Cloudinary env vars not configured');
+  }
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const sigParams: Record<string, string> = {
+    folder,
+    timestamp,
+    unique_filename: 'true',
+    use_filename:    'true',
+  };
+  const signature = await buildSignature(sigParams);
+  return { signature, timestamp, folder, apiKey: API_KEY, cloudName: CLOUD_NAME };
+}
+
 export async function uploadToCloudinary(
   file: File,
   clientId: string,
