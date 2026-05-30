@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { CareerStatus, CareerPackage, FormType } from '@/lib/career/types';
 import { PACKAGE_LABELS, STATUS_LABELS } from '@/lib/career/types';
+import { DeliverableViewer } from '@/components/DeliverableViewer';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -24,9 +25,11 @@ interface Me {
   revisionCount?: number;
   revisionsLeft?: number;
   expectedDeliveryAt?: string | null;
+  waitingOn?: string;
 }
 interface DeliverableItem {
   id: string; label: string; fileUrl: string; fileType: string; createdAt: string;
+  fileCategory: string; approvalStatus?: string;
 }
 interface Attachment { name: string; url: string; mimeType: string; size: number; }
 interface CommentItem {
@@ -108,8 +111,10 @@ export default function PortalDashboardPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [newComment, setNewComment] = useState('');
   const [postingComment, setPostingComment] = useState(false);
+  const [approvingFileId, setApprovingFileId] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [viewingFile, setViewingFile] = useState<DeliverableItem | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
 
@@ -193,6 +198,17 @@ export default function PortalDashboardPage() {
       scrollThread();
     }
     setPostingComment(false);
+  };
+
+  const approveFile = async (fileId: string) => {
+    setApprovingFileId(fileId);
+    const res = await fetch(`/api/career/portal/deliverables/${fileId}/approve`, { method: 'POST' });
+    if (res.ok) {
+      setFiles(prev => prev.map(f => f.id === fileId ? { ...f, approvalStatus: 'APPROVED' } : f));
+    } else {
+      alert('Failed to approve file.');
+    }
+    setApprovingFileId(null);
   };
 
   useEffect(() => { void load(); }, [load]);
@@ -292,6 +308,13 @@ export default function PortalDashboardPage() {
                 } animate-pulse`} />
                 {me.statusLabel}
               </div>
+              {me.waitingOn && (
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                  me.waitingOn === 'CLIENT' ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30' : 'bg-blue-400/20 text-blue-300 border border-blue-400/30'
+                }`}>
+                  WAITING ON: {me.waitingOn === 'CLIENT' ? 'YOU' : 'CATALYST'}
+                </div>
+              )}
               {me.status === 'REVISION_REQUESTED' && (
                 <span className="text-orange-300 text-xs font-medium">Revision in progress</span>
               )}
@@ -512,11 +535,28 @@ export default function PortalDashboardPage() {
                       <p className="text-xs text-slate-400">{fmtDate(file.createdAt)}</p>
                     </div>
                   </div>
-                  <a href={file.fileUrl} target="_blank" rel="noopener noreferrer" download
-                    className="px-3 py-1.5 bg-[#B8935B] text-white text-xs font-bold rounded-lg hover:bg-[#9A7540] transition-colors"
-                    onClick={e => e.stopPropagation()}>
-                    ↓
-                  </a>
+                  <div className="flex items-center gap-2">
+                    {file.fileCategory === 'final' && file.approvalStatus === 'PENDING' && (
+                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); approveFile(file.id); }} disabled={approvingFileId === file.id}
+                        className="px-3 py-1.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-200 transition-colors disabled:opacity-50">
+                        {approvingFileId === file.id ? 'Approving...' : 'Approve'}
+                      </button>
+                    )}
+                    {file.fileCategory === 'final' && file.approvalStatus === 'APPROVED' && (
+                      <span className="px-2 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded border border-emerald-200">
+                        APPROVED ✓
+                      </span>
+                    )}
+                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setViewingFile(file); }}
+                      className="px-3 py-1.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-200 transition-colors">
+                      View
+                    </button>
+                    <a href={file.fileUrl} target="_blank" rel="noopener noreferrer" download
+                      className="px-3 py-1.5 bg-[#B8935B] text-white text-xs font-bold rounded-lg hover:bg-[#9A7540] transition-colors"
+                      onClick={e => e.stopPropagation()}>
+                      ↓
+                    </a>
+                  </div>
                 </div>
               ))}
             </div>
@@ -603,7 +643,35 @@ export default function PortalDashboardPage() {
                 </button>
               </div>
             </div>
-            <input ref={fileInputRef} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.doc,.docx" className="hidden" onChange={handleFileSelect} />
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              multiple
+              accept=".png,.jpg,.jpeg,.webp,.pdf,.docx,.doc"
+              onChange={handleFileSelect}
+            />
+
+            {viewingFile && (
+              <DeliverableViewer 
+                fileUrl={viewingFile.fileUrl}
+                fileId={viewingFile.id}
+                fileName={viewingFile.label}
+                onClose={() => setViewingFile(null)}
+                onSubmitAnnotation={async (x, y, comment) => {
+                  await fetch('/api/career/portal/comments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                      content: `[Pin on ${viewingFile.label}]: ${comment}`,
+                      annotationX: x,
+                      annotationY: y 
+                    })
+                  });
+                  load();
+                }}
+              />
+            )}
             <p className="text-[10px] text-slate-300 mt-1.5 px-1">PNG, JPG, PDF, DOCX · max 4 MB · max 3 files</p>
           </form>
         </div>

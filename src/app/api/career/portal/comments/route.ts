@@ -42,7 +42,7 @@ export async function GET() {
   });
 
   const comments = await db.careerComment.findMany({
-    where:   { clientId: client.id },
+    where:   { clientId: client.id, isInternalOnly: false },
     orderBy: { createdAt: 'asc' },
   });
 
@@ -59,6 +59,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const content     = (body?.content as string | undefined)?.trim();
   const attachments = (body?.attachments as Attachment[] | undefined) ?? [];
+  const annotationX = body?.annotationX as number | undefined;
+  const annotationY = body?.annotationY as number | undefined;
 
   if (!content && attachments.length === 0) {
     return NextResponse.json({ error: 'Message cannot be empty.' }, { status: 400 });
@@ -74,6 +76,8 @@ export async function POST(req: NextRequest) {
       authorName:    client.name,
       content:       content ?? '',
       attachments:   attachments.length > 0 ? (attachments as object[]) : undefined,
+      annotationX,
+      annotationY,
       readByClient:  true,
       readByClientAt: new Date(),
     },

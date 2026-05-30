@@ -34,6 +34,7 @@ interface ClientDetail {
   packageType: CareerPackage | null; status: CareerStatus;
   amountPaid: number; currency: string; notes: string | null;
   createdAt: string; lastLoginAt: string | null; invoiceId: string | null;
+  slaDeadline: string | null; slaStatus: string | null;
   forms: FormSubmission[];
   deliverables: Deliverable[];
   emailLogs: EmailLog[];
@@ -163,7 +164,19 @@ export default function CareerClientDetailPage() {
                 {client.name[0]?.toUpperCase()}
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900">{client.name}</h1>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-xl font-bold text-slate-900">{client.name}</h1>
+                  {client.slaDeadline && (
+                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider ${
+                      new Date(client.slaDeadline).getTime() < Date.now() ? 'bg-red-100 text-red-700 border border-red-200' :
+                      new Date(client.slaDeadline).getTime() < Date.now() + 86400000 ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                      'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                    }`}>
+                      {new Date(client.slaDeadline).getTime() < Date.now() ? 'SLA BREACHED' :
+                       new Date(client.slaDeadline).getTime() < Date.now() + 86400000 ? 'DUE SOON' : 'ON TRACK'}
+                    </span>
+                  )}
+                </div>
                 <p className="text-slate-500 text-sm">{client.email}</p>
                 {client.phone && <p className="text-slate-400 text-xs mt-0.5">{client.phone}</p>}
               </div>
@@ -189,9 +202,10 @@ export default function CareerClientDetailPage() {
           </div>
 
           {/* Stats row */}
-          <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
               { label: 'Amount Paid',  value: `${client.currency} ${client.amountPaid.toLocaleString()}` },
+              { label: 'SLA Deadline', value: client.slaDeadline ? new Date(client.slaDeadline).toLocaleDateString() : 'None' },
               { label: 'Forms',        value: `${client.forms.length} submitted` },
               { label: 'Files',        value: `${client.deliverables.length} / 10 uploaded` },
               { label: 'Last Login',   value: client.lastLoginAt ? fmt(client.lastLoginAt, true) : 'Never' },
@@ -1594,7 +1608,7 @@ function RevisionAdminTab({ clientId, clientName, clientPackage }: {
                         className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 resize-none" />
                       <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
                         <input type="checkbox" checked={confirmEmail} onChange={e => setConfirmEmail(e.target.checked)}
-                          className="w-4 h-4 accent-[#B8935B]" />
+                          className="w-4 h-4 accent-[#B8935B]"/>
                         Send email to client
                       </label>
                       <div className="flex gap-2">
@@ -1651,6 +1665,7 @@ interface CommentItem {
   readByAdminAt: string | null;
   readByClientAt: string | null;
   createdAt: string;
+  isInternalOnly?: boolean;
 }
 
 function AttachmentChip({ a, onRemove }: { a: Attachment; onRemove?: () => void }) {
@@ -1681,10 +1696,17 @@ function MessageBubble({ c, isAdmin }: { c: CommentItem; isAdmin: boolean }) {
   const atts = c.attachments ?? [];
 
   return (
-    <div className={`flex gap-2.5 ${mine ? 'flex-row-reverse' : ''}`}>
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
-        c.authorType === 'admin' ? 'bg-[#B8935B] text-white' : 'bg-slate-200 text-slate-600'
-      }`}>
+    <div className={`flex gap-2.5 ${mine ? 'flex-row-reverse' : ''}`} style={{
+      padding: '16px 20px',
+      display: 'flex', gap: 16,
+      alignItems: 'flex-start',
+      border: c.isInternalOnly ? '1px solid #eab308' : '1px solid var(--border)',
+    }}>
+      <div style={{
+        width: 36, height: 36, borderRadius: '50%',
+        background: c.authorType === 'admin' ? (c.isInternalOnly ? '#eab308' : 'var(--brand)') : '#3F3F46',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold'
+      }}>
         {c.authorType === 'admin' ? 'C' : c.authorName[0]?.toUpperCase() ?? '?'}
       </div>
       <div className={`max-w-[72%] flex flex-col gap-1 ${mine ? 'items-end' : 'items-start'}`}>
@@ -1727,6 +1749,7 @@ function MessageBubble({ c, isAdmin }: { c: CommentItem; isAdmin: boolean }) {
         <div className={`flex items-center gap-2 px-1 ${mine ? 'flex-row-reverse' : ''}`}>
           <span className="text-[11px] text-slate-400">
             {c.authorType === 'admin' ? 'Catalyst Team' : c.authorName} · {fmt(c.createdAt, true)}
+            {c.isInternalOnly && ' · INTERNAL'}
           </span>
           {mine && seenAt && (
             <span className="text-[10px] text-[#B8935B] font-medium flex items-center gap-0.5">
@@ -1754,6 +1777,7 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
   const [error,        setError]        = useState('');
   const [pendingFiles, setPendingFiles] = useState<Attachment[]>([]);
   const [uploading,    setUploading]    = useState(false);
+  const [isInternalOnly, setIsInternalOnly] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const threadRef    = useRef<HTMLDivElement>(null);
 
@@ -1802,12 +1826,12 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
     const res = await fetch(`/api/career/admin/clients/${clientId}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: reply.trim(), attachments: pendingFiles }),
+      body: JSON.stringify({ content: reply.trim(), attachments: pendingFiles, isInternalOnly }),
     });
     if (res.ok) {
       const d = await res.json() as { comment: CommentItem };
       setComments(prev => [...prev, d.comment]);
-      setReply(''); setPendingFiles([]);
+      setReply(''); setPendingFiles([]); setIsInternalOnly(false);
     } else {
       const d = await res.json().catch(() => ({})) as { error?: string };
       setError(d.error ?? 'Failed to send message.');
@@ -1898,6 +1922,10 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
               {pendingFiles.length > 0 && (
                 <span className="text-xs text-slate-400">{pendingFiles.length}/3 file{pendingFiles.length !== 1 ? 's' : ''}</span>
               )}
+              <label className="flex items-center gap-1.5 ml-2 text-xs font-medium text-slate-500 cursor-pointer">
+                <input type="checkbox" checked={isInternalOnly} onChange={e => setIsInternalOnly(e.target.checked)} className="w-3.5 h-3.5 accent-yellow-500" />
+                <span className={isInternalOnly ? 'text-yellow-600' : ''}>Internal Note (hidden)</span>
+              </label>
             </div>
             <button type="submit" disabled={posting || uploading || (!reply.trim() && pendingFiles.length === 0)}
               className="px-5 py-2 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center gap-1.5">

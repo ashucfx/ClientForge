@@ -54,8 +54,11 @@ export default async function RnClientPortalLayout({ params, children }: { param
       {/* Tabs */}
       <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}>
         <div style={{ maxWidth: 1000, margin: '0 auto', padding: '0 24px', display: 'flex', gap: 32 }}>
-          <Link href={`/rn/portal/${params.token}`} style={{ padding: '16px 0', color: '#7C5CFF', borderBottom: '2px solid #7C5CFF', textDecoration: 'none', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link href={`/rn/portal/${params.token}`} style={{ padding: '16px 0', color: '#A1A1AA', textDecoration: 'none', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
             <IconGrid size={16} /> Overview
+          </Link>
+          <Link href={`/rn/portal/${params.token}/milestones`} style={{ padding: '16px 0', color: '#A1A1AA', textDecoration: 'none', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <IconGrid size={16} /> Milestones
           </Link>
           <Link href={`/rn/portal/${params.token}/deliverables`} style={{ padding: '16px 0', color: '#A1A1AA', textDecoration: 'none', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
             <IconDocument size={16} /> Deliverables

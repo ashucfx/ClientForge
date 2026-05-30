@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
     select: {
       id: true, name: true, email: true,
       packageType: true, status: true,
+      waitingOn: true,
       pinHash: true, currency: true,
       createdAt: true,
       expectedDeliveryAt: true,
@@ -104,6 +105,7 @@ export async function GET(req: NextRequest) {
     packageLabel,
     status,
     statusLabel: STATUS_LABELS[status],
+    waitingOn: client.waitingOn,
     hasPinSet: !!client.pinHash,
     currency: client.currency,
     createdAt: client.createdAt,
