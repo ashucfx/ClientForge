@@ -12,34 +12,34 @@ ClientForge uses Next.js 14 (App Router) on the frontend and backend, with a Pos
 
 ```mermaid
 graph TD
-    subgraph Clients
+    subgraph Clients["Clients"]
       C[Catalyst Client]
       RN[Ripple Nexus Client]
     end
     
-    subgraph Vercel Edge
+    subgraph VercelEdge["Vercel Edge"]
       M{Middleware.ts}
     end
     
-    subgraph ClientForge Application
-      subgraph Catalyst Sector
+    subgraph App["ClientForge Application"]
+      subgraph CatalystSector["Catalyst Sector"]
         CP[Career Portal]
         CA[Career Admin]
       end
       
-      subgraph Ripple Nexus Sector
+      subgraph RNSector["Ripple Nexus Sector"]
         RNP[B2B Portal]
         RNA[B2B Admin]
       end
       
-      subgraph Shared Core
+      subgraph SharedCore["Shared Core"]
         GCP[Global Command Palette]
         Search[Unified /api/search]
         Kanban[Workload Kanban]
       end
     end
     
-    subgraph Data Layer
+    subgraph DataLayer["Data Layer"]
       DB[(PostgreSQL NeonDB)]
       R[Razorpay Webhooks]
       E[Resend Emails]
@@ -56,9 +56,9 @@ graph TD
     RNP --> DB
     RNA --> DB
     
-    Shared Core --> DB
-    R --> Shared Core
-    Shared Core --> E
+    SharedCore --> DB
+    R --> SharedCore
+    SharedCore --> E
 ```
 
 ---
