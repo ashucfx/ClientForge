@@ -15,13 +15,16 @@ enum ClientType {
   MID_CAREER
   EXECUTIVE
   EXECUTIVE_PLUS
-  AGENCY_CLIENT  // NEW — Ripple Nexus agency service clients
+  AGENCY_CLIENT // NEW — Ripple Nexus agency service clients
 }
 
 enum AdminRole {
   SUPER_ADMIN
   EDITOR
   VIEWER
+  PROJECT_MANAGER
+  DESIGNER
+  BILLING
 }
 
 model AdminUser {
@@ -36,7 +39,6 @@ model AdminUser {
   updatedAt    DateTime  @updatedAt
 }
 
-
 enum InvoiceStatus {
   PENDING
   PARTIALLY_PAID
@@ -46,16 +48,16 @@ enum InvoiceStatus {
 }
 
 model Invoice {
-  id            String        @id @default(cuid())
-  invoiceNumber String        @unique
+  id            String @id @default(cuid())
+  invoiceNumber String @unique
 
   // Client Info
-  clientName    String
-  clientEmail   String
-  clientPhone   String
-  clientType    ClientType
-  country       String
-  companyName   String?
+  clientName  String
+  clientEmail String
+  clientPhone String
+  clientType  ClientType
+  country     String
+  companyName String?
 
   // Currency
   currency       String
@@ -67,10 +69,10 @@ model Invoice {
   lineItems Json @default("[]")
 
   // Invoice-level adjustments
-  discountRate   Float @default(0)   // % discount applied on subtotal
-  taxRate        Float @default(0)   // % tax applied after discount
-  discountAmount Float @default(0)   // computed
-  taxAmount      Float @default(0)   // computed
+  discountRate   Float @default(0) // % discount applied on subtotal
+  taxRate        Float @default(0) // % tax applied after discount
+  discountAmount Float @default(0) // computed
+  taxAmount      Float @default(0) // computed
 
   // ── Legacy service fields (backward compat) ──
   resumeBaseInr        Float @default(0)
@@ -112,20 +114,18 @@ model Invoice {
 
   // Split / installment payment
   installmentPlan  Boolean @default(false)
-  installmentCount Int     @default(1)      // 1 = single, 2 = two parts, 3 = three parts
-  installments     Json    @default("[]")   // Installment[]
+  installmentCount Int     @default(1) // 1 = single, 2 = two parts, 3 = three parts
+  installments     Json    @default("[]") // Installment[]
 
   // Email
   emailSentAt      DateTime?
-  emailResendCount Int @default(0)
+  emailResendCount Int       @default(0)
 
   // ── Brand context (NEW — additive, @default ensures all existing invoices = 'catalyst') ──
   // 'catalyst'     → Career Booster invoice — Catalyst branding, Catalyst email theme
   // 'ripple_nexus' → Agency invoice — Ripple Nexus branding, RN email theme
-  brandId          String @default("catalyst")
-  rnServiceId      String? // For Ripple Nexus: which service module this invoice is for
-
-  @@index([brandId])
+  brandId     String  @default("catalyst")
+  rnServiceId String? // For Ripple Nexus: which service module this invoice is for
 
   // ── Relational Data (New Phase 3) ──────────
   invoiceLineItems    InvoiceLineItem[]
@@ -134,6 +134,7 @@ model Invoice {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([brandId])
   @@index([status])
   @@index([clientType])
   @@index([clientEmail])
@@ -165,7 +166,7 @@ enum CareerPackage {
 // Dynamic services — seeded; new clients use CareerClientService
 model CareerService {
   id       String  @id @default(cuid())
-  slug     String  @unique  // RESUME | COVER_LETTER | LINKEDIN | PORTFOLIO | FULL_PACKAGE
+  slug     String  @unique // RESUME | COVER_LETTER | LINKEDIN | PORTFOLIO | FULL_PACKAGE
   name     String
   formType String? // career_profile | linkedin_profile | portfolio_website | null
 
@@ -195,27 +196,30 @@ enum CareerStatus {
 }
 
 model CareerClient {
-  id                String         @id @default(cuid())
-  name              String
-  email             String         @unique
-  phone             String?
-  packageType       CareerPackage? // deprecated: use services relation
-  status            CareerStatus   @default(NOT_STARTED)
-  amountPaid        Float         @default(0)
-  currency          String        @default("INR")
-  razorpayPaymentId String?       @unique
-  razorpayOrderId   String?
-  magicToken        String?
-  magicTokenExpiry  DateTime?
-  pinHash           String?       // HMAC-SHA256 of 6-digit PIN
-  lastLoginAt       DateTime?
-  invoiceId         String?
-  notes               String?
-  expectedDeliveryAt  DateTime?
-  draftSentAt         DateTime?
-  completedAt         DateTime?
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  id                 String         @id @default(cuid())
+  name               String
+  email              String         @unique
+  phone              String?
+  packageType        CareerPackage? // deprecated: use services relation
+  status             CareerStatus   @default(NOT_STARTED)
+  amountPaid         Float          @default(0)
+  currency           String         @default("INR")
+  razorpayPaymentId  String?        @unique
+  razorpayOrderId    String?
+  magicToken         String?
+  magicTokenExpiry   DateTime?
+  pinHash            String? // HMAC-SHA256 of 6-digit PIN
+  lastLoginAt        DateTime?
+  invoiceId          String?
+  notes              String?
+  expectedDeliveryAt DateTime?
+  draftSentAt        DateTime?
+  completedAt        DateTime?
+  slaDeadline        DateTime?
+  slaStatus          String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  waitingOn          String         @default("AGENCY") // "AGENCY" | "CLIENT"
 
   forms        CareerFormSubmission[]
   deliverables CareerDeliverable[]
@@ -233,13 +237,13 @@ model CareerClient {
 }
 
 model CareerFormSubmission {
-  id          String       @id @default(cuid())
+  id          String   @id @default(cuid())
   clientId    String
   formType    String
   formData    Json
-  version     Int          @default(1)
-  submittedAt DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  version     Int      @default(1)
+  submittedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -248,20 +252,22 @@ model CareerFormSubmission {
 }
 
 model CareerDeliverable {
-  id           String   @id @default(cuid())
-  clientId     String
-  label        String
-  fileUrl      String
-  publicId     String
-  fileType     String
-  mimeType     String
-  sizeBytes    Int      @default(0)
-  originalName String   @default("")
-  fileCategory String   @default("final") // "draft" | "final"
-  resourceType String   @default("raw")   // "raw" | "image" | "video"
-  uploadedBy   String
-  emailSent    Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  id             String    @id @default(cuid())
+  clientId       String
+  label          String
+  fileUrl        String
+  publicId       String
+  fileType       String
+  mimeType       String
+  sizeBytes      Int       @default(0)
+  originalName   String    @default("")
+  fileCategory   String    @default("final") // "draft" | "final"
+  resourceType   String    @default("raw") // "raw" | "image" | "video"
+  uploadedBy     String
+  emailSent      Boolean   @default(false)
+  approvalStatus String    @default("PENDING")
+  approvedAt     DateTime?
+  createdAt      DateTime  @default(now())
 
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -270,13 +276,13 @@ model CareerDeliverable {
 }
 
 model CareerEmailLog {
-  id        String       @id @default(cuid())
-  clientId  String
-  trigger   String
-  resendId  String?
-  status    String       @default("sent")
-  metadata  Json?
-  sentAt    DateTime     @default(now())
+  id       String   @id @default(cuid())
+  clientId String
+  trigger  String
+  resendId String?
+  status   String   @default("sent")
+  metadata Json?
+  sentAt   DateTime @default(now())
 
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -285,12 +291,12 @@ model CareerEmailLog {
 }
 
 model CareerActivityLog {
-  id          String       @id @default(cuid())
+  id          String   @id @default(cuid())
   clientId    String
   action      String
-  performedBy String       @default("system")
+  performedBy String   @default("system")
   metadata    Json?
-  createdAt   DateTime     @default(now())
+  createdAt   DateTime @default(now())
 
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -310,7 +316,7 @@ model CareerRevision {
   clientId    String
   requestedBy String   @default("client") // "client" | "admin"
   note        String
-  fileLabel   String?  // which deliverable this relates to
+  fileLabel   String? // which deliverable this relates to
   status      String   @default("PENDING") // PENDING | APPROVED | DENIED
   adminNote   String?
   createdAt   DateTime @default(now())
@@ -327,11 +333,15 @@ model CareerComment {
   authorType     String    @default("client") // "client" | "admin"
   authorName     String
   content        String
-  attachments    Json?     // {name,url,mimeType,size}[]
+  attachments    Json? // {name,url,mimeType,size}[]
   readByAdmin    Boolean   @default(false)
   readByClient   Boolean   @default(false)
   readByAdminAt  DateTime?
   readByClientAt DateTime?
+  annotationX    Float?
+  annotationY    Float?
+  annotationPage Int?
+  isInternalOnly Boolean   @default(false)
   createdAt      DateTime  @default(now())
 
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -340,14 +350,15 @@ model CareerComment {
 }
 
 model CareerMessage {
-  id            String   @id @default(cuid())
-  clientId      String
-  authorType    String   @default("client") // "client" | "admin"
-  authorName    String
-  content       String
-  readByAdmin   Boolean  @default(false)
-  readByClient  Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  id             String   @id @default(cuid())
+  clientId       String
+  authorType     String   @default("client") // "client" | "admin"
+  authorName     String
+  content        String
+  isInternalOnly Boolean  @default(false)
+  readByAdmin    Boolean  @default(false)
+  readByClient   Boolean  @default(false)
+  createdAt      DateTime @default(now())
 
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -355,11 +366,11 @@ model CareerMessage {
 }
 
 model CareerDeleteOtp {
-  id        String       @id @default(cuid())
-  clientId  String       @unique
-  otpHash   String       // SHA-256 of 6-digit OTP
+  id        String   @id @default(cuid())
+  clientId  String   @unique
+  otpHash   String // SHA-256 of 6-digit OTP
   expiresAt DateTime
-  createdAt DateTime     @default(now())
+  createdAt DateTime @default(now())
 
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 }
@@ -383,14 +394,14 @@ model InvoiceLineItem {
 }
 
 model InvoiceInstallment {
-  id          String   @id @default(cuid())
-  invoiceId   String
-  seq         Int      // e.g. 1, 2, 3
-  amount      Float
-  dueDate     DateTime
-  status      String   @default("PENDING") // PENDING, PAID, CANCELLED, EXPIRED
-  paidAt      DateTime?
-  createdAt   DateTime @default(now())
+  id        String    @id @default(cuid())
+  invoiceId String
+  seq       Int // e.g. 1, 2, 3
+  amount    Float
+  dueDate   DateTime
+  status    String    @default("PENDING") // PENDING, PAID, CANCELLED, EXPIRED
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
@@ -402,35 +413,34 @@ model InvoiceInstallment {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model WebhookEvent {
-  id          String   @id @default(cuid())
-  provider    String   // e.g., 'RAZORPAY', 'PAYPAL'
-  eventId     String   @unique // The unique ID from the provider (e.g., razorpay_payment_id or event_id)
-  eventType   String   // e.g., 'payment.captured'
-  payload     Json     // The raw payload
-  status      String   @default("PROCESSED") // 'PROCESSED', 'FAILED'
-  error       String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  provider  String // e.g., 'RAZORPAY', 'PAYPAL'
+  eventId   String   @unique // The unique ID from the provider (e.g., razorpay_payment_id or event_id)
+  eventType String // e.g., 'payment.captured'
+  payload   Json // The raw payload
+  status    String   @default("PROCESSED") // 'PROCESSED', 'FAILED'
+  error     String?
+  createdAt DateTime @default(now())
 
   @@index([provider, eventId])
 }
 
 model EmailQueue {
-  id          String   @id @default(cuid())
-  to          String
-  trigger     String
-  clientId    String?
-  data        Json?    // Email template data
-  status      String   @default("PENDING") // 'PENDING', 'PROCESSING', 'SENT', 'FAILED'
-  error       String?
-  attempts    Int      @default(0)
-  nextRunAt   DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  to        String
+  trigger   String
+  clientId  String?
+  data      Json? // Email template data
+  status    String   @default("PENDING") // 'PENDING', 'PROCESSING', 'SENT', 'FAILED'
+  error     String?
+  attempts  Int      @default(0)
+  nextRunAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status, nextRunAt])
   @@index([clientId, trigger])
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RIPPLE NEXUS MODULE  [NEW — all tables below are additive, zero impact on existing]
@@ -440,62 +450,98 @@ model EmailQueue {
 // Service modules — defines the workflow stages and policies for each RN service
 model RnServiceModule {
   id             String   @id @default(cuid())
-  slug           String   @unique  // 'web_development' | 'seo_optimization' | 'ai_automation' | 'branding' | 'saas_development' | 'consulting' | 'marketing'
-  name           String            // "Website Development"
-  workflowStages Json              // string[] — ordered stage names e.g. ["DISCOVERY","WIREFRAME","DESIGN","DEVELOPMENT","QA","LAUNCHED"]
+  slug           String   @unique // 'web_development' | 'seo_optimization' | 'ai_automation' | 'branding' | 'saas_development' | 'consulting' | 'marketing'
+  name           String // "Website Development"
+  workflowStages Json // string[] — ordered stage names e.g. ["DISCOVERY","WIREFRAME","DESIGN","DEVELOPMENT","QA","LAUNCHED"]
   revisionLimit  Int      @default(3)
-  revisionCharge Float    @default(0)   // extra revision charge in INR base
+  revisionCharge Float    @default(0) // extra revision charge in INR base
   defaultSlaDays Int      @default(30)
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  clients        RnClient[]
+  clients RnClient[]
 
   @@index([slug])
 }
 
 // Ripple Nexus agency clients — completely separate from CareerClient
-model RnClient {
+
+model RnOrganization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  RnOrganizationMember[]
+  projects RnClient[]
+}
+
+model RnOrganizationMember {
   id               String    @id @default(cuid())
+  orgId            String
   name             String
-  email            String
-  phone            String?
-  country          String?
-  companyName      String?
-  serviceModuleId  String
+  email            String    @unique
+  role             String    @default("MEMBER") // "ADMIN" | "MEMBER"
+  magicToken       String?
+  magicTokenExpiry DateTime?
+  lastLoginAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization RnOrganization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([orgId])
+}
+
+model RnClient {
+  id              String  @id @default(cuid())
+  name            String
+  email           String
+  phone           String?
+  country         String?
+  companyName     String?
+  serviceModuleId String
+  organizationId  String?
 
   // Workflow state
-  currentStage     String    @default("NOT_STARTED")
-  completedStages  Json      @default("[]")   // string[]
-  stageEnteredAt   DateTime  @default(now())
+  currentStage    String   @default("NOT_STARTED")
+  completedStages Json     @default("[]") // string[]
+  stageEnteredAt  DateTime @default(now())
 
   // Payment reference
-  invoiceId        String?
-  amountPaid       Float     @default(0)
-  currency         String    @default("INR")
+  invoiceId  String?
+  amountPaid Float   @default(0)
+  currency   String  @default("INR")
 
   // Portal access
   magicToken       String?
   magicTokenExpiry DateTime?
-  pinHash          String?   // HMAC-SHA256 of 6-digit PIN
+  pinHash          String? // HMAC-SHA256 of 6-digit PIN
   lastLoginAt      DateTime?
 
   // Project timeline
   expectedDeliveryAt DateTime?
   completedAt        DateTime?
   notes              String?
+  slaDeadline        DateTime?
+  slaStatus          String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+  waitingOn          String    @default("AGENCY") // "AGENCY" | "CLIENT"
 
-  serviceModule    RnServiceModule      @relation(fields: [serviceModuleId], references: [id])
-  forms            RnFormSubmission[]
-  deliverables     RnDeliverable[]
-  revisions        RnRevision[]
-  messages         RnMessage[]
-  emailLogs        RnEmailLog[]
-  activityLogs     RnActivityLog[]
-  deleteOtp        RnDeleteOtp?
+  organization  RnOrganization?      @relation(fields: [organizationId], references: [id])
+  serviceModule RnServiceModule      @relation(fields: [serviceModuleId], references: [id])
+  forms         RnFormSubmission[]
+  deliverables  RnDeliverable[]
+  revisions     RnRevision[]
+  messages      RnMessage[]
+  emailLogs     RnEmailLog[]
+  activityLogs  RnActivityLog[]
+  deleteOtp     RnDeleteOtp?
+  milestones    RnProjectMilestone[]
+  comments      RnComment[]
 
   @@index([email])
   @@index([serviceModuleId, currentStage])
@@ -504,7 +550,7 @@ model RnClient {
 model RnFormSubmission {
   id          String   @id @default(cuid())
   clientId    String
-  formSlug    String   // 'discovery' | 'requirements' | 'feedback'
+  formSlug    String // 'discovery' | 'requirements' | 'feedback'
   formData    Json
   version     Int      @default(1)
   submittedAt DateTime @default(now())
@@ -516,21 +562,23 @@ model RnFormSubmission {
 }
 
 model RnDeliverable {
-  id           String   @id @default(cuid())
-  clientId     String
-  label        String
-  fileUrl      String
-  publicId     String
-  fileType     String
-  mimeType     String
-  sizeBytes    Int      @default(0)
-  originalName String   @default("")
-  fileCategory String   @default("final")   // 'draft' | 'milestone' | 'final'
-  resourceType String   @default("raw")    // 'raw' | 'image' | 'video'
-  stageContext String?                      // which workflow stage this belongs to
-  uploadedBy   String
-  emailSent    Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  id             String    @id @default(cuid())
+  clientId       String
+  label          String
+  fileUrl        String
+  publicId       String
+  fileType       String
+  mimeType       String
+  sizeBytes      Int       @default(0)
+  originalName   String    @default("")
+  fileCategory   String    @default("final") // 'draft' | 'milestone' | 'final'
+  resourceType   String    @default("raw") // 'raw' | 'image' | 'video'
+  stageContext   String? // which workflow stage this belongs to
+  uploadedBy     String
+  emailSent      Boolean   @default(false)
+  approvalStatus String    @default("PENDING")
+  approvedAt     DateTime?
+  createdAt      DateTime  @default(now())
 
   client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -541,12 +589,12 @@ model RnDeliverable {
 model RnRevision {
   id           String   @id @default(cuid())
   clientId     String
-  requestedBy  String   @default("client")  // 'client' | 'admin'
+  requestedBy  String   @default("client") // 'client' | 'admin'
   note         String
   fileLabel    String?
   status       String   @default("PENDING") // 'PENDING' | 'APPROVED' | 'DENIED'
   adminNote    String?
-  chargeAmount Float    @default(0)          // 0 = free revision within limit
+  chargeAmount Float    @default(0) // 0 = free revision within limit
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -555,16 +603,41 @@ model RnRevision {
   @@index([clientId])
 }
 
+model RnComment {
+  id             String    @id @default(cuid())
+  clientId       String
+  deliverableId  String?
+  authorType     String    @default("client") // "client" | "admin"
+  authorName     String
+  content        String
+  attachments    Json? // {name,url,mimeType,size}[]
+  annotationX    Float?
+  annotationY    Float?
+  annotationPage Int?
+  isInternalOnly Boolean   @default(false)
+  readByAdmin    Boolean   @default(false)
+  readByClient   Boolean   @default(false)
+  readByAdminAt  DateTime?
+  readByClientAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([deliverableId])
+}
+
 model RnMessage {
-  id           String   @id @default(cuid())
-  clientId     String
-  authorType   String   @default("client")  // 'client' | 'admin'
-  authorName   String
-  content      String
-  attachments  Json?    // {name,url,mimeType,size}[]
-  readByAdmin  Boolean  @default(false)
-  readByClient Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  id             String   @id @default(cuid())
+  clientId       String
+  authorType     String   @default("client") // 'client' | 'admin'
+  authorName     String
+  content        String
+  isInternalOnly Boolean  @default(false)
+  attachments    Json? // {name,url,mimeType,size}[]
+  readByAdmin    Boolean  @default(false)
+  readByClient   Boolean  @default(false)
+  createdAt      DateTime @default(now())
 
   client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -576,7 +649,7 @@ model RnEmailLog {
   clientId String
   trigger  String
   resendId String?
-  status   String   @default("sent")  // 'sent' | 'failed'
+  status   String   @default("sent") // 'sent' | 'failed'
   metadata Json?
   sentAt   DateTime @default(now())
 
@@ -602,7 +675,7 @@ model RnActivityLog {
 model RnDeleteOtp {
   id        String   @id @default(cuid())
   clientId  String   @unique
-  otpHash   String   // SHA-256 of 6-digit OTP
+  otpHash   String // SHA-256 of 6-digit OTP
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -615,15 +688,74 @@ model RnDeleteOtp {
 
 model AuditLog {
   id        String   @id @default(cuid())
-  tenantId  String   // 'catalyst' | 'ripple_nexus' | 'system'
-  adminId   String   // The user who performed the action
-  action    String   // e.g., 'INVOICE_CREATED', 'PRICING_EDITED', 'FILE_UPLOADED'
-  entity    String   // e.g., 'Invoice', 'RnClient'
-  entityId  String   // ID of the mutated record
-  changes   Json?    // { before: {...}, after: {...} }
+  tenantId  String // 'catalyst' | 'ripple_nexus' | 'system'
+  adminId   String // The user who performed the action
+  action    String // e.g., 'INVOICE_CREATED', 'PRICING_EDITED', 'FILE_UPLOADED'
+  entity    String // e.g., 'Invoice', 'RnClient'
+  entityId  String // ID of the mutated record
+  changes   Json? // { before: {...}, after: {...} }
   createdAt DateTime @default(now())
 
   @@index([tenantId])
   @@index([entity, entityId])
   @@index([adminId])
+}
+
+model AdminNote {
+  id        String   @id @default(cuid())
+  clientId  String // Works for both CareerClient and RnClient
+  adminId   String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([adminId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  adminId   String
+  title     String
+  message   String
+  link      String? // Optional URL to redirect when clicked
+  isRead    Boolean  @default(false)
+  type      String   @default("INFO") // INFO, WARNING, SUCCESS, ERROR
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([isRead])
+}
+
+model RnProjectMilestone {
+  id          String    @id @default(cuid())
+  clientId    String
+  title       String
+  description String?
+  order       Int
+  status      String    @default("PENDING") // PENDING, IN_PROGRESS, IN_REVIEW, APPROVED
+  dueDate     DateTime?
+  approvedAt  DateTime?
+
+  client RnClient        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tasks  RnProjectTask[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+}
+
+model RnProjectTask {
+  id          String  @id @default(cuid())
+  milestoneId String
+  title       String
+  isCompleted Boolean @default(false)
+
+  milestone RnProjectMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([milestoneId])
 }
