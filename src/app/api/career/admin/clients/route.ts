@@ -20,11 +20,13 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl;
   const status  = searchParams.get('status')   ?? undefined;
+  const lifecycleStatus = searchParams.get('lifecycleStatus') ?? 'ACTIVE';
   const search  = searchParams.get('search')   ?? undefined;
   const page    = Math.max(1, Number(searchParams.get('page')  ?? '1'));
   const limit   = Math.min(50, Math.max(10, Number(searchParams.get('limit') ?? '20')));
 
   const where = {
+    ...(lifecycleStatus !== 'ALL' ? { lifecycleStatus } : {}),
     ...(status ? { status: status as never } : {}),
     ...(search ? {
       OR: [

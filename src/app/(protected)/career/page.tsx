@@ -66,6 +66,7 @@ export default function CareerClientsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterLifecycle, setFilterLifecycle] = useState('ACTIVE');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -73,15 +74,16 @@ export default function CareerClientsPage() {
   const fetchClients = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), limit: '20' });
-    if (search)      params.set('search', search);
+    if (search) params.set('search', search);
     if (filterStatus) params.set('status', filterStatus);
+    if (filterLifecycle !== 'ALL') params.set('lifecycleStatus', filterLifecycle);
 
     const res = await fetch(`/api/career/admin/clients?${params}`);
     const data = await res.json() as { clients: Client[]; pagination: { total: number } };
     setClients(data.clients ?? []);
     setTotal(data.pagination?.total ?? 0);
     setLoading(false);
-  }, [page, search, filterStatus]);
+  }, [page, search, filterStatus, filterLifecycle]);
 
   useEffect(() => { void fetchClients(); }, [fetchClients]);
 
@@ -110,6 +112,15 @@ export default function CareerClientsPage() {
           onChange={e => { setSearch(e.target.value); setPage(1); }}
           className="px-3 py-2 text-sm border border-slate-200 rounded-lg w-64 focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
         />
+        <select
+          value={filterLifecycle}
+          onChange={e => { setFilterLifecycle(e.target.value); setPage(1); }}
+          className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
+        >
+          <option value="ACTIVE">Active Clients</option>
+          <option value="ARCHIVED">Archived Clients</option>
+          <option value="ALL">All Clients</option>
+        </select>
         <select
           value={filterStatus}
           onChange={e => { setFilterStatus(e.target.value); setPage(1); }}

@@ -12,6 +12,11 @@ import { DeliverableViewer } from '@/components/DeliverableViewer';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface FormMeta { formType: string; version: number; submittedAt: string; }
+
+interface RevisionSummary {
+  slug: string; name: string; freeLimit: number; freeUsed: number; revisionsLeft: number; paidUsed: number;
+}
+
 interface Me {
   id: string; name: string; email: string;
   packageType: CareerPackage; packageLabel: string;
@@ -24,6 +29,7 @@ interface Me {
   hasPinSet?: boolean;
   revisionCount?: number;
   revisionsLeft?: number;
+  revisionSummary?: RevisionSummary[];
   expectedDeliveryAt?: string | null;
   waitingOn?: string;
 }
@@ -323,21 +329,30 @@ export default function PortalDashboardPage() {
         </div>
 
         {/* ── Stats row: Revisions + Delivery Date ── */}
-        <div className="grid grid-cols-2 gap-3">
-          {/* Revisions left */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Revisions left (Per service) */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Revisions Left</p>
-            <div className="flex items-end gap-1.5">
-              <span className="text-2xl font-bold text-slate-900">{me.revisionsLeft ?? 2}</span>
-              <span className="text-sm text-slate-400 mb-0.5">/ 2</span>
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisions Left</p>
             </div>
-            <div className="mt-2 flex gap-1">
-              {[0, 1].map(i => (
-                <div key={i} className={`flex-1 h-1.5 rounded-full ${
-                  i < (me.revisionsLeft ?? 2) ? 'bg-[#B8935B]' : 'bg-slate-200'
-                }`} />
-              ))}
-            </div>
+            {me.revisionSummary && me.revisionSummary.length > 0 ? (
+              <div className="space-y-2">
+                {me.revisionSummary.map(s => (
+                  <div key={s.slug} className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-700 truncate max-w-[150px]" title={s.name}>{s.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-slate-900">{s.revisionsLeft}</span>
+                      <span className="text-xs text-slate-400">/ {s.freeLimit}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-end gap-1.5">
+                <span className="text-2xl font-bold text-slate-900">{me.revisionsLeft ?? 2}</span>
+                <span className="text-sm text-slate-400 mb-0.5">/ 2</span>
+              </div>
+            )}
           </div>
 
           {/* Expected delivery */}

@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
     select: {
       id: true, name: true, email: true,
       packageType: true, status: true,
+      lifecycleStatus: true,
       waitingOn: true,
       pinHash: true, currency: true,
       createdAt: true,
@@ -41,6 +42,9 @@ export async function GET(req: NextRequest) {
   });
 
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (client.lifecycleStatus === 'ARCHIVED') {
+    return NextResponse.json({ error: 'Account archived' }, { status: 403 });
+  }
 
   // Determine available forms — services first, fall back to packageType
   const pkg = client.packageType as CareerPackage | null;
@@ -75,8 +79,33 @@ export async function GET(req: NextRequest) {
     formType: normalizeFormType(f.formType),
   }));
 
-  const revisionCount  = client.revisions.length;
-  const revisionsLeft  = Math.max(0, 2 - revisionCount);
+  // Per-service revision counters
+  const revisionsList = await db.careerRevision.findMany({
+    where: { clientId: client.id, requestedBy: 'client' },
+    select: { serviceSlug: true, chargeStatus: true }
+  });
+
+  const FREE_LIMIT = 2;
+  
+  // Calculate usage per service
+  const revisionSummary = client.services.map(s => {
+    const slug = s.service.slug;
+    const freeUsed = revisionsList.filter(r => r.serviceSlug === slug && r.chargeStatus === 'FREE').length;
+    const paidUsed = revisionsList.filter(r => r.serviceSlug === slug && r.chargeStatus !== 'FREE').length;
+    return {
+      slug,
+      name: SERVICE_LABELS[slug as CareerServiceSlug] ?? s.service.name,
+      freeLimit: FREE_LIMIT,
+      freeUsed,
+      revisionsLeft: Math.max(0, FREE_LIMIT - freeUsed),
+      paidUsed
+    };
+  });
+  
+  // Fallback for global legacy view or clients with no services linked yet
+  const globalFreeUsed = revisionsList.filter(r => r.chargeStatus === 'FREE').length;
+  const revisionsLeft = Math.max(0, FREE_LIMIT - globalFreeUsed);
+  const revisionCount = revisionsList.length;
 
   // Fallback for legacy clients without expectedDeliveryAt
   let fallbackDeliveryAt = null;
@@ -112,6 +141,7 @@ export async function GET(req: NextRequest) {
     expectedDeliveryAt: client.expectedDeliveryAt ?? fallbackDeliveryAt,
     revisionCount,
     revisionsLeft,
+    revisionSummary,
     availableForms,
     submittedForms: Array.from(submittedFormsNormalized),
     forms: formsNormalized,

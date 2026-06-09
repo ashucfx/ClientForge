@@ -56,6 +56,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const clientCurrentState = await db.careerClient.findUnique({
+    where: { id: params.id },
+    select: { lifecycleStatus: true }
+  });
+  if (!clientCurrentState) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
 
@@ -68,6 +74,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.invoiceId   !== undefined) data.invoiceId   = body.invoiceId || null;
   if (body.amountPaid  !== undefined) data.amountPaid  = Number(body.amountPaid);
   if (body.currency    !== undefined) data.currency    = String(body.currency).trim().toUpperCase();
+  if (body.lifecycleStatus !== undefined) {
+    data.lifecycleStatus = String(body.lifecycleStatus).trim();
+    if (data.lifecycleStatus === 'ACTIVE' && clientCurrentState.lifecycleStatus === 'ARCHIVED') {
+      const { generateMagicToken, magicTokenExpiry } = await import('@/lib/career/auth');
+      data.reEngagedAt = new Date();
+      data.magicToken = generateMagicToken();
+      data.magicTokenExpiry = magicTokenExpiry();
+      data.status = 'UNDER_PROCESS';
+      data.completedAt = null;
+    }
+  }
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
@@ -76,7 +93,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const client = await db.careerClient.update({
     where: { id: params.id },
     data,
-    select: { id: true, name: true, email: true, phone: true, packageType: true, status: true, amountPaid: true, currency: true, notes: true, invoiceId: true },
+    select: { id: true, name: true, email: true, phone: true, packageType: true, status: true, amountPaid: true, currency: true, notes: true, invoiceId: true, lifecycleStatus: true, reEngagedAt: true },
   });
 
   await db.careerActivityLog.create({

@@ -32,6 +32,7 @@ interface RevisionItem {
 interface ClientDetail {
   id: string; name: string; email: string; phone: string | null;
   packageType: CareerPackage | null; status: CareerStatus;
+  lifecycleStatus: string;
   amountPaid: number; currency: string; notes: string | null;
   createdAt: string; lastLoginAt: string | null; invoiceId: string | null;
   slaDeadline: string | null; slaStatus: string | null;
@@ -152,6 +153,30 @@ export default function CareerClientDetailPage() {
           </button>
         </div>
       </div>
+
+      {client.lifecycleStatus === 'ARCHIVED' && (
+        <div className="bg-slate-100 border border-slate-300 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+          <svg className="text-slate-400 mb-2" width="32" height="32" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+          <h2 className="text-lg font-bold text-slate-800">This client is archived</h2>
+          <p className="text-sm text-slate-500 mt-1 max-w-md">
+            Their portal access has been safely revoked and they are hidden from the active dashboard.
+          </p>
+          <button
+            onClick={async () => {
+              if (!confirm('Are you sure you want to reopen this client? This will regenerate their portal access token and set their status to Under Process.')) return;
+              await fetch(`/api/career/admin/clients/${client.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lifecycleStatus: 'ACTIVE' })
+              });
+              void reload();
+            }}
+            className="mt-4 px-4 py-2 bg-slate-800 text-white text-sm font-semibold rounded-lg hover:bg-slate-700 transition-colors"
+          >
+            Reopen Client
+          </button>
+        </div>
+      )}
 
       {/* Hero card */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">

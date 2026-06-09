@@ -151,5 +151,227 @@ export async function GET(req: Request) {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // 5. Revision Eligibility Nudge (25 days in COMPLETED)
+  // -------------------------------------------------------------------------
+  const twentyFiveDaysAgo = new Date(now);
+  twentyFiveDaysAgo.setDate(twentyFiveDaysAgo.getDate() - 25);
+
+  const expiringClients = await db.careerClient.findMany({
+    where: {
+      status: 'COMPLETED',
+      completedAt: { lte: twentyFiveDaysAgo },
+      lifecycleStatus: 'ACTIVE',
+    },
+    select: { id: true, email: true, name: true },
+  });
+
+  const expiringClientIds = expiringClients.map(c => c.id);
+  const existingExpiringLogs = await db.careerEmailLog.findMany({
+    where: { clientId: { in: expiringClientIds }, trigger: 'REVISION_EXPIRING', status: 'sent' },
+    select: { clientId: true },
+  });
+  const alreadyNudged = new Set(existingExpiringLogs.map(l => l.clientId));
+
+  for (const client of expiringClients) {
+    if (!alreadyNudged.has(client.id)) {
+      await sendCareerEmail({
+        to: client.email,
+        trigger: 'MESSAGE_NOTIFY',
+        clientId: client.id,
+        data: {
+          recipientName: client.name,
+          senderType: 'admin',
+          portalUrl: `${PORTAL_URL}/portal/dashboard`,
+          subject: 'Reminder: 5 Days Left to Request Revisions',
+          body: `Hi ${client.name.split(' ')[0]},\n\nJust a quick reminder that your 30-day revision window will close in 5 days. After this time, your project will be safely archived.\n\nIf you need any final tweaks to your documents, please log in to the portal and submit a revision request before the window closes.`,
+        },
+      });
+
+      await db.careerEmailLog.create({
+        data: { clientId: client.id, trigger: 'REVISION_EXPIRING', status: 'sent' },
+      });
+      processedCount++;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 6. Unread Message Escalation (24-Hour SLA for Career)
+  // -------------------------------------------------------------------------
+  const twentyFourHoursAgo = new Date(now);
+  twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+
+  const unreadMessages = await db.careerMessage.findMany({
+    where: {
+      authorType: 'client',
+      readByAdmin: false,
+      createdAt: { lte: twentyFourHoursAgo },
+    },
+    select: { clientId: true, authorName: true },
+    distinct: ['clientId'],
+  });
+
+  for (const msg of unreadMessages) {
+    const recentEscalation = await db.careerEmailLog.findFirst({
+      where: {
+        clientId: msg.clientId,
+        trigger: 'UNREAD_ESCALATION',
+        sentAt: { gte: twentyFourHoursAgo },
+      }
+    });
+
+    if (!recentEscalation) {
+      await sendCareerEmail({
+        to: process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com',
+        trigger: 'MESSAGE_NOTIFY',
+        clientId: msg.clientId,
+        data: {
+          recipientName: 'Catalyst Team',
+          senderType: 'system',
+          portalUrl: `${PORTAL_URL}/career/${msg.clientId}`,
+          subject: `ACTION REQUIRED: Unread messages from ${msg.authorName}`,
+          body: `You have messages from ${msg.authorName} that have been unread for over 24 hours.\n\nPlease log in to the admin dashboard and respond promptly to meet SLA requirements.`,
+        },
+      });
+
+      await db.careerEmailLog.create({
+        data: { clientId: msg.clientId, trigger: 'UNREAD_ESCALATION', status: 'sent' },
+      });
+      processedCount++;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 6b. Unread Message Escalation (24-Hour SLA for RN)
+  // -------------------------------------------------------------------------
+  const rnUnreadMessages = await db.rnMessage.findMany({
+    where: {
+      authorType: 'client',
+      readByAdmin: false,
+      createdAt: { lte: twentyFourHoursAgo },
+    },
+    select: { clientId: true, authorName: true },
+    distinct: ['clientId'],
+  });
+
+  for (const msg of rnUnreadMessages) {
+    const recentEscalation = await db.rnActivityLog.findFirst({
+      where: {
+        clientId: msg.clientId,
+        action: 'UNREAD_ESCALATION',
+        createdAt: { gte: twentyFourHoursAgo },
+      }
+    });
+
+    if (!recentEscalation) {
+      // RN uses a different email approach, usually to team@theripplenexus.com
+      const { Resend } = await import('resend');
+      const { getBrand } = await import('@/lib/brand/registry');
+      try {
+        const resend = new Resend(process.env.RESEND_API_KEY!);
+        const brand = getBrand('ripple_nexus');
+        
+        await resend.emails.send({
+          from: `${brand.name} <${brand.fromEmail}>`,
+          reply_to: brand.replyTo,
+          to: process.env.ADMIN_NOTIFY_EMAIL ?? 'team@theripplenexus.com',
+          subject: `ACTION REQUIRED: Unread RN messages from ${msg.authorName}`,
+          html: `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto">
+            <h2>Action Required</h2>
+            <p>You have messages from ${msg.authorName} that have been unread for over 24 hours.</p>
+            <div style="margin:24px 0">
+              <a href="${PORTAL_URL}/rn/${msg.clientId}" style="background:${brand.primaryColor};color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold">
+                View Messages
+              </a>
+            </div>
+            <p style="color:#666;font-size:13px">Please respond promptly to meet SLA requirements.</p>
+          </div>`,
+        });
+
+        // Log to RN Activity Log since there's no rnEmailLog table
+        await db.rnActivityLog.create({
+          data: {
+            clientId: msg.clientId,
+            action: 'UNREAD_ESCALATION',
+            performedBy: 'system',
+            metadata: { escalatedTo: process.env.ADMIN_NOTIFY_EMAIL ?? 'team@theripplenexus.com' }
+          }
+        });
+        processedCount++;
+      } catch (err) {
+        console.error('[RN Escalation] Email failed:', err);
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 7. Automated 30-day Archival (Phase 4)
+  // -------------------------------------------------------------------------
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  // 4a. Archive Career Clients
+  const careerToArchive = await db.careerClient.findMany({
+    where: {
+      status: 'COMPLETED',
+      completedAt: { lte: thirtyDaysAgo },
+      lifecycleStatus: 'ACTIVE',
+    },
+    select: { id: true, email: true },
+  });
+
+  for (const client of careerToArchive) {
+    await db.careerClient.update({
+      where: { id: client.id },
+      data: {
+        lifecycleStatus: 'ARCHIVED',
+        archivedAt: new Date(),
+        archiveReason: 'AUTO_30D',
+        magicToken: null,
+        magicTokenExpiry: null,
+      },
+    });
+    await db.careerActivityLog.create({
+      data: {
+        clientId: client.id,
+        action: 'auto_archived',
+        performedBy: 'system',
+        metadata: { reason: '30 days since completion' }
+      }
+    });
+    processedCount++;
+  }
+
+  // 4b. Archive RN Clients
+  const rnToArchive = await db.rnClient.findMany({
+    where: {
+      completedAt: { lte: thirtyDaysAgo },
+      lifecycleStatus: 'ACTIVE',
+    },
+    select: { id: true, email: true },
+  });
+
+  for (const client of rnToArchive) {
+    await db.rnClient.update({
+      where: { id: client.id },
+      data: {
+        lifecycleStatus: 'ARCHIVED',
+        archivedAt: new Date(),
+        archiveReason: 'AUTO_30D',
+        magicToken: null,
+        magicTokenExpiry: null,
+      },
+    });
+    await db.rnActivityLog.create({
+      data: {
+        clientId: client.id,
+        action: 'auto_archived',
+        performedBy: 'system',
+        metadata: { reason: '30 days since completion' }
+      }
+    });
+    processedCount++;
+  }
+
   return NextResponse.json({ ok: true, processed: processedCount });
 }
