@@ -8,6 +8,7 @@ import { cookies } from 'next/headers';
 import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
+import { notifyAllAdmins } from '@/lib/notifications';
 import { waitUntil } from '@vercel/functions';
 
 
@@ -63,18 +64,27 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Email notification to admin with 5-minute debounce
   const adminPortalUrl = `${PORTAL_URL}/career/${client.id}`;
-  
+
+  // In-app notification (DB) — always fires, no debounce needed
+  waitUntil(
+    notifyAllAdmins({
+      title: `New message from ${client.name}`,
+      message: content.slice(0, 120) + (content.length > 120 ? '…' : ''),
+      type: 'INFO',
+      link: adminPortalUrl,
+    }).catch(console.error)
+  );
+
+  // Email notification to admin with 5-minute debounce
   waitUntil((async () => {
-    // Check for recent emails to debounce
     const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
     const recentEmail = await db.careerEmailLog.findFirst({
       where: {
         clientId: client.id,
         trigger: 'MESSAGE_NOTIFY',
-        sentAt: { gte: fiveMinsAgo }
-      }
+        sentAt: { gte: fiveMinsAgo },
+      },
     });
 
     if (!recentEmail) {
@@ -89,5 +99,4 @@ export async function POST(req: NextRequest) {
   })());
 
   return NextResponse.json({ message }, { status: 201 });
-
 }
