@@ -1,4 +1,5 @@
 // src/app/api/career/admin/clients/[id]/comments/route.ts
+// Admin: GET full comment thread (marks client msgs read), POST reply to client
 
 export const runtime = 'nodejs';
 
@@ -6,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 import { sendCareerEmail } from '@/lib/career/email';
+import { waitUntil } from '@vercel/functions';
 
 const PORTAL_URL =
   process.env.NODE_ENV === 'development'
@@ -19,7 +21,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   const now = new Date();
 
-  // Mark all client messages as read by admin
+  // Mark all client comments as read by admin — clears the unread badge
   await db.careerComment.updateMany({
     where: { clientId: params.id, authorType: 'client', readByAdmin: false },
     data:  { readByAdmin: true, readByAdminAt: now },
@@ -39,12 +41,16 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body = await req.json().catch(() => null);
+  const body        = await req.json().catch(() => null);
   const content     = (body?.content as string | undefined)?.trim();
   const attachments = (body?.attachments as Attachment[] | undefined) ?? [];
+  const isInternal  = body?.isInternalOnly === true;
 
   if (!content && attachments.length === 0) {
     return NextResponse.json({ error: 'Message cannot be empty.' }, { status: 400 });
+  }
+  if (content && content.length > 4000) {
+    return NextResponse.json({ error: 'Message too long (max 4000 chars).' }, { status: 400 });
   }
 
   const client = await db.careerClient.findUnique({
@@ -55,21 +61,30 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const comment = await db.careerComment.create({
     data: {
-      clientId:    params.id,
-      authorType:  'admin',
-      authorName:  'Catalyst Team',
-      content:     content ?? '',
-      attachments: attachments.length > 0 ? (attachments as object[]) : undefined,
-      readByAdmin: true,
+      clientId:      params.id,
+      authorType:    'admin',
+      authorName:    'Catalyst Team',
+      content:       content ?? '',
+      attachments:   attachments.length > 0 ? (attachments as object[]) : undefined,
+      isInternalOnly: isInternal,
+      readByAdmin:   true,
       readByAdminAt: new Date(),
     },
   });
 
-  sendCareerEmail({
-    to:      client.email,
-    trigger: 'MESSAGE_NOTIFY',
-    data:    { recipientName: client.name, senderType: 'admin', portalUrl: `${PORTAL_URL}/portal/dashboard` },
-  }).catch(console.error);
+  // Fire-and-forget: email client (don't block UI response)
+  // Only email if this is not an internal note
+  if (!isInternal) {
+    waitUntil(
+      sendCareerEmail({
+        to:       client.email,
+        trigger:  'MESSAGE_NOTIFY',
+        clientId: client.id,
+        data:     { recipientName: client.name, senderType: 'admin', portalUrl: `${PORTAL_URL}/portal/dashboard` },
+      }).catch(console.error)
+    );
+  }
 
   return NextResponse.json({ ok: true, comment }, { status: 201 });
 }
+

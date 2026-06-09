@@ -1,4 +1,5 @@
 // src/app/api/career/portal/comments/route.ts
+// Client portal: GET thread (marks admin msgs as read), POST new comment
 
 export const runtime = 'nodejs';
 
@@ -7,6 +8,7 @@ import { cookies } from 'next/headers';
 import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
+import { notifyAllAdmins } from '@/lib/notifications';
 import { waitUntil } from '@vercel/functions';
 
 
@@ -83,18 +85,43 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  const adminPortalUrl = `${PORTAL_URL}/career/${client.id}`;
+
+  // In-app notification (DB) — always fires immediately, no debounce
   waitUntil(
-    sendCareerEmail({
-      to:      ADMIN_EMAIL,
-      trigger: 'MESSAGE_NOTIFY',
-      data: {
-        recipientName: 'Catalyst Team',
-        senderType:    'client',
-        portalUrl:     `${PORTAL_URL}/career/${client.id}`,
-        body:          `${client.name} sent a new message. Open the admin panel to view and reply.`,
-      },
+    notifyAllAdmins({
+      title: `New message from ${client.name}`,
+      message: (content ?? '').slice(0, 120) + ((content?.length ?? 0) > 120 ? '…' : ''),
+      type: 'INFO',
+      link: adminPortalUrl,
     }).catch(console.error)
   );
+
+  // Email notification — 5-minute debounce to avoid flooding
+  waitUntil((async () => {
+    const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const recentEmail = await db.careerEmailLog.findFirst({
+      where: {
+        clientId: client.id,
+        trigger: 'MESSAGE_NOTIFY',
+        sentAt: { gte: fiveMinsAgo },
+      },
+    });
+
+    if (!recentEmail) {
+      await sendCareerEmail({
+        to: ADMIN_EMAIL,
+        trigger: 'MESSAGE_NOTIFY',
+        clientId: client.id,
+        data: {
+          recipientName: 'Catalyst Team',
+          senderType: 'client',
+          portalUrl: adminPortalUrl,
+          body: `${client.name} sent a new message. Open the admin panel to view and reply.`,
+        },
+      }).catch(console.error);
+    }
+  })());
 
   return NextResponse.json({ ok: true, comment }, { status: 201 });
 }
