@@ -221,6 +221,14 @@ model CareerClient {
   updatedAt          DateTime       @updatedAt
   waitingOn          String         @default("AGENCY") // "AGENCY" | "CLIENT"
 
+  // Phase 4: Lifecycle & Archival
+  lifecycleStatus  String    @default("ACTIVE") // ACTIVE | ARCHIVED | EXPIRED | CANCELLED
+  archivedAt       DateTime?
+  archiveReason    String?
+  reEngagedAt      DateTime?
+  reEngagedFrom    String?
+  lastAdminReplyAt DateTime?
+
   forms        CareerFormSubmission[]
   deliverables CareerDeliverable[]
   emailLogs    CareerEmailLog[]
@@ -234,6 +242,8 @@ model CareerClient {
   @@index([status])
   @@index([email])
   @@index([packageType])
+  @@index([lifecycleStatus])
+  @@index([completedAt])
 }
 
 model CareerFormSubmission {
@@ -319,6 +329,12 @@ model CareerRevision {
   fileLabel   String? // which deliverable this relates to
   status      String   @default("PENDING") // PENDING | APPROVED | DENIED
   adminNote   String?
+  
+  // Phase 3: Per-service tracking & Paid revisions
+  serviceSlug  String?  // e.g., 'RESUME', 'LINKEDIN'
+  chargeStatus String   @default("FREE") // "FREE" | "PENDING_PAYMENT" | "PAID"
+  invoiceId    String?  // Links to the generated invoice for paid revisions
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -531,6 +547,12 @@ model RnClient {
   updatedAt          DateTime  @updatedAt
   waitingOn          String    @default("AGENCY") // "AGENCY" | "CLIENT"
 
+  // Phase 4: Lifecycle & Archival
+  lifecycleStatus  String    @default("ACTIVE") // ACTIVE | ARCHIVED | EXPIRED | CANCELLED
+  archivedAt       DateTime?
+  archiveReason    String?
+  lastAdminReplyAt DateTime?
+
   organization  RnOrganization?      @relation(fields: [organizationId], references: [id])
   serviceModule RnServiceModule      @relation(fields: [serviceModuleId], references: [id])
   forms         RnFormSubmission[]
@@ -545,6 +567,7 @@ model RnClient {
 
   @@index([email])
   @@index([serviceModuleId, currentStage])
+  @@index([lifecycleStatus])
 }
 
 model RnFormSubmission {

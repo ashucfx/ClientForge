@@ -8,6 +8,7 @@ import { cookies } from 'next/headers';
 import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
+import { notifyAllAdmins } from '@/lib/notifications';
 import { waitUntil } from '@vercel/functions';
 
 
@@ -23,7 +24,7 @@ async function getClient() {
   if (!payload) return null;
   const client = await db.careerClient.findUnique({
     where: { id: payload.clientId },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, status: true, completedAt: true },
   });
   return client ?? null;
 }
@@ -44,9 +45,19 @@ export async function POST(req: NextRequest) {
   const client = await getClient();
   if (!client) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body = await req.json().catch(() => null);
+  if (client.status === 'COMPLETED' && client.completedAt) {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    if (client.completedAt < thirtyDaysAgo) {
+      return NextResponse.json({ 
+        error: 'Your 30-day revision window has expired. Please contact support for a new engagement.' 
+      }, { status: 403 });
+    }
+  }
+
+  const body      = await req.json().catch(() => null);
   const note      = (body?.note as string | undefined)?.trim();
   const fileLabel = (body?.fileLabel as string | undefined)?.trim() || undefined;
+  const serviceSlug = (body?.serviceSlug as string | undefined)?.trim() || 'GENERAL';
 
   if (!note || note.length < 5) {
     return NextResponse.json({ error: 'Please describe the revision needed (min 5 chars).' }, { status: 400 });
@@ -55,16 +66,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Note too long (max 2000 chars).' }, { status: 400 });
   }
 
-  // Enforce max 2 revision requests per client
-  const existingCount = await db.careerRevision.count({
-    where: { clientId: client.id, requestedBy: 'client' },
+  // Enforce max 2 FREE revision requests per service per client
+  const FREE_LIMIT = 2;
+  const existingFreeRevisions = await db.careerRevision.count({
+    where: { 
+      clientId: client.id, 
+      requestedBy: 'client',
+      serviceSlug,
+      chargeStatus: 'FREE'
+    },
   });
-  if (existingCount >= 2) {
-    return NextResponse.json(
-      { error: 'You have reached the maximum of 2 revision requests. Please contact support for further assistance.' },
-      { status: 403 },
-    );
-  }
+
+  const isFree = existingFreeRevisions < FREE_LIMIT;
+  const chargeStatus = isFree ? 'FREE' : 'PENDING_PAYMENT';
+  // If paid, we might lock the status as AWAITING_PAYMENT or keep it PENDING for admin review
+  const status = isFree ? 'PENDING' : 'PENDING'; // Kept as PENDING for now so it shows up in admin queue
 
   const revision = await db.careerRevision.create({
     data: {
@@ -72,7 +88,9 @@ export async function POST(req: NextRequest) {
       requestedBy: 'client',
       note,
       fileLabel,
-      status: 'PENDING',
+      serviceSlug,
+      status,
+      chargeStatus,
     },
   });
 
@@ -82,12 +100,24 @@ export async function POST(req: NextRequest) {
       clientId: client.id,
       action: 'revision_requested',
       performedBy: 'client',
-      metadata: { note: note.slice(0, 100), fileLabel },
+      metadata: { note: note.slice(0, 100), fileLabel, serviceSlug, chargeStatus },
     },
   });
 
-  // Notify admin that a revision has been requested
+  // Notify admin in-app (DB notification)
+  waitUntil(
+    notifyAllAdmins({
+      title: `${isFree ? 'Revision' : 'Paid Revision'} requested by ${client.name}`,
+      message: `[${serviceSlug}] "${note.slice(0, 100)}${note.length > 100 ? '…' : ''}"`,
+      type: isFree ? 'WARNING' : 'ERROR', // ERROR color draws attention to pending payments
+      link: `${PORTAL_URL}/career/${client.id}?tab=revisions`,
+    }).catch(console.error)
+  );
+
+  // Notify admin via email
   const fileContext = fileLabel ? ` regarding "${fileLabel}"` : '';
+  const pricingContext = isFree ? 'This is a free revision.' : '⚠️ The client has exhausted their free revisions for this service. A payment link needs to be generated.';
+  
   waitUntil(
     sendCareerEmail({
       to: ADMIN_EMAIL,
@@ -96,11 +126,16 @@ export async function POST(req: NextRequest) {
         recipientName: 'Catalyst Team',
         senderType: 'client',
         portalUrl: `${PORTAL_URL}/career/${client.id}?tab=revisions`,
-        subject: `Catalyst — ${client.name} has requested a revision`,
-        body: `${client.name} has submitted a new revision request${fileContext}. Log in to the admin panel to review and approve or deny it.\n\nRequest: "${note.slice(0, 200)}${note.length > 200 ? '…' : ''}"`,
+        subject: `Catalyst — ${client.name} has requested a ${isFree ? '' : 'PAID '}revision`,
+        body: `${client.name} has submitted a new revision request for ${serviceSlug}${fileContext}. \n\n${pricingContext}\n\nRequest: "${note.slice(0, 200)}${note.length > 200 ? '…' : ''}"`,
       },
     }).catch(console.error)
   );
 
-  return NextResponse.json({ ok: true, revision }, { status: 201 });
+  return NextResponse.json({ 
+    ok: true, 
+    revision,
+    requiresPayment: !isFree,
+    message: isFree ? 'Revision requested successfully.' : 'Free revisions exhausted for this service. Our team will review your request and send a payment link if a paid revision is required.'
+  }, { status: 201 });
 }

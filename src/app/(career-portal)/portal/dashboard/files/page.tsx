@@ -53,6 +53,7 @@ export default function FilesPage() {
   const [copying,   setCopying]   = useState<string | null>(null);
   const [showRevModal, setShowRevModal] = useState(false);
   const [revFile,   setRevFile]   = useState<string>('');
+  const [revSlug,   setRevSlug]   = useState<string>('GENERAL');
 
   useEffect(() => {
     Promise.all([
@@ -76,8 +77,16 @@ export default function FilesPage() {
     setTimeout(() => setCopying(null), 2000);
   };
 
-  const openRevision = (label: string) => {
-    setRevFile(label);
+  const mapFileTypeToServiceSlug = (ft: string) => {
+    if (ft === 'resume') return 'RESUME';
+    if (ft === 'cover_letter') return 'COVER_LETTER';
+    if (ft.startsWith('linkedin')) return 'LINKEDIN';
+    return 'GENERAL';
+  };
+
+  const openRevision = (file?: FileItem) => {
+    setRevFile(file?.label || '');
+    setRevSlug(file ? mapFileTypeToServiceSlug(file.fileType) : 'GENERAL');
     setShowRevModal(true);
   };
 
@@ -169,7 +178,7 @@ export default function FilesPage() {
                 <path stroke="#d97706" strokeWidth="2" strokeLinecap="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
               <p className="text-xs text-amber-800 leading-relaxed">
-                Review each draft carefully and use the <strong>Request Revision</strong> button if you need any changes. You have <strong>2 revision rounds</strong> included in your package.
+                Review each draft carefully and use the <strong>Request Revision</strong> button if you need any changes. Free revisions are limited per service.
               </p>
             </div>
 
@@ -236,7 +245,7 @@ export default function FilesPage() {
                     <div className="mt-3 pt-3 border-t border-amber-50 flex items-center justify-between">
                       <p className="text-xs text-slate-400">Need changes to this draft?</p>
                       <button
-                        onClick={() => openRevision(file.label)}
+                        onClick={() => openRevision(file)}
                         className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-700 border border-orange-200 hover:border-orange-300 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition-all">
                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                         Request Revision
@@ -344,7 +353,7 @@ export default function FilesPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Revision Requests</h3>
               <button
-                onClick={() => { setRevFile(''); setShowRevModal(true); }}
+                onClick={() => openRevision()}
                 className="text-xs font-semibold text-[#B8935B] border border-[#E8DDD0] px-3 py-1 rounded-lg hover:bg-[#FBF8F3] transition-colors">
                 + New Request
               </button>
@@ -387,6 +396,7 @@ export default function FilesPage() {
       {showRevModal && (
         <RevisionModal
           fileLabel={revFile}
+          serviceSlug={revSlug}
           onClose={() => setShowRevModal(false)}
           onAdded={afterRevisionAdded}
         />
@@ -399,10 +409,12 @@ export default function FilesPage() {
 
 function RevisionModal({
   fileLabel,
+  serviceSlug,
   onClose,
   onAdded,
 }: {
   fileLabel: string;
+  serviceSlug: string;
   onClose: () => void;
   onAdded: (r: RevisionItem) => void;
 }) {
@@ -410,6 +422,8 @@ function RevisionModal({
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
   const [done,    setDone]    = useState(false);
+  const [requiresPayment, setRequiresPayment] = useState(false);
+  const [paymentMsg, setPaymentMsg] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -417,14 +431,20 @@ function RevisionModal({
     const res = await fetch('/api/career/portal/revisions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ note: note.trim(), fileLabel: fileLabel || undefined }),
+      body: JSON.stringify({ note: note.trim(), fileLabel: fileLabel || undefined, serviceSlug }),
     });
     setLoading(false);
+    
     if (res.ok) {
-      const d = await res.json() as { revision: RevisionItem };
+      const d = await res.json() as { revision: RevisionItem, requiresPayment?: boolean, message?: string };
       onAdded(d.revision);
-      setDone(true);
-      setTimeout(onClose, 1800);
+      if (d.requiresPayment) {
+        setRequiresPayment(true);
+        setPaymentMsg(d.message || 'Payment required');
+      } else {
+        setDone(true);
+        setTimeout(onClose, 1800);
+      }
     } else {
       const d = await res.json().catch(() => ({})) as { error?: string };
       setError(d.error ?? 'Failed. Please try again.');
@@ -443,6 +463,17 @@ function RevisionModal({
             </div>
             <h3 className="text-lg font-bold text-slate-900 mb-1">Revision requested!</h3>
             <p className="text-sm text-slate-500">Our team has been notified and will review your request.</p>
+          </div>
+        ) : requiresPayment ? (
+          <div className="text-center py-6">
+             <div className="w-14 h-14 bg-orange-50 border border-orange-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">💳</span>
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 mb-1">Payment Required</h3>
+            <p className="text-sm text-slate-500 mb-4">{paymentMsg}</p>
+            <button onClick={onClose} className="w-full py-2.5 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] transition-colors">
+              Close
+            </button>
           </div>
         ) : (
           <>

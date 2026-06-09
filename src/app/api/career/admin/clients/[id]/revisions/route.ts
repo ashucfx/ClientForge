@@ -30,12 +30,32 @@ function clientServiceLabel(client: {
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const client = await db.careerClient.findUnique({
+    where: { id: params.id },
+    select: { services: { select: { service: { select: { slug: true, name: true } } } } }
+  });
+
   const revisions = await db.careerRevision.findMany({
     where: { clientId: params.id },
     orderBy: { createdAt: 'desc' },
   });
 
-  return NextResponse.json({ revisions });
+  const FREE_LIMIT = 2;
+  const revisionSummary = client?.services.map(s => {
+    const slug = s.service.slug;
+    const freeUsed = revisions.filter(r => r.serviceSlug === slug && r.chargeStatus === 'FREE' && r.requestedBy === 'client').length;
+    const paidUsed = revisions.filter(r => r.serviceSlug === slug && r.chargeStatus !== 'FREE' && r.requestedBy === 'client').length;
+    return {
+      slug,
+      name: SERVICE_LABELS[slug as CareerServiceSlug] ?? s.service.name,
+      freeLimit: FREE_LIMIT,
+      freeUsed,
+      revisionsLeft: Math.max(0, FREE_LIMIT - freeUsed),
+      paidUsed
+    };
+  }) || [];
+
+  return NextResponse.json({ revisions, revisionSummary });
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
