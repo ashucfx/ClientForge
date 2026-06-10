@@ -32,6 +32,7 @@ interface Me {
   revisionSummary?: RevisionSummary[];
   expectedDeliveryAt?: string | null;
   waitingOn?: string;
+  services?: { slug: string; name: string }[];
 }
 interface DeliverableItem {
   id: string; label: string; fileUrl: string; fileType: string; createdAt: string;
@@ -128,6 +129,27 @@ export default function PortalDashboardPage() {
     setTimeout(() => {
       if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight;
     }, 50);
+  };
+
+  const [upgrading, setUpgrading] = useState(false);
+  const handleUpgrade = async (targetService: string) => {
+    setUpgrading(true);
+    try {
+      const res = await fetch('/api/career/portal/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetService }),
+      });
+      const data = await res.json();
+      if (data.ok && data.paymentUrl) {
+        window.location.href = data.paymentUrl;
+      } else {
+        alert(data.error || 'Failed to initialize upgrade');
+      }
+    } catch (err) {
+      alert('Network error. Please try again.');
+    }
+    setUpgrading(false);
   };
 
   const load = useCallback(async () => {
@@ -446,6 +468,40 @@ export default function PortalDashboardPage() {
             })}
           </div>
         </div>
+
+        {/* ── Premium Upgrade Banner ── */}
+        {me.services && (() => {
+          const slugs = me.services.map(s => s.slug);
+          const hasFull = slugs.includes('FULL_PACKAGE');
+          const hasPortfolio = slugs.includes('PORTFOLIO');
+          
+          if (hasFull && hasPortfolio) return null; // Fully upgraded
+          
+          const target = hasFull ? 'PREMIUM_PLUS' : 'FULL_PACKAGE';
+          const title = hasFull ? 'Premium Upgrade Available' : 'Package Upgrade Available';
+          const desc = hasFull 
+            ? 'Strengthen your digital credibility further through a dedicated professional portfolio website.'
+            : 'Upgrade to the Complete Career Booster package to maximize your professional visibility.';
+            
+          return (
+            <div className="bg-gradient-to-r from-[#B8935B]/10 to-[#B8935B]/5 border border-[#B8935B]/20 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-bold text-[#9A7540] uppercase tracking-wide flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#B8935B] animate-pulse"></span>
+                  {title}
+                </h3>
+                <p className="text-xs text-slate-600 mt-1.5 max-w-md leading-relaxed">{desc}</p>
+              </div>
+              <button 
+                onClick={() => handleUpgrade(target)}
+                disabled={upgrading}
+                className="whitespace-nowrap px-4 py-2 bg-[#B8935B] text-white text-xs font-bold rounded-xl hover:bg-[#9A7540] transition-colors disabled:opacity-50 shadow-sm shadow-[#B8935B]/20"
+              >
+                {upgrading ? 'Processing...' : 'View Upgrade Details'}
+              </button>
+            </div>
+          );
+        })()}
 
         {/* ── Forms section ── */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">

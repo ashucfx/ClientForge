@@ -30,17 +30,17 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: true, processed: 0 });
   }
 
-  // 2. Mark them as PROCESSING so concurrent cron jobs don't pick them up
-  const ids = queuedEmails.map(e => e.id);
-  await db.emailQueue.updateMany({
-    where: { id: { in: ids } },
-    data: { status: 'PROCESSING' }
-  });
-
   const results = [];
 
-  // 3. Process each email
+  // 2. Process each email atomically
   for (const email of queuedEmails) {
+    // ATOMIC LOCK: Try to claim this specific email. If another cron worker grabbed it, count === 0.
+    const lock = await db.emailQueue.updateMany({
+      where: { id: email.id, status: { in: ['PENDING', 'FAILED'] } },
+      data: { status: 'PROCESSING' }
+    });
+
+    if (lock.count === 0) continue; // Safely skip; another concurrent worker claimed this email.
     try {
       const payload = email.data as any;
       const resendId = await processCareerEmail({

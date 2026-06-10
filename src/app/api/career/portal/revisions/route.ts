@@ -66,33 +66,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Note too long (max 2000 chars).' }, { status: 400 });
   }
 
-  // Enforce max 2 FREE revision requests per service per client
+  // Enforce max 2 FREE revision requests per service per client TRANSACTIONALLY
   const FREE_LIMIT = 2;
-  const existingFreeRevisions = await db.careerRevision.count({
-    where: { 
-      clientId: client.id, 
-      requestedBy: 'client',
-      serviceSlug,
-      chargeStatus: 'FREE'
-    },
-  });
 
-  const isFree = existingFreeRevisions < FREE_LIMIT;
-  const chargeStatus = isFree ? 'FREE' : 'PENDING_PAYMENT';
-  // If paid, we might lock the status as AWAITING_PAYMENT or keep it PENDING for admin review
-  const status = isFree ? 'PENDING' : 'PENDING'; // Kept as PENDING for now so it shows up in admin queue
+  let revision;
+  try {
+    revision = await db.$transaction(async (tx) => {
+      const existingFreeRevisions = await tx.careerRevision.count({
+        where: { 
+          clientId: client.id, 
+          requestedBy: 'client',
+          serviceSlug,
+          chargeStatus: 'FREE'
+        },
+      });
 
-  const revision = await db.careerRevision.create({
-    data: {
-      clientId: client.id,
-      requestedBy: 'client',
-      note,
-      fileLabel,
-      serviceSlug,
-      status,
-      chargeStatus,
-    },
-  });
+      if (existingFreeRevisions >= FREE_LIMIT) {
+        throw new Error('REVISION_LIMIT_EXCEEDED');
+      }
+
+      return tx.careerRevision.create({
+        data: {
+          clientId: client.id,
+          requestedBy: 'client',
+          note,
+          fileLabel,
+          serviceSlug,
+          status: 'PENDING',
+          chargeStatus: 'FREE',
+        },
+      });
+    });
+  } catch (err: any) {
+    if (err.message === 'REVISION_LIMIT_EXCEEDED') {
+      return NextResponse.json({ 
+        error: 'Free revisions exhausted for this service. Please contact support for a paid revision link.' 
+      }, { status: 403 });
+    }
+    throw err;
+  }
+
+  const isFree = true; // Hard limit ensures all successful requests here are free
 
   // Log activity
   await db.careerActivityLog.create({
@@ -100,7 +114,7 @@ export async function POST(req: NextRequest) {
       clientId: client.id,
       action: 'revision_requested',
       performedBy: 'client',
-      metadata: { note: note.slice(0, 100), fileLabel, serviceSlug, chargeStatus },
+      metadata: { note: note.slice(0, 100), fileLabel, serviceSlug, chargeStatus: 'FREE' },
     },
   });
 
@@ -135,7 +149,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ 
     ok: true, 
     revision,
-    requiresPayment: !isFree,
-    message: isFree ? 'Revision requested successfully.' : 'Free revisions exhausted for this service. Our team will review your request and send a payment link if a paid revision is required.'
+    requiresPayment: false,
+    message: 'Revision requested successfully.'
   }, { status: 201 });
 }

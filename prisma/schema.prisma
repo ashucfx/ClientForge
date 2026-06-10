@@ -130,6 +130,7 @@ model Invoice {
   // ── Relational Data (New Phase 3) ──────────
   invoiceLineItems    InvoiceLineItem[]
   invoiceInstallments InvoiceInstallment[]
+  clientLinks         InvoiceClientLink[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -238,6 +239,10 @@ model CareerClient {
   services     CareerClientService[]
   messages     CareerMessage[]
   deleteOtp    CareerDeleteOtp?
+  
+  // Upgrade Migration Relations
+  invoiceLinks   InvoiceClientLink[]
+  upgradeHistory ClientUpgradeHistory[]
 
   @@index([status])
   @@index([email])
@@ -781,4 +786,33 @@ model RnProjectTask {
   updatedAt DateTime @updatedAt
 
   @@index([milestoneId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UPGRADE & MIGRATION ARCHITECTURE (PHASE 3.5)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model InvoiceClientLink {
+  id        String   @id @default(cuid())
+  clientId  String
+  invoiceId String   @unique
+  purpose   String   @default("INITIAL") // 'INITIAL', 'UPGRADE', 'REVISION'
+  createdAt DateTime @default(now())
+
+  client  CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  invoice Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, invoiceId])
+  @@index([clientId])
+}
+
+model ClientUpgradeHistory {
+  id               String   @id @default(cuid())
+  clientId         String
+  previousServices Json     // Array of service slugs before upgrade
+  addedServices    Json     // Array of newly unlocked service slugs
+  invoiceId        String   
+  createdAt        DateTime @default(now())
+
+  client  CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 }

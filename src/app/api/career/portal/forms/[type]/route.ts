@@ -93,6 +93,26 @@ export async function POST(req: NextRequest, { params }: { params: { type: strin
   }
 
   const allFormNames = [formType, ...legacyAliasesFor(formType)];
+
+  // Time-based idempotency lock (5 seconds) to prevent double-click race conditions
+  const fiveSecondsAgo = new Date(Date.now() - 5000);
+  const recentSubmission = await db.careerFormSubmission.findFirst({
+    where: { 
+      clientId: client.id, 
+      formType: { in: allFormNames },
+      submittedAt: { gte: fiveSecondsAgo } 
+    }
+  });
+
+  if (recentSubmission) {
+    return NextResponse.json({ 
+      ok: true, 
+      submissionId: recentSubmission.id, 
+      version: recentSubmission.version, 
+      _idempotent: true 
+    });
+  }
+
   const latest = await db.careerFormSubmission.findFirst({
     where: { clientId: client.id, formType: { in: allFormNames } },
     orderBy: { version: 'desc' },
@@ -105,25 +125,21 @@ export async function POST(req: NextRequest, { params }: { params: { type: strin
     data: { clientId: client.id, formType, formData: body, version: nextVersion },
   });
 
-  // Set expectedDeliveryAt (5 business days) on very first form submission
-  const isFirstSubmission = !client.expectedDeliveryAt && (latest === null);
+  // Set expectedDeliveryAt (5 business days) if this is the first form they are submitting
+  const shouldSetDeliveryDate = !client.expectedDeliveryAt;
+
   await db.careerClient.updateMany({
     where: { id: client.id, status: 'NOT_STARTED' },
     data: {
       status: 'SUBMITTED',
-      ...(isFirstSubmission ? { expectedDeliveryAt: addBusinessDays(new Date(), 5) } : {}),
     },
   });
 
-  // If already SUBMITTED/beyond but no delivery date yet, set it now
-  if (!client.expectedDeliveryAt && !isFirstSubmission) {
-    const anyForm = await db.careerFormSubmission.count({ where: { clientId: client.id } });
-    if (anyForm === 1) {
-      await db.careerClient.update({
-        where: { id: client.id },
-        data: { expectedDeliveryAt: addBusinessDays(new Date(), 5) },
-      });
-    }
+  if (shouldSetDeliveryDate) {
+    await db.careerClient.update({
+      where: { id: client.id },
+      data: { expectedDeliveryAt: addBusinessDays(new Date(), 5) },
+    });
   }
 
   await db.careerActivityLog.create({

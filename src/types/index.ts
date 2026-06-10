@@ -32,6 +32,7 @@ export interface ClientTypePricing {
   resume:      number;
   linkedin:    number;
   coverLetter: number;
+  portfolio:   number;
 }
 
 export interface CurrencyInfo {
@@ -155,9 +156,11 @@ export interface PricingCalculation {
   resumeBaseInr:        number;
   linkedinBaseInr:      number;
   coverLetterBaseInr:   number;
+  portfolioBaseInr:     number;
   resumeConverted:      number;
   linkedinConverted:    number;
   coverLetterConverted: number;
+  portfolioConverted:   number;
   subtotalInr:          number;
   subtotalConverted:    number;
   processingFeeRate:    number;

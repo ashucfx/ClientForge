@@ -6,9 +6,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getCurrencyForCountry, getExchangeRate } from '@/lib/currency';
-import { generateInvoiceNumber, FEE_RATES, round2 } from '@/lib/pricing';
+import { FEE_RATES, round2 } from '@/lib/pricing';
 import { createRazorpayPaymentLink, createRazorpayInstallmentLink } from '@/lib/razorpay';
 import { createPaypalInvoice, createPaypalInstallmentInvoice } from '@/lib/paypal';
+import { getNextInvoiceNumber } from '@/lib/invoiceUtils';
 import { sendInvoiceEmail } from '@/lib/email';
 import { normalizePhoneE164 } from '@/lib/phone';
 import { getAdminSession } from '@/lib/auth';
@@ -189,31 +190,54 @@ export async function POST(request: NextRequest) {
       currencyCode === 'INR' ? 'RAZORPAY' : (requestedGateway ?? 'PAYPAL');
 
     // ── Create invoice record (draft) ──
-    const invoice = await prisma.invoice.create({
-      data: {
-        invoiceNumber:    generateInvoiceNumber(),
-        brandId,
-        rnServiceId: brandId === 'ripple_nexus' ? rnServiceId : undefined,
-        clientName, clientEmail, clientPhone: normalizedPhone.e164, clientType,
-        country, companyName,
-        currency: currencyCode, currencySymbol, exchangeRate,
-        lineItems:             safeItems as object[],
-        invoiceLineItems: {
-          create: safeItems.map(i => ({
-            description: i.description,
-            qty: i.qty,
-            unitPrice: i.unitPrice,
-            lineTotal: i.lineTotal
-          }))
-        },
-        discountRate, taxRate, discountAmount, taxAmount,
-        subtotalConverted, processingFeeRate, processingFeeConverted, totalPayable,
-        notes, invoiceDate, dueDate,
-        installmentPlan:  isSplit,
-        installmentCount: installmentCount,
+    let invoice;
+    let createError;
 
-      },
-    });
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const invoiceNumber = await getNextInvoiceNumber();
+        invoice = await prisma.invoice.create({
+          data: {
+            invoiceNumber,
+            brandId,
+            rnServiceId: brandId === 'ripple_nexus' ? rnServiceId : undefined,
+            clientName, clientEmail, clientPhone: normalizedPhone.e164, clientType,
+            country, companyName,
+            currency: currencyCode, currencySymbol, exchangeRate,
+            lineItems:             safeItems as object[],
+            invoiceLineItems: {
+              create: safeItems.map(i => ({
+                description: i.description,
+                qty: i.qty,
+                unitPrice: i.unitPrice,
+                lineTotal: i.lineTotal
+              }))
+            },
+            discountRate, taxRate, discountAmount, taxAmount,
+            subtotalConverted, processingFeeRate, processingFeeConverted, totalPayable,
+            notes, invoiceDate, dueDate,
+            installmentPlan:  isSplit,
+            installmentCount: installmentCount,
+          },
+        });
+        break; // Success! Break out of the loop
+      } catch (err: any) {
+        // P2002 is Prisma's unique constraint violation code
+        if (err.code === 'P2002') {
+          createError = err;
+          if (attempt < 3) {
+            // Wait briefly before retrying to allow the concurrent thread to finish
+            await new Promise(r => setTimeout(r, 100 * attempt));
+            continue;
+          }
+        }
+        throw err; // Throw if not P2002 or out of retries
+      }
+    }
+
+    if (!invoice) {
+      throw createError || new Error('Failed to create invoice after retries');
+    }
 
     // ── Create payment link(s) ───────────────────────────────────
     let gatewayUpdate: Record<string, unknown> = { paymentGateway: gateway };

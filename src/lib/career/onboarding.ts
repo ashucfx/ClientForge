@@ -77,7 +77,9 @@ export async function onboardFromInvoice(invoice: {
 
   // Use a transaction to make the check+create atomic, preventing duplicate
   // onboarding from concurrent webhook retries.
-  const result = await db.$transaction(async (tx) => {
+  let result: OnboardResult;
+  try {
+    result = await db.$transaction(async (tx) => {
     // ── 1. Already onboarded from this exact invoice? ─────────
     const byInvoice = await tx.careerClient.findFirst({
       where:  { invoiceId: invoice.id },
@@ -90,7 +92,13 @@ export async function onboardFromInvoice(invoice: {
     // ── 2. Existing client by email? (re-purchase) ─────────────
     const existingClient = await tx.careerClient.findUnique({
       where:  { email },
-      select: { id: true, name: true },
+      select: { 
+        id: true, 
+        name: true,
+        slaDeadline: true,
+        expectedDeliveryAt: true,
+        services: { select: { service: { select: { slug: true } } } }
+      },
     });
 
     if (existingClient) {
@@ -102,25 +110,61 @@ export async function onboardFromInvoice(invoice: {
         });
       }
 
+      const existingSlugs = existingClient.services.map(s => s.service.slug);
+      const newSlugs = slugs.filter(slug => !existingSlugs.includes(slug));
+
+      let slaExtensionDays = 0;
+      if (newSlugs.includes('LINKEDIN')) slaExtensionDays = Math.max(slaExtensionDays, 3);
+      if (newSlugs.includes('RESUME')) slaExtensionDays = Math.max(slaExtensionDays, 5);
+      if (newSlugs.includes('PORTFOLIO')) slaExtensionDays = Math.max(slaExtensionDays, 7);
+      if (newSlugs.includes('FULL_PACKAGE')) slaExtensionDays = Math.max(slaExtensionDays, 7);
+
+      const newSlaDeadline = existingClient.slaDeadline && slaExtensionDays > 0
+        ? new Date(existingClient.slaDeadline.getTime() + slaExtensionDays * 24 * 60 * 60 * 1000)
+        : existingClient.slaDeadline;
+
+      const newExpectedDelivery = existingClient.expectedDeliveryAt && slaExtensionDays > 0
+        ? new Date(existingClient.expectedDeliveryAt.getTime() + slaExtensionDays * 24 * 60 * 60 * 1000)
+        : existingClient.expectedDeliveryAt;
+
       await tx.careerClient.update({
         where: { id: existingClient.id },
         data: {
           invoiceId:        invoice.id,
-          amountPaid:       invoice.totalPayable,
+          amountPaid:       { increment: invoice.totalPayable },
           currency:         invoice.currency,
           magicToken,
           magicTokenExpiry: tokenExpiry,
+          slaDeadline:      newSlaDeadline,
+          expectedDeliveryAt: newExpectedDelivery,
           ...(invoice.clientPhone       ? { phone: invoice.clientPhone } : {}),
           ...(invoice.razorpayPaymentId ? { razorpayPaymentId: invoice.razorpayPaymentId } : {}),
         },
       });
 
+      await tx.invoiceClientLink.upsert({
+        where: { clientId_invoiceId: { clientId: existingClient.id, invoiceId: invoice.id } },
+        create: { clientId: existingClient.id, invoiceId: invoice.id, purpose: newSlugs.length > 0 ? 'UPGRADE' : 'REPURCHASE' },
+        update: {},
+      });
+
+      if (newSlugs.length > 0) {
+        await tx.clientUpgradeHistory.create({
+          data: {
+            clientId: existingClient.id,
+            invoiceId: invoice.id,
+            previousServices: existingSlugs,
+            addedServices: newSlugs
+          }
+        });
+      }
+
       await tx.careerActivityLog.create({
         data: {
           clientId:    existingClient.id,
-          action:      'client_repurchased',
+          action:      newSlugs.length > 0 ? 'client_upgraded' : 'client_repurchased',
           performedBy: 'system',
-          metadata:    { invoiceId: invoice.id, services: slugs, amount: invoice.totalPayable },
+          metadata:    { invoiceId: invoice.id, services: slugs, newSlugs, amount: invoice.totalPayable, slaExtensionDays },
         },
       });
 
@@ -139,6 +183,12 @@ export async function onboardFromInvoice(invoice: {
         magicToken,
         magicTokenExpiry: tokenExpiry,
         ...(invoice.razorpayPaymentId ? { razorpayPaymentId: invoice.razorpayPaymentId } : {}),
+        invoiceLinks: {
+          create: {
+            invoiceId: invoice.id,
+            purpose: 'INITIAL',
+          }
+        },
         services: {
           create: serviceRecords.map(s => ({ serviceId: s.id })),
         },
@@ -154,6 +204,18 @@ export async function onboardFromInvoice(invoice: {
 
     return { created: true, reason: 'new' as const, clientId: newClient.id };
   });
+  } catch (err: any) {
+    // If two webhooks fire at the exact same millisecond, they both evaluate `existingClient = null`
+    // The first succeeds, the second crashes with P2002 Unique Constraint on `email`.
+    // We catch this gracefully, knowing the other thread succeeded.
+    if (err.code === 'P2002' && err.meta?.target?.includes('email')) {
+      const concurrentClient = await db.careerClient.findUnique({ where: { email } });
+      if (concurrentClient) {
+        return { created: false, reason: 'already_done', clientId: concurrentClient.id };
+      }
+    }
+    throw err; // Re-throw if it's a different error
+  }
 
   // ── Send Welcome email outside the transaction (network I/O) ──
   if (result.reason === 'new') {

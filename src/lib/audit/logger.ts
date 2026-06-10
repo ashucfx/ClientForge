@@ -26,3 +26,24 @@ export async function logAudit(
     // We do not throw here to prevent blocking the main business logic
   }
 }
+
+// Enterprise Observability Wrapper for external monitoring tools (Datadog/LogSnag/Sentry)
+export function logSystemError(
+  context: 'PAYMENT' | 'WEBHOOK' | 'CRON' | 'QUEUE' | 'UPGRADE' | 'API_CRASH',
+  message: string,
+  error?: any,
+  metadata?: Record<string, any>
+) {
+  const structuredLog = {
+    timestamp: new Date().toISOString(),
+    level: 'CRITICAL_FAILURE',
+    context,
+    message,
+    metadata,
+    error: error instanceof Error ? { message: error.message, stack: error.stack } : String(error)
+  };
+
+  // This structured JSON output ensures Vercel log drains can correctly parse it
+  // and pipe it into external Sentry/Datadog monitoring automatically.
+  console.error(JSON.stringify(structuredLog));
+}

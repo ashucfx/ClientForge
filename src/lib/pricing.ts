@@ -10,26 +10,31 @@ export const BASE_PRICING: Record<ClientType, ClientTypePricing> = {
     resume:      499,
     linkedin:    349,
     coverLetter: 0,
+    portfolio:   4999,
   },
   MID_CAREER: {
     resume:      799,
     linkedin:    549,
     coverLetter: 0,
+    portfolio:   7999,
   },
   EXECUTIVE: {
     resume:      1299,
     linkedin:    899,
     coverLetter: 0,
+    portfolio:   14999,
   },
   EXECUTIVE_PLUS: {
     resume:      1999,
     linkedin:    1299,
     coverLetter: 0,
+    portfolio:   14999,
   },
   AGENCY_CLIENT: {
     resume:      0,
     linkedin:    0,
     coverLetter: 0,
+    portfolio:   0,
   },
 };
 
@@ -117,20 +122,22 @@ export function calculatePricing(
   clientType: ClientType,
   currency: string,
   exchangeRate: number,
-  services: { resume: boolean; linkedin: boolean; coverLetter: boolean },
-  customBaseInr?: { resume?: number; linkedin?: number }
+  services: { resume: boolean; linkedin: boolean; coverLetter: boolean; portfolio?: boolean },
+  customBaseInr?: { resume?: number; linkedin?: number; portfolio?: number }
 ): PricingCalculation {
   const base = BASE_PRICING[clientType];
 
   // Allow custom override pricing (for edits)
   const resumeBaseInr    = services.resume   ? (customBaseInr?.resume   ?? base.resume)   : 0;
   const linkedinBaseInr  = services.linkedin ? (customBaseInr?.linkedin ?? base.linkedin) : 0;
+  const portfolioBaseInr = services.portfolio ? (customBaseInr?.portfolio ?? base.portfolio) : 0;
   const coverLetterBaseInr = 0;
 
-  const subtotalInr = resumeBaseInr + linkedinBaseInr + coverLetterBaseInr;
+  const subtotalInr = resumeBaseInr + linkedinBaseInr + coverLetterBaseInr + portfolioBaseInr;
 
   const resumeConverted        = round2(resumeBaseInr    / exchangeRate);
   const linkedinConverted      = round2(linkedinBaseInr  / exchangeRate);
+  const portfolioConverted     = round2(portfolioBaseInr / exchangeRate);
   const coverLetterConverted   = 0;
   const subtotalConverted      = round2(subtotalInr      / exchangeRate);
 
@@ -142,9 +149,11 @@ export function calculatePricing(
     resumeBaseInr,
     linkedinBaseInr,
     coverLetterBaseInr,
+    portfolioBaseInr,
     resumeConverted,
     linkedinConverted,
     coverLetterConverted,
+    portfolioConverted,
     subtotalInr,
     subtotalConverted,
     processingFeeRate,

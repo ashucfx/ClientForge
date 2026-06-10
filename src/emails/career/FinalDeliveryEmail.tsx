@@ -41,7 +41,7 @@ export function FinalDeliveryEmail({ name, packageLabel, portalUrl, files }: Fin
                   <Text style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{file.label}</Text>
                 </Column>
                 <Column style={{ width: '100px', verticalAlign: 'middle', textAlign: 'right' as const }}>
-                  <Button href={file.url} style={{ display: 'inline-block', padding: '6px 16px', backgroundColor: '#B8935B', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 700, textDecoration: 'none' }}>Download</Button>
+                  <Button href={encodeURI(decodeURI(file.url))} style={{ display: 'inline-block', padding: '6px 16px', backgroundColor: '#B8935B', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 700, textDecoration: 'none' }}>Download</Button>
                 </Column>
               </Row>
             ))}
@@ -76,7 +76,33 @@ export function FinalDeliveryEmail({ name, packageLabel, portalUrl, files }: Fin
         we have created for you — we hope it opens doors you did not even know existed.
         Best of luck in your career journey.
       </EmailBody>
-      <Text style={{ margin: '12px 0 0', fontSize: '12px', color: '#94a3b8', lineHeight: '1.6' }}>
+
+      <Section
+        style={{
+          backgroundColor: '#FDFBF7',
+          border: '1px solid #E5D5BA',
+          borderRadius: '10px',
+          padding: '18px 22px',
+          margin: '24px 0 8px',
+        }}
+      >
+        <Text
+          style={{
+            margin: '0 0 10px',
+            fontSize: '13px',
+            fontWeight: 700,
+            color: '#9A7540',
+          }}
+        >
+          Future Expansion
+        </Text>
+        <Text style={{ margin: 0, fontSize: '13px', color: '#475569', lineHeight: '1.6' }}>
+          If you decide to expand your professional brand further in the future, 
+          Portfolio Website development can be activated directly from your dashboard anytime.
+        </Text>
+      </Section>
+
+      <Text style={{ margin: '16px 0 0', fontSize: '12px', color: '#94a3b8', lineHeight: '1.6' }}>
         Download links remain active for 30 days. After that, access your files any time from your portal.
         For feedback or to share your success story, write to catalyst@theripplenexus.com.
       </Text>
