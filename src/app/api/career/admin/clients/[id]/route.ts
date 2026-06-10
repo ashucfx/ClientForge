@@ -47,6 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json({
     client: {
       ...rest,
+      slaDeadline: rest.expectedDeliveryAt,
       forms: optimizedForms,
       services: services.map(s => ({ slug: s.service.slug, name: s.service.name })),
     },
