@@ -21,6 +21,7 @@ const ALL_SERVICES: { slug: CareerServiceSlug; label: string }[] = [
   { slug: 'LINKEDIN',     label: 'LinkedIn Optimisation' },
   { slug: 'PORTFOLIO',    label: 'Portfolio Website' },
   { slug: 'FULL_PACKAGE', label: 'Career Booster Package' },
+  { slug: 'PREMIUM_PLUS', label: 'Premium Plus Package' },
 ];
 
 interface ServiceInfo { slug: string; name: string }
@@ -43,9 +44,15 @@ function isCareerBoosterCombo(slugs: string[]): boolean {
   return ['RESUME', 'COVER_LETTER', 'LINKEDIN'].every(s => slugs.includes(s));
 }
 
+function isPremiumPlusCombo(slugs: string[]): boolean {
+  if (slugs.includes('PREMIUM_PLUS')) return true;
+  return isCareerBoosterCombo(slugs) && slugs.includes('PORTFOLIO');
+}
+
 function clientServiceLabel(c: Client): string {
   if (c.services && c.services.length > 0) {
     const slugs = c.services.map(s => s.service.slug);
+    if (isPremiumPlusCombo(slugs)) return 'Premium Plus Package';
     if (isCareerBoosterCombo(slugs)) return 'Career Booster Package';
     return slugs
       .map(slug => SERVICE_LABELS[slug as CareerServiceSlug] ?? slug)

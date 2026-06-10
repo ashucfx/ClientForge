@@ -32,7 +32,8 @@ export type CareerServiceSlug =
   | 'COVER_LETTER'
   | 'LINKEDIN'
   | 'PORTFOLIO'
-  | 'FULL_PACKAGE';
+  | 'FULL_PACKAGE'
+  | 'PREMIUM_PLUS';
 
 export interface FormField {
   id: string;
@@ -88,6 +89,7 @@ export const SERVICE_LABELS: Record<CareerServiceSlug, string> = {
   LINKEDIN: 'LinkedIn Optimisation',
   PORTFOLIO: 'Portfolio Website',
   FULL_PACKAGE: 'Career Booster Package',
+  PREMIUM_PLUS: 'Premium Plus Package',
 };
 
 export const STATUS_LABELS: Record<CareerStatus, string> = {
@@ -116,6 +118,7 @@ export const SERVICE_FORM_MAP: Record<CareerServiceSlug, FormType[]> = {
   LINKEDIN:      ['linkedin_profile'],
   PORTFOLIO:     ['portfolio_website'],
   FULL_PACKAGE:  ['career_profile', 'linkedin_profile'],
+  PREMIUM_PLUS:  ['career_profile', 'linkedin_profile', 'portfolio_website'],
 };
 
 // Legacy: package → forms (kept for backward compat)

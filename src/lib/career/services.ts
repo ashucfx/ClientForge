@@ -10,6 +10,7 @@ const SERVICE_DEFAULTS: Record<CareerServiceSlug, { name: string; formType: stri
   LINKEDIN:     { name: 'LinkedIn Optimisation', formType: 'linkedin_profile' },
   PORTFOLIO:    { name: 'Portfolio Website',     formType: 'portfolio_website'},
   FULL_PACKAGE: { name: 'Full Career Package',   formType: null               },
+  PREMIUM_PLUS: { name: 'Premium Plus Package',  formType: null               },
 };
 
 /** Upsert CareerService rows and return their DB records */

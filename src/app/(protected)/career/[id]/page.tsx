@@ -212,7 +212,11 @@ export default function CareerClientDetailPage() {
                 {client.services?.length > 0
                   ? (() => {
                       const slugs = client.services.map(s => s.slug);
-                      if (slugs.includes('FULL_PACKAGE') || ['RESUME', 'COVER_LETTER', 'LINKEDIN'].every(s => slugs.includes(s))) {
+                      const hasCareerBooster = slugs.includes('FULL_PACKAGE') || ['RESUME', 'COVER_LETTER', 'LINKEDIN'].every(s => slugs.includes(s));
+                      if (slugs.includes('PREMIUM_PLUS') || (hasCareerBooster && slugs.includes('PORTFOLIO'))) {
+                        return 'Premium Plus Package';
+                      }
+                      if (hasCareerBooster) {
                         return 'Career Booster Package';
                       }
                       return client.services.map(s => SERVICE_LABELS[s.slug as CareerServiceSlug] ?? s.name).join(', ');

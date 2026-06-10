@@ -56,9 +56,16 @@ export async function GET(req: NextRequest) {
   if (client.services.length > 0) {
     const slugs = client.services.map(s => s.service.slug as CareerServiceSlug);
     availableForms = getFormsForServices(slugs);
-    packageLabel = slugs
-      .map(slug => SERVICE_LABELS[slug] ?? slug)
-      .join(', ');
+    const hasCareerBooster = slugs.includes('FULL_PACKAGE') || ['RESUME', 'COVER_LETTER', 'LINKEDIN'].every(s => slugs.includes(s as CareerServiceSlug));
+    if (slugs.includes('PREMIUM_PLUS') || (hasCareerBooster && slugs.includes('PORTFOLIO'))) {
+      packageLabel = 'Premium Plus Package';
+    } else if (hasCareerBooster) {
+      packageLabel = 'Career Booster Package';
+    } else {
+      packageLabel = slugs
+        .map(slug => SERVICE_LABELS[slug] ?? slug)
+        .join(', ');
+    }
   } else if (pkg) {
     availableForms = getFormsForPackage(pkg);
     packageLabel = PACKAGE_LABELS[pkg] ?? pkg;
