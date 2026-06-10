@@ -13,6 +13,7 @@ import { LinkedInSecurityEmail } from '@/emails/career/LinkedInSecurityEmail';
 import { MessageNotifyEmail }    from '@/emails/career/MessageNotifyEmail';
 import { RevisionEmail }         from '@/emails/career/RevisionEmail';
 import { DeleteOtpEmail }        from '@/emails/career/DeleteOtpEmail';
+import { UpsellPitchEmail }      from '@/emails/career/UpsellPitchEmail';
 
 export async function buildEmail(
   trigger: EmailTrigger,
@@ -137,6 +138,16 @@ export async function buildEmail(
         // OTP intentionally NOT in subject — visible in push notifications and email previews
         subject: `Catalyst Admin — Action required: Confirm deletion of ${clientName}`,
         html: await render(DeleteOtpEmail({ clientName, clientEmail, otp, expiresMinutes })),
+      };
+    }
+
+    case 'UPSELL_PITCH': {
+      const { name, portalLink, targetUpgrade } = data as {
+        name: string; portalLink: string; targetUpgrade: string;
+      };
+      return {
+        subject: `Catalyst - Expand your professional brand identity`,
+        html: await render(UpsellPitchEmail({ name, portalLink, targetUpgrade })),
       };
     }
 

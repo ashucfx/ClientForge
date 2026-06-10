@@ -109,6 +109,33 @@ export function LinkedInDraftEmail({
         Review Your LinkedIn Draft
       </EmailButton>
 
+      <Section
+        style={{
+          backgroundColor: '#FDFBF7',
+          border: '1px solid #E5D5BA',
+          borderRadius: '10px',
+          padding: '18px 22px',
+          margin: '24px 0 8px',
+        }}
+      >
+        <Text
+          style={{
+            margin: '0 0 10px',
+            fontSize: '13px',
+            fontWeight: 700,
+            color: '#9A7540',
+          }}
+        >
+          Taking it to the next level
+        </Text>
+        <Text style={{ margin: 0, fontSize: '13px', color: '#475569', lineHeight: '1.6' }}>
+          Your professional positioning across Resume and LinkedIn is now significantly stronger. 
+          Many professionals at this stage choose to strengthen their digital credibility further 
+          through a dedicated professional portfolio website that showcases their experience, 
+          achievements, and authority in a more premium way.
+        </Text>
+      </Section>
+
       <Text
         style={{
           margin: '16px 0 0',
