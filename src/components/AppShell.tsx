@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { IconGrid, IconPlus, IconList, IconLogout, IconTarget, IconUser, IconLink } from '@/components/Icons';
+import { IconGrid, IconPlus, IconList, IconLogout, IconTarget, IconUser, IconLink, IconTrendUp } from '@/components/Icons';
 import { Logo } from '@/components/Logo';
 import { useBrand } from '@/components/BrandProvider';
 import { useAdmin } from '@/components/AdminProvider';
@@ -14,6 +14,7 @@ import NotificationBell from '@/components/NotificationBell';
 
 const NAV_MAIN = [
   { href: '/',             Icon: IconGrid, label: 'Dashboard'    },
+  { href: '/analytics',    Icon: IconTrendUp, label: 'Executive Analytics' },
   { href: '/invoices/new', Icon: IconPlus, label: 'New Invoice'  },
   { href: '/invoices',     Icon: IconList, label: 'All Invoices' },
   { href: '/team',         Icon: IconUser, label: 'Team & Access' },

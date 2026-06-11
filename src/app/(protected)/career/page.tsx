@@ -37,6 +37,7 @@ interface Client {
   currency: string;
   createdAt: string;
   _count: { forms: number; deliverables: number };
+  readState?: { unreadByAdmin: number; adminSlaDeadline?: string | null } | null;
 }
 
 function isCareerBoosterCombo(slugs: string[]): boolean {
@@ -122,20 +123,20 @@ export default function CareerClientsPage() {
         <select
           value={filterLifecycle}
           onChange={e => { setFilterLifecycle(e.target.value); setPage(1); }}
-          className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
+          className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
         >
-          <option value="ACTIVE">Active Clients</option>
-          <option value="ARCHIVED">Archived Clients</option>
           <option value="ALL">All Clients</option>
+          <option value="ACTIVE">Active Only</option>
+          <option value="ARCHIVED">Archived Only</option>
         </select>
-        <select
+        <select 
           value={filterStatus}
           onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
-          className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
+          className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
         >
           <option value="">All Statuses</option>
-          {(Object.keys(STATUS_LABELS) as CareerStatus[]).map(s => (
-            <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+          {Object.entries(STATUS_LABELS).map(([key, label]) => (
+            <option key={key} value={key}>{label}</option>
           ))}
         </select>
       </div>
@@ -145,7 +146,7 @@ export default function CareerClientsPage() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              {['Client', 'Services', 'Status', 'Forms', 'Files', 'Paid', 'Joined', ''].map(h => (
+              {['Client', 'Status', 'Services', 'SLA Status', 'Joined', ''].map(h => (
                 <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   {h}
                 </th>
@@ -154,32 +155,53 @@ export default function CareerClientsPage() {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? (
-              <tr><td colSpan={8} className="text-center py-12 text-slate-400">Loading…</td></tr>
+              <tr><td colSpan={6} className="text-center py-12 text-slate-400">Loading…</td></tr>
             ) : clients.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-12 text-slate-400">No clients found</td></tr>
+              <tr><td colSpan={6} className="text-center py-12 text-slate-400">No clients found</td></tr>
             ) : clients.map(c => (
               <tr key={c.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-4 py-3">
-                  <p className="font-semibold text-slate-900">{c.name}</p>
-                  <p className="text-slate-400 text-xs">{c.email}</p>
-                </td>
-                <td className="px-4 py-3 text-slate-600 text-xs max-w-[200px]">
-                  {clientServiceLabel(c)}
+                  <div className="flex flex-col">
+                    <Link href={`/career/${c.id}`} className="font-semibold text-slate-900 hover:text-indigo-600 transition-colors flex items-center gap-2">
+                      {c.name}
+                      {c.readState && c.readState.unreadByAdmin > 0 && (
+                        <span className="flex items-center justify-center w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full animate-pulse shadow-sm shadow-red-500/50">
+                          {c.readState.unreadByAdmin}
+                        </span>
+                      )}
+                    </Link>
+                    <span className="text-sm text-slate-500">{c.email}</span>
+                  </div>
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[c.status]}`}>
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[c.status]}`}>
                     {STATUS_LABELS[c.status]}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-slate-600">{c._count.forms}</td>
-                <td className="px-4 py-3 text-slate-600">{c._count.deliverables}</td>
                 <td className="px-4 py-3 text-slate-600">
-                  {c.currency} {c.amountPaid.toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-slate-400 text-xs">
-                  {new Date(c.createdAt).toLocaleDateString()}
+                  <span className="text-sm text-slate-900 line-clamp-2" title={clientServiceLabel(c)}>
+                    {clientServiceLabel(c)}
+                  </span>
                 </td>
                 <td className="px-4 py-3">
+                  {c.readState?.adminSlaDeadline ? (
+                    (() => {
+                      const deadline = new Date(c.readState.adminSlaDeadline);
+                      const isBreached = deadline.getTime() < Date.now();
+                      const isDueSoon = deadline.getTime() - Date.now() < 2 * 60 * 60 * 1000 && !isBreached;
+                      
+                      if (isBreached) return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700">🔴 Breached</span>;
+                      if (isDueSoon) return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800">🟡 Due Soon</span>;
+                      return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-700">🟢 Healthy</span>;
+                    })()
+                  ) : (
+                    <span className="text-sm text-slate-400">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-slate-500 text-xs">
+                  {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </td>
+                <td className="px-4 py-3 text-right">
                   <Link
                     href={`/career/${c.id}`}
                     className="px-3 py-1 text-xs font-semibold text-[#B8935B] border border-[#E8DDD0] rounded-lg hover:bg-[#FBF8F3] transition-colors"
