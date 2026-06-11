@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
         createdAt: true, lastLoginAt: true,
         services: { select: { service: { select: { slug: true, name: true } } } },
         _count: { select: { forms: true, deliverables: true } },
+        ConversationReadState: { select: { unreadByAdmin: true, adminSlaDeadline: true } },
       },
     }),
     db.careerClient.count({ where }),

@@ -13,7 +13,8 @@ export default async function RnClientsPage() {
   }
 
   const clients = await prisma.rnClient.findMany({
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: 'desc' },
+    include: { ConversationReadState: true }
   });
 
   return (
@@ -37,6 +38,7 @@ export default async function RnClientsPage() {
                   <th>Company</th>
                   <th>Contact</th>
                   <th>Invoices</th>
+                  <th>SLA Status</th>
                   <th>Portal Link</th>
                   <th>Joined</th>
                 </tr>
@@ -57,7 +59,14 @@ export default async function RnClientsPage() {
                         <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f3f0ff', color: '#7C5CFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
                           {client.name.charAt(0).toUpperCase()}
                         </div>
-                        <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{client.name}</div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {client.name}
+                          {client.ConversationReadState?.unreadByAdmin ? (
+                            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, borderRadius: 9999, background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 700, padding: '0 6px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                              {client.ConversationReadState.unreadByAdmin > 99 ? '99+' : client.ConversationReadState.unreadByAdmin}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </td>
                     <td style={{ color: 'var(--text-secondary)' }}>{client.companyName || '—'}</td>
@@ -71,6 +80,21 @@ export default async function RnClientsPage() {
                           Invoice Linked
                         </span>
                       ) : '—'}
+                    </td>
+                    <td>
+                      {client.ConversationReadState?.adminSlaDeadline ? (
+                        (() => {
+                          const deadline = new Date(client.ConversationReadState.adminSlaDeadline);
+                          const isBreached = deadline.getTime() < Date.now();
+                          const isDueSoon = deadline.getTime() - Date.now() < 2 * 60 * 60 * 1000 && !isBreached;
+                          
+                          if (isBreached) return <span style={{ display: 'inline-flex', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: '#fee2e2', color: '#b91c1c' }}>🔴 Breached</span>;
+                          if (isDueSoon) return <span style={{ display: 'inline-flex', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: '#fef3c7', color: '#b45309' }}>🟡 Due Soon</span>;
+                          return <span style={{ display: 'inline-flex', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: '#dcfce3', color: '#15803d' }}>🟢 Healthy</span>;
+                        })()
+                      ) : (
+                        <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>—</span>
+                      )}
                     </td>
                     <td>
                       <a href={`/rn/portal/${client.magicToken}`} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm" style={{ color: '#7C5CFF' }}>
