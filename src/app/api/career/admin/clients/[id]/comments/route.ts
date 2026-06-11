@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 import { sendCareerEmail } from '@/lib/career/email';
+import { markConversationReadByAdmin, recordMessageSent } from '@/lib/communications';
 import { waitUntil } from '@vercel/functions';
 
 const PORTAL_URL =
@@ -22,10 +23,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const now = new Date();
 
   // Mark all client comments as read by admin — clears the unread badge
-  await db.careerComment.updateMany({
-    where: { clientId: params.id, authorType: 'client', readByAdmin: false },
-    data:  { readByAdmin: true, readByAdminAt: now },
-  });
+  await markConversationReadByAdmin(params.id, 'CAREER');
 
   const comments = await db.careerComment.findMany({
     where:   { clientId: params.id },
@@ -71,6 +69,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       readByAdminAt: new Date(),
     },
   });
+
+  if (!isInternal) {
+    await recordMessageSent(params.id, 'CAREER', 'admin');
+  }
 
   // Fire-and-forget: email client (don't block UI response)
   // Only email if this is not an internal note

@@ -9,6 +9,7 @@ import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
 import { notifyAllAdmins } from '@/lib/notifications';
+import { markConversationReadByClient, recordMessageSent } from '@/lib/communications';
 import { waitUntil } from '@vercel/functions';
 
 
@@ -26,7 +27,7 @@ async function getClient() {
   if (!payload) return null;
   const client = await db.careerClient.findUnique({
     where:  { id: payload.clientId },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, lifecycleStatus: true },
   });
   return client ?? null;
 }
@@ -37,11 +38,8 @@ export async function GET() {
 
   const now = new Date();
 
-  // Mark all admin messages as read by client
-  await db.careerComment.updateMany({
-    where: { clientId: client.id, authorType: 'admin', readByClient: false },
-    data:  { readByClient: true, readByClientAt: now },
-  });
+  // Mark all admin messages as read by client using communications util
+  await markConversationReadByClient(client.id, 'CAREER');
 
   const comments = await db.careerComment.findMany({
     where:   { clientId: client.id, isInternalOnly: false },
@@ -57,6 +55,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const client = await getClient();
   if (!client) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (client.lifecycleStatus === 'ARCHIVED') return NextResponse.json({ error: 'Project is archived.' }, { status: 403 });
 
   const body = await req.json().catch(() => null);
   const content     = (body?.content as string | undefined)?.trim();
@@ -84,6 +83,8 @@ export async function POST(req: NextRequest) {
       readByClientAt: new Date(),
     },
   });
+
+  await recordMessageSent(client.id, 'CAREER', 'client', 'GENERAL_COMMENT');
 
   const adminPortalUrl = `${PORTAL_URL}/career/${client.id}`;
 
