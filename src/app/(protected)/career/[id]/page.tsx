@@ -193,11 +193,13 @@ export default function CareerClientDetailPage() {
                   <h1 className="text-xl font-bold text-slate-900">{client.name}</h1>
                   {client.slaDeadline && (
                     <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider ${
+                      client.status === 'COMPLETED' ? 'bg-slate-100 text-slate-600 border border-slate-200' :
                       new Date(client.slaDeadline).getTime() < Date.now() ? 'bg-red-100 text-red-700 border border-red-200' :
                       new Date(client.slaDeadline).getTime() < Date.now() + 86400000 ? 'bg-amber-100 text-amber-700 border border-amber-200' :
                       'bg-emerald-100 text-emerald-700 border border-emerald-200'
                     }`}>
-                      {new Date(client.slaDeadline).getTime() < Date.now() ? 'SLA BREACHED' :
+                      {client.status === 'COMPLETED' ? 'FULFILLED' :
+                       new Date(client.slaDeadline).getTime() < Date.now() ? 'SLA BREACHED' :
                        new Date(client.slaDeadline).getTime() < Date.now() + 86400000 ? 'DUE SOON' : 'ON TRACK'}
                     </span>
                   )}
@@ -234,7 +236,7 @@ export default function CareerClientDetailPage() {
           <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
               { label: 'Amount Paid',  value: `${client.currency} ${client.amountPaid.toLocaleString()}` },
-              { label: 'SLA Deadline', value: client.slaDeadline ? new Date(client.slaDeadline).toLocaleDateString() : 'None' },
+              { label: 'SLA Deadline', value: client.status === 'COMPLETED' ? 'Fulfilled' : client.slaDeadline ? new Date(client.slaDeadline).toLocaleDateString() : 'None' },
               { label: 'Forms',        value: `${client.forms.length} submitted` },
               { label: 'Files',        value: `${client.deliverables.length} / 10 uploaded` },
               { label: 'Last Login',   value: client.lastLoginAt ? fmt(client.lastLoginAt, true) : 'Never' },
