@@ -37,7 +37,7 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export default function NotificationBell({ direction = 'down' }: { direction?: 'up' | 'down' }) {
+export default function NotificationBell({ direction = 'down', label }: { direction?: 'up' | 'down', label?: string }) {
   const { activeBrand } = useBrand();
   const [summary, setSummary] = useState<UnreadSummary | null>(null);
   const [open, setOpen] = useState(false);
@@ -129,12 +129,17 @@ export default function NotificationBell({ direction = 'down' }: { direction?: '
   const accentColor = isRn ? '#7C5CFF' : '#B8935B';
 
   return (
-    <div ref={dropdownRef} style={{ position: 'relative' }}>
+    <div ref={dropdownRef} style={label ? { position: 'relative', width: '100%' } : { position: 'relative' }}>
       {/* Bell button */}
       <button
         onClick={() => { setOpen(v => !v); if (!open) fetchSummary(); }}
         aria-label={`Notifications${totalBadge > 0 ? ` (${totalBadge} unread)` : ''}`}
-        style={{
+        className={label ? `nav-item${open ? ' active' : ''}` : ''}
+        style={label ? {
+          width: '100%',
+          marginBottom: 6,
+          justifyContent: 'flex-start',
+        } : {
           position: 'relative',
           width: 36,
           height: 36,
@@ -150,18 +155,19 @@ export default function NotificationBell({ direction = 'down' }: { direction?: '
           flexShrink: 0,
         }}
       >
-        {/* Bell icon */}
-        <svg width="17" height="17" fill="none" viewBox="0 0 24 24">
-          <path stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-            d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
-        </svg>
+        <span className={label ? "nav-icon" : ""} style={{ position: 'relative', display: 'inline-flex', color: (label && totalBadge > 0) ? accentColor : undefined }}>
+          {/* Bell icon */}
+          <svg width={label ? "16" : "17"} height={label ? "16" : "17"} fill="none" viewBox="0 0 24 24">
+            <path stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+              d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
+          </svg>
 
-        {/* Badge */}
-        {totalBadge > 0 && (
-          <span style={{
-            position: 'absolute',
-            top: -2,
-            right: -2,
+          {/* Badge */}
+          {totalBadge > 0 && (
+            <span style={{
+              position: 'absolute',
+              top: label ? -6 : -2,
+              right: label ? -8 : -2,
             minWidth: 16,
             height: 16,
             padding: '0 3px',
@@ -175,10 +181,13 @@ export default function NotificationBell({ direction = 'down' }: { direction?: '
             justifyContent: 'center',
             border: '2px solid var(--bg, #fff)',
             lineHeight: 1,
+            zIndex: 10,
           }}>
             {totalBadge > 99 ? '99+' : totalBadge}
           </span>
         )}
+        </span>
+        {label && <span style={{ flex: 1, textAlign: 'left', fontWeight: totalBadge > 0 ? 600 : 500, color: totalBadge > 0 ? accentColor : undefined }}>{label}</span>}
       </button>
 
       {/* Dropdown panel */}
