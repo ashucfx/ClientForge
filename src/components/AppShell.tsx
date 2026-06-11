@@ -196,7 +196,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* Footer */}
       <div className="sidebar-footer">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <NotificationBell />
+          <NotificationBell direction="up" />
           <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Notifications</span>
         </div>
         <button className="nav-item" onClick={handleLogout} style={{ marginBottom: 6 }}>

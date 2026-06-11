@@ -35,7 +35,7 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export default function NotificationBell() {
+export default function NotificationBell({ direction = 'down' }: { direction?: 'up' | 'down' }) {
   const { activeBrand } = useBrand();
   const [summary, setSummary] = useState<UnreadSummary | null>(null);
   const [open, setOpen] = useState(false);
@@ -172,8 +172,8 @@ export default function NotificationBell() {
       {open && (
         <div style={{
           position: 'absolute',
-          top: 'calc(100% + 8px)',
-          right: 0,
+          ...(direction === 'up' ? { bottom: 'calc(100% + 8px)' } : { top: 'calc(100% + 8px)' }),
+          ...(direction === 'up' ? { left: 0 } : { right: 0 }),
           width: 340,
           background: '#fff',
           border: '1px solid #e2e8f0',
