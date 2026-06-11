@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
       currency:  body.currency ?? 'INR',
       magicToken,
       magicTokenExpiry: tokenExpiry,
+      invoiceId: body.invoiceId ? String(body.invoiceId).trim() : null,
       services: {
         create: serviceRecords.map(s => ({ serviceId: s.id })),
       },

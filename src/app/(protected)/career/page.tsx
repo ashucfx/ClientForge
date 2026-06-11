@@ -238,7 +238,7 @@ const CURRENCIES = [
 function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: () => void }) {
   const [form, setForm] = useState({
     name: '', email: '', phone: '',
-    amountPaid: '', currency: 'INR', notes: '',
+    amountPaid: '', currency: 'INR', notes: '', invoiceId: ''
   });
   const [selectedServices, setSelectedServices] = useState<Set<CareerServiceSlug>>(new Set());
   const [loading, setLoading] = useState(false);
@@ -254,6 +254,40 @@ function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
   };
 
   const currencySymbol = CURRENCIES.find(c => c.code === form.currency)?.symbol ?? '';
+
+  const fetchInvoice = async () => {
+    if (!form.invoiceId.trim()) return;
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/catalyst/invoices?search=${encodeURIComponent(form.invoiceId.trim())}`);
+      const data = await res.json() as { invoices?: any[] };
+      if (data.invoices && data.invoices.length > 0) {
+        const inv = data.invoices[0];
+        
+        let total = 0;
+        if (inv.lineItems && Array.isArray(inv.lineItems)) {
+          total = inv.lineItems.reduce((acc: number, item: any) => acc + (Number(item.lineTotal) || 0), 0);
+        }
+        total = total - (Number(inv.discountAmount) || 0) + (Number(inv.taxAmount) || 0);
+
+        setForm(f => ({
+          ...f,
+          name: inv.clientName || f.name,
+          email: inv.clientEmail || f.email,
+          phone: inv.clientPhone || f.phone,
+          currency: inv.currency || f.currency,
+          amountPaid: total > 0 ? String(total) : f.amountPaid,
+          invoiceId: inv.invoiceNumber || f.invoiceId,
+        }));
+      } else {
+        setError('Invoice not found');
+      }
+    } catch (e) {
+      setError('Failed to fetch invoice details');
+    }
+    setLoading(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -274,6 +308,7 @@ function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
         amountPaid: Number(form.amountPaid) || 0,
         currency: form.currency,
         notes: form.notes || undefined,
+        invoiceId: form.invoiceId || undefined,
       }),
     });
     const data = await res.json() as { error?: string };
@@ -319,6 +354,24 @@ function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
               <p className="text-red-600 text-sm">{error}</p>
             </div>
           )}
+
+          {/* Invoice Mapping */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+              Invoice Mapping <span className="text-slate-400 font-normal normal-case">optional</span>
+            </label>
+            <div className="flex gap-2">
+              <input type="text" value={form.invoiceId}
+                onChange={e => setForm(f => ({ ...f, invoiceId: e.target.value }))}
+                placeholder="e.g. INV-001"
+                className={`${inputCls} flex-1`} />
+              <button type="button" onClick={fetchInvoice} disabled={!form.invoiceId || loading}
+                className="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50">
+                Fetch
+              </button>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">Enter an invoice number to auto-fill details.</p>
+          </div>
 
           {/* Name */}
           <div>
