@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
       select: {
         id: true, name: true, email: true, phone: true,
         packageType: true, status: true, amountPaid: true, currency: true,
-        createdAt: true, lastLoginAt: true,
+        createdAt: true, lastLoginAt: true, expectedDeliveryAt: true,
         services: { select: { service: { select: { slug: true, name: true } } } },
         _count: { select: { forms: true, deliverables: true } },
         ConversationReadState: { select: { unreadByAdmin: true, adminSlaDeadline: true } },

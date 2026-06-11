@@ -37,6 +37,7 @@ interface Client {
   currency: string;
   createdAt: string;
   _count: { forms: number; deliverables: number };
+  expectedDeliveryAt?: string | null;
   ConversationReadState?: { unreadByAdmin: number; adminSlaDeadline?: string | null } | null;
 }
 
@@ -184,19 +185,25 @@ export default function CareerClientsPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  {c.ConversationReadState?.adminSlaDeadline ? (
-                    (() => {
-                      const deadline = new Date(c.ConversationReadState.adminSlaDeadline);
-                      const isBreached = deadline.getTime() < Date.now();
-                      const isDueSoon = deadline.getTime() - Date.now() < 2 * 60 * 60 * 1000 && !isBreached;
-                      
-                      if (isBreached) return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700">🔴 Breached</span>;
-                      if (isDueSoon) return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800">🟡 Due Soon</span>;
-                      return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-700">🟢 Healthy</span>;
-                    })()
-                  ) : (
-                    <span className="text-sm text-slate-400">—</span>
-                  )}
+                  {(() => {
+                    if (c.status === 'COMPLETED') return <span className="text-sm text-slate-400">—</span>;
+
+                    const effectiveSla = c.ConversationReadState?.adminSlaDeadline || c.expectedDeliveryAt;
+                    if (!effectiveSla) return <span className="text-sm text-slate-400">—</span>;
+
+                    const deadline = new Date(effectiveSla);
+                    const isBreached = deadline.getTime() < Date.now();
+                    const isDueSoon = deadline.getTime() - Date.now() < 2 * 60 * 60 * 1000 && !isBreached;
+                    const isCommsSla = !!c.ConversationReadState?.adminSlaDeadline;
+
+                    if (isBreached) {
+                      return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700" title={isCommsSla ? "Message SLA" : "Delivery SLA"}>🔴 Breached</span>;
+                    }
+                    if (isDueSoon) {
+                      return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800" title={isCommsSla ? "Message SLA" : "Delivery SLA"}>🟡 Due Soon</span>;
+                    }
+                    return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-700" title={isCommsSla ? "Message SLA" : "Delivery SLA"}>🟢 Healthy</span>;
+                  })()}
                 </td>
                 <td className="px-4 py-3 text-slate-500 text-xs">
                   {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
