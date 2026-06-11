@@ -2,13 +2,14 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { format } from 'date-fns';
 import { IconCheck, IconSettings, IconDocument } from '@/components/Icons';
+import { RnClientFeedbackForms } from '@/components/rn/RnClientFeedbackForms';
 
 export const dynamic = 'force-dynamic';
 
 export default async function RnPortalOverviewPage({ params }: { params: { token: string } }) {
   const client = await prisma.rnClient.findFirst({
     where: { magicToken: params.token },
-    include: { serviceModule: true }
+    include: { serviceModule: true, Feedback: true, Review: true }
   });
 
   if (!client) notFound();
@@ -32,6 +33,14 @@ export default async function RnPortalOverviewPage({ params }: { params: { token
           Track your {client.serviceModule.name} project progress, view billing history, and access recent deliverables.
         </p>
       </div>
+
+      {client.currentStage === 'DELIVERED' && (!client.Feedback || !client.Review) && (
+        <RnClientFeedbackForms 
+          hasSubmittedFeedback={!!client.Feedback} 
+          hasSubmittedReview={!!client.Review} 
+          serviceName={client.serviceModule.name} 
+        />
+      )}
 
       {/* Project Timeline */}
       <div style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 32 }}>

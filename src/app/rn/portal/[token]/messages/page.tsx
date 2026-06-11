@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
+import { markConversationReadByClient } from '@/lib/communications';
 import { IconMail } from '@/components/Icons';
 
 export const dynamic = 'force-dynamic';
@@ -16,6 +17,9 @@ export default async function RnMessagesPage({ params }: { params: { token: stri
     where: { clientId: client.id },
     orderBy: { createdAt: 'asc' }
   });
+
+  // Mark as read by client
+  await markConversationReadByClient(client.id, 'RN');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, overflow: 'hidden' }}>

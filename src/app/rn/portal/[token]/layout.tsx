@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export default async function RnClientPortalLayout({ params, children }: { params: { token: string }, children: React.ReactNode }) {
   const client = await prisma.rnClient.findFirst({
     where: { magicToken: params.token },
-    include: { serviceModule: true }
+    include: { serviceModule: true, ConversationReadState: true }
   });
 
   if (!client) {
@@ -63,8 +63,13 @@ export default async function RnClientPortalLayout({ params, children }: { param
           <Link href={`/rn/portal/${params.token}/deliverables`} style={{ padding: '16px 0', color: '#A1A1AA', textDecoration: 'none', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
             <IconDocument size={16} /> Deliverables
           </Link>
-          <Link href={`/rn/portal/${params.token}/messages`} style={{ padding: '16px 0', color: '#A1A1AA', textDecoration: 'none', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link href={`/rn/portal/${params.token}/messages`} style={{ padding: '16px 0', color: '#A1A1AA', textDecoration: 'none', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
             <IconMail size={16} /> Messages
+            {client.ConversationReadState?.unreadByClient ? (
+              <span style={{ position: 'absolute', top: 12, right: -12, background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 700, padding: '0 6px', borderRadius: 9999 }}>
+                {client.ConversationReadState.unreadByClient > 99 ? '99+' : client.ConversationReadState.unreadByClient}
+              </span>
+            ) : null}
           </Link>
         </div>
       </div>
