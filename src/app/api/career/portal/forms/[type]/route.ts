@@ -67,10 +67,12 @@ export async function POST(req: NextRequest, { params }: { params: { type: strin
     select: {
       id: true, name: true, email: true, packageType: true,
       expectedDeliveryAt: true,
+      lifecycleStatus: true,
       services: { select: { service: { select: { slug: true } } } },
     },
   });
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (client.lifecycleStatus === 'ARCHIVED') return NextResponse.json({ error: 'Project is archived. Form editing disabled.' }, { status: 403 });
 
   // Access check — services first, then legacy packageType
   let allowed: FormType[];

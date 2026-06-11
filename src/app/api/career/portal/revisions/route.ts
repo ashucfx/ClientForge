@@ -24,7 +24,7 @@ async function getClient() {
   if (!payload) return null;
   const client = await db.careerClient.findUnique({
     where: { id: payload.clientId },
-    select: { id: true, name: true, email: true, status: true, completedAt: true },
+    select: { id: true, name: true, email: true, status: true, completedAt: true, lifecycleStatus: true },
   });
   return client ?? null;
 }
@@ -45,13 +45,11 @@ export async function POST(req: NextRequest) {
   const client = await getClient();
   if (!client) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  if (client.status === 'COMPLETED' && client.completedAt) {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    if (client.completedAt < thirtyDaysAgo) {
-      return NextResponse.json({ 
-        error: 'Your 30-day revision window has expired. Please contact support for a new engagement.' 
-      }, { status: 403 });
-    }
+  // Enforce strict archival check (Phase 4 standards)
+  if (client.lifecycleStatus === 'ARCHIVED') {
+    return NextResponse.json({ 
+      error: 'This project is archived. Revisions are no longer available. Please purchase a new engagement or upgrade.' 
+    }, { status: 403 });
   }
 
   const body      = await req.json().catch(() => null);

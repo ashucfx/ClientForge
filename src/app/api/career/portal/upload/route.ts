@@ -25,9 +25,10 @@ export async function POST(req: NextRequest) {
 
   const client = await db.careerClient.findUnique({
     where: { id: payload.clientId },
-    select: { id: true },
+    select: { id: true, lifecycleStatus: true },
   });
   if (!client) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (client.lifecycleStatus === 'ARCHIVED') return NextResponse.json({ error: 'Project is archived.' }, { status: 403 });
 
   const form = await req.formData().catch(() => null);
   const file = form?.get('file') as File | null;
