@@ -24,6 +24,7 @@ interface UnreadSummary {
   pendingRevisions: number;
   unreadNotifications: number;
   clientsWithUnread: UnreadClient[];
+  recentNotifications?: any[];
 }
 
 function timeAgo(iso: string): string {
