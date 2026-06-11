@@ -186,7 +186,9 @@ export default function CareerClientsPage() {
                 </td>
                 <td className="px-4 py-3">
                   {(() => {
-                    if (c.status === 'COMPLETED') return <span className="text-sm text-slate-400">—</span>;
+                    if (c.status === 'COMPLETED') {
+                      return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-600">✔️ Fulfilled</span>;
+                    }
 
                     const effectiveSla = c.ConversationReadState?.adminSlaDeadline || c.expectedDeliveryAt;
                     if (!effectiveSla) return <span className="text-sm text-slate-400">—</span>;
