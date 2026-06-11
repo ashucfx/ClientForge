@@ -6,6 +6,27 @@ import { PORTAL_URL } from '@/lib/config';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+import { logSystemError } from '@/lib/audit/logger';
+
+async function atomicSendEmail(clientId: string, trigger: string, emailData: any) {
+  try {
+    // Attempt insert FIRST to establish lock
+    await db.careerEmailLog.create({
+      data: { clientId, trigger, status: 'sent' },
+    });
+    // Send email ONLY if insert succeeded
+    await sendCareerEmail(emailData);
+    return true;
+  } catch (err: any) {
+    if (err.code === 'P2002') {
+      // Unique constraint failed - a concurrent cron worker already took this
+      return false;
+    }
+    await logSystemError(err, 'CRON_LIFECYCLE');
+    return false;
+  }
+}
+
 export async function GET(req: Request) {
   // Authenticate cron caller — Vercel injects CRON_SECRET automatically
   const cronSecret = process.env.CRON_SECRET;
@@ -38,25 +59,19 @@ export async function GET(req: Request) {
   const alreadyWarned = new Set(existingWarningLogs.map(l => l.clientId));
 
   for (const client of ghostWarningClients) {
-    if (!alreadyWarned.has(client.id)) {
-      await sendCareerEmail({
-        to: client.email,
-        trigger: 'MESSAGE_NOTIFY', // Re-using generic template
-        clientId: client.id,
-        data: {
-          recipientName: client.name,
-          senderType: 'admin',
-          portalUrl: `${PORTAL_URL}/portal/dashboard`,
-          subject: 'Action Required: Your Revision Window is Closing Soon',
-          body: `Hi ${client.name.split(' ')[0]},\n\nJust checking in! We sent your draft exactly a week ago. Your revision window closes in 3 days.\n\nPlease log in to review your documents and request any final changes. If we don't hear from you, we will assume you are happy with the draft and finalize your order.`,
-        },
-      });
-
-      await db.careerEmailLog.create({
-        data: { clientId: client.id, trigger: 'GHOST_WARNING', status: 'sent' },
-      });
-      processedCount++;
-    }
+    const sent = await atomicSendEmail(client.id, 'GHOST_WARNING', {
+      to: client.email,
+      trigger: 'MESSAGE_NOTIFY',
+      clientId: client.id,
+      data: {
+        recipientName: client.name,
+        senderType: 'admin',
+        portalUrl: `${PORTAL_URL}/portal/dashboard`,
+        subject: 'Action Required: Your Revision Window is Closing Soon',
+        body: `Hi ${client.name.split(' ')[0]},\n\nJust checking in! We sent your draft exactly a week ago. Your revision window closes in 3 days.\n\nPlease log in to review your documents and request any final changes. If we don't hear from you, we will assume you are happy with the draft and finalize your order.`,
+      },
+    });
+    if (sent) processedCount++;
   }
 
   // -------------------------------------------------------------------------
@@ -87,25 +102,19 @@ export async function GET(req: Request) {
       data: { status: 'COMPLETED', completedAt: new Date() },
     });
 
-    if (!alreadyClosed.has(client.id)) {
-      await sendCareerEmail({
-        to: client.email,
-        trigger: 'MESSAGE_NOTIFY',
-        clientId: client.id,
-        data: {
-          recipientName: client.name,
-          senderType: 'admin',
-          portalUrl: `${PORTAL_URL}/portal/dashboard`,
-          subject: 'Your Order is Now Finalized',
-          body: `Hi ${client.name.split(' ')[0]},\n\nSince your revision window has expired, we have finalized your order and marked it as completed. You can download your final documents from the portal.\n\nThank you for choosing our services!`,
-        },
-      });
-
-      await db.careerEmailLog.create({
-        data: { clientId: client.id, trigger: 'GHOST_CLOSURE', status: 'sent' },
-      });
-      processedCount++;
-    }
+    const sent = await atomicSendEmail(client.id, 'GHOST_CLOSURE', {
+      to: client.email,
+      trigger: 'MESSAGE_NOTIFY',
+      clientId: client.id,
+      data: {
+        recipientName: client.name,
+        senderType: 'admin',
+        portalUrl: `${PORTAL_URL}/portal/dashboard`,
+        subject: 'Your Order is Now Finalized',
+        body: `Hi ${client.name.split(' ')[0]},\n\nSince your revision window has expired, we have finalized your order and marked it as completed. You can download your final documents from the portal.\n\nThank you for choosing our services!`,
+      },
+    });
+    if (sent) processedCount++;
   }
 
   // -------------------------------------------------------------------------
@@ -130,25 +139,19 @@ export async function GET(req: Request) {
   const alreadyReviewed = new Set(existingReviewLogs.map(l => l.clientId));
 
   for (const client of reviewClients) {
-    if (!alreadyReviewed.has(client.id)) {
-      await sendCareerEmail({
-        to: client.email,
-        trigger: 'MESSAGE_NOTIFY',
-        clientId: client.id,
-        data: {
-          recipientName: client.name,
-          senderType: 'admin',
-          portalUrl: `https://www.trustpilot.com/evaluate/theripplenexus.com`,
-          subject: 'How did we do?',
-          body: `Hi ${client.name.split(' ')[0]},\n\nIt's been a week since we finalized your documents! We hope your job search is going great and you are landing those interviews.\n\nIf you loved our service, would you mind dropping a quick review? It really helps us out!\n\nClick the portal button below to leave a review.`,
-        },
-      });
-
-      await db.careerEmailLog.create({
-        data: { clientId: client.id, trigger: 'REVIEW_REQUEST', status: 'sent' },
-      });
-      processedCount++;
-    }
+    const sent = await atomicSendEmail(client.id, 'REVIEW_REQUEST', {
+      to: client.email,
+      trigger: 'MESSAGE_NOTIFY',
+      clientId: client.id,
+      data: {
+        recipientName: client.name,
+        senderType: 'admin',
+        portalUrl: `https://www.trustpilot.com/evaluate/theripplenexus.com`,
+        subject: 'How did we do?',
+        body: `Hi ${client.name.split(' ')[0]},\n\nIt's been a week since we finalized your documents! We hope your job search is going great and you are landing those interviews.\n\nIf you loved our service, would you mind dropping a quick review? It really helps us out!\n\nClick the portal button below to leave a review.`,
+      },
+    });
+    if (sent) processedCount++;
   }
 
   // -------------------------------------------------------------------------
@@ -174,25 +177,19 @@ export async function GET(req: Request) {
   const alreadyNudged = new Set(existingExpiringLogs.map(l => l.clientId));
 
   for (const client of expiringClients) {
-    if (!alreadyNudged.has(client.id)) {
-      await sendCareerEmail({
-        to: client.email,
-        trigger: 'MESSAGE_NOTIFY',
-        clientId: client.id,
-        data: {
-          recipientName: client.name,
-          senderType: 'admin',
-          portalUrl: `${PORTAL_URL}/portal/dashboard`,
-          subject: 'Reminder: 5 Days Left to Request Revisions',
-          body: `Hi ${client.name.split(' ')[0]},\n\nJust a quick reminder that your 30-day revision window will close in 5 days. After this time, your project will be safely archived.\n\nIf you need any final tweaks to your documents, please log in to the portal and submit a revision request before the window closes.`,
-        },
-      });
-
-      await db.careerEmailLog.create({
-        data: { clientId: client.id, trigger: 'REVISION_EXPIRING', status: 'sent' },
-      });
-      processedCount++;
-    }
+    const sent = await atomicSendEmail(client.id, 'REVISION_EXPIRING', {
+      to: client.email,
+      trigger: 'MESSAGE_NOTIFY',
+      clientId: client.id,
+      data: {
+        recipientName: client.name,
+        senderType: 'admin',
+        portalUrl: `${PORTAL_URL}/portal/dashboard`,
+        subject: 'Reminder: 5 Days Left to Request Revisions',
+        body: `Hi ${client.name.split(' ')[0]},\n\nJust a quick reminder that your 30-day revision window will close in 5 days. After this time, your project will be safely archived.\n\nIf you need any final tweaks to your documents, please log in to the portal and submit a revision request before the window closes.`,
+      },
+    });
+    if (sent) processedCount++;
   }
 
   // -------------------------------------------------------------------------
@@ -212,33 +209,19 @@ export async function GET(req: Request) {
   });
 
   for (const msg of unreadMessages) {
-    const recentEscalation = await db.careerEmailLog.findFirst({
-      where: {
-        clientId: msg.clientId,
-        trigger: 'UNREAD_ESCALATION',
-        sentAt: { gte: twentyFourHoursAgo },
-      }
+    const sent = await atomicSendEmail(msg.clientId, 'UNREAD_ESCALATION', {
+      to: process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com',
+      trigger: 'MESSAGE_NOTIFY',
+      clientId: msg.clientId,
+      data: {
+        recipientName: 'Catalyst Team',
+        senderType: 'system',
+        portalUrl: `${PORTAL_URL}/career/${msg.clientId}`,
+        subject: `ACTION REQUIRED: Unread messages from ${msg.authorName}`,
+        body: `You have messages from ${msg.authorName} that have been unread for over 24 hours.\n\nPlease log in to the admin dashboard and respond promptly to meet SLA requirements.`,
+      },
     });
-
-    if (!recentEscalation) {
-      await sendCareerEmail({
-        to: process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com',
-        trigger: 'MESSAGE_NOTIFY',
-        clientId: msg.clientId,
-        data: {
-          recipientName: 'Catalyst Team',
-          senderType: 'system',
-          portalUrl: `${PORTAL_URL}/career/${msg.clientId}`,
-          subject: `ACTION REQUIRED: Unread messages from ${msg.authorName}`,
-          body: `You have messages from ${msg.authorName} that have been unread for over 24 hours.\n\nPlease log in to the admin dashboard and respond promptly to meet SLA requirements.`,
-        },
-      });
-
-      await db.careerEmailLog.create({
-        data: { clientId: msg.clientId, trigger: 'UNREAD_ESCALATION', status: 'sent' },
-      });
-      processedCount++;
-    }
+    if (sent) processedCount++;
   }
 
   // -------------------------------------------------------------------------
@@ -371,6 +354,78 @@ export async function GET(req: Request) {
       }
     });
     processedCount++;
+  }
+
+  // -------------------------------------------------------------------------
+  // 8. Re-Engagement Engine (Phase 4)
+  // -------------------------------------------------------------------------
+  // Send emails at exactly 30, 60, 90, 120 days after completedAt
+  const intervals = [30, 60, 90, 120];
+  
+  for (const days of intervals) {
+    const targetDateStart = new Date(now);
+    targetDateStart.setDate(targetDateStart.getDate() - days);
+    targetDateStart.setHours(0, 0, 0, 0);
+    
+    const targetDateEnd = new Date(targetDateStart);
+    targetDateEnd.setHours(23, 59, 59, 999);
+
+    const targetClients = await db.careerClient.findMany({
+      where: {
+        lifecycleStatus: 'ARCHIVED',
+        completedAt: {
+          gte: targetDateStart,
+          lte: targetDateEnd,
+        }
+      },
+      select: { id: true, email: true, name: true },
+    });
+
+    if (targetClients.length > 0) {
+      const clientIds = targetClients.map(c => c.id);
+      const existingLogs = await db.careerEmailLog.findMany({
+        where: {
+          clientId: { in: clientIds },
+          trigger: `REENGAGE_${days}`,
+          status: 'sent'
+        },
+        select: { clientId: true }
+      });
+      const alreadyEmailed = new Set(existingLogs.map(l => l.clientId));
+
+      for (const client of targetClients) {
+        let subject = '';
+        let body = '';
+        
+        if (days === 30) {
+          subject = 'Checking in on your career progress';
+          body = `Hi ${client.name.split(' ')[0]},\n\nIt's been a month since we finalized your documents. We'd love to hear how your job search is going! Let us know if you need any additional interview prep or cover letters.`;
+        } else if (days === 60) {
+          subject = 'Need an update to your LinkedIn profile?';
+          body = `Hi ${client.name.split(' ')[0]},\n\nTwo months in! Have you started a new role yet? If you have, we can help you update your LinkedIn to reflect your new position.`;
+        } else if (days === 90) {
+          subject = 'Special offer for returning clients';
+          body = `Hi ${client.name.split(' ')[0]},\n\nWe hope you're doing well. As a returning client, you have access to exclusive discounts on our career coaching and portfolio website packages. Reach out to learn more!`;
+        } else if (days === 120) {
+          subject = 'Time for a refresh?';
+          body = `Hi ${client.name.split(' ')[0]},\n\nIt's been 4 months since we worked together. The job market moves fast, and keeping your resume fresh is key. If you've gained new skills or achievements recently, let's add them!`;
+        }
+
+        const sent = await atomicSendEmail(client.id, `REENGAGE_${days}`, {
+          to: client.email,
+          trigger: 'MESSAGE_NOTIFY',
+          clientId: client.id,
+          data: {
+            recipientName: client.name,
+            senderType: 'admin',
+            portalUrl: `${PORTAL_URL}`,
+            subject,
+            body,
+          },
+        });
+        if (sent) processedCount++;
+      }
+    }
   }
 
   return NextResponse.json({ ok: true, processed: processedCount });
