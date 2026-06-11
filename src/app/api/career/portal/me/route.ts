@@ -39,13 +39,13 @@ export async function GET(req: NextRequest) {
         where: { requestedBy: 'client' },
         select: { id: true },
       },
+      ConversationReadState: { select: { unreadByClient: true } },
+      Feedback: { select: { id: true } },
+      Review: { select: { id: true } },
     },
   });
 
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (client.lifecycleStatus === 'ARCHIVED') {
-    return NextResponse.json({ error: 'Account archived' }, { status: 403 });
-  }
 
   // Robustly synchronize lastLoginAt (throttle updates to every 15 minutes)
   const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
@@ -167,5 +167,8 @@ export async function GET(req: NextRequest) {
       slug: s.service.slug,
       name: SERVICE_LABELS[s.service.slug as CareerServiceSlug] ?? s.service.name,
     })),
+    unreadMessages: client.ConversationReadState?.unreadByClient ?? 0,
+    hasSubmittedFeedback: !!client.Feedback,
+    hasSubmittedReview: !!client.Review,
   });
 }

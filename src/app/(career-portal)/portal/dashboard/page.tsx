@@ -8,6 +8,7 @@ import Image from 'next/image';
 import type { CareerStatus, CareerPackage, FormType } from '@/lib/career/types';
 import { PACKAGE_LABELS, STATUS_LABELS } from '@/lib/career/types';
 import { DeliverableViewer } from '@/components/DeliverableViewer';
+import { ClientFeedbackForms } from '@/components/ClientFeedbackForms';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,7 @@ interface Me {
   id: string; name: string; email: string;
   packageType: CareerPackage; packageLabel: string;
   status: CareerStatus; statusLabel: string;
+  lifecycleStatus: string;
   availableForms: FormType[];
   submittedForms: string[];
   forms: FormMeta[];
@@ -33,6 +35,9 @@ interface Me {
   expectedDeliveryAt?: string | null;
   waitingOn?: string;
   services?: { slug: string; name: string }[];
+  unreadMessages?: number;
+  hasSubmittedFeedback?: boolean;
+  hasSubmittedReview?: boolean;
 }
 interface DeliverableItem {
   id: string; label: string; fileUrl: string; fileType: string; createdAt: string;
@@ -115,7 +120,6 @@ export default function PortalDashboardPage() {
   const [files, setFiles] = useState<DeliverableItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [comments, setComments] = useState<CommentItem[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [newComment, setNewComment] = useState('');
   const [postingComment, setPostingComment] = useState(false);
   const [approvingFileId, setApprovingFileId] = useState<string | null>(null);
@@ -163,14 +167,13 @@ export default function PortalDashboardPage() {
       meRes.json() as Promise<Me>,
       filesRes.json() as Promise<{ files: DeliverableItem[] }>,
       commentsRes.ok
-        ? commentsRes.json() as Promise<{ comments: CommentItem[]; unreadForAdmin: number }>
-        : Promise.resolve({ comments: [], unreadForAdmin: 0 }),
+        ? commentsRes.json() as Promise<{ comments: CommentItem[] }>
+        : Promise.resolve({ comments: [] }),
     ]);
     if (!meData.hasPinSet) { router.replace('/portal/setup-pin'); return; }
     setMe(meData);
     setFiles(filesData.files ?? []);
     setComments(commentsData.comments ?? []);
-    setUnreadCount(commentsData.unreadForAdmin ?? 0);
     setLoading(false);
     scrollThread();
   }, [router]);
@@ -279,6 +282,18 @@ export default function PortalDashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button onClick={() => {
+              if (threadRef.current) {
+                threadRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }} className="relative p-2 text-slate-500 hover:text-slate-700 transition-colors">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+                <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9zM13.73 21a2 2 0 01-3.46 0"/>
+              </svg>
+              {me.unreadMessages ? (
+                <span className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+              ) : null}
+            </button>
             <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 bg-slate-100 rounded-xl">
               <div className="w-6 h-6 rounded-full bg-[#B8935B] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                 {me.name[0]?.toUpperCase()}
@@ -306,6 +321,20 @@ export default function PortalDashboardPage() {
           </h1>
           <p className="text-slate-500 text-sm mt-1">Welcome to your ClientForge Boost portal</p>
         </div>
+
+        {me.lifecycleStatus === 'ARCHIVED' && (
+          <div className="bg-slate-800 text-white p-4 rounded-xl shadow-md border border-slate-700">
+            <h3 className="font-bold mb-1 flex items-center gap-2">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+              This project has been archived
+            </h3>
+            <p className="text-sm text-slate-300">
+              To request additional work, revisions, or start a new project, please reply to your project manager or contact support. Your files will remain available for download.
+            </p>
+          </div>
+        )}
 
         {/* ── Package hero ── */}
         <div className="relative overflow-hidden bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#0A0B0D] rounded-2xl p-6 text-white">
@@ -503,6 +532,15 @@ export default function PortalDashboardPage() {
           );
         })()}
 
+        {/* ── Feedback & Testimonial (Visible after completion) ── */}
+        {me.status === 'COMPLETED' && (!me.hasSubmittedFeedback || !me.hasSubmittedReview) && (
+          <ClientFeedbackForms 
+            hasSubmittedFeedback={me.hasSubmittedFeedback ?? false} 
+            hasSubmittedReview={me.hasSubmittedReview ?? false} 
+            onSubmitted={() => void load()} 
+          />
+        )}
+
         {/* ── Forms section ── */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
@@ -648,11 +686,11 @@ export default function PortalDashboardPage() {
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
           <div className="flex items-center gap-2 mb-4">
             <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Messages & Notes</h3>
-            {unreadCount > 0 && (
+            {me.unreadMessages ? (
               <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full leading-none">
-                {unreadCount} new
+                {me.unreadMessages} new
               </span>
-            )}
+            ) : null}
           </div>
 
           {/* Thread */}
@@ -676,75 +714,81 @@ export default function PortalDashboardPage() {
           )}
 
           {/* Compose */}
-          <form onSubmit={postComment} className="border-t border-slate-100 pt-4">
-            <div className="flex gap-2 items-end">
-              <textarea
-                value={newComment}
-                onChange={e => setNewComment(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void postComment(e as unknown as React.FormEvent); } }}
-                placeholder="Type a message for the team… (Ctrl+Enter to send)"
-                maxLength={4000}
-                rows={2}
-                className="flex-1 px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 hover:bg-white transition-colors resize-none"
-              />
-              <div className="flex flex-col gap-1.5 flex-shrink-0">
-                <button
-                  type="button"
-                  disabled={uploading || pendingFiles.length >= 3}
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Attach file (PNG, JPG, PDF, DOCX — max 4 MB)"
-                  aria-label="Attach file"
-                  className="p-2.5 border border-slate-200 text-slate-500 rounded-xl hover:bg-[#FBF8F3] hover:border-[#D4AF7A] hover:text-[#B8935B] disabled:opacity-40 transition-colors"
-                >
-                  {uploading
-                    ? <span className="w-4 h-4 border-2 border-[#B8935B] border-t-transparent rounded-full animate-spin inline-block" />
-                    : <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
-                  }
-                </button>
-                <button
-                  type="submit"
-                  disabled={postingComment || (!newComment.trim() && pendingFiles.length === 0)}
-                  aria-label="Send message"
-                  className="p-2.5 bg-[#B8935B] text-white rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors"
-                >
-                  {postingComment
-                    ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-                    : <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                  }
-                </button>
-              </div>
+          {me.lifecycleStatus === 'ARCHIVED' ? (
+            <div className="border-t border-slate-100 pt-4 text-center">
+              <p className="text-sm text-slate-400 italic">This project is archived. New messages and uploads are disabled.</p>
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              multiple
-              accept=".png,.jpg,.jpeg,.webp,.pdf,.docx,.doc"
-              onChange={handleFileSelect}
-            />
-
-            {viewingFile && (
-              <DeliverableViewer 
-                fileUrl={viewingFile.fileUrl}
-                fileId={viewingFile.id}
-                fileName={viewingFile.label}
-                onClose={() => setViewingFile(null)}
-                onSubmitAnnotation={async (x, y, comment) => {
-                  await fetch('/api/career/portal/comments', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                      content: `[Pin on ${viewingFile.label}]: ${comment}`,
-                      annotationX: x,
-                      annotationY: y 
-                    })
-                  });
-                  load();
-                }}
+          ) : (
+            <form onSubmit={postComment} className="border-t border-slate-100 pt-4">
+              <div className="flex gap-2 items-end">
+                <textarea
+                  value={newComment}
+                  onChange={e => setNewComment(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void postComment(e as unknown as React.FormEvent); } }}
+                  placeholder="Type a message for the team… (Ctrl+Enter to send)"
+                  maxLength={4000}
+                  rows={2}
+                  className="flex-1 px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 hover:bg-white transition-colors resize-none"
+                />
+                <div className="flex flex-col gap-1.5 flex-shrink-0">
+                  <button
+                    type="button"
+                    disabled={uploading || pendingFiles.length >= 3}
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Attach file (PNG, JPG, PDF, DOCX — max 4 MB)"
+                    aria-label="Attach file"
+                    className="p-2.5 border border-slate-200 text-slate-500 rounded-xl hover:bg-[#FBF8F3] hover:border-[#D4AF7A] hover:text-[#B8935B] disabled:opacity-40 transition-colors"
+                  >
+                    {uploading
+                      ? <span className="w-4 h-4 border-2 border-[#B8935B] border-t-transparent rounded-full animate-spin inline-block" />
+                      : <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                    }
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={postingComment || (!newComment.trim() && pendingFiles.length === 0)}
+                    aria-label="Send message"
+                    className="p-2.5 bg-[#B8935B] text-white rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors"
+                  >
+                    {postingComment
+                      ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                      : <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                    }
+                  </button>
+                </div>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                multiple
+                accept=".png,.jpg,.jpeg,.webp,.pdf,.docx,.doc"
+                onChange={handleFileSelect}
               />
-            )}
-            <p className="text-[10px] text-slate-300 mt-1.5 px-1">PNG, JPG, PDF, DOCX · max 4 MB · max 3 files</p>
-          </form>
+
+              {viewingFile && (
+                <DeliverableViewer 
+                  fileUrl={viewingFile.fileUrl}
+                  fileId={viewingFile.id}
+                  fileName={viewingFile.label}
+                  onClose={() => setViewingFile(null)}
+                  onSubmitAnnotation={async (x, y, comment) => {
+                    await fetch('/api/career/portal/comments', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ 
+                        content: `[Pin on ${viewingFile.label}]: ${comment}`,
+                        annotationX: x,
+                        annotationY: y 
+                      })
+                    });
+                    load();
+                  }}
+                />
+              )}
+              <p className="text-[10px] text-slate-300 mt-1.5 px-1">PNG, JPG, PDF, DOCX · max 4 MB · max 3 files</p>
+            </form>
+          )}
         </div>
 
         {/* ── Footer ── */}
