@@ -41,6 +41,8 @@ interface ClientDetail {
   emailLogs: EmailLog[];
   activityLogs: ActivityLog[];
   services: { slug: string; name: string }[];
+  Feedback?: { id: string; npsScore: number; rating: number; submittedAt: string } | null;
+  Review?: { id: string; content: string; permissionToUse: boolean; submittedAt: string } | null;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -1002,6 +1004,44 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
           ))}
         </dl>
       </Card>
+
+      {/* Feedback & Review */}
+      {(client.Feedback || client.Review) && (
+        <Card title="Client Feedback" icon={<svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>}>
+          <div className="space-y-4">
+            {client.Feedback && (
+              <div className="flex items-center gap-6">
+                <div>
+                  <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">NPS Score</p>
+                  <p className="text-2xl font-black text-slate-800">{client.Feedback.npsScore} <span className="text-sm font-medium text-slate-400">/ 10</span></p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Rating</p>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <svg key={star} width="20" height="20" viewBox="0 0 24 24" fill={star <= client.Feedback!.rating ? '#F59E0B' : '#E2E8F0'}>
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                      </svg>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {client.Review && (
+              <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                <p className="text-sm text-slate-700 italic">&quot;{client.Review.content}&quot;</p>
+                <div className="mt-3 flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${client.Review.permissionToUse ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <p className="text-xs text-slate-500">
+                    {client.Review.permissionToUse ? 'Permission granted to use as testimonial' : 'Private feedback'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

@@ -17,6 +17,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       emailLogs: { orderBy: { sentAt: 'desc' }, take: 20 },
       activityLogs: { orderBy: { createdAt: 'desc' }, take: 30 },
       services: { select: { service: { select: { slug: true, name: true } } } },
+      Feedback: true,
+      Review: true,
     },
   });
 
