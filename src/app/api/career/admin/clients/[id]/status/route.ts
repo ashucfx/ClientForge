@@ -86,6 +86,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     },
   });
 
+  if (newStatus === 'COMPLETED') {
+    await db.careerDeliverable.updateMany({
+      where: { clientId: client.id, approvalStatus: 'PENDING' },
+      data: { approvalStatus: 'APPROVED', approvedAt: new Date() }
+    });
+  }
+
   await db.careerActivityLog.create({
     data: {
       clientId: client.id,
