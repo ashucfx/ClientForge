@@ -125,7 +125,6 @@ body {
   display: flex;
   flex-direction: column;
   z-index: 50;
-  overflow-y: auto;
   border-right: 1px solid var(--border);
 }
 
@@ -214,6 +213,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  overflow-y: auto;
 }
 
 .nav-item {

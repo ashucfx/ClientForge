@@ -15,6 +15,7 @@ interface UnreadClient {
   unreadCount: number;
   lastActivityAt: string;
   lastPreview: string;
+  link?: string;
 }
 
 interface UnreadSummary {
@@ -66,6 +67,17 @@ export default function NotificationBell({ direction = 'down' }: { direction?: '
         pendingRevisions += data.pendingRevisions;
         unreadNotifications = data.unreadNotifications; // admin-level, not additive
         allClients.push(...data.clientsWithUnread);
+        if (data.recentNotifications) {
+          allClients.push(...data.recentNotifications.map((n: any) => ({
+            id: n.id,
+            name: n.title,
+            email: 'system',
+            unreadCount: 1,
+            lastActivityAt: n.createdAt,
+            lastPreview: n.message,
+            link: n.link || '/notifications',
+          })));
+        }
       }
 
       if (rnRes.status === 'fulfilled' && rnRes.value.ok) {
@@ -258,7 +270,8 @@ export default function NotificationBell({ direction = 'down' }: { direction?: '
               </div>
             ) : (
               summary.clientsWithUnread.map(c => {
-                const href = isRn ? `/rn/clients/${c.id}` : `/career/${c.id}`;
+                const isSystem = c.email === 'system';
+                const href = c.link || (isRn ? `/rn/clients/${c.id}` : `/career/${c.id}`);
                 return (
                   <Link
                     key={c.id}
@@ -276,14 +289,20 @@ export default function NotificationBell({ direction = 'down' }: { direction?: '
                     onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
-                    {/* Avatar */}
+                    {/* Avatar or Icon */}
                     <div style={{
                       width: 32, height: 32, borderRadius: 10,
-                      background: accentColor,
+                      background: isSystem ? '#f1f5f9' : accentColor,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#fff', fontSize: 13, fontWeight: 700, flexShrink: 0,
+                      color: isSystem ? '#64748b' : '#fff', fontSize: 13, fontWeight: 700, flexShrink: 0,
                     }}>
-                      {c.name[0]?.toUpperCase()}
+                      {isSystem ? (
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        c.name[0]?.toUpperCase()
+                      )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>

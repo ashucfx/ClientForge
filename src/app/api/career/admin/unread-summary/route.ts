@@ -117,12 +117,21 @@ export async function GET() {
     where: { status: 'PENDING', requestedBy: 'client' },
   });
 
-  // 4. Unread admin notifications
-  const unreadNotifications = session
+  // 4. Unread admin notifications (count AND recent items)
+  const unreadNotificationsCount = session
     ? await db.notification.count({
         where: { adminId: session.adminId, isRead: false },
       })
     : 0;
+
+  const recentNotifications = session
+    ? await db.notification.findMany({
+        where: { adminId: session.adminId, isRead: false },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { id: true, title: true, message: true, type: true, createdAt: true, link: true },
+      })
+    : [];
 
   const totalUnreadMessages = unreadMessages.length + unreadComments.length;
 
@@ -130,7 +139,8 @@ export async function GET() {
     totalUnread: totalUnreadMessages + pendingRevisions,
     totalUnreadMessages,
     pendingRevisions,
-    unreadNotifications,
+    unreadNotifications: unreadNotificationsCount,
+    recentNotifications,
     clientsWithUnread: clientsWithUnread.map(c => ({
       id: c.id,
       name: c.name,
