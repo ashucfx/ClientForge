@@ -8,6 +8,7 @@ import { isAdminRequest } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 import { sendCareerEmail } from '@/lib/career/email';
 import { waitUntil } from '@vercel/functions';
+import { recordMessageSent, markConversationReadByAdmin } from '@/lib/communications';
 
 
 const PORTAL_URL =
@@ -23,11 +24,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     orderBy: { createdAt: 'asc' },
   });
 
-  // Mark all client messages as read by admin
-  await db.careerMessage.updateMany({
-    where: { clientId: params.id, authorType: 'client', readByAdmin: false },
-    data: { readByAdmin: true },
-  });
+  // Mark all client messages as read by admin and update read state
+  await markConversationReadByAdmin(params.id, 'CAREER');
 
   return NextResponse.json({ messages });
 }
@@ -54,6 +52,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       readByAdmin: true,
     },
   });
+
+  await recordMessageSent(client.id, 'CAREER', 'admin');
 
   // Email notification to client
   const portalUrl = `${PORTAL_URL}/portal/dashboard`;

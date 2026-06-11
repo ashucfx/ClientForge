@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 import { notifyAllAdmins } from '@/lib/notifications';
+import { recordMessageSent, markConversationReadByAdmin } from '@/lib/communications';
 import { waitUntil } from '@vercel/functions';
 
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'team@theripplenexus.com';
@@ -32,11 +33,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     orderBy: { createdAt: 'asc' },
   });
 
-  // Mark all client messages as read by admin
-  await db.rnMessage.updateMany({
-    where: { clientId: params.id, authorType: 'client', readByAdmin: false },
-    data: { readByAdmin: true },
-  });
+  // Mark all client messages as read by admin and update read state
+  await markConversationReadByAdmin(params.id, 'RN');
 
   return NextResponse.json({ messages });
 }
@@ -71,6 +69,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       readByAdmin: true,
     },
   });
+
+  await recordMessageSent(client.id, 'RN', 'admin', undefined);
 
   // Fire-and-forget: email client + log activity
   waitUntil((async () => {

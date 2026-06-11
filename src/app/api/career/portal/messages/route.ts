@@ -9,6 +9,7 @@ import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
 import { notifyAllAdmins } from '@/lib/notifications';
+import { recordMessageSent, markConversationReadByClient } from '@/lib/communications';
 import { waitUntil } from '@vercel/functions';
 
 
@@ -29,11 +30,8 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: 'asc' },
   });
 
-  // Mark admin messages as read by client
-  await db.careerMessage.updateMany({
-    where: { clientId: payload.clientId, authorType: 'admin', readByClient: false },
-    data: { readByClient: true },
-  });
+  // Mark admin messages as read by client and update read state
+  await markConversationReadByClient(payload.clientId, 'CAREER');
 
   return NextResponse.json({ messages });
 }
@@ -63,6 +61,8 @@ export async function POST(req: NextRequest) {
       readByClient: true,
     },
   });
+
+  await recordMessageSent(client.id, 'CAREER', 'client', 'NEW_MESSAGE');
 
   const adminPortalUrl = `${PORTAL_URL}/career/${client.id}`;
 
