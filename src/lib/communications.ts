@@ -87,7 +87,11 @@ export async function markConversationReadByAdmin(clientId: string, clientType: 
       where: { clientId, authorType: 'client', readByAdmin: false },
       data: { readByAdmin: true, readByAdminAt: new Date() }
     });
-    markedCount = result.count;
+    const result2 = await db.careerComment.updateMany({
+      where: { clientId, authorType: 'client', readByAdmin: false },
+      data: { readByAdmin: true, readByAdminAt: new Date() }
+    });
+    markedCount = result.count + result2.count;
   } else {
     const result = await db.rnMessage.updateMany({
       where: { clientId, authorType: 'client', readByAdmin: false },
@@ -128,7 +132,11 @@ export async function markConversationReadByClient(clientId: string, clientType:
       where: { clientId, authorType: 'admin', readByClient: false },
       data: { readByClient: true, readByClientAt: new Date() }
     });
-    markedCount = result.count;
+    const result2 = await db.careerComment.updateMany({
+      where: { clientId, authorType: 'admin', readByClient: false },
+      data: { readByClient: true, readByClientAt: new Date() }
+    });
+    markedCount = result.count + result2.count;
   } else {
     const result = await db.rnMessage.updateMany({
       where: { clientId, authorType: 'admin', readByClient: false },

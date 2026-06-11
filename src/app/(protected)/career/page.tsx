@@ -37,7 +37,7 @@ interface Client {
   currency: string;
   createdAt: string;
   _count: { forms: number; deliverables: number };
-  readState?: { unreadByAdmin: number; adminSlaDeadline?: string | null } | null;
+  ConversationReadState?: { unreadByAdmin: number; adminSlaDeadline?: string | null } | null;
 }
 
 function isCareerBoosterCombo(slugs: string[]): boolean {
@@ -164,9 +164,9 @@ export default function CareerClientsPage() {
                   <div className="flex flex-col">
                     <Link href={`/career/${c.id}`} className="font-semibold text-slate-900 hover:text-indigo-600 transition-colors flex items-center gap-2">
                       {c.name}
-                      {c.readState && c.readState.unreadByAdmin > 0 && (
+                      {c.ConversationReadState && c.ConversationReadState.unreadByAdmin > 0 && (
                         <span className="flex items-center justify-center w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full animate-pulse shadow-sm shadow-red-500/50">
-                          {c.readState.unreadByAdmin}
+                          {c.ConversationReadState.unreadByAdmin}
                         </span>
                       )}
                     </Link>
@@ -184,9 +184,9 @@ export default function CareerClientsPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  {c.readState?.adminSlaDeadline ? (
+                  {c.ConversationReadState?.adminSlaDeadline ? (
                     (() => {
-                      const deadline = new Date(c.readState.adminSlaDeadline);
+                      const deadline = new Date(c.ConversationReadState.adminSlaDeadline);
                       const isBreached = deadline.getTime() < Date.now();
                       const isDueSoon = deadline.getTime() - Date.now() < 2 * 60 * 60 * 1000 && !isBreached;
                       
