@@ -66,7 +66,7 @@ export function getTenantDb(tenantId: string) {
         },
         async create({ model, args, query }) {
           if (TENANT_SCOPED_MODELS.includes(model)) {
-            args.data = { ...args.data, brandId: tenantId };
+            args.data = { ...(args.data as any), brandId: tenantId };
           }
           return query(args);
         }
