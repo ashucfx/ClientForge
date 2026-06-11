@@ -239,10 +239,15 @@ model CareerClient {
   services     CareerClientService[]
   messages     CareerMessage[]
   deleteOtp    CareerDeleteOtp?
-  
+
   // Upgrade Migration Relations
-  invoiceLinks   InvoiceClientLink[]
-  upgradeHistory ClientUpgradeHistory[]
+  invoiceLinks          InvoiceClientLink[]
+  upgradeHistory        ClientUpgradeHistory[]
+  Feedback              Feedback?
+  Review                Review?
+  ClientHealthScore     ClientHealthScore?
+  ConversationReadState ConversationReadState?
+  ClientNotification    ClientNotification[]
 
   @@index([status])
   @@index([email])
@@ -303,6 +308,7 @@ model CareerEmailLog {
 
   @@index([clientId])
   @@index([clientId, trigger, status])
+  @@unique([clientId, trigger])
 }
 
 model CareerActivityLog {
@@ -327,21 +333,21 @@ model CareerFormSchema {
 }
 
 model CareerRevision {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   clientId    String
-  requestedBy String   @default("client") // "client" | "admin"
+  requestedBy String  @default("client") // "client" | "admin"
   note        String
   fileLabel   String? // which deliverable this relates to
-  status      String   @default("PENDING") // PENDING | APPROVED | DENIED
+  status      String  @default("PENDING") // PENDING | APPROVED | DENIED
   adminNote   String?
-  
-  // Phase 3: Per-service tracking & Paid revisions
-  serviceSlug  String?  // e.g., 'RESUME', 'LINKEDIN'
-  chargeStatus String   @default("FREE") // "FREE" | "PENDING_PAYMENT" | "PAID"
-  invoiceId    String?  // Links to the generated invoice for paid revisions
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  // Phase 3: Per-service tracking & Paid revisions
+  serviceSlug  String? // e.g., 'RESUME', 'LINKEDIN'
+  chargeStatus String  @default("FREE") // "FREE" | "PENDING_PAYMENT" | "PAID"
+  invoiceId    String? // Links to the generated invoice for paid revisions
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -371,15 +377,17 @@ model CareerComment {
 }
 
 model CareerMessage {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   clientId       String
-  authorType     String   @default("client") // "client" | "admin"
+  authorType     String    @default("client") // "client" | "admin"
   authorName     String
   content        String
-  isInternalOnly Boolean  @default(false)
-  readByAdmin    Boolean  @default(false)
-  readByClient   Boolean  @default(false)
-  createdAt      DateTime @default(now())
+  isInternalOnly Boolean   @default(false)
+  readByAdmin    Boolean   @default(false)
+  readByClient   Boolean   @default(false)
+  readByAdminAt  DateTime?
+  readByClientAt DateTime?
+  createdAt      DateTime  @default(now())
 
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -558,17 +566,22 @@ model RnClient {
   archiveReason    String?
   lastAdminReplyAt DateTime?
 
-  organization  RnOrganization?      @relation(fields: [organizationId], references: [id])
-  serviceModule RnServiceModule      @relation(fields: [serviceModuleId], references: [id])
-  forms         RnFormSubmission[]
-  deliverables  RnDeliverable[]
-  revisions     RnRevision[]
-  messages      RnMessage[]
-  emailLogs     RnEmailLog[]
-  activityLogs  RnActivityLog[]
-  deleteOtp     RnDeleteOtp?
-  milestones    RnProjectMilestone[]
-  comments      RnComment[]
+  organization          RnOrganization?        @relation(fields: [organizationId], references: [id])
+  serviceModule         RnServiceModule        @relation(fields: [serviceModuleId], references: [id])
+  forms                 RnFormSubmission[]
+  deliverables          RnDeliverable[]
+  revisions             RnRevision[]
+  messages              RnMessage[]
+  emailLogs             RnEmailLog[]
+  activityLogs          RnActivityLog[]
+  deleteOtp             RnDeleteOtp?
+  milestones            RnProjectMilestone[]
+  comments              RnComment[]
+  Feedback              Feedback?
+  Review                Review?
+  ClientHealthScore     ClientHealthScore?
+  ConversationReadState ConversationReadState?
+  ClientNotification    ClientNotification[]
 
   @@index([email])
   @@index([serviceModuleId, currentStage])
@@ -656,16 +669,18 @@ model RnComment {
 }
 
 model RnMessage {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   clientId       String
-  authorType     String   @default("client") // 'client' | 'admin'
+  authorType     String    @default("client") // 'client' | 'admin'
   authorName     String
   content        String
-  isInternalOnly Boolean  @default(false)
+  isInternalOnly Boolean   @default(false)
   attachments    Json? // {name,url,mimeType,size}[]
-  readByAdmin    Boolean  @default(false)
-  readByClient   Boolean  @default(false)
-  createdAt      DateTime @default(now())
+  readByAdmin    Boolean   @default(false)
+  readByClient   Boolean   @default(false)
+  readByAdminAt  DateTime?
+  readByClientAt DateTime?
+  createdAt      DateTime  @default(now())
 
   client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -809,10 +824,114 @@ model InvoiceClientLink {
 model ClientUpgradeHistory {
   id               String   @id @default(cuid())
   clientId         String
-  previousServices Json     // Array of service slugs before upgrade
-  addedServices    Json     // Array of newly unlocked service slugs
-  invoiceId        String   
+  previousServices Json // Array of service slugs before upgrade
+  addedServices    Json // Array of newly unlocked service slugs
+  invoiceId        String
   createdAt        DateTime @default(now())
 
-  client  CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 3: FEEDBACK, ANALYTICS, & COMMUNICATIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Feedback {
+  id             String  @id @default(cuid())
+  careerClientId String? @unique
+  rnClientId     String? @unique
+
+  serviceType     String
+  rating          Int // 1-5
+  npsScore        Int // 0-10
+  communication   Int // 1-5
+  deliveryQuality Int // 1-5
+  turnaroundTime  Int // 1-5
+  comments        String?
+
+  deliveryDurationDays Int?
+  revisionCount        Int?
+
+  createdAt DateTime @default(now())
+
+  careerClient CareerClient? @relation(fields: [careerClientId], references: [id], onDelete: Cascade)
+  rnClient     RnClient?     @relation(fields: [rnClientId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id             String  @id @default(cuid())
+  careerClientId String? @unique
+  rnClientId     String? @unique
+
+  rating      Int
+  testimonial String
+  designation String?
+  company     String?
+  linkedinUrl String?
+  isPublished Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  careerClient CareerClient? @relation(fields: [careerClientId], references: [id], onDelete: Cascade)
+  rnClient     RnClient?     @relation(fields: [rnClientId], references: [id], onDelete: Cascade)
+}
+
+model ClientHealthScore {
+  id             String  @id @default(cuid())
+  careerClientId String? @unique
+  rnClientId     String? @unique
+
+  score         Float // 0-100
+  satisfaction  Float?
+  responseSpeed Float?
+  revisionRisk  Float?
+
+  status String // 'EXCELLENT', 'HEALTHY', 'ATTENTION_NEEDED', 'AT_RISK'
+
+  lastCalculatedAt DateTime @default(now())
+
+  careerClient CareerClient? @relation(fields: [careerClientId], references: [id], onDelete: Cascade)
+  rnClient     RnClient?     @relation(fields: [rnClientId], references: [id], onDelete: Cascade)
+}
+
+model ConversationReadState {
+  id             String  @id @default(cuid())
+  careerClientId String? @unique
+  rnClientId     String? @unique
+
+  unreadByAdmin  Int      @default(0)
+  unreadByClient Int      @default(0)
+  lastMessageAt  DateTime @default(now())
+  lastMessageBy  String   @default("client") // 'client' | 'admin'
+
+  adminSlaDeadline DateTime?
+  adminSlaEvent    String?   // e.g. 'NEW_MESSAGE', 'REVISION_REQUEST'
+
+  careerClient CareerClient? @relation(fields: [careerClientId], references: [id], onDelete: Cascade)
+  rnClient     RnClient?     @relation(fields: [rnClientId], references: [id], onDelete: Cascade)
+
+  @@index([unreadByAdmin])
+  @@index([unreadByClient])
+  @@index([lastMessageAt])
+}
+
+model ClientNotification {
+  id             String  @id @default(cuid())
+  careerClientId String?
+  rnClientId     String?
+
+  title   String
+  message String
+  link    String?
+  isRead  Boolean @default(false)
+  type    String  @default("INFO")
+
+  createdAt DateTime @default(now())
+
+  careerClient CareerClient? @relation(fields: [careerClientId], references: [id], onDelete: Cascade)
+  rnClient     RnClient?     @relation(fields: [rnClientId], references: [id], onDelete: Cascade)
+
+  @@index([careerClientId, isRead])
+  @@index([rnClientId, isRead])
 }
