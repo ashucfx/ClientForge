@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
       waitingOn: true,
       pinHash: true, currency: true,
       createdAt: true,
+      lastLoginAt: true,
       expectedDeliveryAt: true,
       services: { select: { service: { select: { slug: true, name: true } } } },
       forms: {
@@ -44,6 +45,16 @@ export async function GET(req: NextRequest) {
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (client.lifecycleStatus === 'ARCHIVED') {
     return NextResponse.json({ error: 'Account archived' }, { status: 403 });
+  }
+
+  // Robustly synchronize lastLoginAt (throttle updates to every 15 minutes)
+  const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
+  if (!client.lastLoginAt || client.lastLoginAt < fifteenMinsAgo) {
+    // Non-blocking async update
+    void db.careerClient.update({
+      where: { id: client.id },
+      data: { lastLoginAt: new Date() },
+    }).catch(err => console.error('[portal/me] failed to sync lastLoginAt:', err));
   }
 
   // Determine available forms — services first, fall back to packageType

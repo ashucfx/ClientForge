@@ -17,6 +17,21 @@ export async function GET() {
   // Get current admin ID for unread notification count
   const session = await getAdminSession();
 
+  // Robustly synchronize AdminUser.lastLoginAt (throttle updates to every 15 minutes)
+  if (session) {
+    const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
+    void db.adminUser.updateMany({
+      where: {
+        id: session.adminId,
+        OR: [
+          { lastLoginAt: null },
+          { lastLoginAt: { lt: fifteenMinsAgo } },
+        ],
+      },
+      data: { lastLoginAt: new Date() },
+    }).catch(err => console.error('[unread-summary] failed to sync admin lastLoginAt:', err));
+  }
+
   // 1. All client messages that admin hasn't read yet (authorType = 'client', readByAdmin = false)
   const unreadMessages = await db.careerMessage.findMany({
     where: { authorType: 'client', readByAdmin: false },
