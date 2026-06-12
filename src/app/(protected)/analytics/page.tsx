@@ -3,31 +3,34 @@
 import { useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { useBrand } from '@/components/BrandProvider';
-import { IconTrendUp, IconDocument, IconCheck, IconPending, IconUser } from '@/components/Icons';
+import { IconTrendUp, IconTrendDown, IconDocument, IconCheck, IconPending, IconUser, IconAlert, IconMail, IconFolder } from '@/components/Icons';
 import { formatCurrency } from '@/lib/pricing';
 
 export default function AnalyticsDashboard() {
   const { activeBrand } = useBrand();
-  const [data, setData] = useState<any>(null);
+  const [execData, setExecData] = useState<any>(null);
+  const [opsData, setOpsData] = useState<any>(null);
   const [slaData, setSlaData] = useState<any>(null);
   const [satData, setSatData] = useState<any>(null);
-  const [lifecycleData, setLifecycleData] = useState<any>(null);
+  const [lifeData, setLifeData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchAnalytics() {
       setLoading(true);
       try {
-        const [execRes, slaRes, satRes, lfRes] = await Promise.all([
+        const [execRes, opsRes, slaRes, satRes, lifeRes] = await Promise.all([
           fetch('/api/admin/analytics/executive'),
+          fetch('/api/admin/analytics/operations'),
           fetch('/api/admin/analytics/sla'),
           fetch('/api/admin/analytics/satisfaction'),
           fetch('/api/admin/analytics/lifecycle')
         ]);
-        if (execRes.ok) setData(await execRes.json());
+        if (execRes.ok) setExecData(await execRes.json());
+        if (opsRes.ok) setOpsData(await opsRes.json());
         if (slaRes.ok) setSlaData(await slaRes.json());
         if (satRes.ok) setSatData(await satRes.json());
-        if (lfRes.ok) setLifecycleData(await lfRes.json());
+        if (lifeRes.ok) setLifeData(await lifeRes.json());
       } catch (err) {
         console.error('Failed to fetch analytics', err);
       }
@@ -36,167 +39,406 @@ export default function AnalyticsDashboard() {
     fetchAnalytics();
   }, []);
 
-  const KpiCard = ({ label, value, sub, icon, bg, accent = false }: any) => (
-    <div className="kpi-card" style={accent ? { borderColor: '#bfdbfe', boxShadow: '0 0 0 1px #bfdbfe, 0 4px 12px rgba(31,86,212,.08)' } : {}}>
-      <div className="kpi-icon" style={{ background: bg }}>{icon}</div>
-      <div className="kpi-label">{label}</div>
-      <div className="kpi-value" style={accent ? { color: 'var(--brand)' } : {}}>{value}</div>
-      {sub && <div className="kpi-sub" style={{ marginTop: 8 }}>{sub}</div>}
+  const TrendIndicator = ({ trendPct, trendDirection }: { trendPct: number, trendDirection: 'up' | 'down' | 'neutral' }) => {
+    if (trendPct === 0 || trendPct === null || isNaN(trendPct)) return <span className="text-sm font-medium text-slate-400">No change</span>;
+    const isPositive = trendDirection === 'up';
+    const color = isPositive ? 'text-emerald-600' : 'text-rose-600';
+    const Icon = isPositive ? IconTrendUp : IconTrendDown;
+    return (
+      <span className={`inline-flex items-center gap-1 text-sm font-medium ${color}`}>
+        <Icon size={14} />
+        {Math.abs(trendPct)}%
+      </span>
+    );
+  };
+
+  const KpiCard = ({ label, value, trendPct, trendDirection, context, icon, bg, accent = false }: any) => (
+    <div className={`card hover-lift transition-all duration-200 p-5 ${accent ? 'ring-1 ring-blue-200 shadow-sm' : ''}`}>
+      <div className="flex justify-between items-start mb-4">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: bg }}>
+          {icon}
+        </div>
+      </div>
+      <div>
+        <div className="text-sm font-medium text-slate-500 mb-1">{label}</div>
+        <div className={`text-3xl font-bold tracking-tight mb-2 ${accent ? 'text-blue-600' : 'text-slate-900'}`}>
+          {value !== null && value !== undefined && !isNaN(value) ? value : 'N/A'}
+        </div>
+        <div className="flex items-center gap-2">
+          {trendPct !== undefined && <TrendIndicator trendPct={trendPct} trendDirection={trendDirection} />}
+          {context && <span className="text-xs text-slate-400 truncate">{context}</span>}
+        </div>
+      </div>
     </div>
   );
 
   return (
     <AppShell>
-      <div className="page-header" style={{ paddingBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <h1 className="page-title">Executive Analytics</h1>
-            <p className="page-subtitle">Operational Intelligence & Satisfaction KPIs</p>
-          </div>
+      <div className="max-w-7xl mx-auto pb-12">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Executive Command Center</h1>
+          <p className="text-slate-500 mt-1">Real-time business intelligence and operational alerts</p>
         </div>
 
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '64px 0', color: 'var(--text-tertiary)' }}>
-            Loading analytics...
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin text-blue-600"><IconPending size={32} /></div>
           </div>
-        ) : data ? (
-          <>
-            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, color: 'var(--text-primary)' }}>Business Overview</h2>
-            <div className="grid-4" style={{ marginBottom: 32 }}>
+        ) : (
+          <div className="space-y-8">
+            
+            {/* SECTION 1 - EXECUTIVE COMMAND CENTER */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard 
-                label="Total Revenue" 
-                value={formatCurrency(data.kpis?.totalRevenue || 0, '₹')} 
-                icon={<IconTrendUp style={{ color: 'var(--brand)' }} />} 
+                label="Revenue (Current Period)" 
+                value={formatCurrency(execData?.revenue?.value || 0, '₹')} 
+                trendPct={execData?.revenue?.trendPct}
+                trendDirection={execData?.revenue?.trendDirection}
+                context="vs last 30 days"
+                icon={<IconTrendUp className="text-blue-600" />} 
                 bg="#eff6ff" 
                 accent 
               />
               <KpiCard 
                 label="Active Clients" 
-                value={data.kpis?.totalActiveClients || 0} 
-                icon={<IconUser style={{ color: '#3FBD8B' }} />} 
+                value={execData?.activeClients?.value || 0} 
+                trendPct={execData?.activeClients?.trendPct}
+                trendDirection={execData?.activeClients?.trendDirection}
+                context={execData?.activeClients?.context}
+                icon={<IconUser className="text-emerald-600" />} 
                 bg="#d1fae5" 
-                sub="Currently engaged"
               />
               <KpiCard 
                 label="Net Promoter Score" 
-                value={data.kpis?.nps || 0} 
-                icon={<span style={{ color: '#8b5cf6', fontWeight: 'bold' }}>NPS</span>} 
+                value={execData?.satisfaction?.value !== null ? execData?.satisfaction?.value : 'Insufficient Data'} 
+                trendPct={execData?.satisfaction?.trendPct}
+                trendDirection={execData?.satisfaction?.trendDirection}
+                context={execData?.satisfaction?.context}
+                icon={<span className="text-violet-600 font-bold text-lg">NPS</span>} 
                 bg="#ede9fe" 
-                sub={`Avg Rating: ${data.kpis?.avgRating || 0} / 5`}
               />
-              <KpiCard 
-                label="SLA Met %" 
-                value={`${data.kpis?.slaMetPercentage || 0}%`} 
-                icon={<IconCheck style={{ color: '#059669' }} />} 
-                bg="#d1fae5" 
-                sub="Lifetime"
-              />
-            </div>
-
-            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, color: 'var(--text-primary)' }}>Operational Intelligence</h2>
-            <div className="grid-4" style={{ marginBottom: 32 }}>
               <KpiCard 
                 label="Pending Deliveries" 
-                value={data.operations?.pendingDeliveries || 0} 
-                icon={<IconDocument style={{ color: '#d97706' }} />} 
+                value={execData?.deliveries?.value || 0} 
+                trendPct={execData?.deliveries?.trendPct}
+                trendDirection={execData?.deliveries?.trendDirection}
+                context={execData?.deliveries?.context}
+                icon={<IconDocument className="text-amber-600" />} 
                 bg="#fef3c7" 
-                sub="Awaiting action"
-              />
-              <KpiCard 
-                label="Pending Revisions" 
-                value={data.operations?.pendingRevisions || 0} 
-                icon={<IconPending style={{ color: '#ea580c' }} />} 
-                bg="#ffedd5" 
-              />
-              <KpiCard 
-                label="Escalated Unread" 
-                value={data.operations?.unreadMessagesEscalated || 0} 
-                icon={<span style={{ color: '#dc2626', fontWeight: 'bold' }}>!</span>} 
-                bg="#fee2e2" 
-                sub="> 24 hours"
-              />
-              <KpiCard 
-                label="At-Risk Clients" 
-                value={data.risks?.atRiskClients || 0} 
-                icon={<span style={{ color: '#b91c1c', fontWeight: 'bold' }}>⚠️</span>} 
-                bg="#fef2f2" 
-                sub="Health < 50"
               />
             </div>
 
-            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, color: 'var(--text-primary)' }}>Client Lifecycle & Re-Engagement</h2>
-            <div className="grid-4" style={{ marginBottom: 32 }}>
-              <KpiCard 
-                label="Total Archived" 
-                value={lifecycleData?.totalArchived || 0} 
-                icon={<IconDocument style={{ color: '#6b7280' }} />} 
-                bg="#f3f4f6" 
-                sub="Past clients"
-              />
-              <KpiCard 
-                label="Reactivation Rate" 
-                value={`${lifecycleData?.reactivationRate || 0}%`} 
-                icon={<IconTrendUp style={{ color: '#0ea5e9' }} />} 
-                bg="#e0f2fe" 
-                sub={`${lifecycleData?.totalReactivated || 0} returned`}
-              />
-              <KpiCard 
-                label="Repeat Client Revenue" 
-                value={formatCurrency(lifecycleData?.repeatRevenue || 0, '₹')} 
-                icon={<span style={{ color: '#10b981', fontWeight: 'bold' }}>₹</span>} 
-                bg="#d1fae5" 
-                sub="From Upgrades/Add-ons"
-              />
-              <KpiCard 
-                label="Lifetime Value (LTV)" 
-                value={formatCurrency(lifecycleData?.ltv || 0, '₹')} 
-                icon={<IconUser style={{ color: '#8b5cf6' }} />} 
-                bg="#ede9fe" 
-                sub="Average per client"
-              />
+            {/* SECTION 2 - OPERATIONAL ALERTS */}
+            <div className="card border-l-4 border-l-rose-500 shadow-sm p-0 overflow-hidden">
+              <div className="bg-rose-50 px-5 py-4 border-b border-rose-100 flex items-center gap-3">
+                <IconAlert className="text-rose-600" />
+                <h2 className="text-rose-900 font-semibold">Action Required</h2>
+              </div>
+              <div className="p-5">
+                {(!opsData?.alerts?.pendingDeliveries && !opsData?.alerts?.nearSlaBreach && !opsData?.alerts?.unreadMessages24h && !opsData?.alerts?.negativeFeedback && !opsData?.alerts?.atRiskClients) ? (
+                  <div className="flex items-center gap-3 text-emerald-700 bg-emerald-50 px-4 py-3 rounded-lg">
+                    <IconCheck size={20} />
+                    <span className="font-medium">All operations are running smoothly. No critical alerts.</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {opsData?.alerts?.pendingDeliveries > 0 && (
+                      <div className="flex items-center gap-3 text-slate-700 bg-amber-50 px-4 py-3 rounded-lg border border-amber-100">
+                        <span className="text-amber-600 font-bold text-xl">⚠</span>
+                        <span className="font-medium">{opsData.alerts.pendingDeliveries} Deliverables Awaiting Action</span>
+                      </div>
+                    )}
+                    {opsData?.alerts?.nearSlaBreach > 0 && (
+                      <div className="flex items-center gap-3 text-slate-700 bg-rose-50 px-4 py-3 rounded-lg border border-rose-100">
+                        <span className="text-rose-600 font-bold text-xl">⚠</span>
+                        <span className="font-medium">{opsData.alerts.nearSlaBreach} Projects Near SLA Breach</span>
+                      </div>
+                    )}
+                    {opsData?.alerts?.unreadMessages24h > 0 && (
+                      <div className="flex items-center gap-3 text-slate-700 bg-orange-50 px-4 py-3 rounded-lg border border-orange-100">
+                        <span className="text-orange-600 font-bold text-xl">⚠</span>
+                        <span className="font-medium">{opsData.alerts.unreadMessages24h} Clients waiting &gt; 24 hours for a response</span>
+                      </div>
+                    )}
+                    {opsData?.alerts?.negativeFeedback > 0 && (
+                      <div className="flex items-center gap-3 text-slate-700 bg-rose-50 px-4 py-3 rounded-lg border border-rose-100">
+                        <span className="text-rose-600 font-bold text-xl">⚠</span>
+                        <span className="font-medium">{opsData.alerts.negativeFeedback} Negative Feedbacks require review</span>
+                      </div>
+                    )}
+                    {opsData?.alerts?.atRiskClients > 0 && (
+                      <div className="flex items-center gap-3 text-slate-700 bg-rose-50 px-4 py-3 rounded-lg border border-rose-100">
+                        <span className="text-rose-600 font-bold text-xl">⚠</span>
+                        <span className="font-medium">{opsData.alerts.atRiskClients} Clients At Risk (Health &lt; 50)</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-              {/* Delivery Performance */}
-              <div className="card" style={{ padding: 24 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Delivery Performance</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Average Delivery Time</span>
-                    <span style={{ fontWeight: 700 }}>{slaData?.lifetime?.averageDeliveryTimeDays || 0} days</span>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              
+              {/* SECTION 3 - DELIVERY PERFORMANCE */}
+              <div className="card p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-slate-900">Delivery Performance</h3>
+                  <IconDocument className="text-slate-400" />
+                </div>
+                
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-slate-500 font-medium">SLA Compliance %</span>
+                      <span className="font-bold text-slate-900">{slaData?.current?.slaMetPercentage ?? slaData?.lifetime?.slaMetPercentage ?? 100}%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                      <div className="bg-emerald-500 h-2.5 rounded-full" style={{ width: `${slaData?.current?.slaMetPercentage ?? slaData?.lifetime?.slaMetPercentage ?? 100}%` }}></div>
+                    </div>
+                    {slaData?.trends?.slaMetTrend !== undefined && (
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-xs text-slate-400">Current Period</span>
+                        <TrendIndicator trendPct={slaData.trends.slaMetTrend} trendDirection={slaData.trends.slaMetTrend >= 0 ? 'up' : 'down'} />
+                      </div>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>SLA Missed %</span>
-                    <span style={{ fontWeight: 700, color: 'var(--error)' }}>{slaData?.lifetime?.slaMissedPercentage || 0}%</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Revision Rate</span>
-                    <span style={{ fontWeight: 700 }}>{slaData?.lifetime?.revisionRate || 0} per client</span>
+
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                    <div>
+                      <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Avg Delivery Time</div>
+                      <div className="text-2xl font-bold text-slate-900">
+                        {slaData?.current?.averageDeliveryTimeDays ?? slaData?.lifetime?.averageDeliveryTimeDays ?? 0} <span className="text-sm font-normal text-slate-500">days</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Avg Revision Count</div>
+                      <div className="text-2xl font-bold text-slate-900">
+                        {slaData?.revisionRate ?? 0} <span className="text-sm font-normal text-slate-500">per client</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Satisfaction Analytics */}
-              <div className="card" style={{ padding: 24 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Satisfaction Analytics</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Reviews Collected</span>
-                    <span style={{ fontWeight: 700 }}>{satData?.reviewsCount || 0}</span>
+              {/* SECTION 4 - CLIENT HEALTH CENTER */}
+              <div className="card p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-slate-900">Client Health Center</h3>
+                  <IconUser className="text-slate-400" />
+                </div>
+                
+                {opsData?.health?.totalTracked === 0 ? (
+                  <div className="py-8 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                    <p className="text-slate-500 text-sm">Health analytics will appear once clients begin onboarding.</p>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Highest Rated Service</span>
-                    <span style={{ fontWeight: 700, color: '#059669' }}>{satData?.mostLovedService || 'N/A'}</span>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="flex items-end gap-3">
+                      <div className="text-4xl font-bold text-slate-900">{opsData?.health?.averageScore || 0}</div>
+                      <div className="text-sm text-slate-500 mb-1">/ 100 Avg Health Score</div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-24 text-sm text-emerald-600 font-medium">Healthy</div>
+                        <div className="flex-1 bg-slate-100 rounded-full h-2">
+                          <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${(opsData?.health?.healthy / opsData?.health?.totalTracked) * 100}%` }}></div>
+                        </div>
+                        <div className="w-8 text-right text-sm font-medium text-slate-700">{opsData?.health?.healthy}</div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-24 text-sm text-amber-600 font-medium">Attention</div>
+                        <div className="flex-1 bg-slate-100 rounded-full h-2">
+                          <div className="bg-amber-500 h-2 rounded-full" style={{ width: `${(opsData?.health?.attentionNeeded / opsData?.health?.totalTracked) * 100}%` }}></div>
+                        </div>
+                        <div className="w-8 text-right text-sm font-medium text-slate-700">{opsData?.health?.attentionNeeded}</div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-24 text-sm text-rose-600 font-medium">At Risk</div>
+                        <div className="flex-1 bg-slate-100 rounded-full h-2">
+                          <div className="bg-rose-500 h-2 rounded-full" style={{ width: `${(opsData?.health?.atRisk / opsData?.health?.totalTracked) * 100}%` }}></div>
+                        </div>
+                        <div className="w-8 text-right text-sm font-medium text-slate-700">{opsData?.health?.atRisk}</div>
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Lowest Rated Service</span>
-                    <span style={{ fontWeight: 700, color: '#dc2626' }}>{satData?.lowestRatedService || 'N/A'}</span>
+                )}
+              </div>
+
+              {/* SECTION 5 - CUSTOMER SATISFACTION CENTER */}
+              <div className="card p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-slate-900">Satisfaction Intelligence</h3>
+                  <span className="text-xl">⭐</span>
+                </div>
+                
+                {satData?.lifetime?.totalResponses === 0 && satData?.lifetime?.reviewsCount === 0 ? (
+                  <div className="py-8 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                    <p className="text-slate-500 text-sm">Feedback analytics will appear once clients submit reviews.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-slate-50 rounded-lg p-4">
+                        <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">NPS (Current)</div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-2xl font-bold text-slate-900">{satData?.current?.nps !== null ? satData?.current?.nps : 'N/A'}</div>
+                          {satData?.trends?.npsTrend !== undefined && <TrendIndicator trendPct={satData.trends.npsTrend} trendDirection={satData.trends.npsTrend >= 0 ? 'up' : 'down'} />}
+                        </div>
+                      </div>
+                      <div className="bg-slate-50 rounded-lg p-4">
+                        <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Avg Rating</div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-2xl font-bold text-slate-900">{satData?.current?.avgRating !== null ? satData?.current?.avgRating : 'N/A'}</div>
+                          {satData?.trends?.avgRatingTrend !== undefined && <TrendIndicator trendPct={satData.trends.avgRatingTrend} trendDirection={satData.trends.avgRatingTrend >= 0 ? 'up' : 'down'} />}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 pt-4 border-t border-slate-100">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-slate-600">Total Feedback Collected</span>
+                        <span className="font-bold text-slate-900">{satData?.lifetime?.totalResponses || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-slate-600">Public Testimonials</span>
+                        <span className="font-bold text-slate-900">{satData?.lifetime?.testimonialsCollected || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-slate-600">{satData?.services?.singleServiceRated ? 'Most Rated Service' : 'Most Loved Service'}</span>
+                        <span className="font-bold text-emerald-600">{satData?.services?.mostLovedService}</span>
+                      </div>
+                      {!satData?.services?.singleServiceRated && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-slate-600">Lowest Rated Service</span>
+                          <span className="font-bold text-rose-600">{satData?.services?.lowestRatedService}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* SECTION 8 - COMMUNICATION INTELLIGENCE */}
+              <div className="card p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-slate-900">Communication Intelligence</h3>
+                  <IconMail className="text-slate-400" />
+                </div>
+                
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between bg-blue-50 text-blue-900 p-4 rounded-lg">
+                    <div>
+                      <div className="font-bold text-2xl">{opsData?.communications?.communicationSlaCompliance}%</div>
+                      <div className="text-sm text-blue-700">Communication SLA Compliance</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-xl">{opsData?.communications?.totalUnreadMessages}</div>
+                      <div className="text-sm text-blue-700">Unread Messages</div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center p-3 hover:bg-slate-50 rounded-lg transition-colors">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${opsData?.communications?.clientsWaiting24h > 0 ? 'bg-amber-500' : 'bg-slate-300'}`}></div>
+                        <span className="text-sm font-medium text-slate-700">Clients waiting &gt; 24 hours</span>
+                      </div>
+                      <span className="font-bold text-slate-900">{opsData?.communications?.clientsWaiting24h || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 hover:bg-slate-50 rounded-lg transition-colors">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${opsData?.communications?.clientsWaiting48h > 0 ? 'bg-rose-500' : 'bg-slate-300'}`}></div>
+                        <span className="text-sm font-medium text-slate-700">Clients waiting &gt; 48 hours</span>
+                      </div>
+                      <span className="font-bold text-slate-900">{opsData?.communications?.clientsWaiting48h || 0}</span>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              {/* SECTION 6 - REVENUE INTELLIGENCE */}
+              <div className="card p-6 lg:col-span-2">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-slate-900">Revenue Intelligence</h3>
+                  <IconTrendUp className="text-slate-400" />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                    <div className="text-xs text-blue-700 uppercase tracking-wider mb-1">Total Lifetime Revenue</div>
+                    <div className="text-2xl font-bold text-blue-900">{formatCurrency(execData?.revenue?.lifetimeValue || 0, '₹')}</div>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                    <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Average LTV</div>
+                    <div className="text-2xl font-bold text-slate-900">{formatCurrency(lifeData?.ltv || 0, '₹')}</div>
+                  </div>
+                  <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
+                    <div className="text-xs text-emerald-700 uppercase tracking-wider mb-1">Repeat Revenue</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-2xl font-bold text-emerald-900">{formatCurrency(lifeData?.repeatRevenue || 0, '₹')}</div>
+                      {lifeData?.trends?.reactivationTrend > 0 && <TrendIndicator trendPct={lifeData.trends.reactivationTrend} trendDirection="up" />}
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                    <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Current Period</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-2xl font-bold text-slate-900">{formatCurrency(execData?.revenue?.value || 0, '₹')}</div>
+                      {execData?.revenue?.trendPct !== undefined && <TrendIndicator trendPct={execData?.revenue?.trendPct} trendDirection={execData?.revenue?.trendDirection} />}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 rounded-lg p-6 border border-slate-100 flex items-center justify-center min-h-[200px]">
+                  <p className="text-slate-500 text-sm flex items-center gap-2">
+                    <IconDocument size={16} />
+                    Detailed Revenue by Service and Brand charting will be available after 10 transactions.
+                  </p>
+                </div>
+              </div>
+
+              {/* SECTION 7 - LIFECYCLE INTELLIGENCE (Only renders if archived clients > 0) */}
+              {lifeData?.totalArchived > 0 ? (
+                <div className="card p-6 lg:col-span-2">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-bold text-slate-900">Lifecycle & Retention Intelligence</h3>
+                    <IconFolder className="text-slate-400" />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                      <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Archived Clients</div>
+                      <div className="text-2xl font-bold text-slate-900">{lifeData?.totalArchived}</div>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                      <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Reactivated</div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-2xl font-bold text-slate-900">{lifeData?.totalReactivated}</div>
+                        {lifeData?.trends?.reactivationTrend !== undefined && <TrendIndicator trendPct={lifeData.trends.reactivationTrend} trendDirection={lifeData.trends.reactivationTrend >= 0 ? 'up' : 'down'} />}
+                      </div>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                      <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Reactivation Rate</div>
+                      <div className="text-2xl font-bold text-slate-900">{lifeData?.reactivationRate}%</div>
+                    </div>
+                    <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
+                      <div className="text-xs text-emerald-700 uppercase tracking-wider mb-1">Repeat Revenue</div>
+                      <div className="text-2xl font-bold text-emerald-700">{formatCurrency(lifeData?.repeatRevenue, '₹')}</div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="card p-6 lg:col-span-2 flex items-center justify-center bg-slate-50 border border-dashed border-slate-200">
+                  <div className="text-center">
+                    <IconFolder className="mx-auto text-slate-300 mb-2" size={32} />
+                    <h3 className="text-sm font-semibold text-slate-700">Lifecycle Intelligence</h3>
+                    <p className="text-xs text-slate-500 mt-1 max-w-sm">Lifecycle and retention analytics will become available after the first archived client.</p>
+                  </div>
+                </div>
+              )}
             </div>
-          </>
-        ) : null}
+          </div>
+        )}
       </div>
     </AppShell>
   );
