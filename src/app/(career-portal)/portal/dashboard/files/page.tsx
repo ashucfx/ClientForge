@@ -140,19 +140,19 @@ export default function FilesPage() {
 
         {/* Empty */}
         {!loading && files.length === 0 && (
-          <div className="text-center py-16 bg-white border border-dashed border-slate-200 rounded-2xl">
-            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
-                <path stroke="#94a3b8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+          <div className="text-center py-20 bg-white border border-dashed border-slate-300 rounded-3xl">
+            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg width="32" height="32" fill="none" viewBox="0 0 24 24">
+                <path stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                   d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
               </svg>
             </div>
-            <p className="text-slate-700 font-bold mb-1">No files yet</p>
-            <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed">
-              Your deliverables will appear here once our team uploads them.
+            <p className="text-heading font-semibold text-slate-800 mb-2">Your library is empty</p>
+            <p className="text-body text-slate-500 max-w-sm mx-auto leading-relaxed">
+              Your premium deliverables will appear here once our team uploads them.
             </p>
             <Link href="/portal/dashboard"
-              className="inline-block mt-6 px-5 py-2 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] transition-colors">
+              className="inline-block mt-8 px-6 py-3 bg-[#B8935B] text-white text-sm font-semibold rounded-xl hover:bg-[#9A7540] hover-lift transition-all shadow-md shadow-[#B8935B]/20">
               Back to Dashboard
             </Link>
           </div>
@@ -182,73 +182,52 @@ export default function FilesPage() {
               </p>
             </div>
 
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {drafts.map(file => {
                 const ft = FILE_ICONS[file.fileType] ?? FILE_ICONS.other;
                 return (
                   <div key={file.id}
-                    className="bg-white border border-amber-100 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-amber-200 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 ${ft.bg} rounded-xl flex items-center justify-center flex-shrink-0 relative`}>
-                        {ft.icon}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-bold text-slate-900 text-sm truncate">{file.label}</p>
-                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full uppercase tracking-wide flex-shrink-0">
-                            Draft
-                          </span>
+                    className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs hover:shadow-md hover:border-amber-200 hover-lift transition-all flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-start justify-between gap-4 mb-4">
+                        <div className={`w-14 h-14 ${ft.bg} rounded-2xl flex items-center justify-center flex-shrink-0 relative`}>
+                          {ft.icon}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-slate-400 capitalize">
-                            {file.fileType.replace(/_/g, ' ')}
-                          </span>
-                          <span className="text-slate-200">·</span>
-                          <span className="text-xs text-slate-400">
-                            {new Date(file.createdAt).toLocaleDateString('en-IN', {
-                              day: 'numeric', month: 'short', year: 'numeric',
-                            })}
-                          </span>
-                        </div>
+                        <span className="px-2.5 py-1 bg-amber-100 text-amber-700 text-status font-bold rounded-full uppercase tracking-widest flex-shrink-0">
+                          Draft
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <button
-                          onClick={() => copyLink(file.fileUrl, file.id)}
-                          title="Copy link"
-                          className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${
-                            copying === file.id
-                              ? 'bg-emerald-100 border-emerald-300 text-emerald-600'
-                              : 'border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600'
-                          }`}>
-                          {copying === file.id ? (
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/></svg>
-                          ) : (
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-                          )}
-                        </button>
-                        <a
-                          href={`/api/career/portal/deliverables/preview?fileId=${file.id}`}
-                          target="_blank" rel="noopener noreferrer"
-                          className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all"
-                          title="Preview">
-                          <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        </a>
-                        <a href={`/api/career/portal/deliverables/download?fileId=${file.id}`}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white text-xs font-bold rounded-xl hover:bg-slate-700 active:scale-95 transition-all">
-                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                          Download
-                        </a>
+                      
+                      <p className="text-body font-bold text-slate-900 truncate mb-1" title={file.label}>{file.label}</p>
+                      
+                      <div className="flex items-center gap-2 mb-6">
+                        <span className="text-metadata text-slate-500 capitalize">
+                          {file.fileType.replace(/_/g, ' ')}
+                        </span>
+                        <span className="text-slate-300">·</span>
+                        <span className="text-metadata text-slate-500">
+                          {new Date(file.createdAt).toLocaleDateString('en-IN', {
+                            day: 'numeric', month: 'short', year: 'numeric',
+                          })}
+                        </span>
                       </div>
                     </div>
-
-                    {/* Revision request row */}
-                    <div className="mt-3 pt-3 border-t border-amber-50 flex items-center justify-between">
-                      <p className="text-xs text-slate-400">Need changes to this draft?</p>
+                    
+                    <div className="flex items-center gap-2 mt-auto">
+                      <a
+                        href={`/api/career/portal/deliverables/preview?fileId=${file.id}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex-1 flex items-center justify-center gap-2 h-10 bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-all"
+                        title="Preview">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        Preview
+                      </a>
                       <button
                         onClick={() => openRevision(file)}
-                        className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-700 border border-orange-200 hover:border-orange-300 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition-all">
-                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                        Request Revision
+                        className="flex-1 flex items-center justify-center gap-2 h-10 bg-orange-50 border border-orange-200 text-orange-700 font-semibold text-sm rounded-xl hover:bg-orange-100 hover:border-orange-300 transition-all"
+                        title="Request Revision">
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Revision
                       </button>
                     </div>
                   </div>
@@ -282,63 +261,51 @@ export default function FilesPage() {
               </p>
             </div>
 
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {finals.map(file => {
                 const ft = FILE_ICONS[file.fileType] ?? FILE_ICONS.other;
                 return (
                   <div key={file.id}
-                    className="bg-white border border-emerald-100 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 ${ft.bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                        {ft.icon}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-bold text-slate-900 text-sm truncate">{file.label}</p>
-                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full uppercase tracking-wide flex-shrink-0">
-                            Final
-                          </span>
+                    className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs hover:shadow-md hover:border-emerald-200 hover-lift transition-all flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-start justify-between gap-4 mb-4">
+                        <div className={`w-14 h-14 ${ft.bg} rounded-2xl flex items-center justify-center flex-shrink-0`}>
+                          {ft.icon}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-slate-400 capitalize">
-                            {file.fileType.replace(/_/g, ' ')}
-                          </span>
-                          <span className="text-slate-200">·</span>
-                          <span className="text-xs text-slate-400">
-                            {new Date(file.createdAt).toLocaleDateString('en-IN', {
-                              day: 'numeric', month: 'short', year: 'numeric',
-                            })}
-                          </span>
-                        </div>
+                        <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-status font-bold rounded-full uppercase tracking-widest flex-shrink-0">
+                          Final
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <button
-                          onClick={() => copyLink(file.fileUrl, file.id)}
-                          title="Copy link"
-                          className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${
-                            copying === file.id
-                              ? 'bg-emerald-100 border-emerald-300 text-emerald-600'
-                              : 'border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600'
-                          }`}>
-                          {copying === file.id ? (
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/></svg>
-                          ) : (
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-                          )}
-                        </button>
-                        <a
-                          href={`/api/career/portal/deliverables/preview?fileId=${file.id}`}
-                          target="_blank" rel="noopener noreferrer"
-                          className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all"
-                          title="Preview">
-                          <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        </a>
-                        <a href={`/api/career/portal/deliverables/download?fileId=${file.id}`}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#B8935B] text-white text-xs font-bold rounded-xl hover:bg-[#9A7540] active:scale-95 transition-all">
-                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                          Download
-                        </a>
+                      
+                      <p className="text-body font-bold text-slate-900 truncate mb-1" title={file.label}>{file.label}</p>
+                      
+                      <div className="flex items-center gap-2 mb-6">
+                        <span className="text-metadata text-slate-500 capitalize">
+                          {file.fileType.replace(/_/g, ' ')}
+                        </span>
+                        <span className="text-slate-300">·</span>
+                        <span className="text-metadata text-slate-500">
+                          {new Date(file.createdAt).toLocaleDateString('en-IN', {
+                            day: 'numeric', month: 'short', year: 'numeric',
+                          })}
+                        </span>
                       </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mt-auto">
+                      <a
+                        href={`/api/career/portal/deliverables/preview?fileId=${file.id}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex-1 flex items-center justify-center gap-2 h-10 bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-all"
+                        title="Preview">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        Preview
+                      </a>
+                      <a href={`/api/career/portal/deliverables/download?fileId=${file.id}`}
+                        className="flex-1 flex items-center justify-center gap-2 h-10 bg-[#B8935B] text-white font-semibold text-sm rounded-xl hover:bg-[#9A7540] active:scale-95 transition-all shadow-sm shadow-[#B8935B]/20">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Download
+                      </a>
                     </div>
                   </div>
                 );

@@ -311,15 +311,15 @@ export default function PortalDashboardPage() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-7 space-y-5" style={{ animation: 'fadeSlideIn 0.4s ease-out' }}>
+      <main className="max-w-4xl mx-auto px-6 py-12 space-y-8" style={{ animation: 'fadeSlideIn 0.4s ease-out' }}>
         <style>{`@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }`}</style>
 
         {/* ── Greeting ── */}
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
+        <div className="mb-8">
+          <h1 className="text-display font-semibold text-slate-900">
             Hi, {me.name.split(' ')[0]}
           </h1>
-          <p className="text-slate-500 text-sm mt-1">Welcome to your ClientForge Boost portal</p>
+          <p className="text-subheading text-slate-500 mt-2">Welcome to your ClientForge Boost portal</p>
         </div>
 
         {me.lifecycleStatus === 'ARCHIVED' && (
@@ -427,71 +427,57 @@ export default function PortalDashboardPage() {
           </div>
         </div>
 
-        {/* ── Progress tracker ── */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Your Progress</h3>
-            <span className="text-xs text-slate-400">{progressIdx + 1} / {STATUS_STEPS.length}</span>
-          </div>
-
-          {/* Progress bar */}
-          <div className="relative mb-6">
-            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-[#B8935B] to-emerald-400 rounded-full transition-all duration-700"
-                style={{ width: `${(progressIdx / (STATUS_STEPS.length - 1)) * 100}%` }}
-              />
-            </div>
+        {/* ── Progress tracker (Reach-Style Vertical Timeline) ── */}
+        <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-8 hover-lift">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-metadata font-bold text-slate-400 uppercase tracking-widest">Project Journey</h3>
+            <span className="text-sm font-medium text-slate-400">{progressIdx + 1} / {STATUS_STEPS.length}</span>
           </div>
 
           {/* Steps */}
-          <div className="space-y-3">
+          <div className="relative pl-4 space-y-6">
+            <div className="absolute top-4 bottom-4 left-[31px] w-0.5 bg-slate-100" />
             {STATUS_STEPS.map((step, idx) => {
               const done    = idx < progressIdx;
               const current = idx === progressIdx;
               const pending = idx > progressIdx;
               return (
-                <div key={step.key} className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
-                  current ? 'bg-[#FBF8F3] border border-[#E8DDD0]' :
-                  done    ? 'bg-slate-50 border border-transparent' :
-                            'border border-transparent opacity-50'
-                }`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold transition-all ${
-                    current ? 'bg-[#B8935B] text-white shadow-md shadow-[#E8DDD0] scale-110' :
+                <div key={step.key} className="relative z-10 flex items-start gap-5">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold transition-all border-4 border-white ${
+                    current ? 'bg-[#B8935B] text-white shadow-md scale-125' :
                     done    ? 'bg-emerald-500 text-white' :
                               'bg-slate-200 text-slate-400'
                   }`}>
                     {done ? '✓' : idx + 1}
                   </div>
-                  <div className="flex-1">
-                    <p className={`text-sm font-semibold ${
-                      current ? 'text-[#9A7540]' : done ? 'text-slate-700' : 'text-slate-400'
+                  <div className={`flex-1 pt-1 ${!current && !done ? 'opacity-50' : ''}`}>
+                    <p className={`text-body font-semibold ${
+                      current ? 'text-slate-900' : done ? 'text-slate-700' : 'text-slate-500'
                     }`}>{step.label}</p>
                     {current && me.status === 'NOT_STARTED' && (
-                      <p className="text-xs text-[#B8935B] mt-0.5">Fill in your forms below to get started</p>
+                      <p className="text-sm text-slate-500 mt-1">Fill in your forms below to get started</p>
                     )}
                     {current && me.status === 'SUBMITTED' && (
-                      <p className="text-xs text-[#B8935B] mt-0.5">Our team is reviewing your submission</p>
+                      <p className="text-sm text-slate-500 mt-1">Our team is reviewing your submission</p>
                     )}
                     {current && me.status === 'UNDER_PROCESS' && (
-                      <p className="text-xs text-[#B8935B] mt-0.5">Work in progress - we will notify you when your draft is ready</p>
+                      <p className="text-sm text-slate-500 mt-1">Work in progress - we will notify you when your draft is ready</p>
                     )}
                     {current && me.status === 'DRAFT_SENT' && (
-                      <p className="text-xs text-[#B8935B] mt-0.5">
-                        Check your email for the draft - <Link href="/portal/dashboard/files" className="underline">View in Files</Link>
+                      <p className="text-sm text-slate-500 mt-1">
+                        Check your email for the draft - <Link href="/portal/dashboard/files" className="font-semibold text-[#B8935B] hover:underline">View in Files</Link>
                       </p>
                     )}
                     {current && me.status === 'REVISION_REQUESTED' && (
-                      <p className="text-xs text-orange-500 mt-0.5">Your revision is being worked on</p>
+                      <p className="text-sm text-orange-500 mt-1">Your revision is being worked on</p>
                     )}
                     {current && me.status === 'COMPLETED' && (
-                      <p className="text-xs text-emerald-600 mt-0.5 flex items-center gap-1">
-                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/></svg>
-                        All done! <Link href="/portal/dashboard/files" className="underline ml-0.5">Download your files</Link>
+                      <p className="text-sm text-emerald-600 mt-1 flex items-center gap-1.5 font-medium">
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/></svg>
+                        All done! <Link href="/portal/dashboard/files" className="underline ml-1 hover:text-emerald-700">Download your files</Link>
                       </p>
                     )}
                   </div>
-                  {pending && <div className="w-2 h-2 rounded-full bg-slate-200 flex-shrink-0" />}
                 </div>
               );
             })}
@@ -699,9 +685,13 @@ export default function PortalDashboardPage() {
               <p className="text-sm text-slate-400 text-center py-4">
                 No messages yet. Leave a note for our team below.
               </p>
-            ) : comments.map(c => (
-              <PortalMessageBubble key={c.id} c={c} myName={me?.name ?? ''} />
-            ))}
+            ) : comments.map((c, i) => {
+              const prev = comments[i - 1];
+              const isSameAuthor = prev && prev.authorType === c.authorType;
+              const isCloseInTime = prev && (new Date(c.createdAt).getTime() - new Date(prev.createdAt).getTime() < 5 * 60 * 1000);
+              const showHeader = !(isSameAuthor && isCloseInTime);
+              return <PortalMessageBubble key={c.id} c={c} myName={me?.name ?? ''} showHeader={showHeader} />;
+            })}
           </div>
 
           {/* Pending attachments preview */}
@@ -839,65 +829,66 @@ function PortalAttachmentChip({ att, onRemove }: { att: Attachment; onRemove?: (
   );
 }
 
-function PortalMessageBubble({ c, myName }: { c: CommentItem; myName: string }) {
+function PortalMessageBubble({ c, myName, showHeader = true }: { c: CommentItem; myName: string; showHeader?: boolean }) {
   const isClient = c.authorType === 'client';
   const atts = c.attachments ?? [];
-  const seenAt = isClient ? c.readByAdminAt : c.readByClientAt;
-  const wasSeen = isClient ? c.readByAdmin : c.readByClient;
+  const authorName = isClient ? myName : 'Catalyst Team';
+  const avatarChar = isClient ? (myName[0]?.toUpperCase() ?? 'C') : 'C';
 
   return (
-    <div className={`flex gap-3 ${isClient ? 'flex-row-reverse' : ''}`}>
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-        isClient ? 'bg-slate-200 text-slate-600' : 'bg-[#B8935B] text-white'
-      }`}>
-        {isClient ? (myName[0]?.toUpperCase() ?? 'C') : 'C'}
-      </div>
-      <div className={`max-w-[78%] ${isClient ? 'items-end flex flex-col' : ''}`}>
-        {/* Images inline */}
-        {atts.filter(a => a.mimeType.startsWith('image/')).map((a, i) => (
-          <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" download={a.name}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={a.url} alt={a.name}
-              className="max-w-[200px] max-h-[160px] rounded-xl object-cover mb-1.5 border border-slate-200 hover:opacity-90 transition-opacity cursor-pointer" />
-          </a>
-        ))}
-        {/* Bubble */}
-        {c.content && (
-          <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words [word-break:break-word] ${
-            isClient
-              ? 'bg-slate-100 text-slate-800 rounded-tr-sm'
-              : 'bg-[#FBF8F3] border border-[#F0EAE0] text-slate-700 rounded-tl-sm'
+    <div className={`group flex gap-4 ${!showHeader ? 'mt-1' : 'mt-5'}`}>
+      {/* Avatar Column */}
+      <div className="w-10 flex-shrink-0 flex justify-center">
+        {showHeader ? (
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold shadow-sm ${
+            isClient ? 'bg-slate-200 text-slate-700' : 'bg-[#B8935B] text-white'
           }`}>
+            {avatarChar}
+          </div>
+        ) : (
+          <div className="w-10 opacity-0 group-hover:opacity-100 flex justify-center items-center text-[10px] text-slate-400 font-medium select-none">
+             {fmtTime(c.createdAt)}
+          </div>
+        )}
+      </div>
+
+      {/* Content Column */}
+      <div className="flex-1 min-w-0 pb-0.5">
+        {showHeader && (
+          <div className="flex items-baseline gap-2 mb-1">
+            <span className="font-bold text-slate-900">{authorName}</span>
+            <span className="text-xs font-medium text-slate-400">{fmtTime(c.createdAt)}</span>
+          </div>
+        )}
+
+        {/* Bubble Content */}
+        {c.content && (
+          <div className="text-body text-slate-700 leading-relaxed whitespace-pre-wrap break-words [word-break:break-word]">
             {c.content}
           </div>
         )}
-        {/* Non-image file chips */}
-        {atts.filter(a => !a.mimeType.startsWith('image/')).map((a, i) => (
-          <div key={i} className="mt-1.5">
-            <PortalAttachmentChip att={a} />
+
+        {/* Attachments - Images */}
+        {atts.filter(a => a.mimeType.startsWith('image/')).length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {atts.filter(a => a.mimeType.startsWith('image/')).map((a, i) => (
+              <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" download={a.name}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={a.url} alt={a.name}
+                  className="max-w-[240px] max-h-[180px] rounded-xl object-cover border border-slate-200 hover:opacity-90 hover:shadow-md transition-all cursor-pointer" />
+              </a>
+            ))}
           </div>
-        ))}
-        {/* Meta row */}
-        <div className={`flex items-center gap-1.5 mt-1 px-1 ${isClient ? 'flex-row-reverse' : ''}`}>
-          <p className="text-xs text-slate-400">
-            {isClient ? 'You' : 'Catalyst Team'} · {fmtDate(c.createdAt)}
-          </p>
-          {isClient && (
-            <span className="flex items-center gap-0.5 text-[10px] text-slate-400">
-              {wasSeen ? (
-                <>
-                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
-                    <path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3" stroke="#B8935B" strokeWidth="2"/>
-                  </svg>
-                  <span className="text-[#B8935B]">Seen {seenAt ? fmtTime(seenAt) : ''}</span>
-                </>
-              ) : (
-                <span>Sent</span>
-              )}
-            </span>
-          )}
-        </div>
+        )}
+
+        {/* Attachments - Files */}
+        {atts.filter(a => !a.mimeType.startsWith('image/')).length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {atts.filter(a => !a.mimeType.startsWith('image/')).map((a, i) => (
+              <PortalAttachmentChip key={i} att={a} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
