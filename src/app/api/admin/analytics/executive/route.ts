@@ -18,25 +18,28 @@ export async function GET() {
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
   // 1. Revenue
-  const currentRevenueAggr = await db.invoice.aggregate({
-    _sum: { totalPayable: true },
-    where: { status: 'PAID', paidAt: { gte: thirtyDaysAgo } }
-  });
-  const prevRevenueAggr = await db.invoice.aggregate({
-    _sum: { totalPayable: true },
-    where: { status: 'PAID', paidAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } }
-  });
+  const currentRevenueQuery = await db.$queryRaw`
+    SELECT SUM("totalPayable" * "exchangeRate") as total
+    FROM "Invoice"
+    WHERE "status" = 'PAID' AND "paidAt" >= ${thirtyDaysAgo} AND "paidAt" <= ${now}
+  `;
+  const prevRevenueQuery = await db.$queryRaw`
+    SELECT SUM("totalPayable" * "exchangeRate") as total
+    FROM "Invoice"
+    WHERE "status" = 'PAID' AND "paidAt" >= ${sixtyDaysAgo} AND "paidAt" < ${thirtyDaysAgo}
+  `;
   
-  const currentRevenue = currentRevenueAggr._sum.totalPayable || 0;
-  const prevRevenue = prevRevenueAggr._sum.totalPayable || 0;
+  const currentRevenue = Number((currentRevenueQuery as any[])[0]?.total || 0);
+  const prevRevenue = Number((prevRevenueQuery as any[])[0]?.total || 0);
   const revenueTrend = calculateTrend(currentRevenue, prevRevenue);
 
   // Total Lifetime Revenue for context
-  const totalLifetimeRevenueAggr = await db.invoice.aggregate({
-    _sum: { totalPayable: true },
-    where: { status: 'PAID' }
-  });
-  const lifetimeRevenue = totalLifetimeRevenueAggr._sum.totalPayable || 0;
+  const totalLifetimeRevenueQuery = await db.$queryRaw`
+    SELECT SUM("totalPayable" * "exchangeRate") as total
+    FROM "Invoice"
+    WHERE "status" = 'PAID'
+  `;
+  const lifetimeRevenue = Number((totalLifetimeRevenueQuery as any[])[0]?.total || 0);
 
   // 2. Active Clients
   const activeCareerClients = await db.careerClient.count({

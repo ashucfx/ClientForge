@@ -27,7 +27,7 @@ export async function GET() {
     // Fixed SQL: use totalPayable instead of amount
     const repeatRevenueQuery = await db.$queryRaw`
       SELECT 
-        SUM(i."totalPayable") as "totalRevenue",
+        SUM(i."totalPayable" * i."exchangeRate") as "totalRevenue",
         COUNT(DISTINCT l."clientId") as "uniqueClients"
       FROM "InvoiceClientLink" l
       JOIN "Invoice" i ON l."invoiceId" = i.id
@@ -45,12 +45,13 @@ export async function GET() {
     const reactivationRate = totalClients > 0 ? (totalReactivated / totalClients) * 100 : 0;
 
     // 3. LTV (Lifetime Value) = Average Revenue Per Client
-    const currentRevenueAggr = await db.invoice.aggregate({
-      _sum: { totalPayable: true },
-      where: { status: 'PAID' }
-    });
+    const currentRevenueQuery = await db.$queryRaw`
+      SELECT SUM("totalPayable" * "exchangeRate") as total
+      FROM "Invoice"
+      WHERE "status" = 'PAID'
+    `;
     
-    const totalRevenue = Number(currentRevenueAggr._sum.totalPayable || 0);
+    const totalRevenue = Number((currentRevenueQuery as any[])[0]?.total || 0);
     const ltv = totalClients > 0 ? totalRevenue / totalClients : 0;
 
     // Calculate Reactivation Trend (last 30 days vs previous 30 days)
