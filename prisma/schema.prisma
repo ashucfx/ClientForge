@@ -971,6 +971,8 @@ model Contact {
 
   sourceMergeReviews ContactMergeReview[] @relation("SourceContact")
   targetMergeReviews ContactMergeReview[] @relation("TargetContact")
+  flywheelCampaignLeads FlywheelCampaignLead[]
+
 
   @@index([email])
   @@index([phone])
@@ -1098,4 +1100,86 @@ model MigrationRun {
   manualReviewsCreated Int       @default(0)
   errors               Int       @default(0)
   metadata             Json?
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FLYWHEEL MARKETING AUTOMATION & CRM (INDUSTRY READY)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model FlywheelCampaign {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   @default("ONE_OFF") // "ONE_OFF", "DRIP"
+  status      String   @default("DRAFT") // "DRAFT", "ACTIVE", "PAUSED", "COMPLETED"
+  brandId     String   @default("catalyst")
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  steps       FlywheelCampaignStep[]
+  leads       FlywheelCampaignLead[]
+
+  @@index([status])
+  @@index([brandId])
+}
+
+model FlywheelCampaignStep {
+  id            String   @id @default(cuid())
+  campaignId    String
+  subject       String
+  contentHtml   String   @db.Text
+  delayHours    Int      @default(0)
+  orderIndex    Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  campaign      FlywheelCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  leadsCurrent  FlywheelCampaignLead[] @relation("CurrentStep")
+
+  @@index([campaignId])
+}
+
+model FlywheelCampaignLead {
+  id              String   @id @default(cuid())
+  campaignId      String
+  contactId       String
+  currentStepId   String?
+  status          String   @default("PENDING") // "PENDING", "ACTIVE", "COMPLETED", "UNSUBSCRIBED", "BOUNCED"
+  nextExecutionAt DateTime @default(now())
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  campaign        FlywheelCampaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact         Contact               @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  currentStep     FlywheelCampaignStep? @relation("CurrentStep", fields: [currentStepId], references: [id])
+  events          FlywheelEmailEvent[]
+
+  @@unique([campaignId, contactId])
+  @@index([status, nextExecutionAt]) // Critical for Cron Job querying
+  @@index([contactId])
+}
+
+model FlywheelEmailEvent {
+  id              String   @id @default(cuid())
+  campaignLeadId  String
+  eventType       String   // "SENT", "DELIVERED", "OPEN", "CLICK", "BOUNCE", "UNSUBSCRIBE"
+  metadata        Json?    // e.g., URL clicked, bounce reason, user agent
+  createdAt       DateTime @default(now())
+
+  campaignLead    FlywheelCampaignLead @relation(fields: [campaignLeadId], references: [id], onDelete: Cascade)
+
+  @@index([campaignLeadId])
+  @@index([eventType])
+}
+
+model UnsubscribeList {
+  id          String   @id @default(cuid())
+  email       String
+  brandId     String   @default("catalyst")
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@unique([email, brandId])
+  @@index([email])
 }
