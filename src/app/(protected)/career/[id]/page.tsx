@@ -1759,35 +1759,40 @@ function AttachmentChip({ a, onRemove }: { a: Attachment; onRemove?: () => void 
   );
 }
 
-function MessageBubble({ c, isAdmin }: { c: CommentItem; isAdmin: boolean }) {
+function MessageBubble({ c, isAdmin, showHeader = true }: { c: CommentItem; isAdmin: boolean; showHeader?: boolean }) {
   const mine = isAdmin ? c.authorType === 'admin' : c.authorType === 'client';
-  const seenAt = mine
-    ? (isAdmin ? c.readByClientAt : c.readByAdminAt)
-    : null;
+  const seenAt = mine ? (isAdmin ? c.readByClientAt : c.readByAdminAt) : null;
   const atts = c.attachments ?? [];
 
   return (
-    <div className={`flex gap-2.5 ${mine ? 'flex-row-reverse' : ''}`} style={{
-      padding: '16px 20px',
-      display: 'flex', gap: 16,
-      alignItems: 'flex-start',
-      border: c.isInternalOnly ? '1px solid #eab308' : '1px solid var(--border)',
-    }}>
-      <div style={{
-        width: 36, height: 36, borderRadius: '50%',
-        background: c.authorType === 'admin' ? (c.isInternalOnly ? '#eab308' : 'var(--brand)') : '#3F3F46',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold'
-      }}>
-        {c.authorType === 'admin' ? 'C' : c.authorName[0]?.toUpperCase() ?? '?'}
-      </div>
-      <div className={`max-w-[72%] flex flex-col gap-1 ${mine ? 'items-end' : 'items-start'}`}>
-        {/* Bubble */}
-        {(c.content || atts.length === 0) && (
-          <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
-            mine
-              ? 'bg-[#B8935B] text-white rounded-tr-sm'
-              : 'bg-slate-100 text-slate-800 rounded-tl-sm'
+    <div className={`group flex gap-4 ${!showHeader ? 'mt-1' : 'mt-5'} ${c.isInternalOnly ? 'bg-yellow-50/50 p-2 rounded-xl border border-yellow-200/50 -mx-2' : ''}`}>
+      {/* Avatar column */}
+      <div className="w-10 flex-shrink-0 flex justify-center">
+        {showHeader ? (
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold shadow-sm ${
+            c.authorType === 'admin' ? (c.isInternalOnly ? 'bg-yellow-500 text-white' : 'bg-[#B8935B] text-white') : 'bg-slate-200 text-slate-700'
           }`}>
+            {c.authorType === 'admin' ? 'C' : c.authorName[0]?.toUpperCase() ?? '?'}
+          </div>
+        ) : (
+          <div className="w-10 opacity-0 group-hover:opacity-100 flex justify-center items-center text-[10px] text-slate-400 font-medium select-none">
+             {new Date(c.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+          </div>
+        )}
+      </div>
+      
+      {/* Content column */}
+      <div className="flex-1 min-w-0 pb-0.5">
+        {showHeader && (
+          <div className="flex items-baseline gap-2 mb-1">
+            <span className="font-bold text-slate-900">{c.authorType === 'admin' ? 'Catalyst Team' : c.authorName}</span>
+            <span className="text-xs font-medium text-slate-400">{fmt(c.createdAt, true)}</span>
+            {c.isInternalOnly && <span className="text-[10px] font-bold text-yellow-600 bg-yellow-100 px-1.5 py-0.5 rounded ml-2">INTERNAL</span>}
+          </div>
+        )}
+        {/* Bubble content */}
+        {(c.content || atts.length === 0) && (
+          <div className="text-body text-slate-700 leading-relaxed whitespace-pre-wrap break-words [word-break:break-word]">
             {c.content}
           </div>
         )}
@@ -1817,24 +1822,21 @@ function MessageBubble({ c, isAdmin }: { c: CommentItem; isAdmin: boolean }) {
           </div>
         )}
         {/* Meta: time + read receipt */}
-        <div className={`flex items-center gap-2 px-1 ${mine ? 'flex-row-reverse' : ''}`}>
-          <span className="text-[11px] text-slate-400">
-            {c.authorType === 'admin' ? 'Catalyst Team' : c.authorName} · {fmt(c.createdAt, true)}
-            {c.isInternalOnly && ' · INTERNAL'}
-          </span>
-          {mine && seenAt && (
-            <span className="text-[10px] text-[#B8935B] font-medium flex items-center gap-0.5">
-              <svg width="10" height="10" fill="none" viewBox="0 0 24 24">
-                <path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2.5"/>
-              </svg>
-              Seen {fmt(seenAt, true)}
-            </span>
-          )}
-          {mine && !seenAt && (
-            <span className="text-[10px] text-slate-300">Sent</span>
-          )}
-        </div>
+        {mine && (
+          <div className="flex items-center gap-2 mt-1">
+            {seenAt ? (
+              <span className="text-[10px] text-[#B8935B] font-medium flex items-center gap-0.5">
+                <svg width="10" height="10" fill="none" viewBox="0 0 24 24">
+                  <path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2.5"/>
+                </svg>
+                Seen {fmt(seenAt, true)}
+              </span>
+            ) : (
+              <span className="text-[10px] text-slate-300 font-medium">Delivered</span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1949,7 +1951,13 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
             <p className="text-xs text-slate-400 mt-1">Start the conversation below.</p>
           </div>
         ) : (
-          comments.map(c => <MessageBubble key={c.id} c={c} isAdmin={true} />)
+          comments.map((c, i) => {
+            const prev = comments[i - 1];
+            const isSameAuthor = prev && prev.authorType === c.authorType && prev.authorName === c.authorName && prev.isInternalOnly === c.isInternalOnly;
+            const isCloseInTime = prev && (new Date(c.createdAt).getTime() - new Date(prev.createdAt).getTime() < 5 * 60 * 1000);
+            const showHeader = !(isSameAuthor && isCloseInTime);
+            return <MessageBubble key={c.id} c={c} isAdmin={true} showHeader={showHeader} />;
+          })
         )}
       </div>
 

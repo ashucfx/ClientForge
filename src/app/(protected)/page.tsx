@@ -246,59 +246,86 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <div className="page-header" style={{ paddingBottom: 24 }}>
+      <div className="page-header" style={{ paddingBottom: 48 }}>
 
         {/* Page title row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 48, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 className="page-title">
-              {activeBrand === 'ripple_nexus' ? 'Ripple Nexus ClientForge' : 'Catalyst ClientForge'}
+            <h1 className="text-display font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {activeBrand === 'ripple_nexus' ? 'Mission Control' : 'Mission Control'}
             </h1>
-            <p className="page-subtitle">
-              {activeBrand === 'ripple_nexus' ? 'B2B Agency Operations' : 'Career Booster Operations'}
+            <p className="text-subheading mt-2" style={{ color: 'var(--text-secondary)' }}>
+              {activeBrand === 'ripple_nexus' ? 'Ripple Nexus Operations Overview' : 'Catalyst Operations Overview'}
             </p>
           </div>
-          <Link href="/invoices/new" className="btn btn-primary btn-lg" style={{ gap: 8 }}>
-            <span style={{ fontSize: 20, lineHeight: 1 }}>+</span> New Invoice
+          <Link href="/invoices/new" className="btn btn-primary hover-lift" style={{ padding: '12px 24px', fontSize: 14 }}>
+            <span>New Invoice</span>
           </Link>
         </div>
 
         {/* KPI Row - Matches Active Brand Style */}
-        <div className="grid-4" style={{ marginBottom: 24 }}>
+        <div className="grid-4" style={{ marginBottom: 48 }}>
           {activeBrand === 'ripple_nexus' ? (
             <>
               <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: '#7C5CFF' }} />} bg="#f3f0ff" accent />
-              <KpiCard label="Pending" value={stats.pending} icon={<IconPending style={{ color: '#7C5CFF' }} />} bg="#e0e7ff" sub="Awaiting payment" />
-              <KpiCard label="Paid" value={stats.paid} icon={<IconCheck style={{ color: '#7C5CFF' }} />} bg="#ede9fe" sub="Completed" />
-              <KpiCard label="Paid Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: '#7C5CFF' }} />} bg="#f5f3ff" sub={`${stats.paid} of ${stats.total} paid`} />
+              <KpiCard label="Pending Payment" value={stats.pending} icon={<IconPending style={{ color: '#7C5CFF' }} />} bg="#e0e7ff" sub="Action Required" />
+              <KpiCard label="Completed" value={stats.paid} icon={<IconCheck style={{ color: '#7C5CFF' }} />} bg="#ede9fe" sub="Paid in full" />
+              <KpiCard label="Collection Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: '#7C5CFF' }} />} bg="#f5f3ff" sub={`${stats.paid} of ${stats.total} paid`} />
             </>
           ) : (
             <>
               <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: 'var(--brand)' }} />} bg="#eff6ff" accent />
-              <KpiCard label="Pending" value={stats.pending} icon={<IconPending style={{ color: 'var(--brand)' }} />} bg="#e0f2fe" sub="Awaiting payment" />
-              <KpiCard label="Paid" value={stats.paid} icon={<IconCheck style={{ color: '#3FBD8B' }} />} bg="#d1fae5" sub="Completed" />
-              <KpiCard label="Paid Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: 'var(--brand)' }} />} bg="#eef2ff" sub={`${stats.paid} of ${stats.total} paid`} />
+              <KpiCard label="Pending Payment" value={stats.pending} icon={<IconPending style={{ color: 'var(--brand)' }} />} bg="#e0f2fe" sub="Action Required" />
+              <KpiCard label="Completed" value={stats.paid} icon={<IconCheck style={{ color: '#3FBD8B' }} />} bg="#d1fae5" sub="Paid in full" />
+              <KpiCard label="Collection Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: 'var(--brand)' }} />} bg="#eef2ff" sub={`${stats.paid} of ${stats.total} paid`} />
             </>
           )}
         </div>
 
-        {/* Revenue bar */}
-        {!loading && <RevenueBar invoices={invoices} />}
+        {/* Action Center & Revenue */}
+        <div className="grid-2" style={{ marginBottom: 24, gap: 32 }}>
+          {/* Action Center */}
+          <div className="card hover-lift" style={{ padding: '24px 32px' }}>
+            <div className="text-heading font-semibold" style={{ color: 'var(--text-primary)', marginBottom: 16 }}>
+              Action Required
+            </div>
+            {stats.pending > 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
+                <div>
+                  <div className="text-body font-semibold">{stats.pending} Invoices Awaiting Payment</div>
+                  <div className="text-metadata text-secondary mt-1">Review outstanding invoices and send reminders.</div>
+                </div>
+                <button className="btn btn-secondary btn-sm" onClick={() => setStatus('PENDING')}>Review</button>
+              </div>
+            ) : (
+              <div style={{ padding: '24px 0', color: 'var(--text-tertiary)', textAlign: 'center' }}>
+                <span style={{ fontSize: 24, display: 'block', marginBottom: 8 }}>🎉</span>
+                All caught up! No pending actions.
+              </div>
+            )}
+          </div>
+          
+          {/* Revenue bar */}
+          {!loading && <RevenueBar invoices={invoices} />}
+        </div>
       </div>
 
       <div className="page-body" style={{ paddingTop: 0 }}>
 
+        {/* Standard Table Area */}
+        <div className="text-heading font-semibold" style={{ marginBottom: 16, marginTop: 16, color: 'var(--text-primary)' }}>All Invoices</div>
+        
         {/* Filters / Search bar */}
-        <div className="card" style={{ padding: '14px 18px', marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="card" style={{ padding: '16px 24px', marginBottom: 24, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
 
-          <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
-            <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: 240 }}>
+            <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }}>
               <IconSearch />
             </span>
             <input
-              className="input"
-              style={{ paddingLeft: 34 }}
-              placeholder="Search name, email, invoice #..."
+              className="input hover-lift"
+              style={{ paddingLeft: 40 }}
+              placeholder="Search by client name, email, or invoice #..."
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -327,7 +354,7 @@ export default function Dashboard() {
           </select>
 
           {(search || statusFilter || typeFilter) && (
-            <button className="btn btn-ghost btn-sm" onClick={() => { setSearch(''); setStatus(''); setType(''); }}>✕ Clear</button>
+            <button className="btn btn-ghost btn-sm hover-lift" onClick={() => { setSearch(''); setStatus(''); setType(''); }}>✕ Clear</button>
           )}
 
           <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
@@ -361,10 +388,18 @@ export default function Dashboard() {
                   ))
                 ) : visible.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '64px 0' }}>
-                      <div style={{ fontSize: 40, marginBottom: 12 }}>📄</div>
-                      <div style={{ fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>No invoices found</div>
-                      <Link href="/invoices/new" className="btn btn-primary btn-sm">Create your first invoice</Link>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '80px 0' }}>
+                      <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-5 text-slate-300 shadow-sm">
+                        <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                      </div>
+                      <h3 className="text-body font-semibold text-slate-900 mb-2">No invoices found</h3>
+                      <p className="text-metadata text-slate-500 mb-6 max-w-sm mx-auto leading-relaxed">
+                        We couldn&apos;t find any invoices matching your current filters. Adjust your search or create a new invoice to get started.
+                      </p>
+                      <Link href="/invoices/new" className="btn btn-primary hover-lift" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600 }}>
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14"/></svg>
+                        Create Invoice
+                      </Link>
                     </td>
                   </tr>
                 ) : visible.map(inv => (
@@ -397,8 +432,8 @@ export default function Dashboard() {
                       {format(new Date(inv.invoiceDate), 'dd MMM yyyy')}
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
-                        <Link href={`/invoices/${inv.id}`} className="btn btn-secondary btn-sm">View</Link>
+                      <div style={{ display: 'flex', gap: 8 }} onClick={e => e.stopPropagation()}>
+                        <Link href={`/invoices/${inv.id}`} className="btn btn-ghost btn-sm hover-lift">View</Link>
                         {inv.status === 'PENDING' && (
                           <button className="btn btn-ghost btn-sm" onClick={e => handleResend(inv.id, e)}>Resend</button>
                         )}
