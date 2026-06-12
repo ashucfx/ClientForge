@@ -249,11 +249,15 @@ model CareerClient {
   ConversationReadState ConversationReadState?
   ClientNotification    ClientNotification[]
 
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
   @@index([status])
   @@index([email])
   @@index([packageType])
   @@index([lifecycleStatus])
   @@index([completedAt])
+  @@index([contactId])
 }
 
 model CareerFormSubmission {
@@ -306,9 +310,9 @@ model CareerEmailLog {
 
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
+  @@unique([clientId, trigger])
   @@index([clientId])
   @@index([clientId, trigger, status])
-  @@unique([clientId, trigger])
 }
 
 model CareerActivityLog {
@@ -583,9 +587,13 @@ model RnClient {
   ConversationReadState ConversationReadState?
   ClientNotification    ClientNotification[]
 
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
   @@index([email])
   @@index([serviceModuleId, currentStage])
   @@index([lifecycleStatus])
+  @@index([contactId])
 }
 
 model RnFormSubmission {
@@ -906,7 +914,7 @@ model ConversationReadState {
   lastMessageBy  String   @default("client") // 'client' | 'admin'
 
   adminSlaDeadline DateTime?
-  adminSlaEvent    String?   // e.g. 'NEW_MESSAGE', 'REVISION_REQUEST'
+  adminSlaEvent    String? // e.g. 'NEW_MESSAGE', 'REVISION_REQUEST'
 
   careerClient CareerClient? @relation(fields: [careerClientId], references: [id], onDelete: Cascade)
   rnClient     RnClient?     @relation(fields: [rnClientId], references: [id], onDelete: Cascade)
@@ -934,4 +942,160 @@ model ClientNotification {
 
   @@index([careerClientId, isRead])
   @@index([rnClientId, isRead])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REGISTRY & IDENTITY MODELS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Contact {
+  id            String   @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  companyName   String?
+  country       String?
+  contactSource String? // EXCEL_IMPORT, CATALYST, RIPPLE_NEXUS, MANUAL, WEBSITE, LINKEDIN, REFERRAL
+  status        String   @default("ACTIVE") // ACTIVE, MERGED, ARCHIVED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  mergedIntoContactId String?
+  mergedIntoContact   Contact? @relation("ContactMerges", fields: [mergedIntoContactId], references: [id])
+  mergedFromContacts  Contact[] @relation("ContactMerges")
+
+  careerClients CareerClient[]
+  rnClients     RnClient[]
+
+  flywheelProfile FlywheelProfile?
+
+  sourceMergeReviews ContactMergeReview[] @relation("SourceContact")
+  targetMergeReviews ContactMergeReview[] @relation("TargetContact")
+
+  @@index([email])
+  @@index([phone])
+  @@index([contactSource])
+  @@index([status])
+}
+
+model ContactMergeReview {
+  id              String   @id @default(cuid())
+  sourceContactId String
+  targetContactId String
+  confidenceScore Int
+  reason          String
+  status          String   @default("PENDING") // "PENDING" | "MERGED" | "REJECTED_NEW" | "IGNORED"
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  sourceContact Contact @relation("SourceContact", fields: [sourceContactId], references: [id], onDelete: Cascade)
+  targetContact Contact @relation("TargetContact", fields: [targetContactId], references: [id], onDelete: Cascade)
+
+  @@index([sourceContactId])
+  @@index([targetContactId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FLYWHEEL PROFILE & READ MODELS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model FlywheelProfile {
+  id             String  @id @default(cuid())
+  contactId      String  @unique
+  leadStatus     String  @default("NEW")
+  lifecycleStage String  @default("LEAD")
+  optInStatus    Boolean @default(true)
+  referralCode   String? @unique
+
+  engagementScore   Int?     @default(0)
+  referralScore     Int?     @default(0)
+  reactivationScore Int?     @default(0)
+  totalRevenue      Decimal? @default(0.00) @db.Decimal(12, 2)
+  invoiceCount      Int?     @default(0)
+
+  lastInvoiceDate DateTime?
+  lastServiceDate DateTime?
+  lastCampaignAt  DateTime?
+  lastContactedAt DateTime?
+
+  servicesPurchased Json?
+  tags              Json?
+
+  referredById String?
+  metadata     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contact    Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  referredBy FlywheelProfile?  @relation("Referrals", fields: [referredById], references: [id])
+  referrals  FlywheelProfile[] @relation("Referrals")
+
+  @@index([contactId])
+  @@index([lifecycleStage])
+  @@index([leadStatus])
+  @@index([referralCode])
+}
+
+model FlywheelRevenueMetrics {
+  id               String   @id @default(cuid())
+  date             DateTime
+  brandId          String
+  recurringRevenue Decimal  @default(0.00) @db.Decimal(12, 2)
+  oneTimeRevenue   Decimal  @default(0.00) @db.Decimal(12, 2)
+  totalCollected   Decimal  @default(0.00) @db.Decimal(12, 2)
+  createdAt        DateTime @default(now())
+
+  @@unique([date, brandId])
+  @@index([brandId])
+}
+
+model FlywheelClientMetrics {
+  id               String   @id @default(cuid())
+  date             DateTime
+  brandId          String
+  activeCount      Int      @default(0)
+  reactivatedCount Int      @default(0)
+  churnedCount     Int      @default(0)
+  newAcquisitions  Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  @@unique([date, brandId])
+  @@index([brandId])
+}
+
+model FlywheelEngagementMetrics {
+  id                  String   @id @default(cuid())
+  date                DateTime @unique
+  npsAverage          Float    @default(0.0)
+  satisfactionAverage Float    @default(0.0)
+  openCampaignsCount  Int      @default(0)
+  referralsGenerated  Int      @default(0)
+  createdAt           DateTime @default(now())
+}
+
+model ProcessedEvent {
+  id          String   @id @default(cuid())
+  eventId     String
+  eventType   String
+  processedAt DateTime @default(now())
+
+  @@unique([eventType, eventId])
+  @@index([processedAt])
+}
+
+model MigrationRun {
+  id                   String    @id
+  type                 String
+  status               String
+  startedAt            DateTime
+  completedAt          DateTime?
+  recordsProcessed     Int       @default(0)
+  contactsCreated      Int       @default(0)
+  contactsMatched      Int       @default(0)
+  manualReviewsCreated Int       @default(0)
+  errors               Int       @default(0)
+  metadata             Json?
 }
