@@ -3,8 +3,17 @@ import { prisma as db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+function calculateTrend(current: number, previous: number) {
+  if (previous === 0) return current > 0 ? 100 : 0;
+  return Math.round(((current - previous) / previous) * 100);
+}
+
 export async function GET() {
   try {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
     // 1. Total Archived Clients
     const archivedCareer = await db.careerClient.count({
       where: { lifecycleStatus: 'ARCHIVED' }
@@ -15,21 +24,14 @@ export async function GET() {
     const totalArchived = archivedCareer + archivedRn;
 
     // 2. Reactivation Rate & Repeat Client Revenue
-    // Using aggregation to avoid memory overload
-    const repeatInvoiceStats = await db.invoiceClientLink.aggregate({
-      where: { purpose: { in: ['UPGRADE', 'REVISION', 'ADDON'] } },
-      _count: { invoiceId: true } // just for counting links if needed
-    });
-
-    // To get the actual sum of invoice amounts and unique reactivated clients:
-    // We can use queryRaw for high performance at scale
+    // Fixed SQL: use totalPayable instead of amount
     const repeatRevenueQuery = await db.$queryRaw`
       SELECT 
-        SUM(i."amount") as "totalRevenue",
+        SUM(i."totalPayable") as "totalRevenue",
         COUNT(DISTINCT l."clientId") as "uniqueClients"
       FROM "InvoiceClientLink" l
       JOIN "Invoice" i ON l."invoiceId" = i.id
-      WHERE l."purpose" IN ('UPGRADE', 'REVISION', 'ADDON')
+      WHERE l."purpose" IN ('UPGRADE', 'REVISION', 'ADDON') AND i."status" = 'PAID'
     `;
 
     const repeatData = (repeatRevenueQuery as any[])[0] || { totalRevenue: 0, uniqueClients: 0 };
@@ -38,27 +40,46 @@ export async function GET() {
 
     // Reactivation Rate = Total Reactivated / Total Clients
     const totalCareerClients = await db.careerClient.count();
-    const reactivationRate = totalCareerClients > 0 ? (totalReactivated / totalCareerClients) * 100 : 0;
+    const totalRnClients = await db.rnClient.count();
+    const totalClients = totalCareerClients + totalRnClients;
+    const reactivationRate = totalClients > 0 ? (totalReactivated / totalClients) * 100 : 0;
 
     // 3. LTV (Lifetime Value) = Average Revenue Per Client
-    const careerAgg = await db.careerClient.aggregate({
-      _sum: { amountPaid: true }
-    });
-    const rnAgg = await db.rnClient.aggregate({
-      _sum: { amountPaid: true }
+    const currentRevenueAggr = await db.invoice.aggregate({
+      _sum: { totalPayable: true },
+      where: { status: 'PAID' }
     });
     
-    const totalRevenue = Number(careerAgg._sum.amountPaid || 0) + Number(rnAgg._sum.amountPaid || 0);
-    const totalClients = totalCareerClients + await db.rnClient.count();
-    
+    const totalRevenue = Number(currentRevenueAggr._sum.totalPayable || 0);
     const ltv = totalClients > 0 ? totalRevenue / totalClients : 0;
+
+    // Calculate Reactivation Trend (last 30 days vs previous 30 days)
+    const currentReactivatedQuery = await db.$queryRaw`
+      SELECT COUNT(DISTINCT l."clientId") as count
+      FROM "InvoiceClientLink" l
+      JOIN "Invoice" i ON l."invoiceId" = i.id
+      WHERE l."purpose" IN ('UPGRADE', 'REVISION', 'ADDON') AND i."status" = 'PAID' AND i."paidAt" >= ${thirtyDaysAgo} AND i."paidAt" < ${now}
+    `;
+    const prevReactivatedQuery = await db.$queryRaw`
+      SELECT COUNT(DISTINCT l."clientId") as count
+      FROM "InvoiceClientLink" l
+      JOIN "Invoice" i ON l."invoiceId" = i.id
+      WHERE l."purpose" IN ('UPGRADE', 'REVISION', 'ADDON') AND i."status" = 'PAID' AND i."paidAt" >= ${sixtyDaysAgo} AND i."paidAt" < ${thirtyDaysAgo}
+    `;
+
+    const currentReactivatedCount = Number((currentReactivatedQuery as any[])[0]?.count || 0);
+    const prevReactivatedCount = Number((prevReactivatedQuery as any[])[0]?.count || 0);
+    const reactivationTrend = calculateTrend(currentReactivatedCount, prevReactivatedCount);
 
     return NextResponse.json({
       totalArchived,
       totalReactivated,
       reactivationRate: reactivationRate.toFixed(1),
       repeatRevenue,
-      ltv: ltv.toFixed(0),
+      ltv: Math.round(ltv),
+      trends: {
+        reactivationTrend
+      }
     });
 
   } catch (err) {
