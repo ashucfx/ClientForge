@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'MERGE') {
-      await db.$transaction(async (tx) => {
+      await db.$transaction(async (tx: any) => {
         // Move CareerClients
         await tx.careerClient.updateMany({
           where: { contactId: review.sourceContactId },
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, message: 'Merged successfully' });
 
     } else if (action === 'SPLIT') {
-      await db.$transaction(async (tx) => {
+      await db.$transaction(async (tx: any) => {
         await tx.contactMergeReview.update({
           where: { id: reviewId },
           data: { status: 'REJECTED_NEW' }

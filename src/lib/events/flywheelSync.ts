@@ -14,7 +14,7 @@ export async function syncFlywheelOnInvoicePaid(payload: WorkflowEventPayload & 
   waitUntil(
     (async () => {
       try {
-        await db.$transaction(async (tx) => {
+        await db.$transaction(async (tx: any) => {
           // Idempotency check: Will throw P2002 if duplicate, aborting the transaction
           await tx.processedEvent.create({
             data: { eventType: 'INVOICE_PAID', eventId: entityId }
@@ -83,7 +83,7 @@ export async function syncFlywheelOnClientCreated(payload: WorkflowEventPayload 
   waitUntil(
     (async () => {
       try {
-        await db.$transaction(async (tx) => {
+        await db.$transaction(async (tx: any) => {
           await tx.processedEvent.create({
             data: { eventType: 'CLIENT_CREATED', eventId: entityId }
           });
@@ -134,7 +134,7 @@ export async function syncFlywheelOnProjectDelivered(payload: WorkflowEventPaylo
   waitUntil(
     (async () => {
       try {
-        await db.$transaction(async (tx) => {
+        await db.$transaction(async (tx: any) => {
           await tx.processedEvent.create({
             data: { eventType: 'PROJECT_DELIVERED', eventId: payload.entityId }
           });
@@ -166,7 +166,7 @@ export async function syncFlywheelOnClientArchived(payload: WorkflowEventPayload
   waitUntil(
     (async () => {
       try {
-        await db.$transaction(async (tx) => {
+        await db.$transaction(async (tx: any) => {
           await tx.processedEvent.create({
             data: { eventType: 'CLIENT_ARCHIVED', eventId: payload.entityId }
           });
