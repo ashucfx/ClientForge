@@ -950,11 +950,17 @@ model ClientNotification {
 
 model Contact {
   id            String   @id @default(cuid())
+  displayId     String?  @unique // e.g. LD-1002
   name          String
   email         String?
   phone         String?
   companyName   String?
   country       String?
+  city          String?
+  timezone      String?
+  industry      String?
+  jobTitle      String?
+  linkedinUrl   String?
   contactSource String? // EXCEL_IMPORT, CATALYST, RIPPLE_NEXUS, MANUAL, WEBSITE, LINKEDIN, REFERRAL
   status        String   @default("ACTIVE") // ACTIVE, MERGED, ARCHIVED
   createdAt     DateTime @default(now())
@@ -978,6 +984,7 @@ model Contact {
   @@index([phone])
   @@index([contactSource])
   @@index([status])
+  @@index([displayId])
 }
 
 model ContactMergeReview {
@@ -1009,7 +1016,10 @@ model FlywheelProfile {
   leadStatus     String  @default("NEW")
   lifecycleStage String  @default("LEAD")
   optInStatus    Boolean @default(true)
+  optInIp        String?
+  optInSource    String?
   referralCode   String? @unique
+  ownerId        String? // AdminUser ID reference (soft link)
 
   engagementScore   Int?     @default(0)
   referralScore     Int?     @default(0)
@@ -1021,6 +1031,7 @@ model FlywheelProfile {
   lastServiceDate DateTime?
   lastCampaignAt  DateTime?
   lastContactedAt DateTime?
+  nextActionDate  DateTime?
 
   servicesPurchased Json?
   tags              Json?

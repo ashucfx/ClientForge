@@ -23,3 +23,51 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { name, email, phone, companyName, industry, jobTitle, linkedinUrl, city, contactSource } = body;
+
+    if (!name) {
+      return NextResponse.json({ success: false, error: 'Name is required' }, { status: 400 });
+    }
+
+    // Auto-generate display ID
+    const count = await db.contact.count();
+    const displayId = `LD-${1000 + count + 1}`;
+
+    const contact = await db.contact.create({
+      data: {
+        displayId,
+        name,
+        email,
+        phone,
+        companyName,
+        industry,
+        jobTitle,
+        linkedinUrl,
+        city,
+        contactSource: contactSource || 'MANUAL',
+        flywheelProfile: {
+          create: {
+            leadStatus: 'NEW',
+            lifecycleStage: 'LEAD',
+            optInSource: 'MANUAL_ENTRY'
+          }
+        }
+      },
+      include: { flywheelProfile: true }
+    });
+
+    return NextResponse.json({ success: true, data: contact });
+  } catch (error) {
+    console.error('[FlywheelLeads] POST Error:', error);
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+  }
+}
