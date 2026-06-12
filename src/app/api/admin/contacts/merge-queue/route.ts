@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db/db';
+import { prisma as db } from '@/lib/db';
 import { getAdminSession } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {

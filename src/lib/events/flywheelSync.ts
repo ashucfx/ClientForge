@@ -1,4 +1,4 @@
-import { db } from '@/lib/db/db';
+import { prisma as db } from '@/lib/db';
 import { WorkflowEventPayload } from './dispatcher';
 import { waitUntil } from '@vercel/functions';
 
