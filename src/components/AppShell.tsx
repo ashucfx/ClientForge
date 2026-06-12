@@ -30,6 +30,11 @@ const NAV_RN = [
   { href: '/rn/services', Icon: IconTarget, label: 'Service Modules' },
 ];
 
+const NAV_FLYWHEEL = [
+  { href: '/flywheel/leads', Icon: IconUser, label: 'Audience & Leads' },
+  { href: '/flywheel/campaigns', Icon: IconTrendUp, label: 'Marketing Campaigns' },
+];
+
 function isNavActive(href: string, pathname: string) {
   if (href === '/') return pathname === '/';
   if (href === '/invoices/new') return pathname === '/invoices/new';
@@ -37,6 +42,7 @@ function isNavActive(href: string, pathname: string) {
   if (href === '/career') return pathname.startsWith('/career');
   if (href === '/rn/clients') return pathname.startsWith('/rn/clients');
   if (href === '/rn/services') return pathname.startsWith('/rn/services');
+  if (href.startsWith('/flywheel')) return pathname.startsWith(href);
   return pathname.startsWith(href);
 }
 
@@ -192,6 +198,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             ))}
           </>
         )}
+
+        <span className="nav-section-label" style={{ marginTop: 16, color: '#10B981' }}>Growth Intelligence</span>
+        {NAV_FLYWHEEL.map(({ href, Icon, label }) => (
+          <Link
+            key={href}
+            href={href}
+            className={`nav-item${isNavActive(href, pathname) ? ' active' : ''}`}
+            onClick={() => setOpen(false)}
+          >
+            <span className="nav-icon" style={{ color: '#10B981' }}><Icon size={16} /></span>
+            {label}
+          </Link>
+        ))}
       </nav>
 
       {/* Footer */}
