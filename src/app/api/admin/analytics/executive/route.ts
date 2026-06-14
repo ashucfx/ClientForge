@@ -17,29 +17,14 @@ export async function GET() {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-  // 1. Revenue
-  const currentRevenueQuery = await db.$queryRaw`
-    SELECT SUM("totalPayable" * "exchangeRate") as total
-    FROM "Invoice"
-    WHERE "status" = 'PAID' AND "paidAt" >= ${thirtyDaysAgo} AND "paidAt" <= ${now}
-  `;
-  const prevRevenueQuery = await db.$queryRaw`
-    SELECT SUM("totalPayable" * "exchangeRate") as total
-    FROM "Invoice"
-    WHERE "status" = 'PAID' AND "paidAt" >= ${sixtyDaysAgo} AND "paidAt" < ${thirtyDaysAgo}
-  `;
+  // 1. Revenue (Global LTV)
+  const revenueAggr = await db.flywheelProfile.aggregate({
+    _sum: { totalRevenue: true }
+  });
   
-  const currentRevenue = Number((currentRevenueQuery as any[])[0]?.total || 0);
-  const prevRevenue = Number((prevRevenueQuery as any[])[0]?.total || 0);
-  const revenueTrend = calculateTrend(currentRevenue, prevRevenue);
-
-  // Total Lifetime Revenue for context
-  const totalLifetimeRevenueQuery = await db.$queryRaw`
-    SELECT SUM("totalPayable" * "exchangeRate") as total
-    FROM "Invoice"
-    WHERE "status" = 'PAID'
-  `;
-  const lifetimeRevenue = Number((totalLifetimeRevenueQuery as any[])[0]?.total || 0);
+  const currentRevenue = Number(revenueAggr._sum.totalRevenue || 0);
+  const revenueTrend = 0; // Lifetime metrics do not have a 30-day trailing trend
+  const lifetimeRevenue = currentRevenue;
 
   // 2. Active Clients
   const activeCareerClients = await db.careerClient.count({
@@ -83,24 +68,20 @@ export async function GET() {
   const prevNps = calcNps(prevFeedbacks);
   const currentAvgRating = calcAvgRating(currentFeedbacks);
 
-  // 4. Pending Deliveries
-  const pendingCareerDeliveries = await db.careerDeliverable.count({ where: { approvalStatus: 'PENDING' }});
-  const pendingRnDeliveries = await db.rnDeliverable.count({ where: { approvalStatus: 'PENDING' }});
-  const pendingDeliveries = pendingCareerDeliveries + pendingRnDeliveries;
-
-  const prevPendingCareerDeliveries = await db.careerDeliverable.count({ where: { approvalStatus: 'PENDING', createdAt: { lt: thirtyDaysAgo } }});
-  const prevPendingRnDeliveries = await db.rnDeliverable.count({ where: { approvalStatus: 'PENDING', createdAt: { lt: thirtyDaysAgo } }});
-  const prevPendingDeliveries = prevPendingCareerDeliveries + prevPendingRnDeliveries;
-  
-  const pendingTrend = calculateTrend(pendingDeliveries, prevPendingDeliveries);
+  // 4. Pipeline Value (Replaces Pending Deliveries)
+  const pipelineValueAggr = await db.flywheelProfile.aggregate({
+    _sum: { dealValue: true },
+    where: { lifecycleStage: { in: ['LEAD', 'MQL', 'SQL'] } }
+  });
+  const pipelineValue = Number(pipelineValueAggr._sum.dealValue || 0);
 
   return NextResponse.json({
     revenue: {
       value: currentRevenue,
       lifetimeValue: lifetimeRevenue,
-      trendPct: revenueTrend,
-      trendDirection: revenueTrend >= 0 ? 'up' : 'down',
-      context: `Lifetime: ₹${lifetimeRevenue.toLocaleString()}`
+      trendPct: undefined,
+      trendDirection: 'up',
+      context: `Global Lifetime Value`
     },
     activeClients: {
       value: totalActiveClients,
@@ -114,11 +95,11 @@ export async function GET() {
       trendDirection: (currentNps || 0) >= (prevNps || 0) ? 'up' : 'down',
       context: currentAvgRating ? `Avg Rating: ${currentAvgRating} / 5` : 'Insufficient Data'
     },
-    deliveries: {
-      value: pendingDeliveries,
-      trendPct: pendingTrend,
-      trendDirection: pendingTrend <= 0 ? 'up' : 'down', // Less pending is better
-      context: `Awaiting action`
+    pipeline: {
+      value: pipelineValue,
+      trendPct: undefined,
+      trendDirection: 'up',
+      context: `Potential deal value`
     }
   });
 }

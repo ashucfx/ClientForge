@@ -13,10 +13,6 @@ export async function GET() {
   const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
 
-  // 1. Deliverables Awaiting Action
-  const pendingCareerDeliveries = await db.careerDeliverable.count({ where: { approvalStatus: 'PENDING' }});
-  const pendingRnDeliveries = await db.rnDeliverable.count({ where: { approvalStatus: 'PENDING' }});
-  const totalPendingDeliveries = pendingCareerDeliveries + pendingRnDeliveries;
 
   // 2. Near SLA Breach
   const careerNearSla = await db.careerClient.count({
@@ -66,7 +62,6 @@ export async function GET() {
 
   return NextResponse.json({
     alerts: {
-      pendingDeliveries: totalPendingDeliveries,
       nearSlaBreach,
       unreadMessages24h,
       unreadMessages48h,

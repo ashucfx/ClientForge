@@ -90,11 +90,11 @@ export default function AnalyticsDashboard() {
             {/* SECTION 1 - EXECUTIVE COMMAND CENTER */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard 
-                label="Revenue (Current Period)" 
-                value={formatCurrency(execData?.revenue?.value || 0, '₹')} 
+                label="Total Revenue (Global LTV)" 
+                value={execData?.revenue?.value?.toLocaleString()} 
                 trendPct={execData?.revenue?.trendPct}
                 trendDirection={execData?.revenue?.trendDirection}
-                context="vs last 30 days"
+                context={execData?.revenue?.context}
                 icon={<IconTrendUp className="text-blue-600" />} 
                 bg="#eff6ff" 
                 accent 
@@ -118,12 +118,12 @@ export default function AnalyticsDashboard() {
                 bg="#ede9fe" 
               />
               <KpiCard 
-                label="Pending Deliveries" 
-                value={execData?.deliveries?.value || 0} 
-                trendPct={execData?.deliveries?.trendPct}
-                trendDirection={execData?.deliveries?.trendDirection}
-                context={execData?.deliveries?.context}
-                icon={<IconDocument className="text-amber-600" />} 
+                label="Pipeline Value" 
+                value={execData?.pipeline?.value?.toLocaleString()} 
+                trendPct={execData?.pipeline?.trendPct}
+                trendDirection={execData?.pipeline?.trendDirection}
+                context={execData?.pipeline?.context}
+                icon={<IconTrendUp className="text-amber-600" />} 
                 bg="#fef3c7" 
               />
             </div>
@@ -135,19 +135,14 @@ export default function AnalyticsDashboard() {
                 <h2 className="text-rose-900 font-semibold">Action Required</h2>
               </div>
               <div className="p-5">
-                {(!opsData?.alerts?.pendingDeliveries && !opsData?.alerts?.nearSlaBreach && !opsData?.alerts?.unreadMessages24h && !opsData?.alerts?.negativeFeedback && !opsData?.alerts?.atRiskClients) ? (
+                {(!opsData?.alerts?.nearSlaBreach && !opsData?.alerts?.unreadMessages24h && !opsData?.alerts?.negativeFeedback && !opsData?.alerts?.atRiskClients) ? (
                   <div className="flex items-center gap-3 text-emerald-700 bg-emerald-50 px-4 py-3 rounded-lg">
                     <IconCheck size={20} />
                     <span className="font-medium">All operations are running smoothly. No critical alerts.</span>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {opsData?.alerts?.pendingDeliveries > 0 && (
-                      <div className="flex items-center gap-3 text-slate-700 bg-amber-50 px-4 py-3 rounded-lg border border-amber-100">
-                        <span className="text-amber-600 font-bold text-xl">⚠</span>
-                        <span className="font-medium">{opsData.alerts.pendingDeliveries} Deliverables Awaiting Action</span>
-                      </div>
-                    )}
+
                     {opsData?.alerts?.nearSlaBreach > 0 && (
                       <div className="flex items-center gap-3 text-slate-700 bg-rose-50 px-4 py-3 rounded-lg border border-rose-100">
                         <span className="text-rose-600 font-bold text-xl">⚠</span>
