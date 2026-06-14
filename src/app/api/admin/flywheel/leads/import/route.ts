@@ -24,6 +24,12 @@ export async function POST(req: NextRequest) {
       const email = row.email?.trim()?.toLowerCase();
       const name = row.name?.trim() || 'Unknown Contact';
       const phone = row.phone?.trim();
+      const jobTitle = row.jobTitle?.trim() || null;
+      let timestampDate: Date | undefined;
+      if (row.timestamp) {
+        const parsed = new Date(row.timestamp);
+        if (!isNaN(parsed.getTime())) timestampDate = parsed;
+      }
 
       if (!email && !phone) continue; // Need at least one identifier
 
@@ -39,6 +45,13 @@ export async function POST(req: NextRequest) {
 
       if (contact) {
         existingCount++;
+        // Update job title if it was missing
+        if (jobTitle && !contact.jobTitle) {
+          await db.contact.update({
+            where: { id: contact.id },
+            data: { jobTitle }
+          });
+        }
       } else {
         // 2. Create new contact
         contact = await db.contact.create({
@@ -46,8 +59,10 @@ export async function POST(req: NextRequest) {
             name,
             email: email || null,
             phone: phone || null,
+            jobTitle: jobTitle,
             contactSource: source,
-            status: 'ACTIVE'
+            status: 'ACTIVE',
+            ...(timestampDate && { createdAt: timestampDate })
           }
         });
         importedCount++;
@@ -63,7 +78,11 @@ export async function POST(req: NextRequest) {
           data: {
             contactId: contact.id,
             lifecycleStage: 'LEAD',
-            leadStatus: 'NEW'
+            leadStatus: 'NEW',
+            ...(timestampDate && { 
+              createdAt: timestampDate,
+              lastContactedAt: timestampDate 
+            })
           }
         });
       }

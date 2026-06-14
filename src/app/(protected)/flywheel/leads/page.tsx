@@ -169,37 +169,61 @@ export default function FlywheelLeadsPage() {
     } catch (e) { console.error(e); }
   };
 
-  // Import CSV
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Import CSV/XLSX
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImporting(true);
     setImportResult(null);
-    Papa.parse(file, {
-      header: true, skipEmptyLines: true,
-      complete: async (results) => {
-        try {
-          const leads = results.data.map((row: any) => ({
-            name: row.Name || row.name || row.First_Name || 'Unknown',
-            email: row.Email || row.email || row.Email_Address || '',
-            phone: row.Phone || row.phone || ''
-          })).filter((l: any) => l.email || l.phone);
-          const res = await fetch('/api/admin/flywheel/leads/import', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ leads, brandId: activeBrand })
-          });
-          const data = await res.json();
-          if (data.success) {
-            setImportResult(`Imported ${data.importedCount} new leads (${data.existingCount} updated).`);
-            fetchContacts();
-            setTimeout(() => setIsImportModalOpen(false), 2000);
-          } else { setImportResult(`Error: ${data.error}`); }
-        } catch { setImportResult('An error occurred during import.'); }
-        finally { setImporting(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
-      },
-      error: () => { setImportResult('Failed to parse CSV.'); setImporting(false); }
-    });
+
+    const processData = async (data: any[]) => {
+      try {
+        const leads = data.map((row: any) => ({
+          timestamp: row['Timestamp'] || row.timestamp || row.createdAt || undefined,
+          name: row['Full Name'] || row.Name || row.name || row.First_Name || 'Unknown',
+          email: row['Email Address'] || row.Email || row.email || row.Email_Address || '',
+          phone: row['Phone Number (With Country Code)'] || row.Phone || row.phone || '',
+          jobTitle: row['Current Job Title'] || row.jobTitle || row['Job Title'] || ''
+        })).filter((l: any) => l.email || l.phone);
+
+        const res = await fetch('/api/admin/flywheel/leads/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ leads, brandId: activeBrand })
+        });
+        const respData = await res.json();
+        if (respData.success) {
+          setImportResult(`Imported ${respData.importedCount} new leads (${respData.existingCount} updated).`);
+          fetchContacts();
+          setTimeout(() => setIsImportModalOpen(false), 2000);
+        } else { setImportResult(`Error: ${respData.error}`); }
+      } catch { setImportResult('An error occurred during import.'); }
+      finally { setImporting(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
+    };
+
+    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+      try {
+        const XLSX = await import('xlsx');
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const buffer = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(buffer, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+          processData(jsonData);
+        };
+        reader.readAsArrayBuffer(file);
+      } catch (err) {
+        setImportResult('Failed to parse Excel file.');
+        setImporting(false);
+      }
+    } else {
+      Papa.parse(file, {
+        header: true, skipEmptyLines: true,
+        complete: (results) => processData(results.data),
+        error: () => { setImportResult('Failed to parse CSV.'); setImporting(false); }
+      });
+    }
   };
 
   // Selection
@@ -235,7 +259,7 @@ export default function FlywheelLeadsPage() {
               <IconPlus size={15} /> Create Lead
             </button>
             <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium text-sm shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5" style={{ background: brand.gradient }}>
-              <IconInbox size={16} /> Import CSV
+              <IconInbox size={16} /> Import Excel / CSV
             </button>
           </div>
         </div>
