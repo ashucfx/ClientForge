@@ -90,7 +90,7 @@ export async function syncCareerClientToFlywheel(clientId: string) {
       if (existingProfile) {
         // Only update if we are moving forward (e.g. they became a customer)
         const updateData: any = {
-          totalRevenue: Math.max(existingProfile.totalRevenue || 0, client.amountPaid || 0)
+          totalRevenue: Math.max(Number(existingProfile.totalRevenue) || 0, Number(client.amountPaid) || 0)
         };
         
         if (client.status === 'COMPLETED') {
