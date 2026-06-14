@@ -8,6 +8,7 @@ import { resolveServices } from './services';
 import { generateMagicToken, magicTokenExpiry } from './auth';
 import { sendCareerEmail } from './email';
 import { derivePackageLabel } from '@/lib/email';
+import { syncCareerClientToFlywheel } from '@/lib/career/sync';
 import type { CareerServiceSlug } from './types';
 import type { LineItem } from '@/types';
 
@@ -251,6 +252,13 @@ export async function onboardFromInvoice(invoice: {
         },
       }).catch(console.error);
     }
+  }
+
+  // ── Sync to Flywheel CRM ──
+  try {
+    await syncCareerClientToFlywheel(result.clientId);
+  } catch (err) {
+    console.error('[onboarding] Flywheel sync failed:', err);
   }
 
   return result;
