@@ -268,6 +268,34 @@ export default function FlywheelLeadsPage() {
     }
   };
 
+  const handleAutoAssign = async () => {
+    if (!confirm(selectedIds.size > 0 
+      ? `Run Smart Assign on ${selectedIds.size} selected leads?` 
+      : 'Run Smart Assign on ALL leads?')) return;
+      
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/flywheel/leads/auto-assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selectedIds: Array.from(selectedIds) })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Successfully updated ${data.updatedCount} leads.`);
+        setSelectedIds(new Set());
+        fetchContacts();
+      } else {
+        alert('Failed to auto-assign: ' + data.error);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred during smart assignment.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AppShell>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
@@ -291,6 +319,9 @@ export default function FlywheelLeadsPage() {
                 <IconX size={15} /> Delete Selected ({selectedIds.size})
               </button>
             )}
+            <button onClick={handleAutoAssign} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 font-medium text-sm shadow-sm hover:bg-indigo-100 transition-colors">
+              <IconRefresh size={15} /> Smart Assign
+            </button>
             <button onClick={() => setIsCreateModalOpen(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-medium text-sm shadow-sm hover:bg-slate-50 transition-colors">
               <IconPlus size={15} /> Create Lead
             </button>
