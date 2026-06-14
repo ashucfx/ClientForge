@@ -117,9 +117,11 @@ model Invoice {
   installmentCount Int     @default(1) // 1 = single, 2 = two parts, 3 = three parts
   installments     Json    @default("[]") // Installment[]
 
-  // Email
-  emailSentAt      DateTime?
-  emailResendCount Int       @default(0)
+  // Email & Automation
+  emailSentAt            DateTime?
+  emailResendCount       Int       @default(0)
+  abandonedCheckoutLevel Int       @default(0) // 0=none, 1=1hr, 2=24hr, 3=72hr
+  expiresAt              DateTime?
 
   // ── Brand context (NEW — additive, @default ensures all existing invoices = 'catalyst') ──
   // 'catalyst'     → Career Booster invoice — Catalyst branding, Catalyst email theme
@@ -178,7 +180,10 @@ model CareerClientService {
   id        String   @id @default(cuid())
   clientId  String
   serviceId String
+  status    String   @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, IN_REVIEW, COMPLETED
+  timeline  Json     @default("[]") // Log of events for this specific service
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt // Added for V2
 
   client  CareerClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
   service CareerService @relation(fields: [serviceId], references: [id])
