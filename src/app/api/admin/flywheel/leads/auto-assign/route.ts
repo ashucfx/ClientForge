@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
           }
         } else {
           // If it's been more than 6 months, they might be ready for a refresh/upsell
-          if (profile.lifecycleStage !== 'CUSTOMER' || profile.leadStatus !== 'NEW') {
-            newLifecycleStage = 'CUSTOMER';
+          if (profile.lifecycleStage !== 'LEAD' || profile.leadStatus !== 'NEW') {
+            newLifecycleStage = 'LEAD';
             newLeadStatus = 'NEW'; // Drop them back into the new lead campaign pool!
             updated = true;
           }
