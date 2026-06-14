@@ -34,14 +34,18 @@ export async function POST(req: NextRequest) {
       if (!email && !phone) continue; // Need at least one identifier
 
       // 1. Find existing contact
-      let contact = await db.contact.findFirst({
-        where: {
-          OR: [
-            { email: email || undefined },
-            { phone: phone || undefined }
-          ]
-        }
-      });
+      const orConditions: any[] = [];
+      if (email) orConditions.push({ email });
+      if (phone) orConditions.push({ phone });
+
+      let contact = null;
+      if (orConditions.length > 0) {
+        contact = await db.contact.findFirst({
+          where: {
+            OR: orConditions
+          }
+        });
+      }
 
       if (contact) {
         existingCount++;
