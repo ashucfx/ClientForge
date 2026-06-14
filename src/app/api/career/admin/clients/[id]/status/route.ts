@@ -11,6 +11,7 @@ import type { CareerStatus, EmailTrigger } from '@/lib/career/types';
 import { PORTAL_URL } from '@/lib/config';
 import { resolvePackageLabel } from '@/lib/career/utils';
 import { waitUntil } from '@vercel/functions';
+import { syncCareerClientToFlywheel } from '@/lib/career/sync';
 
 
 /** Choose which draft email to send based on the client's services */
@@ -171,6 +172,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       }
     })());
   }
+
+  // Sync to CRM in background
+  waitUntil(syncCareerClientToFlywheel(client.id));
 
   return NextResponse.json({
 

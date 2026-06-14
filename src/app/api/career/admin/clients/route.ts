@@ -9,6 +9,8 @@ import { generateMagicToken, magicTokenExpiry } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
 import type { CareerServiceSlug } from '@/lib/career/types';
 import { resolveServices } from '@/lib/career/services';
+import { syncCareerClientToFlywheel } from '@/lib/career/sync';
+import { waitUntil } from '@vercel/functions';
 
 const PORTAL_URL =
   process.env.NODE_ENV === 'development'
@@ -138,6 +140,9 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error('[career/admin/clients] Welcome email failed:', err);
   }
+
+  // Sync to CRM in background
+  waitUntil(syncCareerClientToFlywheel(client.id));
 
   return NextResponse.json({ client }, { status: 201 });
 }
