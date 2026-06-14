@@ -62,7 +62,7 @@ export default function AnalyticsDashboard() {
       <div>
         <div className="text-sm font-medium text-slate-500 mb-1">{label}</div>
         <div className={`text-3xl font-bold tracking-tight mb-2 ${accent ? 'text-blue-600' : 'text-slate-900'}`}>
-          {value !== null && value !== undefined && !isNaN(value) ? value : 'N/A'}
+          {value !== null && value !== undefined ? value : 'N/A'}
         </div>
         <div className="flex items-center gap-2">
           {trendPct !== undefined && <TrendIndicator trendPct={trendPct} trendDirection={trendDirection} />}
