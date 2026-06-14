@@ -251,6 +251,23 @@ export default function FlywheelLeadsPage() {
     else { setSelectedIds(new Set(contacts.map(c => c.id))); }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedIds.size} selected leads?`)) return;
+    setLoading(true);
+    try {
+      const promises = Array.from(selectedIds).map(id => fetch(`/api/admin/flywheel/leads/${id}`, { method: 'DELETE' }));
+      await Promise.all(promises);
+      setSelectedIds(new Set());
+      fetchContacts();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete some leads');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AppShell>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
@@ -269,6 +286,11 @@ export default function FlywheelLeadsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {selectedIds.size > 0 && (
+              <button onClick={handleBulkDelete} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-50 text-red-600 font-medium text-sm shadow-sm hover:bg-red-100 transition-colors">
+                <IconX size={15} /> Delete Selected ({selectedIds.size})
+              </button>
+            )}
             <button onClick={() => setIsCreateModalOpen(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-medium text-sm shadow-sm hover:bg-slate-50 transition-colors">
               <IconPlus size={15} /> Create Lead
             </button>
