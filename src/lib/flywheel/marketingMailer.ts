@@ -26,9 +26,21 @@ export async function sendMarketingEmail(
   // Unsubscribe and tracking URLs
   const unsubscribeUrl = `${portalUrl}/api/public/unsubscribe?lead=${campaignLeadId}`;
   const trackingPixelUrl = `${portalUrl}/api/public/track/open?lead=${campaignLeadId}`;
+  
+  // Intercept links for click tracking
+  // We use a simple regex to find href="..." and wrap it
+  const clickTrackBaseUrl = `${portalUrl}/api/public/track/click?lead=${campaignLeadId}&url=`;
+  const trackedHtmlContent = htmlContent.replace(/href="([^"]+)"/g, (match, url) => {
+    // Don't track mailto or tel links
+    if (url.startsWith('mailto:') || url.startsWith('tel:')) return match;
+    // Don't double track
+    if (url.includes('/api/public/track/click')) return match;
+    
+    return `href="${clickTrackBaseUrl}${encodeURIComponent(url)}"`;
+  });
 
   // We append the tracking pixel to the end of the content
-  const contentWithPixel = `${htmlContent}
+  const contentWithPixel = `${trackedHtmlContent}
     <img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none;"/>
   `;
 

@@ -1,7 +1,15 @@
 // src/lib/events/dispatcher.ts
 import { EventEmitter } from 'events';
 import { TenantContext } from '@/lib/auth/TenantContext';
-import { syncFlywheelOnInvoicePaid, syncFlywheelOnClientCreated, syncFlywheelOnProjectDelivered, syncFlywheelOnClientArchived } from './flywheelSync';
+import { 
+  syncFlywheelOnInvoicePaid, 
+  syncFlywheelOnClientCreated, 
+  syncFlywheelOnProjectDelivered, 
+  syncFlywheelOnClientArchived,
+  syncFlywheelOnReviewReceived,
+  syncFlywheelOnRevisionRequested,
+  syncFlywheelOnDeliverableUploaded
+} from './flywheelSync';
 
 export interface WorkflowEventPayload {
   tenantContext: TenantContext;
@@ -60,5 +68,17 @@ EventBus.on('PROJECT_DELIVERED', async (payload: WorkflowEventPayload) => {
 
 EventBus.on('CLIENT_ARCHIVED', async (payload: WorkflowEventPayload) => {
   syncFlywheelOnClientArchived(payload as any);
+});
+
+EventBus.on('REVIEW_RECEIVED', async (payload: WorkflowEventPayload) => {
+  syncFlywheelOnReviewReceived(payload as any);
+});
+
+EventBus.on('REVISION_REQUESTED', async (payload: WorkflowEventPayload) => {
+  syncFlywheelOnRevisionRequested(payload as any);
+});
+
+EventBus.on('DELIVERABLE_UPLOADED', async (payload: WorkflowEventPayload) => {
+  syncFlywheelOnDeliverableUploaded(payload as any);
 });
 
