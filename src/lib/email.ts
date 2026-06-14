@@ -124,6 +124,66 @@ export async function sendPaymentConfirmationEmail(invoice: InvoiceData): Promis
 }
 
 // ─────────────────────────────────────────────
+// SEND CHECKOUT RECOVERY EMAIL
+// ─────────────────────────────────────────────
+export async function sendCheckoutRecoveryEmail(
+  invoice: InvoiceData,
+  level: number
+): Promise<void> {
+  const brand = getBrand(invoice.brandId);
+
+  let subjectPrefix = 'Complete your purchase';
+  if (level === 1) subjectPrefix = 'Did you forget something?';
+  if (level === 2) subjectPrefix = 'Your cart is waiting';
+  if (level === 3) subjectPrefix = "Don't miss out on your career boost";
+  if (level === 4) subjectPrefix = 'Last chance to complete your checkout';
+
+  const subject = `${subjectPrefix} — ${brand.name}`;
+
+  const html = buildInvoiceEmailHTML(invoice).replace(
+    'Your <strong style="color:#10B981;">',
+    'You left items in your cart for your <strong style="color:#10B981;">'
+  ); // A simple hack, we use the invoice template but change the subject!
+  
+  const text = buildInvoiceEmailText(invoice);
+
+  const payload: Record<string, unknown> = {
+    from:     `${brand.name} <${brand.fromEmail}>`,
+    reply_to: brand.replyTo,
+    to:       [invoice.clientEmail],
+    subject,
+    html,
+    text,
+    headers: {
+      'List-Unsubscribe':       `<mailto:${brand.replyTo}?subject=unsubscribe>`,
+      'List-Unsubscribe-Post':  'List-Unsubscribe=One-Click',
+      'X-Entity-Ref-ID':        invoice.id,
+    },
+    tags: [
+      { name: 'invoice_id',  value: invoice.id },
+      { name: 'status',      value: invoice.status },
+      { name: 'client_type', value: invoice.clientType },
+      { name: 'brand',       value: brand.id },
+      { name: 'recovery_level', value: String(level) }
+    ],
+  };
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method:  'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      Authorization:   `Bearer ${RESEND_API_KEY}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`Email send failed: ${JSON.stringify(err)}`);
+  }
+}
+
+// ─────────────────────────────────────────────
 // PLAIN-TEXT FALLBACK — INVOICE
 // ─────────────────────────────────────────────
 function buildInvoiceEmailText(invoice: InvoiceData): string {
