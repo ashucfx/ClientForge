@@ -112,6 +112,20 @@ export default function FlywheelLeadsPage() {
     } finally { setSaving(false); }
   };
 
+  const deleteLead = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this lead?')) return;
+    try {
+      const res = await fetch(`/api/admin/flywheel/leads/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setContacts(contacts.filter(c => c.id !== id));
+      } else {
+        alert('Failed to delete lead');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   // Edit Lead
   const openEditSlideOver = (contact: any) => {
     setSelectedContact(contact);
@@ -408,6 +422,7 @@ export default function FlywheelLeadsPage() {
                       <td className="px-4 py-3.5 text-right" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={() => openEditSlideOver(contact)} className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-blue-600 rounded-md text-xs font-medium shadow-sm transition-colors">View</button>
+                          <button onClick={() => deleteLead(contact.id)} className="px-2.5 py-1.5 bg-white border border-slate-200 text-red-600 hover:bg-red-50 rounded-md text-xs font-medium shadow-sm transition-colors">Delete</button>
                         </div>
                       </td>
                     </tr>

@@ -18,6 +18,9 @@ export async function POST(req: NextRequest) {
     let importedCount = 0;
     let existingCount = 0;
 
+    const count = await db.contact.count();
+    let currentId = count + 1;
+
     // Use a transaction or sequential operations for bulk import
     // Note: For massive files (10k+), this should be queued. We assume batching on client.
     for (const row of leads) {
@@ -26,9 +29,20 @@ export async function POST(req: NextRequest) {
       const phone = row.phone?.trim();
       const jobTitle = row.jobTitle?.trim() || null;
       let timestampDate: Date | undefined;
+      let lastContactedDate: Date | undefined;
+
       if (row.timestamp) {
-        const parsed = new Date(row.timestamp);
-        if (!isNaN(parsed.getTime())) timestampDate = parsed;
+        if (typeof row.timestamp === 'number' || (!isNaN(Number(row.timestamp)) && Number(row.timestamp) > 10000 && Number(row.timestamp) < 100000)) {
+          const excelDays = Number(row.timestamp);
+          timestampDate = new Date(Math.round((excelDays - 25569) * 86400 * 1000));
+        } else {
+          const parsed = new Date(row.timestamp);
+          if (!isNaN(parsed.getTime())) timestampDate = parsed;
+        }
+      }
+
+      if (timestampDate) {
+         lastContactedDate = new Date(timestampDate.getTime() + 10 * 24 * 60 * 60 * 1000);
       }
 
       if (!email && !phone) continue; // Need at least one identifier
@@ -58,8 +72,12 @@ export async function POST(req: NextRequest) {
         }
       } else {
         // 2. Create new contact
+        const displayId = `LD-${1000 + currentId}`;
+        currentId++;
+
         contact = await db.contact.create({
           data: {
+            displayId,
             name,
             email: email || null,
             phone: phone || null,
@@ -85,7 +103,7 @@ export async function POST(req: NextRequest) {
             leadStatus: 'NEW',
             ...(timestampDate && { 
               createdAt: timestampDate,
-              lastContactedAt: timestampDate 
+              lastContactedAt: lastContactedDate 
             })
           }
         });
