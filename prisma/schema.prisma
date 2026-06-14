@@ -967,7 +967,7 @@ model Contact {
   updatedAt     DateTime @updatedAt
 
   mergedIntoContactId String?
-  mergedIntoContact   Contact? @relation("ContactMerges", fields: [mergedIntoContactId], references: [id])
+  mergedIntoContact   Contact?  @relation("ContactMerges", fields: [mergedIntoContactId], references: [id])
   mergedFromContacts  Contact[] @relation("ContactMerges")
 
   careerClients CareerClient[]
@@ -975,10 +975,10 @@ model Contact {
 
   flywheelProfile FlywheelProfile?
 
-  sourceMergeReviews ContactMergeReview[] @relation("SourceContact")
-  targetMergeReviews ContactMergeReview[] @relation("TargetContact")
+  sourceMergeReviews    ContactMergeReview[]   @relation("SourceContact")
+  targetMergeReviews    ContactMergeReview[]   @relation("TargetContact")
   flywheelCampaignLeads FlywheelCampaignLead[]
-
+  FlywheelActionCard    FlywheelActionCard[]
 
   @@index([email])
   @@index([phone])
@@ -1025,6 +1025,7 @@ model FlywheelProfile {
   referralScore     Int?     @default(0)
   reactivationScore Int?     @default(0)
   totalRevenue      Decimal? @default(0.00) @db.Decimal(12, 2)
+  dealValue         Decimal? @default(0.00) @db.Decimal(12, 2)
   invoiceCount      Int?     @default(0)
 
   lastInvoiceDate DateTime?
@@ -1050,43 +1051,6 @@ model FlywheelProfile {
   @@index([lifecycleStage])
   @@index([leadStatus])
   @@index([referralCode])
-}
-
-model FlywheelRevenueMetrics {
-  id               String   @id @default(cuid())
-  date             DateTime
-  brandId          String
-  recurringRevenue Decimal  @default(0.00) @db.Decimal(12, 2)
-  oneTimeRevenue   Decimal  @default(0.00) @db.Decimal(12, 2)
-  totalCollected   Decimal  @default(0.00) @db.Decimal(12, 2)
-  createdAt        DateTime @default(now())
-
-  @@unique([date, brandId])
-  @@index([brandId])
-}
-
-model FlywheelClientMetrics {
-  id               String   @id @default(cuid())
-  date             DateTime
-  brandId          String
-  activeCount      Int      @default(0)
-  reactivatedCount Int      @default(0)
-  churnedCount     Int      @default(0)
-  newAcquisitions  Int      @default(0)
-  createdAt        DateTime @default(now())
-
-  @@unique([date, brandId])
-  @@index([brandId])
-}
-
-model FlywheelEngagementMetrics {
-  id                  String   @id @default(cuid())
-  date                DateTime @unique
-  npsAverage          Float    @default(0.0)
-  satisfactionAverage Float    @default(0.0)
-  openCampaignsCount  Int      @default(0)
-  referralsGenerated  Int      @default(0)
-  createdAt           DateTime @default(now())
 }
 
 model ProcessedEvent {
@@ -1118,34 +1082,34 @@ model MigrationRun {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model FlywheelCampaign {
-  id          String   @id @default(cuid())
-  name        String
-  type        String   @default("ONE_OFF") // "ONE_OFF", "DRIP"
-  status      String   @default("DRAFT") // "DRAFT", "ACTIVE", "PAUSED", "COMPLETED"
-  brandId     String   @default("catalyst")
-  metadata    Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  type      String   @default("ONE_OFF") // "ONE_OFF", "DRIP"
+  status    String   @default("DRAFT") // "DRAFT", "ACTIVE", "PAUSED", "COMPLETED"
+  brandId   String   @default("catalyst")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  steps       FlywheelCampaignStep[]
-  leads       FlywheelCampaignLead[]
+  steps FlywheelCampaignStep[]
+  leads FlywheelCampaignLead[]
 
   @@index([status])
   @@index([brandId])
 }
 
 model FlywheelCampaignStep {
-  id            String   @id @default(cuid())
-  campaignId    String
-  subject       String
-  contentHtml   String   @db.Text
-  delayHours    Int      @default(0)
-  orderIndex    Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String   @id @default(cuid())
+  campaignId  String
+  subject     String
+  contentHtml String   @db.Text
+  delayHours  Int      @default(0)
+  orderIndex  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  campaign      FlywheelCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  leadsCurrent  FlywheelCampaignLead[] @relation("CurrentStep")
+  campaign     FlywheelCampaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  leadsCurrent FlywheelCampaignLead[] @relation("CurrentStep")
 
   @@index([campaignId])
 }
@@ -1161,10 +1125,10 @@ model FlywheelCampaignLead {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  campaign        FlywheelCampaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  contact         Contact               @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  currentStep     FlywheelCampaignStep? @relation("CurrentStep", fields: [currentStepId], references: [id])
-  events          FlywheelEmailEvent[]
+  campaign    FlywheelCampaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact     Contact               @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  currentStep FlywheelCampaignStep? @relation("CurrentStep", fields: [currentStepId], references: [id])
+  events      FlywheelEmailEvent[]
 
   @@unique([campaignId, contactId])
   @@index([status, nextExecutionAt]) // Critical for Cron Job querying
@@ -1172,25 +1136,49 @@ model FlywheelCampaignLead {
 }
 
 model FlywheelEmailEvent {
-  id              String   @id @default(cuid())
-  campaignLeadId  String
-  eventType       String   // "SENT", "DELIVERED", "OPEN", "CLICK", "BOUNCE", "UNSUBSCRIBE"
-  metadata        Json?    // e.g., URL clicked, bounce reason, user agent
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  campaignLeadId String
+  eventType      String // "SENT", "DELIVERED", "OPEN", "CLICK", "BOUNCE", "UNSUBSCRIBE"
+  metadata       Json? // e.g., URL clicked, bounce reason, user agent
+  createdAt      DateTime @default(now())
 
-  campaignLead    FlywheelCampaignLead @relation(fields: [campaignLeadId], references: [id], onDelete: Cascade)
+  campaignLead FlywheelCampaignLead @relation(fields: [campaignLeadId], references: [id], onDelete: Cascade)
 
   @@index([campaignLeadId])
   @@index([eventType])
 }
 
 model UnsubscribeList {
-  id          String   @id @default(cuid())
-  email       String
-  brandId     String   @default("catalyst")
-  reason      String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  email     String
+  brandId   String   @default("catalyst")
+  reason    String?
+  createdAt DateTime @default(now())
 
   @@unique([email, brandId])
   @@index([email])
+}
+
+// ─── ACTION ENGINE (NEW V5) ───
+
+model FlywheelActionCard {
+  id               String    @id @default(cuid())
+  contactId        String
+  type             String // UPSELL, REFERRAL, REVIEW, RISK, RETENTION
+  title            String
+  reason           String
+  confidence       Int       @default(0) // 0-100
+  revenuePotential Decimal   @default(0.00) @db.Decimal(12, 2)
+  status           String    @default("PENDING") // PENDING, APPROVED, DISMISSED, EXECUTED
+  suggestedAction  String // The action identifier (e.g., "SEND_EMAIL_TEMPLATE_X")
+  actionData       Json? // Payload needed to execute the action
+  priority         Int       @default(0) // Higher = top of the feed
+  expiresAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId, status])
+  @@index([status, priority(desc)])
 }
