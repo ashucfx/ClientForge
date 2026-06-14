@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const stage = url.searchParams.get('stage') || '';
     const status = url.searchParams.get('status') || '';
     const source = url.searchParams.get('source') || '';
-    const sort = url.searchParams.get('sort') || 'createdAt';
+    const sort = url.searchParams.get('sort') || 'displayId';
     const order = (url.searchParams.get('order') || 'desc') as 'asc' | 'desc';
     const page = parseInt(url.searchParams.get('page') || '1', 10);
     const pageSize = Math.min(parseInt(url.searchParams.get('pageSize') || '25', 10), 100);
