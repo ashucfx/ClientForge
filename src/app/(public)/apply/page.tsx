@@ -21,6 +21,7 @@ export default function CatalystApplyPage() {
   // Step 2 State
   const [selectedPackage, setSelectedPackage] = useState<'CAREER_BOOSTER' | 'PREMIUM_PLUS' | 'CUSTOM'>('CAREER_BOOSTER');
   const [customServices, setCustomServices] = useState<string[]>([]);
+  const [preferredGateway, setPreferredGateway] = useState<'RAZORPAY' | 'PAYPAL'>('PAYPAL');
   
   // Pricing Result State
   const [pricingDraft, setPricingDraft] = useState<any>(null);
@@ -46,14 +47,21 @@ export default function CatalystApplyPage() {
         servicesToPass = customServices;
       }
       
+      const countryMap: Record<string, string> = {
+        IN: 'India', US: 'United States', GB: 'United Kingdom',
+        AE: 'United Arab Emirates', AU: 'Australia', CA: 'Canada', SA: 'Saudi Arabia'
+      };
+
       const payload = {
         name,
         email,
         phone,
         countryCode,
+        countryName: countryMap[countryCode] || 'United States',
         experienceLevel,
         packageSlug: selectedPackage,
-        services: servicesToPass
+        services: servicesToPass,
+        preferredGateway: countryCode === 'IN' ? 'RAZORPAY' : preferredGateway
       };
       
       const res = await fetch('/api/public/checkout/draft', {
@@ -109,7 +117,7 @@ export default function CatalystApplyPage() {
           {step === 1 && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="text-center mb-10">
-                <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Let's get started.</h1>
+                <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Let&apos;s get started.</h1>
                 <p className="text-lg text-white/60">Enter your details to generate your customized portfolio and pricing.</p>
               </div>
               
@@ -172,6 +180,7 @@ export default function CatalystApplyPage() {
                         <option value="US">United States</option>
                         <option value="GB">United Kingdom</option>
                         <option value="AE">UAE</option>
+                        <option value="SA">Saudi Arabia</option>
                         <option value="AU">Australia</option>
                         <option value="CA">Canada</option>
                       </select>
@@ -332,22 +341,54 @@ export default function CatalystApplyPage() {
                    </div>
                  </div>
                  
-                 <div className="pt-6 flex gap-4">
-                   <button 
-                     onClick={() => setStep(1)}
-                     className="px-6 py-4 rounded-xl border border-white/10 text-white/70 hover:bg-white/5 transition-all"
-                   >
-                     Back
-                   </button>
-                   <button 
-                     onClick={handleNextStep2}
-                     disabled={loading}
-                     className="flex-1 bg-white text-black font-bold text-lg rounded-xl py-4 hover:bg-white/90 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-[0_0_40px_rgba(255,255,255,0.2)] disabled:opacity-50 disabled:pointer-events-none"
-                   >
-                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Calculate Pricing'}
-                     {!loading && <ArrowRight className="w-5 h-5" />}
-                   </button>
-                 </div>
+                  <div className="pt-6 flex flex-col gap-4">
+                    {countryCode !== 'IN' && (
+                      <div className="bg-white/[0.02] border border-white/10 rounded-xl p-4 flex flex-col gap-3">
+                        <label className="text-sm font-medium text-white/70">Select Payment Method</label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            onClick={() => setPreferredGateway('PAYPAL')}
+                            className={`py-3 px-4 rounded-xl border text-sm font-medium transition-all text-left ${
+                              preferredGateway === 'PAYPAL'
+                                ? 'bg-blue-500/20 border-blue-500 text-blue-300'
+                                : 'bg-transparent border-white/10 text-white/50 hover:bg-white/5'
+                            }`}
+                          >
+                            <div className="font-bold">PayPal</div>
+                            <div className="text-xs opacity-70">Pay in USD</div>
+                          </button>
+                          <button
+                            onClick={() => setPreferredGateway('RAZORPAY')}
+                            className={`py-3 px-4 rounded-xl border text-sm font-medium transition-all text-left ${
+                              preferredGateway === 'RAZORPAY'
+                                ? 'bg-blue-500/20 border-blue-500 text-blue-300'
+                                : 'bg-transparent border-white/10 text-white/50 hover:bg-white/5'
+                            }`}
+                          >
+                            <div className="font-bold">Credit/Debit Card</div>
+                            <div className="text-xs opacity-70">Pay in Local Currency</div>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-4">
+                      <button 
+                        onClick={() => setStep(1)}
+                        className="px-6 py-4 rounded-xl border border-white/10 text-white/70 hover:bg-white/5 transition-all"
+                      >
+                        Back
+                      </button>
+                      <button 
+                        onClick={handleNextStep2}
+                        disabled={loading}
+                        className="flex-1 bg-white text-black font-bold text-lg rounded-xl py-4 hover:bg-white/90 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-[0_0_40px_rgba(255,255,255,0.2)] disabled:opacity-50 disabled:pointer-events-none"
+                      >
+                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Calculate Pricing'}
+                        {!loading && <ArrowRight className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
                  
                </div>
              </div>

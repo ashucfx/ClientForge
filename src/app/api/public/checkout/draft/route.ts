@@ -13,17 +13,21 @@ export async function POST(req: Request) {
       email, 
       phone, 
       countryCode, 
+      countryName,
       experienceLevel, 
       services, 
-      packageSlug 
+      packageSlug,
+      preferredGateway
     } = body as {
       name: string;
       email: string;
       phone: string;
       countryCode: string;
+      countryName: string;
       experienceLevel: ClientType;
       services: ServiceSlug[];
       packageSlug: PackageSlug;
+      preferredGateway?: 'RAZORPAY' | 'PAYPAL';
     };
 
     if (!name || !email || !phone || !countryCode || !experienceLevel || !services || services.length === 0) {
@@ -31,15 +35,17 @@ export async function POST(req: Request) {
     }
 
     // 1. Calculate Pricing
-    const pricing = calculatePricing({
+    const pricing = await calculatePricing({
       experienceLevel,
       services,
       packageSlug,
-      countryCode
+      countryCode,
+      countryName,
+      preferredGateway
     });
 
     const isIndia = countryCode.toUpperCase() === 'IN';
-    const paymentGateway = isIndia ? 'RAZORPAY' : 'PAYPAL';
+    const paymentGateway = isIndia ? 'RAZORPAY' : (preferredGateway || 'PAYPAL');
 
     // 2. Upsert Contact (Pre-payment Lead)
     let contact = await db.contact.findFirst({
