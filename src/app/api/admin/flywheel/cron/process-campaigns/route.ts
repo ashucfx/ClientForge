@@ -4,6 +4,7 @@ import { sendMarketingEmail } from '@/lib/flywheel/marketingMailer';
 import { getAdminSession } from '@/lib/auth';
 
 // Secure the cron endpoint. Can be triggered by Vercel Cron or an Admin.
+export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
