@@ -637,7 +637,7 @@ export default function InvoiceDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(invoice.lineItems as unknown as import('@/types').LineItem[]).map((item, idx) => {
+                    {((typeof invoice.lineItems === 'string' ? JSON.parse(invoice.lineItems) : invoice.lineItems) as unknown as import('@/types').LineItem[]).map((item, idx) => {
                       const lt = round2(item.qty * item.unitPrice);
                       const isFree = lt === 0;
                       return (

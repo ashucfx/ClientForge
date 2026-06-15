@@ -157,6 +157,14 @@ export async function POST(req: Request) {
       success: true,
       invoiceId: invoice.id,
       paymentUrl,
+      subtotal: pricing.subtotal,
+      discountAmount: pricing.discountAmount,
+      discountRate: pricing.discountRate,
+      taxAmount: pricing.taxAmount,
+      taxRate: pricing.taxRate,
+      finalPayable: pricing.finalPayable,
+      currency: pricing.currency,
+      currencySymbol: pricing.currencySymbol,
     });
 
   } catch (error) {

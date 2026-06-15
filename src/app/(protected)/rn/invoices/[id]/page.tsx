@@ -269,7 +269,7 @@ export default function RnInvoiceDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {(invoice.lineItems as unknown as import('@/types').LineItem[]).map((item, idx) => (
+                {((typeof invoice.lineItems === 'string' ? JSON.parse(invoice.lineItems) : invoice.lineItems) as unknown as import('@/types').LineItem[]).map((item, idx) => (
                   <tr key={item.id ?? idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '13px 12px', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{item.description}</td>
                     <td style={{ padding: '13px 12px', textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>{item.qty}</td>
