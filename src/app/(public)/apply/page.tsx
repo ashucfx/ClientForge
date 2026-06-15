@@ -419,7 +419,7 @@ export default function CatalystApplyPage() {
                    <h3 className="text-xs font-bold text-brand-obsidian/40 uppercase tracking-widest mb-6">Order Summary</h3>
                    
                    <div className="flex justify-between items-center pb-4 border-b border-brand-parchment/50">
-                     <span className="font-medium text-brand-obsidian">Services ({selectedPackage.replace('_', ' ')})</span>
+                     <span className="font-medium text-brand-obsidian">Services ({selectedPackage.split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ')})</span>
                      <span className="font-bold text-brand-obsidian">{pricingDraft.currencySymbol}{pricingDraft.subtotal.toLocaleString()}</span>
                    </div>
                    

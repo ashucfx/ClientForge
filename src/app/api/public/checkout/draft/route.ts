@@ -89,10 +89,19 @@ export async function POST(req: Request) {
     const count = await db.invoice.count();
     const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(count + 1).padStart(4, '0')}`;
 
+    // Helper to convert SNAKE_CASE to Title Case
+    const formatTitleCase = (str: string) => {
+      if (!str) return '';
+      return str.replace(/_/g, ' ')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+    };
+
     // Map line items
     const lineItems = pricing.services.map(s => ({
       id: crypto.randomUUID(),
-      description: `${s.slug} (${experienceLevel})`,
+      description: `${formatTitleCase(s.slug)} (${formatTitleCase(experienceLevel)})`,
       qty: 1,
       unitPrice: s.price,
       lineTotal: s.price
