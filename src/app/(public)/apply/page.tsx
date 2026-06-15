@@ -280,8 +280,8 @@ export default function CatalystApplyPage() {
                          <li className="flex gap-4">
                            <Check className={`w-5 h-5 shrink-0 mt-0.5 ${selectedPackage === 'PREMIUM_PLUS' ? 'text-[#B8935B]' : 'text-[#E6DFD1]'}`} />
                            <div>
-                             <p className="font-bold text-[#0A0B0D] text-sm">LinkedIn Authority</p>
-                             <p className="text-[#0A0B0D]/60 text-sm mt-1">Complete profile overhaul designed to attract elite executive headhunters and establish you as an industry thought-leader.</p>
+                             <p className="font-bold text-[#0A0B0D] text-sm">LinkedIn Profile Overhaul</p>
+                             <p className="text-[#0A0B0D]/60 text-sm mt-1">Complete profile transformation including headline, summary, experience sections, custom banner design, and professional display photo guidance — engineered to attract elite executive headhunters.</p>
                            </div>
                          </li>
                          <li className="flex gap-4">
@@ -294,8 +294,8 @@ export default function CatalystApplyPage() {
                          <li className="flex gap-4">
                            <Check className={`w-5 h-5 shrink-0 mt-0.5 ${selectedPackage === 'PREMIUM_PLUS' ? 'text-[#B8935B]' : 'text-[#E6DFD1]'}`} />
                            <div>
-                             <p className="font-bold text-[#0A0B0D] text-sm">Digital Portfolio</p>
-                             <p className="text-[#0A0B0D]/60 text-sm mt-1">A bespoke, premium digital presence (domain included) that showcases your career milestones and executive brand.</p>
+                             <p className="font-bold text-[#0A0B0D] text-sm">Portfolio Website</p>
+                             <p className="text-[#0A0B0D]/60 text-sm mt-1">A bespoke, multi-page digital presence that showcases your career milestones and executive brand. Includes domain integration setup and domain purchase guidance.</p>
                            </div>
                          </li>
                        </ul>
@@ -331,7 +331,7 @@ export default function CatalystApplyPage() {
                          <li className="flex gap-4">
                            <Check className={`w-5 h-5 shrink-0 mt-0.5 ${selectedPackage === 'CAREER_BOOSTER' ? 'text-[#0A0B0D]' : 'text-[#E6DFD1]'}`} />
                            <div>
-                             <p className="font-bold text-[#0A0B0D] text-sm">LinkedIn Authority</p>
+                             <p className="font-bold text-[#0A0B0D] text-sm">LinkedIn Profile Overhaul</p>
                            </div>
                          </li>
                          <li className="flex gap-4">
@@ -375,7 +375,7 @@ export default function CatalystApplyPage() {
                                  : 'bg-transparent border-[#E6DFD1] text-[#0A0B0D]/60 hover:border-[#0A0B0D]/50 hover:text-[#0A0B0D]'
                              }`}
                            >
-                             {svc.replace('_', ' ')}
+                             {svc === 'RESUME' ? 'Executive Resume' : svc === 'LINKEDIN' ? 'LinkedIn Overhaul' : svc === 'COVER_LETTER' ? 'Cover Letter' : 'Portfolio Website'}
                              {customServices.includes(svc) && <Check className="w-4 h-4 text-white" />}
                            </button>
                          ))}

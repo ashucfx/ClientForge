@@ -20,10 +20,10 @@ import { ArrowRight, Loader2, Check } from 'lucide-react';
  */
 
 const SERVICES = [
-  { id: 'RESUME', label: 'Executive Resume' },
-  { id: 'LINKEDIN', label: 'LinkedIn Authority' },
-  { id: 'COVER_LETTER', label: 'Strategic Cover Letter' },
-  { id: 'PORTFOLIO', label: 'Digital Portfolio' },
+  { id: 'RESUME', label: 'Executive Resume', sub: 'ATS-optimized, strategy-driven' },
+  { id: 'LINKEDIN', label: 'LinkedIn Profile Overhaul', sub: 'Profile, Banner & DP' },
+  { id: 'COVER_LETTER', label: 'Strategic Cover Letter', sub: 'Targeted, persuasive narrative' },
+  { id: 'PORTFOLIO', label: 'Portfolio Website', sub: 'Multi-page with domain guidance' },
 ] as const;
 
 export default function CatalystInquirePage() {
@@ -203,8 +203,8 @@ export default function CatalystInquirePage() {
                   },
                   {
                     num: '02',
-                    title: 'LinkedIn Authority',
-                    desc: 'Complete profile overhaul designed to attract elite executive headhunters and establish you as an industry thought-leader.'
+                    title: 'LinkedIn Profile Overhaul',
+                    desc: 'Complete profile transformation including headline, summary, experience sections, custom banner design, and professional display photo guidance — engineered to attract elite executive headhunters.'
                   },
                   {
                     num: '03',
@@ -213,8 +213,8 @@ export default function CatalystInquirePage() {
                   },
                   {
                     num: '04',
-                    title: 'Digital Portfolio',
-                    desc: 'A bespoke, premium digital presence (domain included) that showcases your career milestones and executive brand.'
+                    title: 'Portfolio Website',
+                    desc: 'A bespoke, multi-page digital presence that showcases your career milestones and executive brand. Includes domain integration setup and domain purchase guidance.'
                   },
                 ].map((svc) => (
                   <div key={svc.num} className="py-8 first:pt-0 last:pb-0 group">
@@ -318,9 +318,12 @@ export default function CatalystInquirePage() {
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-body font-medium">{svc.label}</span>
+                          <div>
+                            <span className="text-body font-medium block">{svc.label}</span>
+                            <span className="text-metadata text-brand-obsidian/35 block mt-0.5">{svc.sub}</span>
+                          </div>
                           {interests.includes(svc.id) && (
-                            <Check className="w-4 h-4 text-brand-gold" />
+                            <Check className="w-4 h-4 text-brand-gold shrink-0" />
                           )}
                         </div>
                       </button>
