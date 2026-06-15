@@ -83,7 +83,8 @@ export async function POST(req: Request) {
       }
 
       const count = await tx.invoice.count();
-      const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(count + 1).padStart(4, '0')}`;
+      const randomSuffix = Math.random().toString(36).substring(2, 5).toUpperCase();
+      const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(count + 1).padStart(4, '0')}-${randomSuffix}`;
 
       const formatTitleCase = (str: string) => {
         if (!str) return '';
@@ -131,15 +132,21 @@ export async function POST(req: Request) {
       const fakeInvoiceData: any = { ...newInvoice };
 
       if (paymentGateway === 'RAZORPAY') {
-        const rpRes = await createRazorpayPaymentLink(fakeInvoiceData);
-        finalPaymentUrl = rpRes.short_url;
-        await tx.invoice.update({
-          where: { id: newInvoice.id },
-          data: {
-            razorpayLinkId: rpRes.id,
-            razorpayLinkUrl: finalPaymentUrl,
-          }
-        });
+        try {
+          const rpRes = await createRazorpayPaymentLink(fakeInvoiceData);
+          finalPaymentUrl = rpRes.short_url;
+          await tx.invoice.update({
+            where: { id: newInvoice.id },
+            data: {
+              razorpayLinkId: rpRes.id,
+              razorpayLinkUrl: finalPaymentUrl,
+            }
+          });
+        } catch (rpError) {
+          console.error('Razorpay Gateway Error:', rpError);
+          // Fallback: Invoice is generated but payment link is empty. Admin can retry later.
+          finalPaymentUrl = '';
+        }
       } else {
         finalPaymentUrl = `https://paypal.me/placeholder/${pricing.finalPayable}`;
         await tx.invoice.update({

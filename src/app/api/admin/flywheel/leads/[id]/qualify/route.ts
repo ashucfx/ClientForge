@@ -36,7 +36,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // Generate Invoice (PENDING)
     const count = await db.invoice.count();
-    const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(count + 1).padStart(4, '0')}`;
+    const randomSuffix = Math.random().toString(36).substring(2, 5).toUpperCase();
+    const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(count + 1).padStart(4, '0')}-${randomSuffix}`;
 
     // Helper to convert SNAKE_CASE to Title Case
     const formatTitleCase = (str: string) => {
@@ -91,16 +92,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const fakeInvoiceData: any = { ...invoice };
 
     if (preferredGateway === 'RAZORPAY') {
-      const rpRes = await createRazorpayPaymentLink(fakeInvoiceData);
-      paymentUrl = rpRes.short_url;
+      try {
+        const rpRes = await createRazorpayPaymentLink(fakeInvoiceData);
+        paymentUrl = rpRes.short_url;
 
-      await db.invoice.update({
-        where: { id: invoice.id },
-        data: {
-          razorpayLinkId: rpRes.id,
-          razorpayLinkUrl: paymentUrl,
-        }
-      });
+        await db.invoice.update({
+          where: { id: invoice.id },
+          data: {
+            razorpayLinkId: rpRes.id,
+            razorpayLinkUrl: paymentUrl,
+          }
+        });
+      } catch (rpError) {
+        console.error('Razorpay Gateway Error:', rpError);
+        paymentUrl = '';
+      }
     } else {
       // PayPal Logic placeholder.
       paymentUrl = `https://paypal.me/placeholder/${pricingDetails.finalPayable}`;
