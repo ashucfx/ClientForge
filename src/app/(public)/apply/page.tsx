@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, ChevronRight, User, Briefcase, Mail, Phone, Globe, Star, Shield, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { Check, User, Briefcase, Mail, Phone, Globe, Star, Shield, ArrowRight, Loader2, Lock, ArrowUpRight } from 'lucide-react';
 import { ClientType } from '@prisma/client';
 import { Logo } from '@/components/Logo';
 
@@ -89,94 +89,98 @@ export default function CatalystApplyPage() {
     }
   };
   
+  const progressPercent = step === 1 ? 33 : step === 2 ? 66 : 100;
+  
   return (
-    <div className="min-h-screen bg-[#F4F1EB] text-[#0A0B0D] selection:bg-[#B8935B]/30 selection:text-[#0A0B0D] flex flex-col font-sans relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#F4F1EB] text-[#0A0B0D] selection:bg-[#0A0B0D] selection:text-white flex flex-col font-sans relative overflow-x-hidden">
       
-      {/* Background Decor */}
-      <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#B8935B] via-[#E3B873] to-[#B8935B] z-10 bg-[length:200%_auto] animate-shimmer" />
-      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[#E6DFD1] blur-[120px] pointer-events-none opacity-80" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-[#B8935B]/15 blur-[150px] pointer-events-none" />
+      {/* Progress Bar */}
+      <div className="fixed top-0 left-0 h-1 bg-[#E6DFD1] w-full z-[60]">
+        <div 
+          className="h-full bg-[#B8935B] transition-all duration-700 ease-out"
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
       
       {/* Header */}
-      <header className="py-5 px-6 sm:px-12 border-b border-[#E6DFD1]/50 sticky top-0 bg-[#F4F1EB]/70 backdrop-blur-2xl z-50 transition-all duration-500">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+      <header className="py-6 px-6 sm:px-12 border-b border-[#E6DFD1] sticky top-0 bg-[#F4F1EB]/90 backdrop-blur-md z-50">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <Logo variant="horizontal" size={32} brandId="catalyst" dark={false} />
-          <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-medium text-[#0A0B0D]/40">
-            <span className={`transition-all duration-500 ${step >= 1 ? 'text-[#B8935B] font-bold drop-shadow-sm scale-105' : ''}`}>1. Details</span>
-            <ChevronRight className={`w-4 h-4 transition-all duration-500 mx-1 ${step >= 2 ? 'text-[#B8935B] opacity-100' : 'opacity-30'}`} />
-            <span className={`transition-all duration-500 ${step >= 2 ? 'text-[#B8935B] font-bold drop-shadow-sm scale-105' : ''}`}>2. Services</span>
-            <ChevronRight className={`w-4 h-4 transition-all duration-500 mx-1 ${step >= 3 ? 'text-[#B8935B] opacity-100' : 'opacity-30'}`} />
-            <span className={`transition-all duration-500 ${step === 3 ? 'text-[#B8935B] font-bold drop-shadow-sm scale-105' : ''}`}>3. Checkout</span>
+          <div className="flex items-center gap-2 text-[11px] sm:text-xs font-bold tracking-[0.1em] text-[#0A0B0D]/40 uppercase">
+            <span className={`transition-colors duration-300 ${step >= 1 ? 'text-[#0A0B0D]' : ''}`}>01. Details</span>
+            <span className="mx-2 opacity-30">—</span>
+            <span className={`transition-colors duration-300 ${step >= 2 ? 'text-[#0A0B0D]' : ''}`}>02. Services</span>
+            <span className="mx-2 opacity-30">—</span>
+            <span className={`transition-colors duration-300 ${step === 3 ? 'text-[#0A0B0D]' : ''}`}>03. Checkout</span>
           </div>
         </div>
       </header>
       
-      <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 md:p-12 z-10 w-full">
-        <div className="w-full max-w-2xl relative">
+      <main className="flex-1 flex flex-col items-center justify-start py-10 sm:py-20 px-4 sm:px-8 z-10 w-full">
+        <div className="w-full max-w-3xl">
           
           {step === 1 && (
-            <div className="animate-fade-up">
-              <div className="text-center mb-10 sm:mb-14 animate-fade-up" style={{ animationDelay: '100ms', animationFillMode: 'both' }} >
-                <h1 className="text-4xl sm:text-6xl font-serif font-bold tracking-tight text-[#0A0B0D] mb-5">Let&apos;s get started.</h1>
-                <p className="text-lg text-[#0A0B0D]/60 max-w-lg mx-auto">Enter your details to generate your customized portfolio and exclusive pricing.</p>
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="mb-12">
+                <h1 className="text-4xl sm:text-5xl font-serif text-[#0A0B0D] mb-4">Application Details</h1>
+                <p className="text-base text-[#0A0B0D]/60 max-w-2xl">Enter your professional information to generate your executive portfolio strategy and exact pricing structure.</p>
               </div>
               
-              <div className="bg-white/60 backdrop-blur-2xl rounded-2xl sm:rounded-3xl p-6 sm:p-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-white/80 space-y-8 relative overflow-hidden transition-all duration-500 hover:shadow-[0_25px_70px_-15px_rgba(184,147,91,0.15)] animate-fade-up" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
-                <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-[#B8935B]/5 pointer-events-none" />
+              <div className="bg-white p-6 sm:p-12 shadow-sm border border-[#E6DFD1] space-y-10 rounded-sm">
                 
-                <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2 group">
-                    <label className="text-xs font-bold text-[#0A0B0D]/80 uppercase tracking-widest transition-colors group-focus-within:text-[#B8935B]">Full Name</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-bold text-[#0A0B0D] uppercase tracking-widest">Full Name</label>
                     <div className="relative">
-                      <User className="absolute left-4 top-4 w-5 h-5 text-[#0A0B0D]/30 transition-colors duration-300 group-focus-within:text-[#B8935B]" />
+                      <User className="absolute left-0 top-3 w-5 h-5 text-[#0A0B0D]/30" />
                       <input 
                         type="text" 
                         value={name}
                         onChange={e => setName(e.target.value)}
-                        className="w-full bg-white/50 border border-transparent ring-1 ring-[#E6DFD1]/50 rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#B8935B] focus:bg-white focus:shadow-[0_0_20px_rgba(184,147,91,0.15)] transition-all duration-300 text-[#0A0B0D] placeholder:text-[#0A0B0D]/30" 
+                        className="w-full bg-transparent border-b border-[#E6DFD1] rounded-none py-3 pl-8 pr-0 outline-none focus:border-[#B8935B] transition-colors duration-300 text-[#0A0B0D] placeholder:text-[#0A0B0D]/30 text-lg" 
                         placeholder="John Doe"
                       />
                     </div>
                   </div>
                   
-                  <div className="space-y-2 group">
-                    <label className="text-xs font-bold text-[#0A0B0D]/80 uppercase tracking-widest transition-colors group-focus-within:text-[#B8935B]">Email Address</label>
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-bold text-[#0A0B0D] uppercase tracking-widest">Email Address</label>
                     <div className="relative">
-                      <Mail className="absolute left-4 top-4 w-5 h-5 text-[#0A0B0D]/30 transition-colors duration-300 group-focus-within:text-[#B8935B]" />
+                      <Mail className="absolute left-0 top-3 w-5 h-5 text-[#0A0B0D]/30" />
                       <input 
                         type="email" 
                         value={email}
                         onChange={e => setEmail(e.target.value)}
-                        className="w-full bg-white/50 border border-transparent ring-1 ring-[#E6DFD1]/50 rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#B8935B] focus:bg-white focus:shadow-[0_0_20px_rgba(184,147,91,0.15)] transition-all duration-300 text-[#0A0B0D] placeholder:text-[#0A0B0D]/30" 
+                        className="w-full bg-transparent border-b border-[#E6DFD1] rounded-none py-3 pl-8 pr-0 outline-none focus:border-[#B8935B] transition-colors duration-300 text-[#0A0B0D] placeholder:text-[#0A0B0D]/30 text-lg" 
                         placeholder="john@example.com"
                       />
                     </div>
                   </div>
                 </div>
                 
-                <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2 group">
-                    <label className="text-xs font-bold text-[#0A0B0D]/80 uppercase tracking-widest transition-colors group-focus-within:text-[#B8935B]">Phone Number</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-bold text-[#0A0B0D] uppercase tracking-widest">Phone Number</label>
                     <div className="relative">
-                      <Phone className="absolute left-4 top-4 w-5 h-5 text-[#0A0B0D]/30 transition-colors duration-300 group-focus-within:text-[#B8935B]" />
+                      <Phone className="absolute left-0 top-3 w-5 h-5 text-[#0A0B0D]/30" />
                       <input 
                         type="tel" 
                         value={phone}
                         onChange={e => setPhone(e.target.value)}
-                        className="w-full bg-white/50 border border-transparent ring-1 ring-[#E6DFD1]/50 rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#B8935B] focus:bg-white focus:shadow-[0_0_20px_rgba(184,147,91,0.15)] transition-all duration-300 text-[#0A0B0D] placeholder:text-[#0A0B0D]/30" 
+                        className="w-full bg-transparent border-b border-[#E6DFD1] rounded-none py-3 pl-8 pr-0 outline-none focus:border-[#B8935B] transition-colors duration-300 text-[#0A0B0D] placeholder:text-[#0A0B0D]/30 text-lg" 
                         placeholder="+1 234 567 890"
                       />
                     </div>
                   </div>
                   
-                  <div className="space-y-2 group">
-                    <label className="text-xs font-bold text-[#0A0B0D]/80 uppercase tracking-widest transition-colors group-focus-within:text-[#B8935B]">Country</label>
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-bold text-[#0A0B0D] uppercase tracking-widest">Country</label>
                     <div className="relative">
-                      <Globe className="absolute left-4 top-4 w-5 h-5 text-[#0A0B0D]/30 transition-colors duration-300 group-focus-within:text-[#B8935B]" />
+                      <Globe className="absolute left-0 top-3 w-5 h-5 text-[#0A0B0D]/30" />
                       <select 
                         value={countryCode}
                         onChange={e => setCountryCode(e.target.value)}
-                        className="w-full bg-white/50 border border-transparent ring-1 ring-[#E6DFD1]/50 rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#B8935B] focus:bg-white focus:shadow-[0_0_20px_rgba(184,147,91,0.15)] transition-all duration-300 appearance-none text-[#0A0B0D]"
+                        className="w-full bg-transparent border-b border-[#E6DFD1] rounded-none py-3 pl-8 pr-4 outline-none focus:border-[#B8935B] transition-colors duration-300 appearance-none text-[#0A0B0D] text-lg"
                       >
                         <option value="IN">India</option>
                         <option value="US">United States</option>
@@ -186,16 +190,19 @@ export default function CatalystApplyPage() {
                         <option value="AU">Australia</option>
                         <option value="CA">Canada</option>
                       </select>
-                      <div className="absolute right-4 top-5 pointer-events-none text-[#0A0B0D]/40 transition-colors duration-300 group-focus-within:text-[#B8935B]">
-                        <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <div className="absolute right-0 top-4 pointer-events-none text-[#0A0B0D]">
+                        <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                       </div>
                     </div>
                   </div>
                 </div>
                 
-                <div className="relative z-10 space-y-4 pt-2">
-                  <label className="text-xs font-bold text-[#0A0B0D]/80 uppercase tracking-widest">Experience Level</label>
-                  <p className="text-sm text-[#0A0B0D]/50 pb-2">Pricing scales based on the strategic depth and complexity required for your career stage.</p>
+                <div className="space-y-5 pt-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-bold text-[#0A0B0D] uppercase tracking-widest">Career Trajectory</label>
+                    <p className="text-sm text-[#0A0B0D]/50">Pricing and strategic depth scales based on your current executive tier.</p>
+                  </div>
+                  
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
                       { id: 'FRESHER', label: '0-2 Years' },
@@ -206,30 +213,25 @@ export default function CatalystApplyPage() {
                       <button
                         key={exp.id}
                         onClick={() => setExperienceLevel(exp.id as ClientType)}
-                        className={`relative overflow-hidden py-4 px-2 sm:px-4 rounded-xl text-xs sm:text-sm font-bold transition-all duration-500 ease-out ${
+                        className={`py-4 px-3 rounded-sm border text-sm font-bold transition-all duration-300 ${
                           experienceLevel === exp.id 
-                            ? 'bg-[#0A0B0D] text-[#F4F1EB] border-transparent shadow-[0_10px_20px_rgba(10,11,13,0.3)] scale-[1.03] ring-2 ring-[#B8935B]' 
-                            : 'bg-white/50 border border-[#E6DFD1] text-[#0A0B0D]/70 hover:bg-white hover:border-[#B8935B]/50 hover:text-[#0A0B0D] hover:-translate-y-1 hover:shadow-lg'
+                            ? 'bg-[#0A0B0D] text-white border-[#0A0B0D]' 
+                            : 'bg-transparent border-[#E6DFD1] text-[#0A0B0D]/70 hover:border-[#0A0B0D] hover:text-[#0A0B0D]'
                         }`}
                       >
-                        {experienceLevel === exp.id && (
-                          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-[#B8935B]/20 to-transparent opacity-50" />
-                        )}
-                        <span className="relative z-10">{exp.label}</span>
+                        {exp.label}
                       </button>
                     ))}
                   </div>
                 </div>
                 
-                <div className="relative z-10 pt-8 animate-fade-up" style={{ animationDelay: '300ms', animationFillMode: 'both' }}>
+                <div className="pt-10 border-t border-[#E6DFD1]">
                   <button 
                     onClick={handleNextStep1}
-                    className="w-full group relative overflow-hidden bg-gradient-to-r from-[#B8935B] via-[#E3B873] to-[#B8935B] bg-[length:200%_auto] animate-shimmer text-[#0A0B0D] font-bold text-lg rounded-xl py-5 hover:-translate-y-1 hover:scale-[1.01] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_10px_30px_-5px_rgba(184,147,91,0.6)]"
+                    className="w-full sm:w-auto sm:ml-auto group relative overflow-hidden bg-[#B8935B] text-[#0A0B0D] font-bold text-[13px] uppercase tracking-widest px-10 py-5 hover:bg-[#A37E47] transition-all duration-300 flex items-center justify-center gap-3 rounded-sm"
                   >
-                    <span className="relative z-10 flex items-center gap-2 drop-shadow-sm">
-                      Continue to Services
-                      <ArrowRight className="w-5 h-5 transition-transform duration-500 group-hover:translate-x-1" />
-                    </span>
+                    Continue to Services
+                    <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
                   </button>
                 </div>
               </div>
@@ -237,117 +239,127 @@ export default function CatalystApplyPage() {
           )}
           
           {step === 2 && (
-             <div className="animate-fade-up">
-               <div className="text-center mb-10 sm:mb-14 animate-fade-up" style={{ animationDelay: '100ms', animationFillMode: 'both' }} >
-                 <h1 className="text-4xl sm:text-6xl font-serif font-bold tracking-tight text-[#0A0B0D] mb-5">Choose Your Path</h1>
-                 <p className="text-lg text-[#0A0B0D]/60 max-w-lg mx-auto">Select the executive package that aligns with your ultimate career goals.</p>
+             <div className="animate-in fade-in slide-in-from-right-8 duration-700">
+               <div className="mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+                 <div>
+                   <h1 className="text-4xl sm:text-5xl font-serif text-[#0A0B0D] mb-3">Service Selection</h1>
+                   <p className="text-base text-[#0A0B0D]/60 max-w-lg">Select the executive strategy package that aligns with your placement objectives.</p>
+                 </div>
+                 <div className="bg-white border border-[#E6DFD1] px-4 py-2 rounded-sm text-xs font-bold text-[#0A0B0D]/60 tracking-wider flex items-center gap-2">
+                   <Star className="w-3.5 h-3.5 text-[#B8935B] fill-[#B8935B]" /> JOIN 500+ PLACED LEADERS
+                 </div>
                </div>
                
                <div className="space-y-6">
                  {/* Premium Plus */}
                  <div 
                    onClick={() => setSelectedPackage('PREMIUM_PLUS')}
-                   className={`group relative overflow-hidden cursor-pointer rounded-2xl sm:rounded-3xl border-2 transition-all duration-500 ease-out animate-fade-up ${
+                   className={`group relative cursor-pointer bg-white transition-all duration-300 rounded-sm border ${
                      selectedPackage === 'PREMIUM_PLUS' 
-                       ? 'bg-[#0A0B0D] border-[#B8935B] shadow-[0_20px_50px_rgba(184,147,91,0.2)] scale-[1.03] z-10' 
-                       : 'bg-white/60 backdrop-blur-xl border-white/80 shadow-lg hover:border-[#B8935B]/50 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)]'
+                       ? 'border-[#B8935B] shadow-md' 
+                       : 'border-[#E6DFD1] hover:border-[#0A0B0D]/30'
                    }`}
-                   style={{ animationDelay: '200ms', animationFillMode: 'both' }}
                  >
-                   <div className="absolute top-0 right-0 bg-gradient-to-r from-[#B8935B] to-[#E3B873] text-[#0A0B0D] text-xs font-bold px-4 py-2 rounded-bl-2xl shadow-md flex items-center gap-1.5">
-                     <Sparkles className="w-3.5 h-3.5" /> RECOMMENDED
+                   <div className="absolute top-0 right-0 bg-[#0A0B0D] text-[#F4F1EB] text-[10px] uppercase tracking-widest font-bold px-4 py-2 flex items-center gap-1">
+                     <Star className="w-3 h-3 text-[#B8935B]" /> RECOMMENDED
                    </div>
-                   
-                   {/* Ambient internal glow */}
-                   {selectedPackage === 'PREMIUM_PLUS' && (
-                     <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#B8935B]/20 via-transparent to-transparent pointer-events-none" />
-                   )}
 
-                   <div className="relative z-10 p-6 sm:p-10">
-                     <div className="flex items-center gap-5 sm:gap-6 mb-8">
-                       <div className={`p-4 rounded-2xl transition-colors duration-500 ${selectedPackage === 'PREMIUM_PLUS' ? 'bg-[#B8935B]/20 text-[#B8935B]' : 'bg-[#F4F1EB] text-[#0A0B0D]/50 group-hover:bg-[#B8935B]/10 group-hover:text-[#B8935B]'}`}>
-                         <Star className="w-7 h-7 sm:w-9 sm:h-9" />
-                       </div>
-                       <div>
-                         <h3 className={`text-2xl sm:text-3xl font-serif font-bold transition-colors duration-500 ${selectedPackage === 'PREMIUM_PLUS' ? 'text-[#F4F1EB]' : 'text-[#0A0B0D]'}`}>Premium Plus</h3>
-                         <p className={`text-sm mt-1 transition-colors duration-500 ${selectedPackage === 'PREMIUM_PLUS' ? 'text-[#F4F1EB]/60' : 'text-[#0A0B0D]/50'}`}>The complete personal branding overhaul.</p>
-                       </div>
-                     </div>
-                     <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm font-medium">
-                       {['Resume Writing', 'LinkedIn Optimization', 'Cover Letter', 'Portfolio Website'].map((item, i) => (
-                         <li key={item} className={`flex items-center gap-3 transition-colors duration-500 delay-[${i*100}ms] ${selectedPackage === 'PREMIUM_PLUS' ? 'text-[#F4F1EB]' : 'text-[#0A0B0D]/80'}`}>
-                           <CheckCircle className={`w-5 h-5 transition-colors duration-500 ${selectedPackage === 'PREMIUM_PLUS' ? 'text-[#B8935B]' : 'text-[#0A0B0D]/20 group-hover:text-[#B8935B]/50'}`} /> {item}
+                   <div className="p-6 sm:p-10 flex flex-col sm:flex-row gap-8">
+                     <div className="flex-1">
+                       <h3 className="text-2xl font-serif text-[#0A0B0D] mb-2">Premium Plus</h3>
+                       <p className="text-sm text-[#0A0B0D]/60 mb-8 border-b border-[#E6DFD1] pb-6">The complete, end-to-end executive branding overhaul.</p>
+                       
+                       <ul className="space-y-5">
+                         <li className="flex gap-4">
+                           <Check className={`w-5 h-5 shrink-0 mt-0.5 ${selectedPackage === 'PREMIUM_PLUS' ? 'text-[#B8935B]' : 'text-[#E6DFD1]'}`} />
+                           <div>
+                             <p className="font-bold text-[#0A0B0D] text-sm">Executive Resume</p>
+                             <p className="text-[#0A0B0D]/60 text-sm mt-1">ATS-optimized, strategy-driven document meticulously crafted to pass board-level screening and highlight your unique leadership trajectory.</p>
+                           </div>
                          </li>
-                       ))}
-                     </ul>
+                         <li className="flex gap-4">
+                           <Check className={`w-5 h-5 shrink-0 mt-0.5 ${selectedPackage === 'PREMIUM_PLUS' ? 'text-[#B8935B]' : 'text-[#E6DFD1]'}`} />
+                           <div>
+                             <p className="font-bold text-[#0A0B0D] text-sm">LinkedIn Authority</p>
+                             <p className="text-[#0A0B0D]/60 text-sm mt-1">Complete profile overhaul designed to attract elite executive headhunters and establish you as an industry thought-leader.</p>
+                           </div>
+                         </li>
+                         <li className="flex gap-4">
+                           <Check className={`w-5 h-5 shrink-0 mt-0.5 ${selectedPackage === 'PREMIUM_PLUS' ? 'text-[#B8935B]' : 'text-[#E6DFD1]'}`} />
+                           <div>
+                             <p className="font-bold text-[#0A0B0D] text-sm">Strategic Cover Letter</p>
+                             <p className="text-[#0A0B0D]/60 text-sm mt-1">Highly targeted, persuasive narrative designed to secure interviews for coveted c-suite and director-level roles.</p>
+                           </div>
+                         </li>
+                         <li className="flex gap-4">
+                           <Check className={`w-5 h-5 shrink-0 mt-0.5 ${selectedPackage === 'PREMIUM_PLUS' ? 'text-[#B8935B]' : 'text-[#E6DFD1]'}`} />
+                           <div>
+                             <p className="font-bold text-[#0A0B0D] text-sm">Digital Portfolio</p>
+                             <p className="text-[#0A0B0D]/60 text-sm mt-1">A bespoke, premium digital presence (domain included) that showcases your career milestones and executive brand.</p>
+                           </div>
+                         </li>
+                       </ul>
+                     </div>
                    </div>
                  </div>
                  
                  {/* Career Booster */}
                  <div 
                    onClick={() => setSelectedPackage('CAREER_BOOSTER')}
-                   className={`group relative overflow-hidden cursor-pointer rounded-2xl sm:rounded-3xl border-2 transition-all duration-500 ease-out animate-fade-up ${
+                   className={`group relative cursor-pointer bg-white transition-all duration-300 rounded-sm border ${
                      selectedPackage === 'CAREER_BOOSTER' 
-                       ? 'bg-[#0A0B0D] border-[#B8935B] shadow-[0_20px_50px_rgba(184,147,91,0.2)] scale-[1.03] z-10' 
-                       : 'bg-white/60 backdrop-blur-xl border-white/80 shadow-lg hover:border-[#B8935B]/50 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)]'
+                       ? 'border-[#0A0B0D] shadow-md' 
+                       : 'border-[#E6DFD1] hover:border-[#0A0B0D]/30'
                    }`}
-                   style={{ animationDelay: '300ms', animationFillMode: 'both' }}
                  >
-                   <div className="absolute top-0 right-0 bg-[#0A0B0D]/10 text-[#0A0B0D]/70 text-xs font-bold px-4 py-2 rounded-bl-2xl">
-                     MOST POPULAR
+                   <div className="absolute top-0 right-0 bg-[#E6DFD1] text-[#0A0B0D] text-[10px] uppercase tracking-widest font-bold px-4 py-2">
+                     POPULAR
                    </div>
-                   
-                   {selectedPackage === 'CAREER_BOOSTER' && (
-                     <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#B8935B]/20 via-transparent to-transparent pointer-events-none" />
-                   )}
 
-                   <div className="relative z-10 p-6 sm:p-10">
-                     <div className="flex items-center gap-5 sm:gap-6 mb-8">
-                       <div className={`p-4 rounded-2xl transition-colors duration-500 ${selectedPackage === 'CAREER_BOOSTER' ? 'bg-[#B8935B]/20 text-[#B8935B]' : 'bg-[#F4F1EB] text-[#0A0B0D]/50 group-hover:bg-[#B8935B]/10 group-hover:text-[#B8935B]'}`}>
-                         <Briefcase className="w-7 h-7 sm:w-9 sm:h-9" />
-                       </div>
-                       <div>
-                         <h3 className={`text-2xl sm:text-3xl font-serif font-bold transition-colors duration-500 ${selectedPackage === 'CAREER_BOOSTER' ? 'text-[#F4F1EB]' : 'text-[#0A0B0D]'}`}>Career Booster</h3>
-                         <p className={`text-sm mt-1 transition-colors duration-500 ${selectedPackage === 'CAREER_BOOSTER' ? 'text-[#F4F1EB]/60' : 'text-[#0A0B0D]/50'}`}>Everything you need to land interviews.</p>
-                       </div>
-                     </div>
-                     <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm font-medium">
-                       {['Resume Writing', 'LinkedIn Optimization', 'Cover Letter'].map((item) => (
-                         <li key={item} className={`flex items-center gap-3 transition-colors duration-500 ${selectedPackage === 'CAREER_BOOSTER' ? 'text-[#F4F1EB]' : 'text-[#0A0B0D]/80'}`}>
-                           <CheckCircle className={`w-5 h-5 transition-colors duration-500 ${selectedPackage === 'CAREER_BOOSTER' ? 'text-[#B8935B]' : 'text-[#0A0B0D]/20 group-hover:text-[#B8935B]/50'}`} /> {item}
+                   <div className="p-6 sm:p-10 flex flex-col sm:flex-row gap-8">
+                     <div className="flex-1">
+                       <h3 className="text-2xl font-serif text-[#0A0B0D] mb-2">Career Booster</h3>
+                       <p className="text-sm text-[#0A0B0D]/60 mb-8 border-b border-[#E6DFD1] pb-6">Core essentials for elite market placement.</p>
+                       
+                       <ul className="space-y-5">
+                         <li className="flex gap-4">
+                           <Check className={`w-5 h-5 shrink-0 mt-0.5 ${selectedPackage === 'CAREER_BOOSTER' ? 'text-[#0A0B0D]' : 'text-[#E6DFD1]'}`} />
+                           <div>
+                             <p className="font-bold text-[#0A0B0D] text-sm">Executive Resume</p>
+                           </div>
                          </li>
-                       ))}
-                     </ul>
+                         <li className="flex gap-4">
+                           <Check className={`w-5 h-5 shrink-0 mt-0.5 ${selectedPackage === 'CAREER_BOOSTER' ? 'text-[#0A0B0D]' : 'text-[#E6DFD1]'}`} />
+                           <div>
+                             <p className="font-bold text-[#0A0B0D] text-sm">LinkedIn Authority</p>
+                           </div>
+                         </li>
+                         <li className="flex gap-4">
+                           <Check className={`w-5 h-5 shrink-0 mt-0.5 ${selectedPackage === 'CAREER_BOOSTER' ? 'text-[#0A0B0D]' : 'text-[#E6DFD1]'}`} />
+                           <div>
+                             <p className="font-bold text-[#0A0B0D] text-sm">Strategic Cover Letter</p>
+                           </div>
+                         </li>
+                       </ul>
+                     </div>
                    </div>
                  </div>
                  
                  {/* Build Your Own */}
                  <div 
                    onClick={() => setSelectedPackage('CUSTOM')}
-                   className={`group relative overflow-hidden cursor-pointer rounded-2xl sm:rounded-3xl border-2 transition-all duration-500 ease-out animate-fade-up ${
+                   className={`group relative cursor-pointer bg-white transition-all duration-300 rounded-sm border ${
                      selectedPackage === 'CUSTOM' 
-                       ? 'bg-[#0A0B0D] border-[#B8935B] shadow-[0_20px_50px_rgba(184,147,91,0.2)] scale-[1.03] z-10' 
-                       : 'bg-white/60 backdrop-blur-xl border-white/80 shadow-lg hover:border-[#B8935B]/50 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)]'
+                       ? 'border-[#0A0B0D] shadow-md' 
+                       : 'border-[#E6DFD1] hover:border-[#0A0B0D]/30'
                    }`}
-                   style={{ animationDelay: '400ms', animationFillMode: 'both' }}
                  >
-                   {selectedPackage === 'CUSTOM' && (
-                     <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#B8935B]/20 via-transparent to-transparent pointer-events-none" />
-                   )}
-                   
-                   <div className="relative z-10 p-6 sm:p-10">
-                     <div className="flex items-center gap-5 sm:gap-6 mb-6">
-                       <div className={`p-4 rounded-2xl transition-colors duration-500 ${selectedPackage === 'CUSTOM' ? 'bg-[#B8935B]/20 text-[#B8935B]' : 'bg-[#F4F1EB] text-[#0A0B0D]/50 group-hover:bg-[#B8935B]/10 group-hover:text-[#B8935B]'}`}>
-                         <Shield className="w-7 h-7 sm:w-9 sm:h-9" />
-                       </div>
-                       <div>
-                         <h3 className={`text-2xl sm:text-3xl font-serif font-bold transition-colors duration-500 ${selectedPackage === 'CUSTOM' ? 'text-[#F4F1EB]' : 'text-[#0A0B0D]'}`}>A La Carte</h3>
-                         <p className={`text-sm mt-1 transition-colors duration-500 ${selectedPackage === 'CUSTOM' ? 'text-[#F4F1EB]/60' : 'text-[#0A0B0D]/50'}`}>Select individual services tailored to your needs.</p>
-                       </div>
-                     </div>
+                   <div className="p-6 sm:p-10">
+                     <h3 className="text-2xl font-serif text-[#0A0B0D] mb-2">A La Carte</h3>
+                     <p className="text-sm text-[#0A0B0D]/60 mb-6">Select individual components tailored to your needs.</p>
                      
                      {selectedPackage === 'CUSTOM' && (
-                       <div className="mt-8 pt-8 border-t border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
+                       <div className="pt-6 border-t border-[#E6DFD1] grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
                          {['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'].map(svc => (
                            <button
                              key={svc}
@@ -357,14 +369,14 @@ export default function CatalystApplyPage() {
                                  prev.includes(svc) ? prev.filter(s => s !== svc) : [...prev, svc]
                                );
                              }}
-                             className={`py-4 px-5 rounded-xl border text-sm font-bold transition-all duration-300 flex items-center justify-between ${
+                             className={`py-4 px-5 border text-[11px] uppercase tracking-widest font-bold transition-all duration-300 flex items-center justify-between rounded-sm ${
                                customServices.includes(svc)
-                                 ? 'bg-gradient-to-r from-[#B8935B] to-[#E3B873] border-transparent text-[#0A0B0D] shadow-[0_5px_15px_rgba(184,147,91,0.4)] scale-[1.02]'
-                                 : 'bg-white/10 border-white/20 text-[#F4F1EB]/80 hover:bg-white/20 hover:text-white'
+                                 ? 'bg-[#0A0B0D] border-[#0A0B0D] text-white'
+                                 : 'bg-transparent border-[#E6DFD1] text-[#0A0B0D]/60 hover:border-[#0A0B0D]/50 hover:text-[#0A0B0D]'
                              }`}
                            >
                              {svc.replace('_', ' ')}
-                             {customServices.includes(svc) && <CheckCircle className="w-5 h-5 text-[#0A0B0D]" />}
+                             {customServices.includes(svc) && <Check className="w-4 h-4 text-white" />}
                            </button>
                          ))}
                        </div>
@@ -372,53 +384,51 @@ export default function CatalystApplyPage() {
                    </div>
                  </div>
                  
-                  <div className="pt-8 flex flex-col gap-6 animate-fade-up" style={{ animationDelay: '500ms', animationFillMode: 'both' }}>
+                  <div className="pt-10 flex flex-col gap-6">
                     {countryCode !== 'IN' && (
-                      <div className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-3xl p-6 sm:p-8 flex flex-col gap-5 shadow-lg">
-                        <label className="text-xs font-bold text-[#0A0B0D]/80 uppercase tracking-widest">Select Payment Method</label>
+                      <div className="bg-white border border-[#E6DFD1] rounded-sm p-6 sm:p-8 flex flex-col gap-5">
+                        <label className="text-[11px] font-bold text-[#0A0B0D] uppercase tracking-widest">Select Payment Method</label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <button
                             onClick={() => setPreferredGateway('PAYPAL')}
-                            className={`py-5 px-6 rounded-2xl border-2 text-left transition-all duration-300 ${
+                            className={`py-5 px-6 rounded-sm border transition-all duration-300 text-left ${
                               preferredGateway === 'PAYPAL'
-                                ? 'bg-gradient-to-br from-[#B8935B]/10 to-transparent border-[#B8935B] shadow-md scale-[1.02]'
-                                : 'bg-white/50 border-white hover:bg-white hover:border-[#B8935B]/40'
+                                ? 'bg-[#F4F1EB] border-[#B8935B]'
+                                : 'bg-transparent border-[#E6DFD1] hover:border-[#0A0B0D]/30'
                             }`}
                           >
-                            <div className={`font-bold text-lg ${preferredGateway === 'PAYPAL' ? 'text-[#0A0B0D]' : 'text-[#0A0B0D]/70'}`}>PayPal</div>
-                            <div className={`text-sm mt-1 ${preferredGateway === 'PAYPAL' ? 'text-[#0A0B0D]/70' : 'text-[#0A0B0D]/40'}`}>Pay seamlessly in USD</div>
+                            <div className="font-bold text-[#0A0B0D] text-sm uppercase tracking-wide">PayPal</div>
+                            <div className="text-[13px] mt-1 text-[#0A0B0D]/50">Pay securely in USD</div>
                           </button>
                           <button
                             onClick={() => setPreferredGateway('RAZORPAY')}
-                            className={`py-5 px-6 rounded-2xl border-2 text-left transition-all duration-300 ${
+                            className={`py-5 px-6 rounded-sm border transition-all duration-300 text-left ${
                               preferredGateway === 'RAZORPAY'
-                                ? 'bg-gradient-to-br from-[#B8935B]/10 to-transparent border-[#B8935B] shadow-md scale-[1.02]'
-                                : 'bg-white/50 border-white hover:bg-white hover:border-[#B8935B]/40'
+                                ? 'bg-[#F4F1EB] border-[#B8935B]'
+                                : 'bg-transparent border-[#E6DFD1] hover:border-[#0A0B0D]/30'
                             }`}
                           >
-                            <div className={`font-bold text-lg ${preferredGateway === 'RAZORPAY' ? 'text-[#0A0B0D]' : 'text-[#0A0B0D]/70'}`}>Credit / Debit Card</div>
-                            <div className={`text-sm mt-1 ${preferredGateway === 'RAZORPAY' ? 'text-[#0A0B0D]/70' : 'text-[#0A0B0D]/40'}`}>Pay natively in Local Currency</div>
+                            <div className="font-bold text-[#0A0B0D] text-sm uppercase tracking-wide">Credit / Debit Card</div>
+                            <div className="text-[13px] mt-1 text-[#0A0B0D]/50">Pay natively in Local Currency</div>
                           </button>
                         </div>
                       </div>
                     )}
                     
-                    <div className="flex flex-col-reverse sm:flex-row gap-5">
+                    <div className="flex flex-col-reverse sm:flex-row gap-4 pt-4 border-t border-[#E6DFD1]">
                       <button 
                         onClick={() => setStep(1)}
-                        className="px-8 py-5 rounded-2xl border-2 border-[#0A0B0D]/10 text-[#0A0B0D]/70 font-bold hover:bg-[#0A0B0D]/5 hover:text-[#0A0B0D] transition-all text-center"
+                        className="px-8 py-5 border border-[#E6DFD1] text-[#0A0B0D]/70 font-bold text-[13px] uppercase tracking-widest hover:border-[#0A0B0D] hover:text-[#0A0B0D] transition-all text-center rounded-sm"
                       >
                         Back
                       </button>
                       <button 
                         onClick={handleNextStep2}
                         disabled={loading}
-                        className="flex-1 group relative overflow-hidden bg-gradient-to-r from-[#B8935B] via-[#E3B873] to-[#B8935B] bg-[length:200%_auto] animate-shimmer text-[#0A0B0D] font-bold text-lg rounded-2xl py-5 hover:-translate-y-1 hover:scale-[1.01] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_10px_30px_-5px_rgba(184,147,91,0.6)] disabled:opacity-50 disabled:pointer-events-none"
+                        className="flex-1 sm:flex-none sm:ml-auto group bg-[#B8935B] text-[#0A0B0D] font-bold text-[13px] uppercase tracking-widest px-10 py-5 hover:bg-[#A37E47] transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:pointer-events-none rounded-sm"
                       >
-                        <span className="relative z-10 flex items-center gap-2 drop-shadow-sm">
-                          {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Calculate Premium Pricing'}
-                          {!loading && <ArrowRight className="w-5 h-5 transition-transform duration-500 group-hover:translate-x-1" />}
-                        </span>
+                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Calculate Pricing'}
+                        {!loading && <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />}
                       </button>
                     </div>
                   </div>
@@ -428,69 +438,70 @@ export default function CatalystApplyPage() {
           )}
           
           {step === 3 && pricingDraft && (
-             <div className="animate-fade-up">
-               <div className="text-center mb-10 sm:mb-14 animate-fade-up" style={{ animationDelay: '100ms', animationFillMode: 'both' }}>
-                 <h1 className="text-4xl sm:text-6xl font-serif font-bold tracking-tight text-[#0A0B0D] mb-5">Checkout</h1>
-                 <p className="text-lg text-[#0A0B0D]/60 max-w-lg mx-auto">Secure your investment. Immediate portal access.</p>
+             <div className="animate-in fade-in zoom-in-[0.98] duration-700">
+               <div className="mb-12 flex flex-col sm:flex-row justify-between items-end gap-6 border-b border-[#E6DFD1] pb-6">
+                 <div>
+                   <h1 className="text-4xl sm:text-5xl font-serif text-[#0A0B0D] mb-3">Order Finalization</h1>
+                   <p className="text-base text-[#0A0B0D]/60 max-w-lg">Review your strategic investment and proceed to secure checkout.</p>
+                 </div>
+                 <div className="bg-[#E6DFD1]/50 px-4 py-2 rounded-sm text-[10px] font-bold text-[#0A0B0D] tracking-widest uppercase flex items-center gap-2">
+                   <Lock className="w-3 h-3" /> SECURE 256-BIT ENCRYPTION
+                 </div>
                </div>
                
-               <div className="bg-white/70 backdrop-blur-3xl border border-white rounded-3xl p-8 sm:p-12 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.1)] relative overflow-hidden animate-fade-up" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
+               <div className="bg-white border border-[#E6DFD1] p-8 sm:p-12 rounded-sm relative">
                  
-                 <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-[#B8935B]/5 pointer-events-none" />
-                 
-                 <div className="relative z-10 space-y-7 mb-12">
-                   <h3 className="text-xs font-bold text-[#0A0B0D]/40 uppercase tracking-widest mb-8">Order Summary</h3>
+                 <div className="space-y-6 mb-12">
+                   <h3 className="text-[11px] font-bold text-[#0A0B0D]/40 uppercase tracking-widest mb-6">Itemized Breakdown</h3>
                    
-                   <div className="flex justify-between items-center pb-5 border-b border-[#0A0B0D]/10">
-                     <span className="font-medium text-[#0A0B0D] text-lg">Services ({selectedPackage.split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ')})</span>
-                     <span className="font-bold text-[#0A0B0D] text-lg">{pricingDraft.currencySymbol}{pricingDraft.subtotal.toLocaleString()}</span>
+                   <div className="flex justify-between items-center pb-4 border-b border-[#E6DFD1]/50">
+                     <span className="font-bold text-[#0A0B0D] text-[15px]">Services ({selectedPackage.split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ')})</span>
+                     <span className="font-serif text-lg text-[#0A0B0D]">{pricingDraft.currencySymbol}{pricingDraft.subtotal.toLocaleString()}</span>
                    </div>
                    
                    {pricingDraft.discountAmount > 0 && (
-                     <div className="flex justify-between items-center text-[#B8935B] pb-5 border-b border-[#0A0B0D]/10">
-                       <span className="font-medium text-lg">Package Discount ({(pricingDraft.discountRate * 100).toFixed(0)}%)</span>
-                       <span className="font-bold text-lg">-{pricingDraft.currencySymbol}{pricingDraft.discountAmount.toLocaleString()}</span>
+                     <div className="flex justify-between items-center text-[#B8935B] pb-4 border-b border-[#E6DFD1]/50">
+                       <span className="font-bold text-[15px]">Package Adjustment ({(pricingDraft.discountRate * 100).toFixed(0)}%)</span>
+                       <span className="font-serif text-lg">-{pricingDraft.currencySymbol}{pricingDraft.discountAmount.toLocaleString()}</span>
                      </div>
                    )}
                    
                    {pricingDraft.taxAmount > 0 && (
-                     <div className="flex justify-between items-center text-[#0A0B0D]/60 pb-5 border-b border-[#0A0B0D]/10">
-                       <span className="font-medium">Taxes ({(pricingDraft.taxRate * 100).toFixed(0)}%)</span>
-                       <span>{pricingDraft.currencySymbol}{pricingDraft.taxAmount.toLocaleString()}</span>
+                     <div className="flex justify-between items-center text-[#0A0B0D]/60 pb-4 border-b border-[#E6DFD1]/50">
+                       <span className="font-medium text-[15px]">Taxes & Compliance ({(pricingDraft.taxRate * 100).toFixed(0)}%)</span>
+                       <span className="font-serif text-lg">{pricingDraft.currencySymbol}{pricingDraft.taxAmount.toLocaleString()}</span>
                      </div>
                    )}
                    
-                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end pt-6 gap-3">
+                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end pt-8 gap-3">
                      <div>
-                       <span className="text-5xl sm:text-7xl font-serif font-bold text-[#0A0B0D] drop-shadow-sm">{pricingDraft.currencySymbol}{pricingDraft.finalPayable.toLocaleString()}</span>
-                       <span className="text-[#0A0B0D]/50 text-lg ml-3 font-bold">{pricingDraft.currency}</span>
+                       <span className="text-5xl sm:text-6xl font-serif text-[#0A0B0D]">{pricingDraft.currencySymbol}{pricingDraft.finalPayable.toLocaleString()}</span>
+                       <span className="text-[#0A0B0D]/50 text-sm ml-3 font-bold">{pricingDraft.currency}</span>
                      </div>
-                     <span className="text-sm text-[#0A0B0D]/40 max-w-[200px] sm:text-right font-medium">Includes all platform and gateway processing fees.</span>
+                     <span className="text-[11px] uppercase tracking-widest font-bold text-[#0A0B0D]/40 max-w-[200px] sm:text-right">Inclusive of all platform fees.</span>
                    </div>
                  </div>
                  
-                 <div className="relative z-10 pt-6 flex flex-col-reverse sm:flex-row gap-5">
+                 <div className="pt-8 border-t border-[#E6DFD1] flex flex-col-reverse sm:flex-row gap-5">
                    <button 
                      onClick={() => setStep(2)}
-                     className="px-8 py-5 rounded-2xl border-2 border-[#0A0B0D]/10 text-[#0A0B0D]/70 font-bold hover:bg-[#0A0B0D]/5 transition-all text-center"
+                     className="px-8 py-5 border border-[#E6DFD1] text-[#0A0B0D]/70 font-bold text-[13px] uppercase tracking-widest hover:border-[#0A0B0D] hover:text-[#0A0B0D] transition-all text-center rounded-sm"
                    >
                      Back
                    </button>
                    <button 
                      onClick={handleCheckout}
-                     className="flex-1 group relative overflow-hidden bg-gradient-to-r from-[#B8935B] via-[#E3B873] to-[#B8935B] bg-[length:200%_auto] animate-shimmer text-[#0A0B0D] font-bold text-xl rounded-2xl py-5 hover:-translate-y-1 hover:scale-[1.01] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-3 shadow-[0_15px_40px_-5px_rgba(184,147,91,0.6)]"
+                     className="flex-1 group bg-[#0A0B0D] text-[#F4F1EB] font-bold text-[13px] uppercase tracking-widest px-10 py-5 hover:bg-[#1A1C20] transition-all duration-300 flex items-center justify-center gap-3 rounded-sm"
                    >
-                     <span className="relative z-10 flex items-center gap-2 drop-shadow-sm">
-                       Complete Payment
-                       <Shield className="w-6 h-6 ml-1 transition-transform duration-500 group-hover:scale-110" />
-                     </span>
+                     Process Payment
+                     <ArrowUpRight className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity" />
                    </button>
                  </div>
                  
                </div>
                
-               <p className="text-center text-sm text-[#0A0B0D]/40 mt-10 max-w-md mx-auto leading-relaxed font-medium animate-fade-up" style={{ animationDelay: '300ms', animationFillMode: 'both' }} >
-                 By proceeding, you will receive an invoice marked as PENDING_PAYMENT. Full access to the client portal is granted immediately upon successful completion.
+               <p className="text-center text-[11px] text-[#0A0B0D]/40 uppercase tracking-widest mt-12 max-w-lg mx-auto leading-relaxed font-bold">
+                 Access to the executive portal is granted immediately upon successful completion. An invoice will be dispatched to your email securely.
                </p>
              </div>
           )}
