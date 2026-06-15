@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     ? SUPPORTED_CURRENCIES.find(c => c.code === currencyOverride) ?? getCurrencyForCountry(country ?? '')
     : getCurrencyForCountry(country ?? '');
 
-  const exchangeRate = await getExchangeRate(currencyInfo.code);
+  const exchangeRate = await getExchangeRate('INR', currencyInfo.code);
 
   if (!clientType) {
     return NextResponse.json({

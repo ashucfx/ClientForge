@@ -79,11 +79,12 @@ const CACHE_TTL_HOURS = 6;
 // In-memory cache for edge cases
 const memoryCache: Record<string, { rate: number; expiresAt: number }> = {};
 
-export async function getExchangeRate(targetCurrency: string): Promise<number> {
-  if (targetCurrency === 'INR') return 1;
+export async function getExchangeRate(baseCurrency: string, targetCurrency: string): Promise<number> {
+  if (baseCurrency === targetCurrency) return 1;
 
+  const cacheKey = `${baseCurrency}_${targetCurrency}`;
   // Check memory cache
-  const cached = memoryCache[targetCurrency];
+  const cached = memoryCache[cacheKey];
   if (cached && cached.expiresAt > Date.now()) {
     return cached.rate;
   }
@@ -96,7 +97,7 @@ export async function getExchangeRate(targetCurrency: string): Promise<number> {
 
     if (apiKey) {
       const res = await fetch(
-        `https://v6.exchangerate-api.com/v6/${apiKey}/pair/INR/${targetCurrency}`,
+        `https://v6.exchangerate-api.com/v6/${apiKey}/pair/${baseCurrency}/${targetCurrency}`,
         { next: { revalidate: CACHE_TTL_HOURS * 3600 } }
       );
       const data = await res.json();
@@ -108,7 +109,7 @@ export async function getExchangeRate(targetCurrency: string): Promise<number> {
     } else {
       // Fallback: Open Exchange Rates (no key needed for some endpoints)
       const res = await fetch(
-        `https://open.er-api.com/v6/latest/INR`,
+        `https://open.er-api.com/v6/latest/${baseCurrency}`,
         { next: { revalidate: CACHE_TTL_HOURS * 3600 } }
       );
       const data = await res.json();
@@ -120,7 +121,7 @@ export async function getExchangeRate(targetCurrency: string): Promise<number> {
     }
 
     // Store in memory cache
-    memoryCache[targetCurrency] = {
+    memoryCache[cacheKey] = {
       rate,
       expiresAt: Date.now() + CACHE_TTL_HOURS * 3600 * 1000,
     };
@@ -129,12 +130,24 @@ export async function getExchangeRate(targetCurrency: string): Promise<number> {
   } catch (err) {
     console.error('Exchange rate fetch failed:', err);
     // Fallback rates (approximate, used only when API unavailable)
-    const fallbackRates: Record<string, number> = {
-      USD: 0.012, GBP: 0.0095, EUR: 0.011, AED: 0.044,
-      SGD: 0.016, CAD: 0.016, AUD: 0.018, SAR: 0.045,
-      MYR: 0.056, HKD: 0.094, JPY: 1.78, QAR: 0.044,
-      NZD: 0.020, CHF: 0.011, SEK: 0.13, NOK: 0.13,
-    };
-    return fallbackRates[targetCurrency] ?? 0.012;
+    let fallbackRate = 1;
+    if (baseCurrency === 'USD') {
+      const usdFallbacks: Record<string, number> = {
+        INR: 83.5, GBP: 0.79, EUR: 0.92, AED: 3.67,
+        SGD: 1.35, CAD: 1.37, AUD: 1.50, SAR: 3.75,
+        MYR: 4.70, HKD: 7.80, JPY: 155.0, QAR: 3.64,
+        NZD: 1.66, CHF: 0.91, SEK: 10.8, NOK: 10.9,
+      };
+      fallbackRate = usdFallbacks[targetCurrency] ?? 1;
+    } else if (baseCurrency === 'INR') {
+      const inrFallbacks: Record<string, number> = {
+        USD: 0.012, GBP: 0.0095, EUR: 0.011, AED: 0.044,
+        SGD: 0.016, CAD: 0.016, AUD: 0.018, SAR: 0.045,
+        MYR: 0.056, HKD: 0.094, JPY: 1.85, QAR: 0.044,
+        NZD: 0.020, CHF: 0.011, SEK: 0.13, NOK: 0.13,
+      };
+      fallbackRate = inrFallbacks[targetCurrency] ?? 0.012;
+    }
+    return fallbackRate;
   }
 }

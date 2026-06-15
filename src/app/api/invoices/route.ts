@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
     const detectedCurrency = getCurrencyForCountry(country);
     const currencyCode     = currencyOverride ?? detectedCurrency.code;
     const currencySymbol   = detectedCurrency.symbol;
-    const exchangeRate     = await getExchangeRate(currencyCode);
+    const exchangeRate     = await getExchangeRate('INR', currencyCode);
 
     // ── Recalculate line totals server-side ──
     const safeItems: LineItem[] = lineItems.map(item => ({
