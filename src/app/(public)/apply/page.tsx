@@ -122,8 +122,8 @@ export default function CatalystApplyPage() {
           {step === 1 && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
               <div className="mb-12">
-                <h1 className="text-4xl sm:text-5xl font-serif text-[#0A0B0D] mb-4">Application Details</h1>
-                <p className="text-base text-[#0A0B0D]/60 max-w-2xl">Enter your professional information to generate your executive portfolio strategy and exact pricing structure.</p>
+                <h1 className="text-4xl sm:text-5xl font-serif text-[#0A0B0D] mb-4">Your Details</h1>
+                <p className="text-base text-[#0A0B0D]/60 max-w-2xl">Enter your information to generate your career strategy and exact pricing structure.</p>
               </div>
               
               <div className="bg-white p-6 sm:p-12 shadow-sm border border-[#E6DFD1] space-y-10 rounded-sm">
@@ -199,8 +199,8 @@ export default function CatalystApplyPage() {
                 
                 <div className="space-y-5 pt-4">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-bold text-[#0A0B0D] uppercase tracking-widest">Career Trajectory</label>
-                    <p className="text-sm text-[#0A0B0D]/50">Pricing and strategic depth scales based on your current executive tier.</p>
+                    <label className="text-[11px] font-bold text-[#0A0B0D] uppercase tracking-widest">Career Stage</label>
+                    <p className="text-sm text-[#0A0B0D]/50">Pricing and strategic depth scales based on your career stage.</p>
                   </div>
                   
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -243,10 +243,10 @@ export default function CatalystApplyPage() {
                <div className="mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
                  <div>
                    <h1 className="text-4xl sm:text-5xl font-serif text-[#0A0B0D] mb-3">Service Selection</h1>
-                   <p className="text-base text-[#0A0B0D]/60 max-w-lg">Select the executive strategy package that aligns with your placement objectives.</p>
+                   <p className="text-base text-[#0A0B0D]/60 max-w-lg">Select the strategy package that aligns with your career goals.</p>
                  </div>
                  <div className="bg-white border border-[#E6DFD1] px-4 py-2 rounded-sm text-xs font-bold text-[#0A0B0D]/60 tracking-wider flex items-center gap-2">
-                   <Star className="w-3.5 h-3.5 text-[#B8935B] fill-[#B8935B]" /> JOIN 500+ PLACED LEADERS
+                   <Star className="w-3.5 h-3.5 text-[#B8935B] fill-[#B8935B]" /> JOIN 500+ PLACED PROFESSIONALS
                  </div>
                </div>
                
@@ -267,35 +267,35 @@ export default function CatalystApplyPage() {
                    <div className="p-6 sm:p-10 flex flex-col sm:flex-row gap-8">
                      <div className="flex-1">
                        <h3 className="text-2xl font-serif text-[#0A0B0D] mb-2">Premium Plus</h3>
-                       <p className="text-sm text-[#0A0B0D]/60 mb-8 border-b border-[#E6DFD1] pb-6">The complete, end-to-end executive branding overhaul.</p>
+                       <p className="text-sm text-[#0A0B0D]/60 mb-8 border-b border-[#E6DFD1] pb-6">The complete, end-to-end career branding overhaul.</p>
                        
                        <ul className="space-y-5">
                          <li className="flex gap-4">
                            <Check className={`w-5 h-5 shrink-0 mt-0.5 ${selectedPackage === 'PREMIUM_PLUS' ? 'text-[#B8935B]' : 'text-[#E6DFD1]'}`} />
                            <div>
-                             <p className="font-bold text-[#0A0B0D] text-sm">Executive Resume</p>
-                             <p className="text-[#0A0B0D]/60 text-sm mt-1">ATS-optimized, strategy-driven document meticulously crafted to pass board-level screening and highlight your unique leadership trajectory.</p>
+                             <p className="font-bold text-[#0A0B0D] text-sm">Professional Resume</p>
+                             <p className="text-[#0A0B0D]/60 text-sm mt-1">ATS-optimized, strategy-driven document meticulously crafted to pass recruiter screening and highlight your unique career trajectory.</p>
                            </div>
                          </li>
                          <li className="flex gap-4">
                            <Check className={`w-5 h-5 shrink-0 mt-0.5 ${selectedPackage === 'PREMIUM_PLUS' ? 'text-[#B8935B]' : 'text-[#E6DFD1]'}`} />
                            <div>
                              <p className="font-bold text-[#0A0B0D] text-sm">LinkedIn Profile Overhaul</p>
-                             <p className="text-[#0A0B0D]/60 text-sm mt-1">Complete profile transformation including headline, summary, experience sections, custom banner design, and professional display photo guidance — engineered to attract elite executive headhunters.</p>
+                             <p className="text-[#0A0B0D]/60 text-sm mt-1">Complete profile transformation including headline, summary, experience sections, custom banner design, and professional display photo guidance — engineered to attract top recruiters and hiring managers.</p>
                            </div>
                          </li>
                          <li className="flex gap-4">
                            <Check className={`w-5 h-5 shrink-0 mt-0.5 ${selectedPackage === 'PREMIUM_PLUS' ? 'text-[#B8935B]' : 'text-[#E6DFD1]'}`} />
                            <div>
                              <p className="font-bold text-[#0A0B0D] text-sm">Strategic Cover Letter</p>
-                             <p className="text-[#0A0B0D]/60 text-sm mt-1">Highly targeted, persuasive narrative designed to secure interviews for coveted c-suite and director-level roles.</p>
+                             <p className="text-[#0A0B0D]/60 text-sm mt-1">Highly targeted, persuasive narrative designed to secure interviews for your dream roles at top-tier organizations.</p>
                            </div>
                          </li>
                          <li className="flex gap-4">
                            <Check className={`w-5 h-5 shrink-0 mt-0.5 ${selectedPackage === 'PREMIUM_PLUS' ? 'text-[#B8935B]' : 'text-[#E6DFD1]'}`} />
                            <div>
                              <p className="font-bold text-[#0A0B0D] text-sm">Portfolio Website</p>
-                             <p className="text-[#0A0B0D]/60 text-sm mt-1">A bespoke, multi-page digital presence that showcases your career milestones and executive brand. Includes domain integration setup and domain purchase guidance.</p>
+                             <p className="text-[#0A0B0D]/60 text-sm mt-1">A bespoke, multi-page digital presence that showcases your milestones and professional brand. Includes domain integration setup and domain purchase guidance.</p>
                            </div>
                          </li>
                        </ul>
@@ -319,13 +319,13 @@ export default function CatalystApplyPage() {
                    <div className="p-6 sm:p-10 flex flex-col sm:flex-row gap-8">
                      <div className="flex-1">
                        <h3 className="text-2xl font-serif text-[#0A0B0D] mb-2">Career Booster</h3>
-                       <p className="text-sm text-[#0A0B0D]/60 mb-8 border-b border-[#E6DFD1] pb-6">Core essentials for elite market placement.</p>
+                       <p className="text-sm text-[#0A0B0D]/60 mb-8 border-b border-[#E6DFD1] pb-6">Core essentials for career market placement.</p>
                        
                        <ul className="space-y-5">
                          <li className="flex gap-4">
                            <Check className={`w-5 h-5 shrink-0 mt-0.5 ${selectedPackage === 'CAREER_BOOSTER' ? 'text-[#0A0B0D]' : 'text-[#E6DFD1]'}`} />
                            <div>
-                             <p className="font-bold text-[#0A0B0D] text-sm">Executive Resume</p>
+                             <p className="font-bold text-[#0A0B0D] text-sm">Professional Resume</p>
                            </div>
                          </li>
                          <li className="flex gap-4">
@@ -375,7 +375,7 @@ export default function CatalystApplyPage() {
                                  : 'bg-transparent border-[#E6DFD1] text-[#0A0B0D]/60 hover:border-[#0A0B0D]/50 hover:text-[#0A0B0D]'
                              }`}
                            >
-                             {svc === 'RESUME' ? 'Executive Resume' : svc === 'LINKEDIN' ? 'LinkedIn Overhaul' : svc === 'COVER_LETTER' ? 'Cover Letter' : 'Portfolio Website'}
+                             {svc === 'RESUME' ? 'Professional Resume' : svc === 'LINKEDIN' ? 'LinkedIn Overhaul' : svc === 'COVER_LETTER' ? 'Cover Letter' : 'Portfolio Website'}
                              {customServices.includes(svc) && <Check className="w-4 h-4 text-white" />}
                            </button>
                          ))}
@@ -442,7 +442,7 @@ export default function CatalystApplyPage() {
                <div className="mb-12 flex flex-col sm:flex-row justify-between items-end gap-6 border-b border-[#E6DFD1] pb-6">
                  <div>
                    <h1 className="text-4xl sm:text-5xl font-serif text-[#0A0B0D] mb-3">Order Finalization</h1>
-                   <p className="text-base text-[#0A0B0D]/60 max-w-lg">Review your strategic investment and proceed to secure checkout.</p>
+                   <p className="text-base text-[#0A0B0D]/60 max-w-lg">Review your investment and proceed to secure checkout.</p>
                  </div>
                  <div className="bg-[#E6DFD1]/50 px-4 py-2 rounded-sm text-[10px] font-bold text-[#0A0B0D] tracking-widest uppercase flex items-center gap-2">
                    <Lock className="w-3 h-3" /> SECURE 256-BIT ENCRYPTION
@@ -501,7 +501,7 @@ export default function CatalystApplyPage() {
                </div>
                
                <p className="text-center text-[11px] text-[#0A0B0D]/40 uppercase tracking-widest mt-12 max-w-lg mx-auto leading-relaxed font-bold">
-                 Access to the executive portal is granted immediately upon successful completion. An invoice will be dispatched to your email securely.
+                 Access to the client portal is granted immediately upon successful completion. An invoice will be dispatched to your email securely.
                </p>
              </div>
           )}

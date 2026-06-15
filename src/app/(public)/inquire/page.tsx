@@ -20,15 +20,28 @@ import { ArrowRight, Loader2, Check } from 'lucide-react';
  */
 
 const SERVICES = [
-  { id: 'RESUME', label: 'Executive Resume', sub: 'ATS-optimized, strategy-driven' },
+  { id: 'RESUME', label: 'Professional Resume', sub: 'ATS-optimized, strategy-driven' },
   { id: 'LINKEDIN', label: 'LinkedIn Profile Overhaul', sub: 'Profile, Banner & DP' },
   { id: 'COVER_LETTER', label: 'Strategic Cover Letter', sub: 'Targeted, persuasive narrative' },
   { id: 'PORTFOLIO', label: 'Portfolio Website', sub: 'Multi-page with domain guidance' },
 ] as const;
 
+const COUNTRY_CODES = [
+  { code: '+91', country: 'IN', flag: '🇮🇳' },
+  { code: '+1', country: 'US', flag: '🇺🇸' },
+  { code: '+44', country: 'GB', flag: '🇬🇧' },
+  { code: '+971', country: 'AE', flag: '🇦🇪' },
+  { code: '+966', country: 'SA', flag: '🇸🇦' },
+  { code: '+61', country: 'AU', flag: '🇦🇺' },
+  { code: '+1', country: 'CA', flag: '🇨🇦' },
+  { code: '+65', country: 'SG', flag: '🇸🇬' },
+  { code: '+49', country: 'DE', flag: '🇩🇪' },
+] as const;
+
 export default function CatalystInquirePage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phoneCode, setPhoneCode] = useState('+91');
   const [phone, setPhone] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,7 +53,7 @@ export default function CatalystInquirePage() {
   };
 
   const handleSubmit = async () => {
-    if (!name.trim() || !email.trim()) return;
+    if (!name.trim() || !email.trim() || !phone.trim()) return;
     setLoading(true);
     try {
       const res = await fetch('/api/public/inquire/submit', {
@@ -49,8 +62,8 @@ export default function CatalystInquirePage() {
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim(),
-          phone: phone.trim(),
-          countryCode: 'IN',
+          phone: `${phoneCode} ${phone.trim()}`,
+          countryCode: COUNTRY_CODES.find(c => c.code === phoneCode)?.country || 'IN',
           countryName: 'India',
           experienceLevel: 'MID_CAREER',
           services: interests.length > 0 ? interests : ['RESUME'],
@@ -93,8 +106,8 @@ export default function CatalystInquirePage() {
             <div className="w-16 h-[1px] bg-brand-gold mb-8" />
             
             <p className="text-subheading text-brand-obsidian/60 leading-relaxed max-w-lg mb-6">
-              Our strategy team will review your profile and reach out within 24 hours 
-              with a tailored recommendation and exclusive pricing.
+              Our team will review your profile and reach out within 24 hours 
+              with a tailored recommendation and pricing.
             </p>
             
             <p className="text-body text-brand-obsidian/40">
@@ -157,7 +170,7 @@ export default function CatalystInquirePage() {
               onClick={scrollToForm}
               className="group inline-flex items-center gap-3 text-body font-semibold text-brand-obsidian border-b-2 border-brand-gold pb-1 hover:text-brand-gold transition-colors duration-300"
             >
-              Request a strategy consultation
+              Get your career strategy
               <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
             </button>
           </div>
@@ -166,7 +179,7 @@ export default function CatalystInquirePage() {
           <div className="lg:col-span-5 xl:col-span-5 xl:col-start-8 flex flex-col justify-end">
             <div className="border-l border-brand-parchment pl-8 space-y-10">
               {[
-                { metric: '500+', label: 'Executives placed into leadership roles' },
+                { metric: '500+', label: 'Professionals placed into dream roles' },
                 { metric: '94%', label: 'Interview conversion rate for our clients' },
                 { metric: '72hr', label: 'Average strategy turnaround' },
               ].map((stat) => (
@@ -198,23 +211,23 @@ export default function CatalystInquirePage() {
                 {[
                   {
                     num: '01',
-                    title: 'Executive Resume',
-                    desc: 'ATS-optimized, strategy-driven document meticulously crafted to pass board-level screening and highlight your unique leadership trajectory.'
+                    title: 'Professional Resume',
+                    desc: 'ATS-optimized, strategy-driven document meticulously crafted to pass recruiter screening and highlight your unique career trajectory.'
                   },
                   {
                     num: '02',
                     title: 'LinkedIn Profile Overhaul',
-                    desc: 'Complete profile transformation including headline, summary, experience sections, custom banner design, and professional display photo guidance — engineered to attract elite executive headhunters.'
+                    desc: 'Complete profile transformation including headline, summary, experience sections, custom banner design, and professional display photo guidance — engineered to attract top recruiters and hiring managers.'
                   },
                   {
                     num: '03',
                     title: 'Strategic Cover Letter',
-                    desc: 'Highly targeted, persuasive narrative designed to secure interviews for coveted c-suite and director-level roles.'
+                    desc: 'Highly targeted, persuasive narrative designed to secure interviews for your dream roles at top-tier organizations.'
                   },
                   {
                     num: '04',
                     title: 'Portfolio Website',
-                    desc: 'A bespoke, multi-page digital presence that showcases your career milestones and executive brand. Includes domain integration setup and domain purchase guidance.'
+                    desc: 'A bespoke, multi-page digital presence that showcases your career milestones and professional brand. Includes domain integration setup and domain purchase guidance.'
                   },
                 ].map((svc) => (
                   <div key={svc.num} className="py-8 first:pt-0 last:pb-0 group">
@@ -251,7 +264,7 @@ export default function CatalystInquirePage() {
                 Tell us who you are.
               </h2>
               <p className="text-body text-brand-obsidian/50 leading-relaxed max-w-sm">
-                We will review your profile and respond with a tailored strategy recommendation and pricing within 24 hours.
+                We will review your profile and respond with a tailored recommendation and pricing within 24 hours.
               </p>
             </div>
 
@@ -287,18 +300,29 @@ export default function CatalystInquirePage() {
                   />
                 </div>
 
-                {/* Phone */}
+                {/* Phone — mandatory with country code */}
                 <div>
                   <label className="text-status font-bold text-brand-obsidian/50 uppercase tracking-[0.15em] block mb-3">
-                    Phone <span className="text-brand-obsidian/25">(Optional)</span>
+                    Phone
                   </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    placeholder="—"
-                    className="w-full bg-transparent border-b border-brand-parchment py-3 text-subheading text-brand-obsidian outline-none focus:border-brand-gold transition-colors duration-300 placeholder:text-brand-obsidian/15"
-                  />
+                  <div className="flex items-center gap-3">
+                    <select
+                      value={phoneCode}
+                      onChange={e => setPhoneCode(e.target.value)}
+                      className="bg-transparent border-b border-brand-parchment py-3 text-subheading text-brand-obsidian outline-none focus:border-brand-gold transition-colors duration-300 appearance-none pr-2 w-24 shrink-0"
+                    >
+                      {COUNTRY_CODES.map(c => (
+                        <option key={`${c.code}-${c.country}`} value={c.code}>{c.flag} {c.code}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      placeholder="—"
+                      className="flex-1 bg-transparent border-b border-brand-parchment py-3 text-subheading text-brand-obsidian outline-none focus:border-brand-gold transition-colors duration-300 placeholder:text-brand-obsidian/15"
+                    />
+                  </div>
                 </div>
 
                 {/* Interest selection */}
@@ -335,14 +359,14 @@ export default function CatalystInquirePage() {
                 <div className="pt-4">
                   <button
                     onClick={handleSubmit}
-                    disabled={loading || !name.trim() || !email.trim()}
+                    disabled={loading || !name.trim() || !email.trim() || !phone.trim()}
                     className="inline-flex items-center gap-3 bg-brand-obsidian text-brand-bone px-10 py-4 text-body font-semibold uppercase tracking-[0.1em] hover:bg-brand-graphite transition-colors duration-300 disabled:opacity-30 disabled:pointer-events-none"
                   >
                     {loading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <>
-                        Request Consultation
+                        Get Started
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
