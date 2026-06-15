@@ -11,6 +11,8 @@ import { fetchPaymentLinkStatus } from '@/lib/razorpay';
 import { fetchPaypalInvoiceStatus } from '@/lib/paypal';
 import { sendPaymentConfirmationEmail } from '@/lib/email';
 import { onboardFromInvoice } from '@/lib/career/onboarding';
+import { rnOnboardFromInvoice } from '@/lib/rn/onboarding';
+import type { Installment } from '@/types';
 
 export async function POST(
   req: NextRequest,
@@ -48,14 +50,61 @@ export async function POST(
     try {
       if (isPayPal) {
         gatewayLabel = 'PayPal';
-        const { normalizedStatus, rawStatus } = await fetchPaypalInvoiceStatus(invoice.paypalInvoiceId!);
-        newStatus = normalizedStatus;
-        if (!newStatus || newStatus === invoice.status) {
-          return NextResponse.json({
-            synced: false,
-            message: `PayPal status is "${rawStatus}" — no change needed`,
-            invoice,
+        if (invoice.installmentPlan) {
+          const installs = (invoice.installments as unknown as Installment[]) || [];
+          let allPaid = true;
+          let changed = false;
+          
+          for (const inst of installs) {
+            if (inst.status !== 'PAID' && inst.paypalInvoiceId) {
+              const { normalizedStatus } = await fetchPaypalInvoiceStatus(inst.paypalInvoiceId);
+              if (normalizedStatus === 'PAID') {
+                inst.status = 'PAID';
+                inst.paidAt = new Date().toISOString();
+                changed = true;
+              } else {
+                allPaid = false;
+              }
+            } else if (inst.status !== 'PAID') {
+              allPaid = false;
+            }
+          }
+          
+          if (!changed) {
+            return NextResponse.json({ synced: false, message: 'No installments changed status', invoice });
+          }
+          
+          newStatus = allPaid ? 'PAID' : 'PARTIALLY_PAID';
+          
+          const updatedInvoice = await prisma.invoice.update({
+            where: { id: params.id },
+            data: {
+              status: newStatus as 'PAID' | 'PARTIALLY_PAID',
+              installments: installs as object[],
+              ...(allPaid ? { paidAt: new Date() } : {}),
+            },
           });
+          
+          if (allPaid) {
+            sendPaymentConfirmationEmail(updatedInvoice as any).catch(err => console.error(err));
+            if (updatedInvoice.brandId === 'ripple_nexus') {
+              rnOnboardFromInvoice(updatedInvoice as any).catch(err => console.error(err));
+            } else {
+              onboardFromInvoice(updatedInvoice).catch(err => console.error(err));
+            }
+          }
+          
+          return NextResponse.json({ synced: true, newStatus, invoice: updatedInvoice });
+        } else {
+          const { normalizedStatus, rawStatus } = await fetchPaypalInvoiceStatus(invoice.paypalInvoiceId!);
+          newStatus = normalizedStatus;
+          if (!newStatus || newStatus === invoice.status) {
+            return NextResponse.json({
+              synced: false,
+              message: `PayPal status is "${rawStatus}" — no change needed`,
+              invoice,
+            });
+          }
         }
       } else {
         gatewayLabel = 'Razorpay';
@@ -86,10 +135,15 @@ export async function POST(
     });
 
     if (newStatus === 'PAID') {
-      sendPaymentConfirmationEmail(updatedInvoice as unknown as Parameters<typeof sendPaymentConfirmationEmail>[0])
+      sendPaymentConfirmationEmail(updatedInvoice as any)
         .catch(err => console.error('[mark-paid/sync] Confirmation email failed:', err));
-      onboardFromInvoice(updatedInvoice)
-        .catch(err => console.error('[mark-paid/sync] Career onboarding failed:', err));
+      if (updatedInvoice.brandId === 'ripple_nexus') {
+        rnOnboardFromInvoice(updatedInvoice as any)
+          .catch(err => console.error('[mark-paid/sync] RN onboarding failed:', err));
+      } else {
+        onboardFromInvoice(updatedInvoice)
+          .catch(err => console.error('[mark-paid/sync] Career onboarding failed:', err));
+      }
     }
 
     return NextResponse.json({ synced: true, newStatus, invoice: updatedInvoice });
@@ -109,10 +163,16 @@ export async function POST(
   });
 
   // Send confirmation email + auto-onboard (best-effort, non-blocking)
-  sendPaymentConfirmationEmail(updatedInvoice as unknown as Parameters<typeof sendPaymentConfirmationEmail>[0])
+  sendPaymentConfirmationEmail(updatedInvoice as any)
     .catch(err => console.error('[mark-paid/manual] Confirmation email failed:', err));
-  onboardFromInvoice(updatedInvoice)
-    .catch(err => console.error('[mark-paid/manual] Career onboarding failed:', err));
+  
+  if (updatedInvoice.brandId === 'ripple_nexus') {
+    rnOnboardFromInvoice(updatedInvoice as any)
+      .catch(err => console.error('[mark-paid/manual] RN onboarding failed:', err));
+  } else {
+    onboardFromInvoice(updatedInvoice)
+      .catch(err => console.error('[mark-paid/manual] Career onboarding failed:', err));
+  }
 
   return NextResponse.json({ ok: true, invoice: updatedInvoice });
 }

@@ -536,7 +536,7 @@ model RnOrganizationMember {
 model RnClient {
   id              String  @id @default(cuid())
   name            String
-  email           String
+  email           String  @unique
   phone           String?
   country         String?
   companyName     String?

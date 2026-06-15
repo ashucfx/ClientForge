@@ -144,10 +144,38 @@ export async function POST(request: NextRequest) {
     const paymentLink = payload.payload.payment_link?.entity;
     const invoiceId   = paymentLink?.notes?.invoice_id as string | undefined;
     if (invoiceId) {
-      await prisma.invoice.updateMany({
-        where: { id: invoiceId, status: { in: ['PENDING', 'PARTIALLY_PAID'] } },
-        data:  { status: 'EXPIRED' },
-      });
+      const existing = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+      if (existing) {
+        if (existing.installmentPlan) {
+          const installmentSeq = paymentLink?.notes?.installment_seq
+            ? parseInt(paymentLink.notes.installment_seq as string, 10)
+            : null;
+          if (installmentSeq !== null) {
+            const updatedInstallments = (existing.installments as unknown as Installment[]).map(inst =>
+              inst.seq === installmentSeq && inst.status !== 'PAID'
+                ? { ...inst, status: 'EXPIRED' as const }
+                : inst
+            );
+            await prisma.invoice.update({
+              where: { id: invoiceId },
+              data: {
+                installments: updatedInstallments as object[],
+                invoiceInstallments: {
+                  updateMany: {
+                    where: { seq: installmentSeq },
+                    data: { status: 'EXPIRED' }
+                  }
+                }
+              }
+            });
+          }
+        } else if (existing.status === 'PENDING') {
+          await prisma.invoice.update({
+            where: { id: invoiceId },
+            data: { status: 'EXPIRED' }
+          });
+        }
+      }
     }
   }
 

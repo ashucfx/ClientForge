@@ -14,8 +14,28 @@ export async function rnOnboardFromInvoice(invoice: Invoice) {
     where: { email: invoice.clientEmail },
   });
 
+  if (client) {
+    // 3. Update existing client if needed (e.g., refresh token if expired or just link invoice)
+    if (client.invoiceId === invoice.id) {
+      console.log(`[rn-onboard] Invoice already linked for ${client.email}, skipping.`);
+      return;
+    }
+    console.log(`[rn-onboard] Found existing RN Client: ${client.id}`);
+  }
+
+  // Handle potentially missing rnServiceId which would cause Prisma FK crash
+  let serviceId = invoice.rnServiceId;
+  if (!serviceId) {
+    const defaultModule = await prisma.rnServiceModule.findFirst();
+    if (defaultModule) {
+      serviceId = defaultModule.id;
+    } else {
+      console.warn(`[rn-onboard] No RnServiceModule exists in DB. RN Onboarding might fail.`);
+    }
+  }
+
   if (!client) {
-    // 2. Create new RN Client with a magic link token
+    // Create new RN Client with a magic link token
     const portalToken = randomBytes(32).toString('hex');
     
     client = await prisma.rnClient.create({
@@ -24,14 +44,11 @@ export async function rnOnboardFromInvoice(invoice: Invoice) {
         email: invoice.clientEmail,
         phone: invoice.clientPhone || '',
         companyName: invoice.companyName || '',
-        serviceModuleId: invoice.rnServiceId || '',
+        serviceModuleId: serviceId || '',
         magicToken: portalToken,
       },
     });
     console.log(`[rn-onboard] Created new RN Client: ${client.id}`);
-  } else {
-    // 3. Update existing client if needed (e.g., refresh token if expired or just link invoice)
-    console.log(`[rn-onboard] Found existing RN Client: ${client.id}`);
   }
 
   // 4. Update the RN Client to link the Invoice and payment details
@@ -39,7 +56,7 @@ export async function rnOnboardFromInvoice(invoice: Invoice) {
     where: { id: client.id },
     data: { 
       invoiceId: invoice.id,
-      amountPaid: invoice.totalPayable,
+      amountPaid: { increment: invoice.totalPayable },
       currency: invoice.currency 
     },
   });

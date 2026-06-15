@@ -2,8 +2,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { cancelRazorpayPaymentLink, createRazorpayPaymentLink } from '@/lib/razorpay';
-import { cancelPaypalInvoice } from '@/lib/paypal';
+import { cancelPaypalInvoice, createPaypalInvoice } from '@/lib/paypal';
 import { calculatePricing, round2 } from '@/lib/pricing';
+import type { LineItem, Installment } from '@/types';
 import { getAdminSession } from '@/lib/auth';
 
 export const runtime = 'nodejs';
@@ -66,52 +67,93 @@ export async function PATCH(
     }
 
     if (pricingChanged && existing.status === 'PENDING') {
-      const newResumeInr   = body.resumeBaseInr   ?? existing.resumeBaseInr;
-      const newLinkedinInr = body.linkedinBaseInr  ?? existing.linkedinBaseInr;
+      let subtotalConverted = 0;
+      let resumeConverted = 0;
+      let linkedinConverted = 0;
+      const newLineItems = (body.lineItems ?? existing.lineItems) as LineItem[];
+      const hasLineItems = Array.isArray(newLineItems) && newLineItems.length > 0;
 
-      const resumeConverted   = round2(newResumeInr   / existing.exchangeRate);
-      const linkedinConverted = round2(newLinkedinInr / existing.exchangeRate);
-      const subtotalConverted = round2((newResumeInr + newLinkedinInr) / existing.exchangeRate);
-      const processingFee     = round2(subtotalConverted * existing.processingFeeRate);
-      const totalPayable      = round2(subtotalConverted + processingFee);
+      if (hasLineItems) {
+        subtotalConverted = newLineItems.reduce((acc: number, item: any) => acc + (item.qty * item.unitPrice), 0);
+      } else {
+        const newResumeInr   = body.resumeBaseInr   ?? existing.resumeBaseInr;
+        const newLinkedinInr = body.linkedinBaseInr ?? existing.linkedinBaseInr;
+        resumeConverted   = round2(newResumeInr   / existing.exchangeRate);
+        linkedinConverted = round2(newLinkedinInr / existing.exchangeRate);
+        subtotalConverted = round2((newResumeInr + newLinkedinInr) / existing.exchangeRate);
+      }
+
+      const discountAmount = round2(subtotalConverted * (existing.discountRate / 100));
+      const afterDiscount = subtotalConverted - discountAmount;
+      const taxAmount = round2(afterDiscount * (existing.taxRate / 100));
+      const preFeeTotal = afterDiscount + taxAmount;
+      const processingFee = round2(preFeeTotal * existing.processingFeeRate);
+      const baseTotalPayable = round2(preFeeTotal + processingFee);
 
       // Include any revision charge already set
       const revisionCharge = body.revisionCharge ?? existing.revisionCharge ?? 0;
-      const finalTotal     = round2(totalPayable + round2(revisionCharge / existing.exchangeRate));
+      const finalTotal     = round2(baseTotalPayable + round2(revisionCharge / existing.exchangeRate));
 
       updateData = {
         ...updateData,
-        resumeBaseInr:         newResumeInr,
-        linkedinBaseInr:       newLinkedinInr,
         resumeConverted,
         linkedinConverted,
         subtotalConverted,
+        discountAmount,
+        taxAmount,
         processingFeeConverted: processingFee,
         totalPayable:           finalTotal,
         customPricing:          true,
       };
 
-      // Cancel the old Razorpay link
-      if (existing.razorpayLinkId) {
-        await cancelRazorpayPaymentLink(existing.razorpayLinkId);
-      }
-
-      // Build a partial InvoiceData to create a new link
-      const updatedInvoice = {
+      const updatedInvoiceParams = {
         ...existing,
         ...updateData,
         totalPayable: finalTotal,
-      } as unknown as Parameters<typeof createRazorpayPaymentLink>[0];
+      };
 
-      try {
-        const newLink = await createRazorpayPaymentLink(updatedInvoice);
-        updateData.razorpayLinkId  = newLink.id;
-        updateData.razorpayLinkUrl = newLink.short_url;
-      } catch (rzErr) {
-        console.error('Failed to recreate Razorpay link after pricing update:', rzErr);
-        // Don't block the save — clear stale link so UI doesn't show wrong link
-        updateData.razorpayLinkId  = null;
-        updateData.razorpayLinkUrl = null;
+      if (existing.paymentGateway === 'PAYPAL') {
+        if (existing.paypalInvoiceId && !existing.installmentPlan) {
+          await cancelPaypalInvoice(existing.paypalInvoiceId).catch(() => {});
+        }
+        if (!existing.installmentPlan) {
+          try {
+            const ppRes = await createPaypalInvoice({
+              id: existing.id,
+              invoiceNumber: existing.invoiceNumber,
+              clientName: existing.clientName,
+              clientEmail: existing.clientEmail,
+              currency: existing.currency,
+              dueDate: existing.dueDate,
+              notes: existing.notes,
+              lineItems: hasLineItems ? newLineItems : [],
+              taxAmount: taxAmount,
+              discountAmount: discountAmount,
+              processingFeeAmount: processingFee,
+            });
+            updateData.paypalInvoiceId = ppRes.id;
+            updateData.paypalPaymentUrl = ppRes.paymentUrl;
+          } catch (ppErr) {
+            console.error('Failed to recreate PayPal invoice after pricing update:', ppErr);
+            updateData.paypalInvoiceId = null;
+            updateData.paypalPaymentUrl = null;
+          }
+        }
+      } else {
+        if (existing.razorpayLinkId && !existing.installmentPlan) {
+          await cancelRazorpayPaymentLink(existing.razorpayLinkId).catch(() => {});
+        }
+        if (!existing.installmentPlan) {
+          try {
+            const newLink = await createRazorpayPaymentLink(updatedInvoiceParams as any);
+            updateData.razorpayLinkId  = newLink.id;
+            updateData.razorpayLinkUrl = newLink.short_url;
+          } catch (rzErr) {
+            console.error('Failed to recreate Razorpay link after pricing update:', rzErr);
+            updateData.razorpayLinkId  = null;
+            updateData.razorpayLinkUrl = null;
+          }
+        }
       }
     }
 
@@ -152,12 +194,25 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Cancel the active payment link (best-effort) before deletion
+    // Cancel the active payment link(s) (best-effort) before deletion
     if (invoice.status === 'PENDING') {
-      if (invoice.paymentGateway === 'PAYPAL' && invoice.paypalInvoiceId) {
-        await cancelPaypalInvoice(invoice.paypalInvoiceId);
-      } else if (invoice.razorpayLinkId) {
-        await cancelRazorpayPaymentLink(invoice.razorpayLinkId);
+      if (invoice.installmentPlan) {
+        const installs = (invoice.installments as unknown as Installment[]) || [];
+        for (const inst of installs) {
+          if (inst.status !== 'PAID' && inst.status !== 'CANCELLED') {
+            if (invoice.paymentGateway === 'PAYPAL' && inst.paypalInvoiceId) {
+              await cancelPaypalInvoice(inst.paypalInvoiceId).catch(() => {});
+            } else if (invoice.paymentGateway === 'RAZORPAY' && inst.razorpayLinkId) {
+              await cancelRazorpayPaymentLink(inst.razorpayLinkId).catch(() => {});
+            }
+          }
+        }
+      } else {
+        if (invoice.paymentGateway === 'PAYPAL' && invoice.paypalInvoiceId) {
+          await cancelPaypalInvoice(invoice.paypalInvoiceId).catch(() => {});
+        } else if (invoice.razorpayLinkId) {
+          await cancelRazorpayPaymentLink(invoice.razorpayLinkId).catch(() => {});
+        }
       }
     }
 

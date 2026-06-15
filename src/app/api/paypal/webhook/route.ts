@@ -49,7 +49,30 @@ export async function POST(request: NextRequest) {
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
   const eventType = payload.event_type as string;
-  console.log('[PayPal webhook] event:', eventType);
+  const eventId = payload.id as string || headers['paypal-transmission-id'] as string;
+  console.log('[PayPal webhook] event:', eventType, 'id:', eventId);
+
+  // ── IDEMPOTENCY CHECK ──────────────────────────────────────
+  if (eventId) {
+    try {
+      await prisma.webhookEvent.create({
+        data: {
+          provider: 'PAYPAL',
+          eventId: eventId,
+          eventType: eventType,
+          payload: payload as object,
+          status: 'PROCESSED'
+        }
+      });
+    } catch (err: any) {
+      if (err.code === 'P2002') {
+        console.log(`[PayPal webhook] Duplicate event skipped: ${eventId}`);
+        return NextResponse.json({ received: true, message: 'Duplicate event' });
+      }
+      // If some other DB error, we can either fail or proceed. It's safer to proceed but log.
+      console.error('[PayPal webhook] Failed to record WebhookEvent:', err);
+    }
+  }
 
   // ── PAYMENT COMPLETED ────────────────────────────────────────
   if (

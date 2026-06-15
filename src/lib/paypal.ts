@@ -78,6 +78,9 @@ export interface PaypalInvoiceInput {
     qty:         number;
     unitPrice:   number;
   }>;
+  taxAmount?:           number;
+  discountAmount?:      number;
+  processingFeeAmount?: number;
 }
 
 // ─── CREATE + SEND PayPal invoice ────────────────────────────────
@@ -131,16 +134,39 @@ export async function createPaypalInvoice(
           },
         },
       ],
-      items: invoice.lineItems
-        .filter(i => i.qty > 0 && i.unitPrice > 0) // PayPal Live rejects zero-value items
-        .map(item => ({
-          name:     item.description,
-          quantity: String(item.qty),
-          unit_amount: {
-            currency_code: invoice.currency,
-            value:         item.unitPrice.toFixed(2),
-          },
-        })),
+      items: [
+        ...invoice.lineItems
+          .filter(i => i.qty > 0 && i.unitPrice > 0) // PayPal Live rejects zero-value items
+          .map(item => ({
+            name:     item.description,
+            quantity: String(item.qty),
+            unit_amount: {
+              currency_code: invoice.currency,
+              value:         item.unitPrice.toFixed(2),
+            },
+          })),
+        ...(invoice.taxAmount && invoice.taxAmount > 0 ? [{
+          name: 'Tax',
+          quantity: '1',
+          unit_amount: { currency_code: invoice.currency, value: invoice.taxAmount.toFixed(2) }
+        }] : []),
+        ...(invoice.processingFeeAmount && invoice.processingFeeAmount > 0 ? [{
+          name: 'Processing Fee',
+          quantity: '1',
+          unit_amount: { currency_code: invoice.currency, value: invoice.processingFeeAmount.toFixed(2) }
+        }] : []),
+      ],
+      ...(invoice.discountAmount && invoice.discountAmount > 0 ? {
+        amount: {
+          breakdown: {
+            discount: {
+              invoice_discount: {
+                amount: { currency_code: invoice.currency, value: invoice.discountAmount.toFixed(2) }
+              }
+            }
+          }
+        }
+      } : {}),
       configuration: {
         allow_tip:                      false,
         tax_calculated_after_discount:  true,

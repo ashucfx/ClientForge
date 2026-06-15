@@ -3,6 +3,7 @@ import { prisma as db } from '@/lib/db';
 import { calculatePricing, PricingParams, PackageSlug, ServiceSlug } from '@/lib/pricing-v2';
 import { ClientType } from '@prisma/client';
 import { createRazorpayPaymentLink } from '@/lib/razorpay';
+import { createPaypalInvoice } from '@/lib/paypal';
 import { normalizePhoneE164 } from '@/lib/phone';
 import { z } from 'zod';
 
@@ -148,13 +149,32 @@ export async function POST(req: Request) {
           finalPaymentUrl = '';
         }
       } else {
-        finalPaymentUrl = `https://paypal.me/placeholder/${pricing.finalPayable}`;
-        await tx.invoice.update({
-          where: { id: newInvoice.id },
-          data: {
-            paypalPaymentUrl: finalPaymentUrl,
-          }
-        });
+        try {
+          const ppRes = await createPaypalInvoice({
+            id: newInvoice.id,
+            invoiceNumber: newInvoice.invoiceNumber,
+            clientName: newInvoice.clientName,
+            clientEmail: newInvoice.clientEmail,
+            currency: newInvoice.currency,
+            dueDate: newInvoice.dueDate,
+            notes: `Draft Checkout for ${packageSlug}`,
+            lineItems: lineItems,
+            taxAmount: pricing.taxAmount,
+            discountAmount: pricing.discountAmount,
+            processingFeeAmount: pricing.internalGatewayFee,
+          });
+          finalPaymentUrl = ppRes.paymentUrl;
+          await tx.invoice.update({
+            where: { id: newInvoice.id },
+            data: {
+              paypalInvoiceId: ppRes.id,
+              paypalPaymentUrl: finalPaymentUrl,
+            }
+          });
+        } catch (ppError) {
+          console.error('PayPal Gateway Error:', ppError);
+          finalPaymentUrl = '';
+        }
       }
 
       if (email) {

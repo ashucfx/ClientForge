@@ -254,6 +254,9 @@ export async function POST(request: NextRequest) {
             clientName: invoice.clientName, clientEmail: invoice.clientEmail,
             currency: invoice.currency, dueDate: invoice.dueDate, notes: invoice.notes,
             lineItems: (safeItems as LineItem[]).map(i => ({ description: i.description, qty: i.qty, unitPrice: i.unitPrice })),
+            taxAmount: invoice.taxAmount,
+            discountAmount: invoice.discountAmount,
+            processingFeeAmount: invoice.processingFeeConverted,
           });
           gatewayUpdate = { paymentGateway: 'PAYPAL', paypalInvoiceId: pp.id, paypalPaymentUrl: pp.paymentUrl };
         }

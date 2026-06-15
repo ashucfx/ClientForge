@@ -8,6 +8,10 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma as db } from '@/lib/db';
 import { onboardFromInvoice } from '@/lib/career/onboarding';
+import { rnOnboardFromInvoice } from '@/lib/rn/onboarding';
+import { fetchPaypalInvoiceStatus } from '@/lib/paypal';
+import { fetchPaymentLinkStatus } from '@/lib/razorpay';
+import type { Installment } from '@/types';
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -36,51 +40,86 @@ export async function GET(request: NextRequest) {
 
   for (const invoice of staleInvoices) {
     try {
-      let isPaid = false;
+      let newStatus: string | null = null;
+      let allPaid = false;
 
       // 1. Check Razorpay (if it has a razorpayLinkId)
       if (invoice.currency === 'INR' && invoice.razorpayLinkId) {
-        const auth = Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64');
-        const res = await fetch(`https://api.razorpay.com/v1/payment_links/${invoice.razorpayLinkId}`, {
-          headers: { Authorization: `Basic ${auth}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.status === 'paid') isPaid = true;
+        if (invoice.installmentPlan) {
+          const installs = (invoice.installments as unknown as Installment[]) || [];
+          allPaid = true;
+          for (const inst of installs) {
+            if (inst.status !== 'PAID' && inst.razorpayLinkId) {
+              const rzData = await fetchPaymentLinkStatus(inst.razorpayLinkId);
+              if (rzData.status === 'paid') {
+                inst.status = 'PAID';
+                inst.paidAt = new Date().toISOString();
+              } else {
+                allPaid = false;
+              }
+            } else if (inst.status !== 'PAID') {
+              allPaid = false;
+            }
+          }
+          newStatus = allPaid ? 'PAID' : 'PARTIALLY_PAID';
+        } else {
+          const rzData = await fetchPaymentLinkStatus(invoice.razorpayLinkId);
+          if (rzData.status === 'paid') {
+            newStatus = 'PAID';
+            allPaid = true;
+          }
         }
       } 
       // 2. Check PayPal
       else if (invoice.currency !== 'INR' && invoice.paypalInvoiceId) {
-        const tokenRes = await fetch('https://api-m.paypal.com/v1/oauth2/token', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Basic ${Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString('base64')}`,
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: 'grant_type=client_credentials'
-        });
-        if (tokenRes.ok) {
-          const { access_token } = await tokenRes.json();
-          const invRes = await fetch(`https://api-m.paypal.com/v2/invoicing/invoices/${invoice.paypalInvoiceId}`, {
-            headers: { Authorization: `Bearer ${access_token}` }
-          });
-          if (invRes.ok) {
-            const data = await invRes.json();
-            if (data.status === 'PAID') isPaid = true;
+        if (invoice.installmentPlan) {
+          const installs = (invoice.installments as unknown as Installment[]) || [];
+          allPaid = true;
+          for (const inst of installs) {
+            if (inst.status !== 'PAID' && inst.paypalInvoiceId) {
+              const { normalizedStatus } = await fetchPaypalInvoiceStatus(inst.paypalInvoiceId);
+              if (normalizedStatus === 'PAID') {
+                inst.status = 'PAID';
+                inst.paidAt = new Date().toISOString();
+              } else {
+                allPaid = false;
+              }
+            } else if (inst.status !== 'PAID') {
+              allPaid = false;
+            }
+          }
+          newStatus = allPaid ? 'PAID' : 'PARTIALLY_PAID';
+        } else {
+          const { normalizedStatus } = await fetchPaypalInvoiceStatus(invoice.paypalInvoiceId);
+          if (normalizedStatus === 'PAID') {
+            newStatus = 'PAID';
+            allPaid = true;
           }
         }
       }
 
-      if (isPaid) {
+      if (newStatus && newStatus !== invoice.status) {
         const updatedInvoice = await db.invoice.update({
           where: { id: invoice.id },
-          data: { status: 'PAID', paidAt: new Date() },
+          data: { 
+            status: newStatus as 'PAID' | 'PARTIALLY_PAID', 
+            ...(allPaid ? { paidAt: new Date() } : {}),
+            ...(invoice.installmentPlan ? { installments: invoice.installments as object[] } : {})
+          },
         });
         
-        await onboardFromInvoice(updatedInvoice).catch(err => {
-            console.error(`[Invoice Cron] Onboarding failed for invoice ${invoice.id}:`, err);
-        });
-        synced++;
+        if (allPaid) {
+          if (updatedInvoice.brandId === 'ripple_nexus') {
+            await rnOnboardFromInvoice(updatedInvoice as any).catch(err => {
+              console.error(`[Invoice Cron] RN Onboarding failed for invoice ${invoice.id}:`, err);
+            });
+          } else {
+            await onboardFromInvoice(updatedInvoice).catch(err => {
+              console.error(`[Invoice Cron] Career Onboarding failed for invoice ${invoice.id}:`, err);
+            });
+          }
+          synced++;
+        }
       }
     } catch (err) {
       console.error(`[Invoice Cron] Failed to sync invoice ${invoice.id}:`, err);

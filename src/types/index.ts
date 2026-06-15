@@ -8,7 +8,7 @@ export interface Installment {
   seq:             number;              // 1-based
   amount:          number;              // fractional amount in invoice currency
   dueDate:         string;             // ISO date string
-  status:          'PENDING' | 'PAID';
+  status:          'PENDING' | 'PAID' | 'EXPIRED' | 'CANCELLED';
   paidAt?:         string | null;
   // Razorpay
   razorpayLinkId?:  string | null;
