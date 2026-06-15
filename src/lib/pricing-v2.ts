@@ -1,10 +1,11 @@
 import { ClientType } from '@prisma/client';
+import { getCurrencyForCountry, getExchangeRate } from './currency';
 
 export type ServiceSlug = 'RESUME' | 'LINKEDIN' | 'COVER_LETTER' | 'PORTFOLIO';
 
 export type PackageSlug = 'CAREER_BOOSTER' | 'PREMIUM_PLUS' | 'CUSTOM';
 
-export type CurrencyCode = 'INR' | 'USD';
+export type CurrencyCode = string; // e.g. 'INR', 'USD', 'SAR', 'AED', etc.
 
 export interface PricingConfig {
   basePrices: {
@@ -20,29 +21,29 @@ export const PRICING: PricingConfig = {
   basePrices: {
     INR: {
       RESUME: {
-        FRESHER: 1999,
-        MID_CAREER: 3999,
+        FRESHER: 999,
+        MID_CAREER: 1999,
         EXECUTIVE: 5999,
         EXECUTIVE_PLUS: 8999,
         AGENCY_CLIENT: 0,
       },
       LINKEDIN: {
-        FRESHER: 999,
-        MID_CAREER: 1999,
+        FRESHER: 499,
+        MID_CAREER: 999,
         EXECUTIVE: 2999,
         EXECUTIVE_PLUS: 4999,
         AGENCY_CLIENT: 0,
       },
       COVER_LETTER: {
-        FRESHER: 499,
-        MID_CAREER: 999,
+        FRESHER: 249,
+        MID_CAREER: 499,
         EXECUTIVE: 1499,
         EXECUTIVE_PLUS: 1999,
         AGENCY_CLIENT: 0,
       },
       PORTFOLIO: {
-        FRESHER: 4999,
-        MID_CAREER: 7999,
+        FRESHER: 2499,
+        MID_CAREER: 3999,
         EXECUTIVE: 12999,
         EXECUTIVE_PLUS: 19999,
         AGENCY_CLIENT: 0,
@@ -112,27 +113,53 @@ export interface PricingParams {
   services: ServiceSlug[];
   packageSlug: PackageSlug;
   countryCode: string; // e.g. "IN" for India, "US" for USA
+  countryName: string; // e.g. "Saudi Arabia"
+  preferredGateway?: 'RAZORPAY' | 'PAYPAL';
 }
 
 /**
  * Calculates the exact pricing breakdown given the selected services, experience level, and country.
  * It artificially inflates the base cost so that the net revenue equals the base price.
  */
-export function calculatePricing({ experienceLevel, services, packageSlug, countryCode }: PricingParams): PricingBreakdown {
-  // If country is IN, use INR and Razorpay. Otherwise, use USD and PayPal.
+export async function calculatePricing({ 
+  experienceLevel, 
+  services, 
+  packageSlug, 
+  countryCode,
+  countryName,
+  preferredGateway 
+}: PricingParams): Promise<PricingBreakdown> {
+  // If country is IN, use INR and Razorpay. Otherwise, start with USD base prices.
   const isIndia = countryCode.toUpperCase() === 'IN';
-  const currency: CurrencyCode = isIndia ? 'INR' : 'USD';
-  const currencySymbol = isIndia ? '₹' : '$';
-  const paymentGateway = isIndia ? 'RAZORPAY' : 'PAYPAL';
+  
+  // Base calculation is always done in INR or USD first.
+  const baseCurrency: 'INR' | 'USD' = isIndia ? 'INR' : 'USD';
+  
+  // Final target currency and gateway.
+  let currency: CurrencyCode = isIndia ? 'INR' : 'USD';
+  let currencySymbol = isIndia ? '₹' : '$';
+  let paymentGateway = isIndia ? 'RAZORPAY' : (preferredGateway || 'PAYPAL');
+  let exchangeRate = 1;
+
+  // If it's an international client explicitly requesting Razorpay, we convert USD to their local currency!
+  if (!isIndia && paymentGateway === 'RAZORPAY') {
+    const localCur = getCurrencyForCountry(countryName);
+    currency = localCur.code;
+    currencySymbol = localCur.symbol;
+    exchangeRate = await getExchangeRate('USD', currency);
+  }
 
   let subtotal = 0;
   const serviceDetails: { slug: ServiceSlug; price: number }[] = [];
 
   for (const slug of services) {
-    const price = PRICING.basePrices[currency][slug][experienceLevel] || 0;
+    const price = PRICING.basePrices[baseCurrency][slug][experienceLevel] || 0;
     subtotal += price;
-    serviceDetails.push({ slug, price });
+    serviceDetails.push({ slug, price: price * exchangeRate });
   }
+
+  // Convert subtotal to local currency
+  subtotal = subtotal * exchangeRate;
 
   const discountRate = PRICING.packageDiscounts[packageSlug] || 0;
   const discountAmount = subtotal * discountRate;
@@ -152,22 +179,30 @@ export function calculatePricing({ experienceLevel, services, packageSlug, count
 
   if (paymentGateway === 'RAZORPAY') {
     // Razorpay standard: ~2% + 18% GST on the fee = 2.36% total
-    const feePercent = 0.0236; 
+    // Note: International cards on Razorpay might be 3%, but we'll stick to a blended 2.36% or 3%. 
+    // Let's use 3% for international razorpay to be safe, 2.36% for domestic.
+    const feePercent = isIndia ? 0.0236 : 0.03; 
     finalPayable = costWithTax / (1 - feePercent);
     internalGatewayFee = finalPayable - costWithTax;
   } else if (paymentGateway === 'PAYPAL') {
-    // PayPal international standard: ~4.4% + $0.30 fixed
+    // PayPal international standard: ~4.4% + $0.30 fixed (USD)
+    // If we're using PayPal, the currency is guaranteed to be USD here.
     const feePercent = 0.044;
-    const fixedFee = 0.30; // $0.30 USD
+    const fixedFee = 0.30; 
     finalPayable = (costWithTax + fixedFee) / (1 - feePercent);
     internalGatewayFee = finalPayable - costWithTax;
   }
 
-  // Rounding for clean numbers. For INR, round to whole number. For USD, round to 2 decimal places.
-  if (currency === 'INR') {
+  // Rounding for clean numbers.
+  // For zero-decimal currencies like JPY or INR, round to whole numbers.
+  const zeroDecimalCurrencies = ['INR', 'JPY', 'KRW', 'VND', 'IDR'];
+  const isZeroDecimal = zeroDecimalCurrencies.includes(currency);
+
+  if (isZeroDecimal) {
     finalPayable = Math.ceil(finalPayable);
     internalGatewayFee = finalPayable - costWithTax;
   } else {
+    // For SAR, USD, GBP etc., round to 2 decimal places.
     finalPayable = Math.ceil(finalPayable * 100) / 100;
     internalGatewayFee = Math.round((finalPayable - costWithTax) * 100) / 100;
   }
@@ -176,14 +211,14 @@ export function calculatePricing({ experienceLevel, services, packageSlug, count
     currency,
     currencySymbol,
     services: serviceDetails,
-    subtotal: currency === 'INR' ? Math.round(subtotal) : subtotal,
+    subtotal: isZeroDecimal ? Math.round(subtotal) : Number(subtotal.toFixed(2)),
     discountRate,
-    discountAmount: currency === 'INR' ? Math.round(discountAmount) : discountAmount,
-    subtotalAfterDiscount: currency === 'INR' ? Math.round(subtotalAfterDiscount) : subtotalAfterDiscount,
+    discountAmount: isZeroDecimal ? Math.round(discountAmount) : Number(discountAmount.toFixed(2)),
+    subtotalAfterDiscount: isZeroDecimal ? Math.round(subtotalAfterDiscount) : Number(subtotalAfterDiscount.toFixed(2)),
     taxRate,
-    taxAmount: currency === 'INR' ? Math.round(taxAmount) : taxAmount,
+    taxAmount: isZeroDecimal ? Math.round(taxAmount) : Number(taxAmount.toFixed(2)),
     finalPayable,
     internalGatewayFee,
-    netRevenue: currency === 'INR' ? Math.round(costWithTax) : costWithTax
+    netRevenue: isZeroDecimal ? Math.round(costWithTax) : Number(costWithTax.toFixed(2))
   };
 }
