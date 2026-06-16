@@ -15,6 +15,17 @@ const nextConfig = {
     domains: [],
   },
 
+  // ── Redirects ─────────────────────────────────────────────────────────────
+  async redirects() {
+    return [
+      {
+        source: '/apply',
+        destination: '/checkout',
+        permanent: true,
+      },
+    ];
+  },
+
   // ── Security headers ──────────────────────────────────────────────────────
   async headers() {
     return [
