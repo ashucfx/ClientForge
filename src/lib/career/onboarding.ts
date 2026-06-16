@@ -11,6 +11,7 @@ import { derivePackageLabel } from '@/lib/email';
 import { syncCareerClientToFlywheel } from '@/lib/career/sync';
 import type { CareerServiceSlug } from './types';
 import type { LineItem } from '@/types';
+import { parseInvoiceLineItems } from '@/lib/invoiceLineItems';
 
 const PORTAL_URL =
   process.env.NODE_ENV === 'development'
@@ -64,9 +65,7 @@ export async function onboardFromInvoice(invoice: {
   lineItems: unknown;
 }): Promise<OnboardResult> {
 
-  const rawItems: LineItem[] = Array.isArray(invoice.lineItems)
-    ? (invoice.lineItems as LineItem[])
-    : [];
+  const rawItems = parseInvoiceLineItems(invoice.lineItems);
   const slugs         = detectSlugsFromLineItems(rawItems);
   const serviceRecords = await resolveServices(slugs);
 
