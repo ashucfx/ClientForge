@@ -12,9 +12,14 @@ import type { Installment } from '@/types';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET!;
+const WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
 
 export async function POST(request: NextRequest) {
+  if (!WEBHOOK_SECRET) {
+    console.error('CRITICAL ERROR: RAZORPAY_WEBHOOK_SECRET is not configured.');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+
   const rawBody  = await request.text();
   const signature = request.headers.get('x-razorpay-signature') ?? '';
 
@@ -37,18 +42,24 @@ export async function POST(request: NextRequest) {
           eventId: eventId,
           eventType: event,
           payload: payload,
-          status: 'PROCESSED'
+          status: 'PENDING'
         }
       });
     } catch (e: any) {
       if (e.code === 'P2002') {
-        console.log(`Webhook ${eventId} already processed, skipping.`);
-        return NextResponse.json({ received: true });
+        const existingEvent = await prisma.webhookEvent.findUnique({ where: { eventId } });
+        if (existingEvent?.status === 'PROCESSED') {
+          console.log(`Webhook ${eventId} already processed, skipping.`);
+          return NextResponse.json({ received: true });
+        }
+        console.log(`Webhook ${eventId} failed previously or is pending. Retrying...`);
       }
       // If it's another DB error, log it but let it crash so Razorpay retries
       throw e;
     }
   }
+
+  try {
 
   // ── PAYMENT LINK PAID ────────────────────────────────────────
   if (event === 'payment_link.paid') {
@@ -179,5 +190,23 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Update webhook event to PROCESSED
+  if (eventId && !eventId.startsWith('razorpay-')) {
+    await prisma.webhookEvent.update({
+      where: { eventId },
+      data: { status: 'PROCESSED' }
+    }).catch(e => console.error('Failed to update webhook status to PROCESSED:', e));
+  }
+
   return NextResponse.json({ received: true });
+} catch (error) {
+  console.error('Webhook Error:', error);
+  if (eventId && !eventId.startsWith('razorpay-')) {
+    await prisma.webhookEvent.update({
+      where: { eventId },
+      data: { status: 'FAILED', error: String(error) }
+    }).catch(() => null);
+  }
+  return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+}
 }

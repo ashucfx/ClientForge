@@ -18,7 +18,14 @@ import { ADMIN_EMAIL } from '@/lib/config';
 import { waitUntil } from '@vercel/functions';
 import type { Installment } from '@/types';
 
+const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID;
+
 export async function POST(request: NextRequest) {
+  if (!PAYPAL_WEBHOOK_ID) {
+    console.error('CRITICAL ERROR: PAYPAL_WEBHOOK_ID is not configured.');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+
   const rawBody = await request.text();
 
   const headers: Record<string, string | null> = {
@@ -106,6 +113,10 @@ export async function POST(request: NextRequest) {
       } else {
         waitUntil(
           onboardFromInvoice(updatedInvoice)
+            .then(async (result) => {
+              const { handleSalesFunnelPayment } = await import('@/lib/sales/paymentHooks');
+              await handleSalesFunnelPayment(updatedInvoice.id, result.clientId);
+            })
             .catch(async (err) => {
               console.error('[PayPal webhook] Career onboarding failed:', err);
               sendCareerEmail({
@@ -172,6 +183,10 @@ export async function POST(request: NextRequest) {
         } else {
           waitUntil(
             onboardFromInvoice(updatedInvoice)
+              .then(async (result) => {
+                const { handleSalesFunnelPayment } = await import('@/lib/sales/paymentHooks');
+                await handleSalesFunnelPayment(updatedInvoice.id, result.clientId);
+              })
               .catch(async (err) => {
                 console.error('[PayPal webhook] Career onboarding failed:', err);
                 sendCareerEmail({

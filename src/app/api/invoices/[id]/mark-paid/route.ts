@@ -142,6 +142,10 @@ export async function POST(
           .catch(err => console.error('[mark-paid/sync] RN onboarding failed:', err));
       } else {
         onboardFromInvoice(updatedInvoice)
+          .then(async (result) => {
+            const { handleSalesFunnelPayment } = await import('@/lib/sales/paymentHooks');
+            await handleSalesFunnelPayment(updatedInvoice.id, result.clientId);
+          })
           .catch(err => console.error('[mark-paid/sync] Career onboarding failed:', err));
       }
     }
@@ -171,6 +175,10 @@ export async function POST(
       .catch(err => console.error('[mark-paid/manual] RN onboarding failed:', err));
   } else {
     onboardFromInvoice(updatedInvoice)
+      .then(async (result) => {
+        const { handleSalesFunnelPayment } = await import('@/lib/sales/paymentHooks');
+        await handleSalesFunnelPayment(updatedInvoice.id, result.clientId);
+      })
       .catch(err => console.error('[mark-paid/manual] Career onboarding failed:', err));
   }
 
