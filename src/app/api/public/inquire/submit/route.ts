@@ -1,154 +1,95 @@
 import { NextResponse } from 'next/server';
-import { prisma as db } from '@/lib/db';
-import { calculatePricing, PricingParams, PackageSlug, ServiceSlug } from '@/lib/pricing-v2';
-import { ClientType } from '@prisma/client';
-import { normalizePhoneE164 } from '@/lib/phone';
+import type { NextRequest } from 'next/server';
 import { z } from 'zod';
+import { createSalesInquiry } from '@/lib/sales/inquiryService';
+import { isNewInquireFlowEnabled } from '@/lib/features';
+import { INQUIRE_ONLY_REQUIREMENT_TYPES, INQUIRE_SERVICES } from '@/lib/catalog/self-service';
+import { enforcePublicRateLimit } from '@/lib/publicRateLimit';
+import { validatePublicFormMeta } from '@/lib/publicForms';
+import { acquireLock } from '@/lib/idempotency';
 
-const InquireSchema = z.object({
-  name: z.string().min(2, 'Name is too short').max(100),
-  email: z.string().email('Invalid email address'),
-  phone: z.string().min(5, 'Phone number is too short').max(20),
-  countryCode: z.string().length(2, 'Invalid country code'),
+const INQUIRE_SERVICE_IDS = INQUIRE_SERVICES.map((service) => service.id) as [string, ...string[]];
+
+const InquireSchemaV2 = z.object({
+  name: z.string().min(2).max(100),
+  email: z.string().email(),
+  phone: z.string().min(5).max(30),
+  countryCode: z.string().length(2),
   countryName: z.string().min(2),
-  experienceLevel: z.nativeEnum(ClientType),
-  services: z.array(z.string()).min(1, 'Select at least one service'),
-  packageSlug: z.enum(['CAREER_BOOSTER', 'PREMIUM_PLUS', 'CUSTOM']),
-  preferredGateway: z.enum(['RAZORPAY', 'PAYPAL']).optional()
+  requirementType: z.enum(INQUIRE_ONLY_REQUIREMENT_TYPES as unknown as [string, ...string[]]),
+  servicesRequested: z.array(z.enum(INQUIRE_SERVICE_IDS)).min(1),
+  requirementNotes: z.string().max(5000).optional(),
+  sourceUrl: z.string().url().optional(),
+  website: z.string().max(0).optional(),
+  startedAt: z.number(),
 });
 
-export async function POST(req: Request) {
+const LegacyInquireSchema = z.object({
+  name: z.string().min(2).max(100),
+  email: z.string().email(),
+  phone: z.string().min(5).max(20),
+  countryCode: z.string().length(2),
+  countryName: z.string().min(2),
+  experienceLevel: z.string(),
+  services: z.array(z.string()).min(1),
+  packageSlug: z.enum(['CAREER_BOOSTER', 'PREMIUM_PLUS', 'CUSTOM']),
+  preferredGateway: z.enum(['RAZORPAY', 'PAYPAL']).optional(),
+});
+
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const parseResult = InquireSchema.safeParse(body);
-    if (!parseResult.success) {
-      return NextResponse.json({ error: 'Invalid payload', details: parseResult.error.format() }, { status: 400 });
+    const useV2 = isNewInquireFlowEnabled() || Boolean(body.requirementType);
+
+    if (useV2) {
+      const parsed = InquireSchemaV2.safeParse(body);
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: 'Invalid payload', details: parsed.error.format() },
+          { status: 400 }
+        );
+      }
+
+      const metaError = validatePublicFormMeta(parsed.data);
+      if (metaError) {
+        return NextResponse.json({ error: metaError }, { status: 400 });
+      }
+
+      const limited = await enforcePublicRateLimit(req, {
+        action: 'sales_inquiry',
+        email: parsed.data.email,
+        ipLimit: { limit: 10, windowMs: 60 * 60 * 1000 },
+        emailLimit: { limit: 3, windowMs: 60 * 60 * 1000 },
+      });
+      if (limited) return limited;
+
+      const lockKey = `inquire_${parsed.data.email.toLowerCase()}`;
+      if (!acquireLock(lockKey, 10000)) {
+        return NextResponse.json({ error: 'Inquiry already processing. Please wait a moment.' }, { status: 409 });
+      }
+
+      const inquiry = await createSalesInquiry(parsed.data);
+      return NextResponse.json({
+        success: true,
+        message: 'Consultation request received',
+        inquiryId: inquiry.id,
+        displayId: inquiry.displayId,
+      });
     }
 
-    const { 
-      name, email, phone, countryCode, countryName, experienceLevel, 
-      services, packageSlug, preferredGateway 
-    } = parseResult.data;
-
-    // 1. Calculate Pricing (Stored for admin review, NOT billed immediately)
-    const pricing = await calculatePricing({
-      experienceLevel,
-      services: services as ServiceSlug[],
-      packageSlug,
-      countryCode,
-      countryName,
-      preferredGateway
-    });
-
-    const isIndia = countryCode.toUpperCase() === 'IN';
-    const paymentGateway = isIndia ? 'RAZORPAY' : (preferredGateway || 'PAYPAL');
-
-    const applicationRequest = {
-      experienceLevel,
-      services,
-      packageSlug,
-      countryCode,
-      preferredGateway: paymentGateway,
-      pricingDetails: {
-        currency: pricing.currency,
-        currencySymbol: pricing.currencySymbol,
-        subtotal: pricing.subtotal,
-        discountAmount: pricing.discountAmount,
-        discountRate: pricing.discountRate,
-        taxAmount: pricing.taxAmount,
-        taxRate: pricing.taxRate,
-        finalPayable: pricing.finalPayable,
-        internalGatewayFee: pricing.internalGatewayFee
-      },
-      submittedAt: new Date()
-    };
-
-    // 2. Wrap DB operations in a Transaction
-    const contactId = await db.$transaction(async (tx) => {
-      let contact = await tx.contact.findFirst({
-        where: { email: { equals: email, mode: 'insensitive' } },
-        include: { flywheelProfile: true }
+    const legacyParsed = LegacyInquireSchema.safeParse(body);
+    if (legacyParsed.success) {
+      const limited = await enforcePublicRateLimit(req, {
+        action: 'legacy_sales_inquiry',
+        email: legacyParsed.data.email,
+        ipLimit: { limit: 10, windowMs: 60 * 60 * 1000 },
+        emailLimit: { limit: 3, windowMs: 60 * 60 * 1000 },
       });
+      if (limited) return limited;
+    }
 
-      if (!contact) {
-        let nextId = 1000;
-        const allContacts = await tx.contact.findMany({ select: { displayId: true } });
-        for (const c of allContacts) {
-          if (c.displayId) {
-            const num = parseInt(c.displayId.split('-')[1]);
-            if (!isNaN(num) && num > nextId) {
-              nextId = num;
-            }
-          }
-        }
-        nextId++;
-
-        contact = await tx.contact.create({
-          data: {
-            displayId: `LD-${nextId}`,
-            name,
-            email,
-            phone,
-            country: countryCode,
-            contactSource: 'WEBSITE_INQUIRY',
-            flywheelProfile: {
-              create: {
-                lifecycleStage: 'LEAD',
-                leadStatus: 'NEW',
-                metadata: {
-                  applicationRequest
-                },
-                createdAt: new Date(),
-              }
-            }
-          },
-          include: { flywheelProfile: true }
-        });
-      } else {
-        contact = await tx.contact.update({
-          where: { id: contact.id },
-          data: {
-            name,
-            phone,
-            country: countryCode,
-          },
-          include: { flywheelProfile: true }
-        });
-
-        if (contact.flywheelProfile) {
-          const existingMeta = (contact.flywheelProfile.metadata as Record<string, any>) || {};
-          await tx.flywheelProfile.update({
-            where: { id: contact.flywheelProfile.id },
-            data: {
-              metadata: {
-                ...existingMeta,
-                applicationRequest
-              }
-            }
-          });
-        } else {
-          await tx.flywheelProfile.create({
-            data: {
-              contactId: contact.id,
-              lifecycleStage: 'LEAD',
-              leadStatus: 'NEW',
-              metadata: {
-                applicationRequest
-              }
-            }
-          });
-        }
-      }
-      return contact.id;
-    });
-
-    // Return success without an invoice ID or payment URL
-    return NextResponse.json({
-      success: true,
-      message: 'Application received and under review',
-      contactId
-    });
-
+    const { POST: legacyPost } = await import('./legacyHandler');
+    return legacyPost(req, body);
   } catch (error) {
     console.error('Inquire Submit Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
