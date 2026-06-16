@@ -134,6 +134,15 @@ model Invoice {
   invoiceInstallments InvoiceInstallment[]
   clientLinks         InvoiceClientLink[]
 
+  // ── Sales funnel attribution (additive, nullable for legacy rows) ──
+  sourceChannel       String? // INQUIRE | CHECKOUT | APPLY | ADMIN
+  salesInquiryId      String?
+  checkoutSessionId   String?
+  proposalId          String?
+  salesInquiry        SalesInquiry?   @relation("InquiryInvoice", fields: [salesInquiryId], references: [id], onDelete: SetNull)
+  checkoutSession     CheckoutSession? @relation(fields: [checkoutSessionId], references: [id], onDelete: SetNull)
+  proposal            Proposal?       @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -142,6 +151,9 @@ model Invoice {
   @@index([clientType])
   @@index([clientEmail])
   @@index([paymentGateway])
+  @@index([sourceChannel])
+  @@index([salesInquiryId])
+  @@index([checkoutSessionId])
 }
 
 model ExchangeRateCache {
@@ -231,9 +243,14 @@ model CareerClient {
   lifecycleStatus  String    @default("ACTIVE") // ACTIVE | ARCHIVED | EXPIRED | CANCELLED
   archivedAt       DateTime?
   archiveReason    String?
-  reEngagedAt      DateTime?
-  reEngagedFrom    String?
-  lastAdminReplyAt DateTime?
+  reEngagedAt        DateTime?
+  reEngagedFrom      String?
+  lastAdminReplyAt   DateTime?
+
+  // ── Sales funnel attribution (additive) ──
+  sourceChannel      String?  // 'INQUIRE' | 'CHECKOUT' | 'APPLY' | 'ADMIN' — how this client was acquired
+  checkoutSessionId  String?  // Links back to the CheckoutSession that created this client
+  salesInquiryId     String?  // Links back to the SalesInquiry (for /inquire flow)
 
   forms        CareerFormSubmission[]
   deliverables CareerDeliverable[]
@@ -957,7 +974,7 @@ model Contact {
   id            String   @id @default(cuid())
   displayId     String?  @unique // e.g. LD-1002
   name          String
-  email         String?
+  email         String?  @unique
   phone         String?
   companyName   String?
   country       String?
@@ -979,6 +996,7 @@ model Contact {
   rnClients     RnClient[]
 
   flywheelProfile FlywheelProfile?
+  salesInquiries        SalesInquiry[]
 
   sourceMergeReviews    ContactMergeReview[]   @relation("SourceContact")
   targetMergeReviews    ContactMergeReview[]   @relation("TargetContact")
@@ -1186,4 +1204,193 @@ model FlywheelActionCard {
 
   @@index([contactId, status])
   @@index([status, priority(desc)])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SALES INQUIRY & SELF-SERVICE CHECKOUT (Flow A + Flow B)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum InquiryChannel {
+  INQUIRE
+  APPLY
+  MANUAL
+  IMPORT
+}
+
+enum InquiryStatus {
+  NEW
+  UNDER_REVIEW
+  QUALIFIED
+  APPROVED
+  REJECTED
+  REQUEST_INFO
+  PROPOSAL_SENT
+  INVOICE_SENT
+  CONVERTED
+  LOST
+}
+
+enum InquiryPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ProposalStatus {
+  DRAFT
+  SENT
+  VIEWED
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum CheckoutChannel {
+  APPLY
+  CHECKOUT
+  ADMIN
+  MANUAL
+}
+
+enum CheckoutSessionStatus {
+  DRAFT
+  INVOICE_CREATED
+  PAID
+  ABANDONED
+  EXPIRED
+}
+
+model SalesInquiry {
+  id                  String           @id @default(cuid())
+  displayId           String           @unique
+  contactId           String?
+  status              InquiryStatus    @default(NEW)
+  priority            InquiryPriority  @default(MEDIUM)
+  channel             InquiryChannel   @default(INQUIRE)
+  name                String
+  email               String
+  phone               String?
+  countryCode         String
+  countryName         String
+  requirementType     String
+  servicesRequested   Json             @default("[]")
+  requirementNotes    String?          @db.Text
+  qualificationScore  Int?
+  assignedToId        String?
+  sourceUrl           String?
+  utmJson             Json?
+  flywheelProfileId   String?
+  convertedInvoiceId  String?
+  convertedClientId   String?
+  legacyMetadata      Json?
+  closedAt            DateTime?
+
+  // ── Sales funnel redesign (additive) ──
+  autoQualScore       Int?             // Computed 0-100 score based on requirement type, country, services
+  qualificationNotes  String?          @db.Text  // Admin notes during qualification
+  firstResponseAt     DateTime?        // When admin first reviewed this inquiry
+  slaBreachedAt       DateTime?        // If first response > 24h SLA
+
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  contact    Contact?             @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  proposals  Proposal[]
+  activities InquiryActivityLog[]
+  invoices   Invoice[]            @relation("InquiryInvoice")
+  checkoutSessions CheckoutSession[]
+
+  @@index([status])
+  @@index([channel])
+  @@index([email])
+  @@index([createdAt])
+  @@index([assignedToId])
+  @@index([contactId])
+}
+
+model Proposal {
+  id              String         @id @default(cuid())
+  inquiryId       String
+  version         Int            @default(1)
+  status          ProposalStatus @default(DRAFT)
+  title           String
+  scopeSummary    String         @db.Text
+  deliverables    Json           @default("[]")
+  lineItems       Json           @default("[]")
+  currency        String
+  currencySymbol  String         @default("$")
+  subtotal        Float
+  discount        Float          @default(0)
+  tax             Float          @default(0)
+  total           Float
+  validUntil      DateTime
+  sentAt          DateTime?
+  viewedAt        DateTime?
+  respondedAt     DateTime?
+  acceptedByEmail String?
+  clientNotes     String?        @db.Text  // Client's notes when accepting/declining
+  publicToken     String         @unique @default(cuid())
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  inquiry  SalesInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
+
+  @@index([inquiryId])
+  @@index([status])
+  @@index([publicToken])
+}
+
+model InquiryActivityLog {
+  id          String   @id @default(cuid())
+  inquiryId   String
+  action      String
+  fromStatus  String?
+  toStatus    String?
+  note        String?  @db.Text
+  adminId     String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  inquiry SalesInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+
+  @@index([inquiryId])
+  @@index([createdAt])
+}
+
+model CheckoutSession {
+  id                    String                @id @default(cuid())
+  channel               CheckoutChannel       @default(CHECKOUT)
+  contactId             String?
+  salesInquiryId        String?
+  invoiceId             String?
+  packageSlug           String
+  services              Json                  @default("[]")
+  experienceLevel       ClientType
+  pricingSnapshot       Json
+  status                CheckoutSessionStatus @default(DRAFT)
+  paymentUrl            String?
+  abandonedCheckoutLevel Int                  @default(0)
+  name                  String
+  email                 String
+  phone                 String?
+  countryCode           String
+  countryName           String
+
+  // ── Post-payment tracking (additive) ──
+  createdClientId       String?               // The CareerClient created after payment
+  portalActivatedAt     DateTime?
+  onboardingUrl         String?               // The magic link URL for portal access
+
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  salesInquiry SalesInquiry? @relation(fields: [salesInquiryId], references: [id], onDelete: SetNull)
+  invoices     Invoice[]
+
+  @@index([status])
+  @@index([email])
+  @@index([channel])
+  @@index([invoiceId])
 }
