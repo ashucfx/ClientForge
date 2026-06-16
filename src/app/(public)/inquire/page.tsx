@@ -5,15 +5,8 @@ import Link from 'next/link';
 import { Logo } from '@/components/Logo';
 import { ArrowRight, Loader2, Check } from 'lucide-react';
 import { INQUIRE_SERVICES, INQUIRE_ONLY_REQUIREMENT_TYPES } from '@/lib/catalog/self-service';
-
-const COUNTRY_CODES = [
-  { code: '+91', country: 'IN', name: 'India', flag: '🇮🇳' },
-  { code: '+1', country: 'US', name: 'United States', flag: '🇺🇸' },
-  { code: '+44', country: 'GB', name: 'United Kingdom', flag: '🇬🇧' },
-  { code: '+61', country: 'AU', name: 'Australia', flag: '🇦🇺' },
-  { code: '+971', country: 'AE', name: 'United Arab Emirates', flag: '🇦🇪' },
-  { code: '+65', country: 'SG', name: 'Singapore', flag: '🇸🇬' },
-] as const;
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 
 const REQUIREMENT_LABELS: Record<string, string> = {
   CUSTOM_PACKAGE: 'Custom Career Package',
@@ -24,9 +17,9 @@ const REQUIREMENT_LABELS: Record<string, string> = {
 export default function CatalystInquirePage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [phoneCode, setPhoneCode] = useState('+91');
   const [phone, setPhone] = useState('');
   const [countryCode, setCountryCode] = useState('IN');
+  const [countryName, setCountryName] = useState('India');
   const [requirementType, setRequirementType] = useState<string>('CUSTOM_PACKAGE');
   const [interests, setInterests] = useState<string[]>([]);
   const [requirementNotes, setRequirementNotes] = useState('');
@@ -36,8 +29,6 @@ export default function CatalystInquirePage() {
   const [website] = useState('');
   const [startedAt] = useState(() => Date.now());
   const formRef = useRef<HTMLDivElement>(null);
-
-  const selectedCountry = COUNTRY_CODES.find((c) => c.country === countryCode);
 
   const toggleInterest = (id: string) => {
     setInterests((prev) =>
@@ -56,9 +47,9 @@ export default function CatalystInquirePage() {
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim(),
-          phone: `${phoneCode} ${phone.trim()}`,
+          phone: `+${phone}`,
           countryCode,
-          countryName: selectedCountry?.name || 'India',
+          countryName,
           requirementType,
           servicesRequested: interests,
           requirementNotes: requirementNotes.trim() || undefined,
@@ -167,47 +158,22 @@ export default function CatalystInquirePage() {
                   className="input-underline"
                 />
               </Field>
-              <Field label="Phone">
-                <div className="flex gap-3">
-                  <select
-                    value={phoneCode}
-                    onChange={(e) => {
-                      setPhoneCode(e.target.value);
-                      const m = COUNTRY_CODES.find((c) => c.code === e.target.value);
-                      if (m) setCountryCode(m.country);
-                    }}
-                    className="input-underline w-24 shrink-0"
-                  >
-                    {COUNTRY_CODES.map((c) => (
-                      <option key={`${c.code}-${c.country}`} value={c.code}>
-                        {c.flag} {c.code}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="tel"
+              <Field label="Mobile Number">
+                <div className="w-full relative react-phone-container">
+                  <PhoneInput
+                    country={'in'}
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="input-underline flex-1"
+                    onChange={(value, country, e, formattedValue) => {
+                      setPhone(value);
+                      setCountryCode((country as any).countryCode?.toUpperCase() || 'IN');
+                      setCountryName((country as any).name || 'India');
+                    }}
+                    inputClass="!w-full !border-0 !border-b !border-brand-parchment !py-3 !bg-transparent !outline-none focus:!border-brand-gold !text-base !font-sans !rounded-none !pl-[50px]"
+                    buttonClass="!border-0 !border-b !border-brand-parchment !bg-transparent !rounded-none"
+                    containerClass="!w-full"
+                    placeholder="Enter mobile number"
                   />
                 </div>
-              </Field>
-              <Field label="Country">
-                <select
-                  value={countryCode}
-                  onChange={(e) => {
-                    setCountryCode(e.target.value);
-                    const m = COUNTRY_CODES.find((c) => c.country === e.target.value);
-                    if (m) setPhoneCode(m.code);
-                  }}
-                  className="input-underline"
-                >
-                  {COUNTRY_CODES.map((c) => (
-                    <option key={c.country} value={c.country}>
-                      {c.flag} {c.name}
-                    </option>
-                  ))}
-                </select>
               </Field>
               <Field label="Requirement Type">
                 <select
@@ -279,6 +245,32 @@ export default function CatalystInquirePage() {
         }
         .input-underline:focus {
           border-color: #b8935b;
+        }
+        .react-phone-container .flag-dropdown {
+          background: transparent !important;
+          border: none !important;
+          border-bottom: 1px solid #e8e4dc !important;
+          border-radius: 0 !important;
+        }
+        .react-phone-container .form-control {
+          background: transparent !important;
+          border: none !important;
+          border-bottom: 1px solid #e8e4dc !important;
+          border-radius: 0 !important;
+          padding-left: 50px !important;
+          width: 100% !important;
+        }
+        .react-phone-container .form-control:focus {
+          border-color: #b8935b !important;
+          box-shadow: none !important;
+        }
+        .react-phone-container .selected-flag {
+          padding: 0 0 0 8px !important;
+          background: transparent !important;
+        }
+        .react-phone-container .selected-flag:hover, 
+        .react-phone-container .selected-flag:focus {
+          background: transparent !important;
         }
       `}</style>
     </div>

@@ -5,15 +5,8 @@ import Link from 'next/link';
 import { Check, ArrowRight, Loader2, Lock, Star } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { SELF_SERVICE_PACKAGES } from '@/lib/catalog/self-service';
-
-const COUNTRY_CODES = [
-  { code: '+91', country: 'IN', name: 'India', flag: '🇮🇳' },
-  { code: '+1', country: 'US', name: 'United States', flag: '🇺🇸' },
-  { code: '+44', country: 'GB', name: 'United Kingdom', flag: '🇬🇧' },
-  { code: '+61', country: 'AU', name: 'Australia', flag: '🇦🇺' },
-  { code: '+971', country: 'AE', name: 'United Arab Emirates', flag: '🇦🇪' },
-  { code: '+65', country: 'SG', name: 'Singapore', flag: '🇸🇬' },
-] as const;
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 
 type PackageSlug = 'CAREER_BOOSTER' | 'PREMIUM_PLUS' | 'CUSTOM';
 
@@ -24,15 +17,13 @@ export default function CatalystCheckoutPage() {
   const [customServices, setCustomServices] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [phoneCode, setPhoneCode] = useState('+91');
   const [phone, setPhone] = useState('');
   const [countryCode, setCountryCode] = useState('IN');
+  const [countryName, setCountryName] = useState('India');
   const [preferredGateway, setPreferredGateway] = useState<'RAZORPAY' | 'PAYPAL'>('PAYPAL');
   const [pricingDraft, setPricingDraft] = useState<Record<string, unknown> | null>(null);
   const [website] = useState('');
   const [startedAt] = useState(() => Date.now());
-
-  const selectedCountry = COUNTRY_CODES.find((c) => c.country === countryCode);
 
   const resolveServices = (): string[] => {
     if (selectedPackage === 'PREMIUM_PLUS') {
@@ -58,9 +49,9 @@ export default function CatalystCheckoutPage() {
         body: JSON.stringify({
           name,
           email,
-          phone: `${phoneCode} ${phone}`,
+          phone: `+${phone}`,
           countryCode,
-          countryName: selectedCountry?.name || 'India',
+          countryName,
           experienceLevel: 'MID_CAREER',
           packageSlug: selectedPackage,
           services,
@@ -138,7 +129,7 @@ export default function CatalystCheckoutPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
             <div className="lg:col-span-6 space-y-6">
               <h2 className="font-serif text-heading mb-2">Choose Package</h2>
-              {(['PREMIUM_PLUS', 'CAREER_BOOSTER', 'CUSTOM'] as PackageSlug[]).map((pkg) => (
+              {(['CAREER_BOOSTER'] as PackageSlug[]).map((pkg) => (
                 <button
                   key={pkg}
                   type="button"
@@ -167,29 +158,6 @@ export default function CatalystCheckoutPage() {
                   </ul>
                 </button>
               ))}
-
-              {selectedPackage === 'CUSTOM' && (
-                <div className="grid grid-cols-2 gap-2 pt-2">
-                  {['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'].map((svc) => (
-                    <button
-                      key={svc}
-                      type="button"
-                      onClick={() =>
-                        setCustomServices((prev) =>
-                          prev.includes(svc) ? prev.filter((s) => s !== svc) : [...prev, svc]
-                        )
-                      }
-                      className={`py-2 px-3 border text-metadata uppercase tracking-widest ${
-                        customServices.includes(svc)
-                          ? 'bg-brand-obsidian text-brand-bone border-brand-obsidian'
-                          : 'border-brand-parchment'
-                      }`}
-                    >
-                      {svc.replace('_', ' ')}
-                    </button>
-                  ))}
-                </div>
-              )}
 
               {countryCode !== 'IN' && (
                 <div className="pt-4">
@@ -231,50 +199,26 @@ export default function CatalystCheckoutPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full border-b border-brand-parchment py-3 bg-transparent outline-none focus:border-brand-gold"
               />
-              <div className="flex gap-3">
-                <select
-                  value={phoneCode}
-                  onChange={(e) => {
-                    setPhoneCode(e.target.value);
-                    const m = COUNTRY_CODES.find((c) => c.code === e.target.value);
-                    if (m) setCountryCode(m.country);
-                  }}
-                  className="border-b border-brand-parchment py-3 bg-transparent outline-none"
-                >
-                  {COUNTRY_CODES.map((c) => (
-                    <option key={`${c.code}-${c.country}`} value={c.code}>
-                      {c.flag} {c.code}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="tel"
-                  placeholder="Phone"
+              <div className="w-full relative react-phone-container">
+                <PhoneInput
+                  country={'in'}
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="flex-1 border-b border-brand-parchment py-3 bg-transparent outline-none focus:border-brand-gold"
+                  onChange={(value, country, e, formattedValue) => {
+                    setPhone(value);
+                    setCountryCode((country as any).countryCode?.toUpperCase() || 'IN');
+                    setCountryName((country as any).name || 'India');
+                  }}
+                  inputClass="!w-full !border-0 !border-b !border-brand-parchment !py-3 !bg-transparent !outline-none focus:!border-brand-gold !text-base !font-sans !rounded-none !pl-[50px]"
+                  buttonClass="!border-0 !border-b !border-brand-parchment !bg-transparent !rounded-none"
+                  containerClass="!w-full"
+                  placeholder="Mobile Number"
                 />
               </div>
-              <select
-                value={countryCode}
-                onChange={(e) => {
-                  setCountryCode(e.target.value);
-                  const m = COUNTRY_CODES.find((c) => c.country === e.target.value);
-                  if (m) setPhoneCode(m.code);
-                }}
-                className="w-full border-b border-brand-parchment py-3 bg-transparent outline-none"
-              >
-                {COUNTRY_CODES.map((c) => (
-                  <option key={c.country} value={c.country}>
-                    {c.flag} {c.name}
-                  </option>
-                ))}
-              </select>
 
               <button
                 onClick={handleCheckout}
                 disabled={loading}
-                className="w-full inline-flex items-center justify-center gap-2 bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest hover:bg-brand-graphite disabled:opacity-50"
+                className="w-full inline-flex items-center justify-center gap-2 bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest hover:bg-brand-graphite disabled:opacity-50 mt-4"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -310,6 +254,34 @@ export default function CatalystCheckoutPage() {
           </button>
         </main>
       )}
+      <style jsx global>{`
+        .react-phone-container .flag-dropdown {
+          background: transparent !important;
+          border: none !important;
+          border-bottom: 1px solid #e8e4dc !important;
+          border-radius: 0 !important;
+        }
+        .react-phone-container .form-control {
+          background: transparent !important;
+          border: none !important;
+          border-bottom: 1px solid #e8e4dc !important;
+          border-radius: 0 !important;
+          padding-left: 50px !important;
+          width: 100% !important;
+        }
+        .react-phone-container .form-control:focus {
+          border-color: #b8935b !important;
+          box-shadow: none !important;
+        }
+        .react-phone-container .selected-flag {
+          padding: 0 0 0 8px !important;
+          background: transparent !important;
+        }
+        .react-phone-container .selected-flag:hover, 
+        .react-phone-container .selected-flag:focus {
+          background: transparent !important;
+        }
+      `}</style>
     </div>
   );
 }
