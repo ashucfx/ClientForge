@@ -36,6 +36,12 @@ export default function ProposalPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      
+      if (action === 'accept' && data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+      
       setDone(action === 'accept' ? 'accepted' : 'declined');
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Action failed');

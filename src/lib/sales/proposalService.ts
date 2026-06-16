@@ -67,7 +67,7 @@ export async function createProposal(input: CreateProposalInput) {
 }
 
 export async function sendProposal(proposalId: string, adminId?: string) {
-  return db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     const proposal = await tx.proposal.findUniqueOrThrow({
       where: { id: proposalId },
       include: { inquiry: true },
@@ -92,6 +92,16 @@ export async function sendProposal(proposalId: string, adminId?: string) {
 
     return updated;
   });
+
+  // System automatically sends the custom proposal email via SMTP
+  try {
+    const { sendProposalEmail } = await import('@/lib/sales/email');
+    await sendProposalEmail(proposalId);
+  } catch (e) {
+    console.error('Failed to send proposal email via SMTP:', e);
+  }
+
+  return result;
 }
 
 export async function getProposalByToken(publicToken: string) {

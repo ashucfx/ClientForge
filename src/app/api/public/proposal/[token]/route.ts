@@ -70,7 +70,16 @@ export async function POST(
       if (limited) return limited;
 
       const proposal = await acceptProposal(params.token, parsed.data.email);
-      return NextResponse.json({ success: true, status: proposal.status });
+
+      // System automatically generates Custom Checkout Session, Unique Checkout URL, Unique Invoice
+      const { createCheckoutSessionFromProposal } = await import('@/lib/sales/checkoutService');
+      const checkoutResult = await createCheckoutSessionFromProposal(proposal.id);
+
+      return NextResponse.json({ 
+        success: true, 
+        status: proposal.status,
+        checkoutUrl: `/checkout/session/${checkoutResult.checkoutSessionId}`
+      });
     }
 
     if (parsed.data.action === 'decline') {
