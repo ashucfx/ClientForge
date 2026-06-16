@@ -38,11 +38,7 @@ export async function enforcePublicRateLimit(
   );
 
   if (process.env.NODE_ENV === 'production' && !hasRedis) {
-    console.error(`[rate-limit] Upstash Redis is required for public action ${opts.action}`);
-    return NextResponse.json(
-      { error: 'Service temporarily unavailable. Please try again later.' },
-      { status: 503 }
-    );
+    console.warn(`[rate-limit] Upstash Redis is required for public action ${opts.action}. Falling back to in-memory.`);
   }
 
   const ipLimit = opts.ipLimit ?? { limit: 20, windowMs: 60 * 60 * 1000 };
