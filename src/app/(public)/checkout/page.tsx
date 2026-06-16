@@ -129,7 +129,7 @@ export default function CatalystCheckoutPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
             <div className="lg:col-span-6 space-y-6">
               <h2 className="font-serif text-heading mb-2">Choose Package</h2>
-              {(['CAREER_BOOSTER'] as PackageSlug[]).map((pkg) => (
+              {(['PREMIUM_PLUS', 'CAREER_BOOSTER', 'CUSTOM'] as PackageSlug[]).map((pkg) => (
                 <button
                   key={pkg}
                   type="button"
@@ -158,6 +158,29 @@ export default function CatalystCheckoutPage() {
                   </ul>
                 </button>
               ))}
+
+              {selectedPackage === 'CUSTOM' && (
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  {['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'].map((svc) => (
+                    <button
+                      key={svc}
+                      type="button"
+                      onClick={() =>
+                        setCustomServices((prev) =>
+                          prev.includes(svc) ? prev.filter((s) => s !== svc) : [...prev, svc]
+                        )
+                      }
+                      className={`py-2 px-3 border text-metadata uppercase tracking-widest ${
+                        customServices.includes(svc)
+                          ? 'bg-brand-obsidian text-brand-bone border-brand-obsidian'
+                          : 'border-brand-parchment'
+                      }`}
+                    >
+                      {svc.replace('_', ' ')}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {countryCode !== 'IN' && (
                 <div className="pt-4">
