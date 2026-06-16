@@ -186,7 +186,18 @@ export default function FormPage() {
           setErrors(e => ({ ...e, [field.id]: `Max 4 MB` }));
           setSubmitting(false); return;
         }
-        payload[field.id] = { name: file.name, size: file.size, dataUrl: await readAsDataUrl(file) };
+
+        const fd = new FormData();
+        fd.append('file', file);
+        const uploadRes = await fetch('/api/career/portal/upload', { method: 'POST', body: fd });
+        if (!uploadRes.ok) {
+          const d = await uploadRes.json().catch(() => ({}));
+          setSubmitError(d.error ?? `Failed to upload ${file.name}`);
+          setSubmitting(false); return;
+        }
+        
+        const uploadData = await uploadRes.json() as { url: string; mimeType: string; size: number; name: string };
+        payload[field.id] = { name: file.name, size: file.size, dataUrl: uploadData.url };
       }
     }
     const res = await fetch(`/api/career/portal/forms/${type}`, {
@@ -841,12 +852,3 @@ function LoadingScreen() {
 }
 
 // ── Utils ──────────────────────────────────────────────────────────────────────
-
-function readAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload  = () => resolve(r.result as string);
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
-}

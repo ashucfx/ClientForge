@@ -18,6 +18,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const fileData = formData?.[fieldKey];
   if (!fileData || !fileData.dataUrl) return new NextResponse('No file found', { status: 404 });
 
+  if (fileData.dataUrl.startsWith('http')) {
+    return NextResponse.redirect(fileData.dataUrl);
+  }
+
   const [header, base64] = fileData.dataUrl.split(',');
   const mimeType = header.replace('data:', '').replace(';base64', '');
   const buffer = Buffer.from(base64, 'base64');
