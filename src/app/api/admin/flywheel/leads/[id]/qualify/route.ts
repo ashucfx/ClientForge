@@ -127,20 +127,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       }
     });
 
-    // Enqueue an email with the payment link
-    if (contact.email) {
-      await db.emailQueue.create({
-        data: {
-          to: contact.email,
-          trigger: 'INVOICE_GENERATED',
-          data: {
-            invoiceNumber,
-            paymentUrl,
-            amount: pricingDetails.finalPayable,
-            currency: pricingDetails.currency
-          }
-        }
-      });
+    // Enqueue an email with the payment link — use sendInvoiceEmail (EmailQueue INVOICE_GENERATED is broken)
+    if (contact.email && paymentUrl) {
+      try {
+        const { sendInvoiceEmail } = await import('@/lib/email');
+        const fullInvoice = await db.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
+        await sendInvoiceEmail(fullInvoice as unknown as Parameters<typeof sendInvoiceEmail>[0]);
+      } catch (e) {
+        console.error('Qualify invoice email failed:', e);
+      }
     }
 
     return NextResponse.json({

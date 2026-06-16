@@ -183,7 +183,7 @@ export default function FlywheelLeadsPage() {
     } catch (e) { console.error(e); }
   };
 
-  // Import CSV/XLSX
+  // Import CSV
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -215,29 +215,11 @@ export default function FlywheelLeadsPage() {
       finally { setImporting(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
     };
 
-    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-      try {
-        const XLSX = await import('xlsx');
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const buffer = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(buffer, { type: 'array' });
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-          processData(jsonData);
-        };
-        reader.readAsArrayBuffer(file);
-      } catch (err) {
-        setImportResult('Failed to parse Excel file.');
-        setImporting(false);
-      }
-    } else {
-      Papa.parse(file, {
-        header: true, skipEmptyLines: true,
-        complete: (results) => processData(results.data),
-        error: () => { setImportResult('Failed to parse CSV.'); setImporting(false); }
-      });
-    }
+    Papa.parse(file, {
+      header: true, skipEmptyLines: true,
+      complete: (results) => processData(results.data),
+      error: () => { setImportResult('Failed to parse CSV.'); setImporting(false); }
+    });
   };
 
   // Selection
@@ -515,10 +497,10 @@ export default function FlywheelLeadsPage() {
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40" />
           <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl p-8 shadow-2xl w-[90vw] max-w-md z-50 animate-in fade-in zoom-in-95">
-            <Dialog.Title className="text-xl font-bold text-slate-900 mb-2">Import CSV / XLSX</Dialog.Title>
-            <Dialog.Description className="text-slate-500 mb-6">Upload an Excel (.xlsx) or CSV file with the 5 required columns.</Dialog.Description>
+            <Dialog.Title className="text-xl font-bold text-slate-900 mb-2">Import CSV</Dialog.Title>
+            <Dialog.Description className="text-slate-500 mb-6">Upload a CSV file with the 5 required columns.</Dialog.Description>
             <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center bg-slate-50 hover:bg-slate-100 transition-colors">
-              <input type="file" accept=".csv,.xlsx,.xls" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+              <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
               <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4" style={{ background: brand.primaryLight, color: brand.primaryColor }}><IconInbox size={24} /></div>
               <button onClick={() => fileInputRef.current?.click()} disabled={importing} className="px-4 py-2 bg-white border border-slate-300 rounded-lg font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50">
                 {importing ? 'Processing...' : 'Select File'}

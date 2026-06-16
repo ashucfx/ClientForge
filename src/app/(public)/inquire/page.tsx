@@ -1,100 +1,56 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import Link from 'next/link';
 import { Logo } from '@/components/Logo';
 import { ArrowRight, Loader2, Check } from 'lucide-react';
-
-/**
- * /inquire — The "Velvet Rope" Lead Capture
- * 
- * Design doctrine (from Catalyst Brand System):
- *  - Bone (#F4F1EB) ground, Obsidian (#0A0B0D) text, Signal Gold (#B8935B) accent
- *  - Asymmetric, left-weighted layout
- *  - Serif headlines (GT Sectra), grotesque body (Söhne)
- *  - No stock imagery. No boxes. No SaaS patterns.
- *  - "The restraint is the signal."
- * 
- * Philosophy: Capture genuine interest in ONE screen. No multi-step wizard.
- *  Name, email, phone, what they're interested in. That's it.
- *  The page itself IS the pitch — the copy does the selling.
- */
-
-const SERVICES = [
-  { id: 'RESUME', label: 'Professional Resume', sub: 'ATS-optimized, strategy-driven' },
-  { id: 'LINKEDIN', label: 'LinkedIn Profile Overhaul', sub: 'Profile, Banner & DP' },
-  { id: 'COVER_LETTER', label: 'Strategic Cover Letter', sub: 'Targeted, persuasive narrative' },
-  { id: 'PORTFOLIO', label: 'Portfolio Website', sub: 'Multi-page with domain guidance' },
-] as const;
+import { INQUIRE_SERVICES, INQUIRE_ONLY_REQUIREMENT_TYPES } from '@/lib/catalog/self-service';
 
 const COUNTRY_CODES = [
-  { code: '+1', country: 'US', flag: '🇺🇸' },
-  { code: '+1', country: 'CA', flag: '🇨🇦' },
-  { code: '+44', country: 'GB', flag: '🇬🇧' },
-  { code: '+61', country: 'AU', flag: '🇦🇺' },
-  { code: '+91', country: 'IN', flag: '🇮🇳' },
-  { code: '+65', country: 'SG', flag: '🇸🇬' },
-  { code: '+49', country: 'DE', flag: '🇩🇪' },
-  { code: '+33', country: 'FR', flag: '🇫🇷' },
-  { code: '+81', country: 'JP', flag: '🇯🇵' },
-  { code: '+82', country: 'KR', flag: '🇰🇷' },
-  { code: '+971', country: 'AE', flag: '🇦🇪' },
-  { code: '+966', country: 'SA', flag: '🇸🇦' },
-  { code: '+31', country: 'NL', flag: '🇳🇱' },
-  { code: '+46', country: 'SE', flag: '🇸🇪' },
-  { code: '+41', country: 'CH', flag: '🇨🇭' },
-  { code: '+353', country: 'IE', flag: '🇮🇪' },
-  { code: '+45', country: 'DK', flag: '🇩🇰' },
-  { code: '+358', country: 'FI', flag: '🇫🇮' },
-  { code: '+47', country: 'NO', flag: '🇳🇴' },
-  { code: '+64', country: 'NZ', flag: '🇳🇿' },
-  { code: '+34', country: 'ES', flag: '🇪🇸' },
-  { code: '+39', country: 'IT', flag: '🇮🇹' },
-  { code: '+351', country: 'PT', flag: '🇵🇹' },
-  { code: '+48', country: 'PL', flag: '🇵🇱' },
-  { code: '+420', country: 'CZ', flag: '🇨🇿' },
-  { code: '+32', country: 'BE', flag: '🇧🇪' },
-  { code: '+43', country: 'AT', flag: '🇦🇹' },
-  { code: '+972', country: 'IL', flag: '🇮🇱' },
-  { code: '+886', country: 'TW', flag: '🇹🇼' },
-  { code: '+852', country: 'HK', flag: '🇭🇰' },
-  { code: '+60', country: 'MY', flag: '🇲🇾' },
-  { code: '+62', country: 'ID', flag: '🇮🇩' },
-  { code: '+66', country: 'TH', flag: '🇹🇭' },
-  { code: '+84', country: 'VN', flag: '🇻🇳' },
-  { code: '+63', country: 'PH', flag: '🇵🇭' },
-  { code: '+27', country: 'ZA', flag: '🇿🇦' },
-  { code: '+234', country: 'NG', flag: '🇳🇬' },
-  { code: '+254', country: 'KE', flag: '🇰🇪' },
-  { code: '+20', country: 'EG', flag: '🇪🇬' },
-  { code: '+55', country: 'BR', flag: '🇧🇷' },
-  { code: '+52', country: 'MX', flag: '🇲🇽' },
-  { code: '+54', country: 'AR', flag: '🇦🇷' },
-  { code: '+56', country: 'CL', flag: '🇨🇱' },
-  { code: '+57', country: 'CO', flag: '🇨🇴' },
-  { code: '+51', country: 'PE', flag: '🇵🇪' },
-  { code: '+90', country: 'TR', flag: '🇹🇷' },
-  { code: '+30', country: 'GR', flag: '🇬🇷' },
-  { code: '+40', country: 'RO', flag: '🇷🇴' },
-  { code: '+36', country: 'HU', flag: '🇭🇺' },
-  { code: '+359', country: 'BG', flag: '🇧🇬' },
+  { code: '+91', country: 'IN', name: 'India', flag: '🇮🇳' },
+  { code: '+1', country: 'US', name: 'United States', flag: '🇺🇸' },
+  { code: '+44', country: 'GB', name: 'United Kingdom', flag: '🇬🇧' },
+  { code: '+61', country: 'AU', name: 'Australia', flag: '🇦🇺' },
+  { code: '+971', country: 'AE', name: 'United Arab Emirates', flag: '🇦🇪' },
+  { code: '+65', country: 'SG', name: 'Singapore', flag: '🇸🇬' },
 ] as const;
+
+const REQUIREMENT_LABELS: Record<string, string> = {
+  EXECUTIVE_RESUME: 'Executive Resume',
+  CONSULTING: 'Career Consulting',
+  AGENCY: 'Agency / B2B Project',
+  CUSTOM_DEV: 'Custom Development',
+  RETAINER: 'Retainer Engagement',
+  OTHER: 'Other / Complex Requirement',
+};
 
 export default function CatalystInquirePage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneCode, setPhoneCode] = useState('+91');
   const [phone, setPhone] = useState('');
+  const [countryCode, setCountryCode] = useState('IN');
+  const [requirementType, setRequirementType] = useState<string>('EXECUTIVE_RESUME');
   const [interests, setInterests] = useState<string[]>([]);
+  const [requirementNotes, setRequirementNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [displayId, setDisplayId] = useState('');
+  const [website] = useState('');
+  const [startedAt] = useState(() => Date.now());
   const formRef = useRef<HTMLDivElement>(null);
 
+  const selectedCountry = COUNTRY_CODES.find((c) => c.country === countryCode);
+
   const toggleInterest = (id: string) => {
-    setInterests(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
+    setInterests((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    );
   };
 
   const handleSubmit = async () => {
     if (!name.trim() || !email.trim() || !phone.trim()) return;
+    if (interests.length === 0) return alert('Select at least one area of interest.');
     setLoading(true);
     try {
       const res = await fetch('/api/public/inquire/submit', {
@@ -104,331 +60,241 @@ export default function CatalystInquirePage() {
           name: name.trim(),
           email: email.trim(),
           phone: `${phoneCode} ${phone.trim()}`,
-          countryCode: COUNTRY_CODES.find(c => c.code === phoneCode)?.country || 'IN',
-          countryName: 'India',
-          experienceLevel: 'MID_CAREER',
-          services: interests.length > 0 ? interests : ['RESUME'],
-          packageSlug: interests.length >= 4 ? 'PREMIUM_PLUS' : interests.length >= 3 ? 'CAREER_BOOSTER' : 'CUSTOM',
-        })
+          countryCode,
+          countryName: selectedCountry?.name || 'India',
+          requirementType,
+          servicesRequested: interests,
+          requirementNotes: requirementNotes.trim() || undefined,
+          sourceUrl: window.location.href,
+          website,
+          startedAt,
+        }),
       });
-      if (!res.ok) throw new Error('Submission failed');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Submission failed');
+      setDisplayId(data.displayId || '');
       setSubmitted(true);
-    } catch {
-      alert('Something went wrong. Please try again.');
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const scrollToForm = () => {
-    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
-
   if (submitted) {
     return (
       <div className="min-h-screen bg-brand-bone flex flex-col">
-        {/* Thin gold accent bar */}
         <div className="h-[2px] w-full bg-brand-gold" />
-        
         <header className="px-8 md:px-16 lg:px-24 py-8">
           <Logo variant="horizontal" size={28} brandId="catalyst" dark={false} />
         </header>
-
         <main className="flex-1 flex items-center px-8 md:px-16 lg:px-24 pb-24">
           <div className="max-w-2xl">
             <div className="w-12 h-12 rounded-full bg-brand-gold/10 flex items-center justify-center mb-10">
               <Check className="w-6 h-6 text-brand-gold" />
             </div>
-            
             <h1 className="font-serif text-display-lg text-brand-obsidian mb-6 leading-tight">
-              We have your details.
+              Consultation request received.
             </h1>
-            
             <div className="w-16 h-[1px] bg-brand-gold mb-8" />
-            
+            {displayId && (
+              <p className="text-body font-mono text-brand-gold mb-4">Reference: {displayId}</p>
+            )}
             <p className="text-subheading text-brand-obsidian/60 leading-relaxed max-w-lg mb-6">
-              Our team will review your profile and reach out within 24 hours 
-              with a tailored recommendation and pricing.
+              Our team will review your requirements and respond within 24–48 hours with a
+              tailored assessment and next steps. No payment is required at this stage.
             </p>
-            
-            <p className="text-body text-brand-obsidian/40">
-              If you need immediate assistance, write to us at{' '}
-              <a href="mailto:catalyst@theripplenexus.com" className="text-brand-gold hover:underline">
-                catalyst@theripplenexus.com
-              </a>
+            <p className="text-body text-brand-obsidian/40 mb-8">
+              Need standard packages with instant checkout?{' '}
+              <Link href="/checkout" className="text-brand-gold hover:underline">
+                Get started today →
+              </Link>
             </p>
           </div>
         </main>
-
-        <footer className="px-8 md:px-16 lg:px-24 py-8 border-t border-brand-parchment">
-          <p className="text-status text-brand-obsidian/30 uppercase tracking-widest">
-            A Ripple Nexus Institution
-          </p>
-        </footer>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-brand-bone text-brand-obsidian selection:bg-brand-obsidian selection:text-brand-bone">
-      {/* Thin gold accent bar at very top */}
+    <div className="min-h-screen bg-brand-bone text-brand-obsidian">
       <div className="h-[2px] w-full bg-brand-gold" />
-
-      {/* Header — minimal, left-aligned */}
       <header className="px-8 md:px-16 lg:px-24 py-8 flex items-center justify-between">
         <Logo variant="horizontal" size={28} brandId="catalyst" dark={false} />
-        <p className="hidden md:block text-status text-brand-obsidian/30 uppercase tracking-[0.15em]">
-          A Ripple Nexus Institution
-        </p>
+        <Link
+          href="/checkout"
+          className="text-status uppercase tracking-widest text-brand-obsidian/40 hover:text-brand-gold transition-colors"
+        >
+          Self-service checkout →
+        </Link>
       </header>
 
-      {/* ═══ HERO — Asymmetric, left-weighted ═══ */}
-      <section className="px-8 md:px-16 lg:px-24 pt-16 md:pt-24 lg:pt-32 pb-20 md:pb-28">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-0">
-          
-          {/* Left column — the argument (8 cols) */}
-          <div className="lg:col-span-7 xl:col-span-6">
-            {/* Eyebrow */}
-            <p className="text-status text-brand-gold uppercase tracking-[0.2em] font-bold mb-8">
-              Talent Positioning Architecture
-            </p>
-
-            <h1 className="font-serif text-[clamp(2rem,5vw,3.5rem)] leading-[1.1] text-brand-obsidian mb-8 tracking-tight">
-              Your experience <br className="hidden md:block" />
-              is not the product.<br className="hidden md:block" />
-              <span className="text-brand-obsidian/40">Your positioning is.</span>
-            </h1>
-            
-            {/* Gold rule */}
-            <div className="w-20 h-[1px] bg-brand-gold mb-8" />
-
-            <p className="text-subheading text-brand-obsidian/55 leading-relaxed max-w-md mb-12">
-              We engineer how the market perceives your professional value. 
-              The resume is an exhaust product of the system — not the product itself.
-            </p>
-
-            <button
-              onClick={scrollToForm}
-              className="group inline-flex items-center gap-3 text-body font-semibold text-brand-obsidian border-b-2 border-brand-gold pb-1 hover:text-brand-gold transition-colors duration-300"
-            >
-              Get your career strategy
-              <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-            </button>
-          </div>
-
-          {/* Right column — the proof (4 cols) */}
-          <div className="lg:col-span-5 xl:col-span-5 xl:col-start-8 flex flex-col justify-end">
-            <div className="border-l border-brand-parchment pl-8 space-y-10">
-              {[
-                { metric: '500+', label: 'Professionals placed into dream roles' },
-                { metric: '94%', label: 'Interview conversion rate for our clients' },
-                { metric: '72hr', label: 'Average strategy turnaround' },
-              ].map((stat) => (
-                <div key={stat.label}>
-                  <p className="font-serif text-display text-brand-obsidian tracking-tight">{stat.metric}</p>
-                  <p className="text-metadata text-brand-obsidian/45 mt-1 uppercase tracking-widest">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ SERVICES — Index-style listing ═══ */}
-      <section className="border-t border-brand-parchment">
-        <div className="px-8 md:px-16 lg:px-24 py-20 md:py-28">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-0">
-            <div className="lg:col-span-4">
-              <p className="text-status text-brand-gold uppercase tracking-[0.2em] font-bold mb-4">
-                What We Architect
-              </p>
-              <h2 className="font-serif text-heading text-brand-obsidian">
-                Four instruments<br />of positioning.
-              </h2>
-            </div>
-            
-            <div className="lg:col-span-7 lg:col-start-6">
-              <div className="divide-y divide-brand-parchment">
-                {[
-                  {
-                    num: '01',
-                    title: 'Professional Resume',
-                    desc: 'ATS-optimized, strategy-driven document meticulously crafted to pass recruiter screening and highlight your unique career trajectory.'
-                  },
-                  {
-                    num: '02',
-                    title: 'LinkedIn Profile Overhaul',
-                    desc: 'Complete profile transformation including headline, summary, experience sections, custom banner design, and professional display photo guidance — engineered to attract top recruiters and hiring managers.'
-                  },
-                  {
-                    num: '03',
-                    title: 'Strategic Cover Letter',
-                    desc: 'Highly targeted, persuasive narrative designed to secure interviews for your dream roles at top-tier organizations.'
-                  },
-                  {
-                    num: '04',
-                    title: 'Portfolio Website',
-                    desc: 'A bespoke, multi-page digital presence that showcases your career milestones and professional brand. Includes domain integration setup and domain purchase guidance.'
-                  },
-                ].map((svc) => (
-                  <div key={svc.num} className="py-8 first:pt-0 last:pb-0 group">
-                    <div className="flex items-baseline gap-6">
-                      <span className="font-mono text-metadata text-brand-obsidian/25 tabular-nums">{svc.num}</span>
-                      <div>
-                        <h3 className="font-serif text-subheading text-brand-obsidian group-hover:text-brand-gold transition-colors duration-300">
-                          {svc.title}
-                        </h3>
-                        <p className="text-body text-brand-obsidian/45 mt-2 leading-relaxed max-w-lg">
-                          {svc.desc}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ FORM — The capture. Minimal. ═══ */}
-      <section ref={formRef} className="border-t border-brand-parchment bg-white">
-        <div className="px-8 md:px-16 lg:px-24 py-20 md:py-28">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-0">
-            
-            {/* Left — context */}
-            <div className="lg:col-span-4">
-              <p className="text-status text-brand-gold uppercase tracking-[0.2em] font-bold mb-4">
-                Begin
-              </p>
-              <h2 className="font-serif text-heading text-brand-obsidian mb-4">
-                Tell us who you are.
-              </h2>
-              <p className="text-body text-brand-obsidian/50 leading-relaxed max-w-sm">
-                We will review your profile and respond with a tailored recommendation and pricing within 24 hours.
-              </p>
-            </div>
-
-            {/* Right — the form */}
-            <div className="lg:col-span-7 lg:col-start-6">
-              <div className="space-y-10 max-w-lg">
-                
-                {/* Name */}
-                <div>
-                  <label className="text-status font-bold text-brand-obsidian/50 uppercase tracking-[0.15em] block mb-3">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    placeholder="—"
-                    className="w-full bg-transparent border-b border-brand-parchment py-3 text-subheading text-brand-obsidian outline-none focus:border-brand-gold transition-colors duration-300 placeholder:text-brand-obsidian/15"
-                  />
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="text-status font-bold text-brand-obsidian/50 uppercase tracking-[0.15em] block mb-3">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="—"
-                    className="w-full bg-transparent border-b border-brand-parchment py-3 text-subheading text-brand-obsidian outline-none focus:border-brand-gold transition-colors duration-300 placeholder:text-brand-obsidian/15"
-                  />
-                </div>
-
-                {/* Phone — mandatory with country code */}
-                <div>
-                  <label className="text-status font-bold text-brand-obsidian/50 uppercase tracking-[0.15em] block mb-3">
-                    Phone
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <select
-                      value={phoneCode}
-                      onChange={e => setPhoneCode(e.target.value)}
-                      className="bg-transparent border-b border-brand-parchment py-3 text-subheading text-brand-obsidian outline-none focus:border-brand-gold transition-colors duration-300 appearance-none pr-2 w-24 shrink-0"
-                    >
-                      {COUNTRY_CODES.map(c => (
-                        <option key={`${c.code}-${c.country}`} value={c.code}>{c.flag} {c.code}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={e => setPhone(e.target.value)}
-                      placeholder="—"
-                      className="flex-1 bg-transparent border-b border-brand-parchment py-3 text-subheading text-brand-obsidian outline-none focus:border-brand-gold transition-colors duration-300 placeholder:text-brand-obsidian/15"
-                    />
-                  </div>
-                </div>
-
-                {/* Interest selection */}
-                <div>
-                  <label className="text-status font-bold text-brand-obsidian/50 uppercase tracking-[0.15em] block mb-5">
-                    I am interested in
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {SERVICES.map(svc => (
-                      <button
-                        key={svc.id}
-                        onClick={() => toggleInterest(svc.id)}
-                        className={`text-left px-5 py-4 border transition-all duration-200 ${
-                          interests.includes(svc.id)
-                            ? 'border-brand-gold bg-brand-gold/5 text-brand-obsidian'
-                            : 'border-brand-parchment text-brand-obsidian/50 hover:border-brand-obsidian/20 hover:text-brand-obsidian/70'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="text-body font-medium block">{svc.label}</span>
-                            <span className="text-metadata text-brand-obsidian/35 block mt-0.5">{svc.sub}</span>
-                          </div>
-                          {interests.includes(svc.id) && (
-                            <Check className="w-4 h-4 text-brand-gold shrink-0" />
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Submit */}
-                <div className="pt-4">
-                  <button
-                    onClick={handleSubmit}
-                    disabled={loading || !name.trim() || !email.trim() || !phone.trim()}
-                    className="inline-flex items-center gap-3 bg-brand-obsidian text-brand-bone px-10 py-4 text-body font-semibold uppercase tracking-[0.1em] hover:bg-brand-graphite transition-colors duration-300 disabled:opacity-30 disabled:pointer-events-none"
-                  >
-                    {loading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <>
-                        Get Started
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </button>
-                  <p className="text-metadata text-brand-obsidian/30 mt-4">
-                    No commitment. No payment required.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ FOOTER ═══ */}
-      <footer className="border-t border-brand-parchment px-8 md:px-16 lg:px-24 py-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <Logo variant="horizontal" size={22} brandId="catalyst" dark={false} />
-        <p className="text-status text-brand-obsidian/25 uppercase tracking-[0.15em]">
-          © {new Date().getFullYear()} Ripple Nexus · All rights reserved
+      <section className="px-8 md:px-16 lg:px-24 pt-16 pb-12">
+        <p className="text-status text-brand-gold uppercase tracking-[0.2em] font-bold mb-6">
+          Sales Inquiry
         </p>
-      </footer>
+        <h1 className="font-serif text-[clamp(2rem,5vw,3.25rem)] leading-[1.1] max-w-3xl mb-6">
+          Let&apos;s discuss your requirements.
+        </h1>
+        <div className="w-20 h-[1px] bg-brand-gold mb-8" />
+        <p className="text-subheading text-brand-obsidian/55 max-w-xl leading-relaxed">
+          For executive positioning, complex career situations, agency projects, and custom
+          engagements. A consultant will scope your needs before any invoice is issued.
+        </p>
+      </section>
+
+      <section ref={formRef} className="border-t border-brand-parchment bg-white">
+        <div className="px-8 md:px-16 lg:px-24 py-16 md:py-24">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            <div className="lg:col-span-4">
+              <h2 className="font-serif text-heading mb-4">Request Consultation</h2>
+              <p className="text-body text-brand-obsidian/50">
+                Name, contact details, and what you need. Detailed intake happens after engagement
+                begins inside your portal.
+              </p>
+            </div>
+            <div className="lg:col-span-7 lg:col-start-6 space-y-8 max-w-lg">
+              <Field label="Full Name">
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="input-underline"
+                />
+              </Field>
+              <Field label="Email">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input-underline"
+                />
+              </Field>
+              <Field label="Phone">
+                <div className="flex gap-3">
+                  <select
+                    value={phoneCode}
+                    onChange={(e) => {
+                      setPhoneCode(e.target.value);
+                      const m = COUNTRY_CODES.find((c) => c.code === e.target.value);
+                      if (m) setCountryCode(m.country);
+                    }}
+                    className="input-underline w-24 shrink-0"
+                  >
+                    {COUNTRY_CODES.map((c) => (
+                      <option key={`${c.code}-${c.country}`} value={c.code}>
+                        {c.flag} {c.code}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="input-underline flex-1"
+                  />
+                </div>
+              </Field>
+              <Field label="Country">
+                <select
+                  value={countryCode}
+                  onChange={(e) => {
+                    setCountryCode(e.target.value);
+                    const m = COUNTRY_CODES.find((c) => c.country === e.target.value);
+                    if (m) setPhoneCode(m.code);
+                  }}
+                  className="input-underline"
+                >
+                  {COUNTRY_CODES.map((c) => (
+                    <option key={c.country} value={c.country}>
+                      {c.flag} {c.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Requirement Type">
+                <select
+                  value={requirementType}
+                  onChange={(e) => setRequirementType(e.target.value)}
+                  className="input-underline"
+                >
+                  {INQUIRE_ONLY_REQUIREMENT_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {REQUIREMENT_LABELS[t] || t}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Areas of Interest">
+                <div className="space-y-3 pt-2">
+                  {INQUIRE_SERVICES.map((svc) => (
+                    <button
+                      key={svc.id}
+                      type="button"
+                      onClick={() => toggleInterest(svc.id)}
+                      className={`w-full text-left p-4 border transition-colors ${
+                        interests.includes(svc.id)
+                          ? 'border-brand-gold bg-brand-gold/5'
+                          : 'border-brand-parchment hover:border-brand-obsidian/20'
+                      }`}
+                    >
+                      <p className="font-semibold text-body">{svc.label}</p>
+                      <p className="text-metadata text-brand-obsidian/45 mt-1">{svc.sub}</p>
+                    </button>
+                  ))}
+                </div>
+              </Field>
+              <Field label="Tell us about your situation">
+                <textarea
+                  value={requirementNotes}
+                  onChange={(e) => setRequirementNotes(e.target.value)}
+                  rows={4}
+                  className="w-full border border-brand-parchment p-3 text-body outline-none focus:border-brand-gold"
+                  placeholder="Timeline, goals, complexity, any context that helps us assess fit..."
+                />
+              </Field>
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="inline-flex items-center gap-3 bg-brand-obsidian text-brand-bone px-10 py-4 text-body font-semibold uppercase tracking-widest hover:bg-brand-graphite disabled:opacity-50"
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    Request Consultation
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <style jsx global>{`
+        .input-underline {
+          width: 100%;
+          background: transparent;
+          border-bottom: 1px solid #e8e4dc;
+          padding: 0.75rem 0;
+          font-size: 1.125rem;
+          outline: none;
+        }
+        .input-underline:focus {
+          border-color: #b8935b;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="text-status font-bold text-brand-obsidian/50 uppercase tracking-widest block mb-3">
+        {label}
+      </label>
+      {children}
     </div>
   );
 }
