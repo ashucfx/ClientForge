@@ -1,4 +1,5 @@
 import { prisma as db } from '@/lib/db';
+import { getExchangeRate } from '@/lib/currency';
 
 export async function syncCareerClientToFlywheel(clientId: string) {
   try {
@@ -11,6 +12,9 @@ export async function syncCareerClientToFlywheel(clientId: string) {
     // Determine lifecycle stage and lead status based on CareerStatus
     let lifecycleStage = 'LEAD';
     let leadStatus = 'IN_PROGRESS';
+
+    const rate = await getExchangeRate(client.currency, 'INR');
+    const normalizedRevenue = (client.amountPaid || 0) * rate;
 
     if (client.status === 'COMPLETED') {
       lifecycleStage = 'CUSTOMER';
@@ -55,7 +59,7 @@ export async function syncCareerClientToFlywheel(clientId: string) {
             create: {
               lifecycleStage,
               leadStatus,
-              totalRevenue: client.amountPaid || 0,
+              totalRevenue: normalizedRevenue,
               createdAt: client.createdAt,
               lastContactedAt: client.status === 'COMPLETED' ? (client.completedAt || new Date()) : null,
               lastInvoiceDate: client.invoiceId ? new Date() : null,
@@ -90,7 +94,7 @@ export async function syncCareerClientToFlywheel(clientId: string) {
       if (existingProfile) {
         // Only update if we are moving forward (e.g. they became a customer)
         const updateData: any = {
-          totalRevenue: Math.max(Number(existingProfile.totalRevenue) || 0, Number(client.amountPaid) || 0)
+          totalRevenue: Math.max(Number(existingProfile.totalRevenue) || 0, normalizedRevenue)
         };
         
         if (client.status === 'COMPLETED') {
@@ -109,7 +113,7 @@ export async function syncCareerClientToFlywheel(clientId: string) {
             contactId: contact.id,
             lifecycleStage,
             leadStatus,
-            totalRevenue: client.amountPaid || 0,
+            totalRevenue: normalizedRevenue,
             createdAt: client.createdAt,
             lastContactedAt: client.status === 'COMPLETED' ? (client.completedAt || new Date()) : null,
           }
