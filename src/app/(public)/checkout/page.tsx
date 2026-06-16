@@ -151,9 +151,14 @@ export default function CatalystCheckoutPage() {
                       <Star className="w-4 h-4 text-brand-gold fill-brand-gold" />
                     )}
                   </div>
-                  <p className="text-body text-brand-obsidian/45">
+                  <p className="text-body text-brand-obsidian/60 mb-3 font-medium">
                     {SELF_SERVICE_PACKAGES[pkg].description}
                   </p>
+                  <ul className="text-sm text-brand-obsidian/50 space-y-1 list-disc list-inside">
+                    {SELF_SERVICE_PACKAGES[pkg].features.map((feature, i) => (
+                      <li key={i}>{feature}</li>
+                    ))}
+                  </ul>
                 </button>
               ))}
 

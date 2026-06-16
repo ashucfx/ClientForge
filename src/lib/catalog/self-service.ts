@@ -3,34 +3,34 @@ import type { PackageSlug, ServiceSlug } from '@/lib/pricing-v2';
 
 export const SELF_SERVICE_PACKAGES: Record<
   Exclude<PackageSlug, never>,
-  { services: ServiceSlug[]; tiers: ClientType[]; label: string; description: string }
+  { services: ServiceSlug[]; tiers: ClientType[]; label: string; description: string; features: string[] }
 > = {
   CAREER_BOOSTER: {
     services: ['RESUME', 'LINKEDIN', 'COVER_LETTER'],
     tiers: ['FRESHER', 'MID_CAREER'],
     label: 'Career Booster',
     description: 'Resume + LinkedIn + Cover Letter',
+    features: ['ATS-Optimized Resume', 'LinkedIn Profile Makeover', 'Targeted Cover Letter', '1 Revision Round'],
   },
   PREMIUM_PLUS: {
     services: ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'],
     tiers: ['FRESHER', 'MID_CAREER'],
     label: 'Premium Plus',
     description: 'All four career services',
+    features: ['Everything in Career Booster', 'Custom Personal Portfolio Website', 'Priority Delivery', '2 Revision Rounds'],
   },
   CUSTOM: {
     services: ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'],
     tiers: ['FRESHER', 'MID_CAREER'],
     label: 'Build Your Own',
     description: 'Pick individual services',
+    features: ['Select only what you need', 'A la carte pricing', 'Standard delivery timeline'],
   },
 };
 
 export const INQUIRE_ONLY_REQUIREMENT_TYPES = [
   'EXECUTIVE_RESUME',
   'CONSULTING',
-  'AGENCY',
-  'CUSTOM_DEV',
-  'RETAINER',
   'OTHER',
 ] as const;
 
@@ -40,10 +40,6 @@ export const INQUIRE_SERVICES = [
   { id: 'EXECUTIVE_RESUME', label: 'Executive Resume', sub: 'C-suite and senior leadership positioning' },
   { id: 'LINKEDIN_EXECUTIVE', label: 'Executive LinkedIn', sub: 'Authority-building profile strategy' },
   { id: 'CONSULTING', label: 'Career Consulting', sub: 'Complex career transitions and strategy' },
-  { id: 'AGENCY', label: 'Agency / B2B Project', sub: 'Ripple Nexus agency engagements' },
-  { id: 'CUSTOM_DEV', label: 'Custom Development', sub: 'Bespoke digital or content projects' },
-  { id: 'RETAINER', label: 'Retainer Engagement', sub: 'Ongoing advisory or delivery support' },
-  { id: 'PORTFOLIO_CUSTOM', label: 'Custom Portfolio', sub: 'Multi-page portfolio with custom scope' },
 ] as const;
 
 export function deriveExperienceLevel(packageSlug: PackageSlug, tierHint?: ClientType): ClientType {

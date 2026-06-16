@@ -17,8 +17,12 @@ export function verifyCsrf(req: NextRequest): boolean {
   // Strict Origin verification
   const origin = req.headers.get('origin');
   const allowedOrigin = process.env.NEXT_PUBLIC_APP_URL;
-  if (origin && allowedOrigin && origin !== allowedOrigin && origin !== allowedOrigin.replace('http://', 'https://')) {
-    return false;
+  if (origin && allowedOrigin) {
+    const isExact = origin === allowedOrigin || origin === allowedOrigin.replace('http://', 'https://');
+    const isWww = origin === allowedOrigin.replace('https://', 'https://www.') || origin === allowedOrigin.replace('http://', 'http://www.');
+    if (!isExact && !isWww) {
+      return false;
+    }
   }
 
   return true;
