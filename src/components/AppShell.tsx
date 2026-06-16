@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { IconGrid, IconPlus, IconList, IconLogout, IconTarget, IconUser, IconLink, IconTrendUp, IconMail, IconZap } from '@/components/Icons';
+import { IconGrid, IconPlus, IconList, IconLogout, IconTarget, IconUser, IconLink, IconTrendUp, IconMail, IconZap, IconInbox } from '@/components/Icons';
 import { Logo } from '@/components/Logo';
 import { useBrand } from '@/components/BrandProvider';
 import { useAdmin } from '@/components/AdminProvider';
@@ -32,6 +32,7 @@ const NAV_RN = [
 
 const NAV_FLYWHEEL = [
   { href: '/flywheel',           Icon: IconZap,     label: 'Command Center' },
+  { href: '/sales/inquiries',    Icon: IconInbox,   label: 'Lead Review Center' },
   { href: '/flywheel/pipeline',  Icon: IconTarget,  label: 'Pipeline & CRM' },
   { href: '/flywheel/leads',     Icon: IconUser,    label: 'Audience & Leads' },
   { href: '/flywheel/campaigns', Icon: IconMail,    label: 'Campaigns' },
@@ -47,6 +48,7 @@ function isNavActive(href: string, pathname: string) {
   if (href === '/rn/services') return pathname.startsWith('/rn/services');
   if (href === '/flywheel') return pathname === '/flywheel';
   if (href.startsWith('/flywheel/')) return pathname.startsWith(href);
+  if (href === '/sales/inquiries') return pathname.startsWith('/sales/inquiries');
   return pathname.startsWith(href);
 }
 

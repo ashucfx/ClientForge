@@ -44,6 +44,10 @@ async function getSessionPayload(token: string): Promise<{
 // ─── Public paths that bypass auth ─────────────────────────────────────────
 const PUBLIC_PREFIXES = [
   '/login',
+  '/inquire',
+  '/checkout',
+  '/proposal',
+  '/api/public',
   '/api/auth',
   '/api/health',
   '/api/currency',
