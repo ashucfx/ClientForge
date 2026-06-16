@@ -3,6 +3,7 @@
 import type { InvoiceData, LineItem } from '@/types';
 import { BRAND_EMAIL, BRAND_WEBSITE_LABEL, BRAND_WEBSITE_URL } from './config';
 import { CLIENT_TYPE_LABELS, formatCurrency, round2 } from './pricing';
+import { parseInvoiceLineItems } from './invoiceLineItems';
 
 import { getBrand } from './brand/registry';
 
@@ -191,9 +192,7 @@ function buildInvoiceEmailText(invoice: InvoiceData): string {
   const sym = invoice.currencySymbol;
   const fmt = (n: number) => formatCurrency(n, sym);
 
-  const items: LineItem[] = Array.isArray(invoice.lineItems) && invoice.lineItems.length > 0
-    ? invoice.lineItems as unknown as LineItem[]
-    : [];
+  const items = parseInvoiceLineItems(invoice.lineItems);
   const packageLabel = derivePackageLabel(items);
 
   const itemLines = items.map(item => {
@@ -247,7 +246,7 @@ function buildConfirmationEmailText(invoice: InvoiceData): string {
   const brand = getBrand(invoice.brandId);
   const sym = invoice.currencySymbol;
   const fmt = (n: number) => formatCurrency(n, sym);
-  const items: LineItem[] = Array.isArray(invoice.lineItems) ? invoice.lineItems as unknown as LineItem[] : [];
+  const items = parseInvoiceLineItems(invoice.lineItems);
   const packageLabel = derivePackageLabel(items);
   return `
 Hi ${invoice.clientName.split(' ')[0]},
@@ -280,9 +279,7 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
   const invoiceDateStr = new Date(invoice.invoiceDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const dueDateStr     = new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-  const lineItemsArr: LineItem[] = Array.isArray(invoice.lineItems) && invoice.lineItems.length > 0
-    ? invoice.lineItems as unknown as LineItem[]
-    : [];
+  const lineItemsArr = parseInvoiceLineItems(invoice.lineItems);
   const packageLabel = derivePackageLabel(lineItemsArr);
 
   const payUrl = invoice.razorpayLinkUrl || invoice.paypalPaymentUrl || '';
@@ -762,7 +759,7 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
   const sym       = invoice.currencySymbol;
   const fmt       = (n: number) => formatCurrency(n, sym);
   const firstName = invoice.clientName.split(' ')[0];
-  const confItems: LineItem[] = Array.isArray(invoice.lineItems) ? invoice.lineItems as unknown as LineItem[] : [];
+  const confItems = parseInvoiceLineItems(invoice.lineItems);
   const packageLabel = derivePackageLabel(confItems);
   const paidOnStr = invoice.paidAt
     ? new Date(invoice.paidAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
