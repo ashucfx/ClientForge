@@ -240,3 +240,146 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
     currencySymbol: result.pricing.currencySymbol,
   };
 }
+
+export async function createCheckoutSessionFromProposal(proposalId: string) {
+  const proposal = await db.proposal.findUniqueOrThrow({
+    where: { id: proposalId },
+    include: { inquiry: { include: { contact: { include: { flywheelProfile: true } } } } },
+  });
+
+  const inquiry = proposal.inquiry;
+  const isIndia = inquiry.countryCode.toUpperCase() === 'IN';
+  const paymentGateway = isIndia ? 'RAZORPAY' : 'PAYPAL';
+
+  const result = await db.$transaction(async (tx) => {
+    let contact = inquiry.contact;
+
+    if (contact && contact.flywheelProfile) {
+      await tx.flywheelProfile.update({
+        where: { id: contact.flywheelProfile.id },
+        data: {
+          dealValue: proposal.total,
+          leadStatus: inquiryStatusToLeadStatus('APPROVED'),
+        },
+      });
+    }
+
+    const session = await tx.checkoutSession.create({
+      data: {
+        channel: 'CHECKOUT',
+        contactId: contact?.id,
+        salesInquiryId: inquiry.id,
+        proposalId: proposal.id,
+        packageSlug: 'CUSTOM_PROPOSAL',
+        services: proposal.deliverables as unknown as Prisma.InputJsonValue,
+        experienceLevel: 'EXECUTIVE', // Generic fallback
+        pricingSnapshot: {
+          subtotal: proposal.subtotal,
+          discountAmount: proposal.discount,
+          taxAmount: proposal.tax,
+          finalPayable: proposal.total,
+          currency: proposal.currency,
+          currencySymbol: proposal.currencySymbol,
+        } as unknown as Prisma.InputJsonValue,
+        status: 'DRAFT',
+        name: inquiry.name,
+        email: inquiry.email,
+        phone: inquiry.phone,
+        countryCode: inquiry.countryCode,
+        countryName: inquiry.countryName,
+      },
+    });
+
+    const count = await tx.invoice.count();
+    const randomSuffix = Math.random().toString(36).substring(2, 5).toUpperCase();
+    const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(count + 1).padStart(4, '0')}-${randomSuffix}`;
+
+    const invoice = await tx.invoice.create({
+      data: {
+        invoiceNumber,
+        clientName: inquiry.name,
+        clientEmail: inquiry.email.toLowerCase().trim(),
+        clientPhone: inquiry.phone ?? '',
+        clientType: 'EXECUTIVE',
+        country: inquiry.countryCode,
+        currency: proposal.currency,
+        currencySymbol: proposal.currencySymbol,
+        exchangeRate: 1,
+        lineItems: proposal.lineItems as unknown as Prisma.InputJsonValue,
+        discountRate: 0,
+        discountAmount: proposal.discount,
+        taxRate: 0,
+        taxAmount: proposal.tax,
+        subtotalConverted: proposal.subtotal,
+        processingFeeRate: 0,
+        processingFeeConverted: 0,
+        totalPayable: proposal.total,
+        paymentGateway,
+        status: 'PENDING',
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        brandId: 'catalyst',
+        sourceChannel: 'CHECKOUT',
+        checkoutSessionId: session.id,
+        salesInquiryId: inquiry.id,
+        proposalId: proposal.id,
+      },
+    });
+
+    return { invoice, session };
+  });
+
+  let paymentUrl = '';
+  if (paymentGateway === 'RAZORPAY') {
+    try {
+      const rpRes = await createRazorpayPaymentLink({ ...result.invoice, lineItems: proposal.lineItems } as never);
+      paymentUrl = rpRes.short_url;
+      await db.invoice.update({
+        where: { id: result.invoice.id },
+        data: { razorpayLinkId: rpRes.id, razorpayLinkUrl: paymentUrl },
+      });
+    } catch (e) {
+      console.error('Razorpay Gateway Error:', e);
+      throw new Error('Unable to create Razorpay payment link. Please try again.');
+    }
+  } else {
+    try {
+      const ppRes = await createPaypalInvoice({
+        id: result.invoice.id,
+        invoiceNumber: result.invoice.invoiceNumber,
+        clientName: result.invoice.clientName,
+        clientEmail: result.invoice.clientEmail,
+        currency: result.invoice.currency,
+        dueDate: result.invoice.dueDate,
+        notes: `Custom Proposal: ${proposal.title}`,
+        lineItems: proposal.lineItems as any,
+        taxAmount: proposal.tax,
+        discountAmount: proposal.discount,
+        processingFeeAmount: 0,
+      });
+      paymentUrl = ppRes.paymentUrl;
+      await db.invoice.update({
+        where: { id: result.invoice.id },
+        data: { paypalInvoiceId: ppRes.id, paypalPaymentUrl: paymentUrl },
+      });
+    } catch (e) {
+      console.error('PayPal Gateway Error:', e);
+      throw new Error('Unable to create PayPal invoice. Please try again.');
+    }
+  }
+
+  await db.checkoutSession.update({
+    where: { id: result.session.id },
+    data: {
+      invoiceId: result.invoice.id,
+      paymentUrl,
+      status: 'INVOICE_CREATED',
+    },
+  });
+
+  return {
+    invoiceId: result.invoice.id,
+    checkoutSessionId: result.session.id,
+    paymentUrl: paymentUrl,
+  };
+}
+

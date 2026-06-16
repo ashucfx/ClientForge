@@ -76,6 +76,12 @@ export default function CatalystCheckoutPage() {
       }
 
       const data = await res.json();
+      if (data.checkoutSessionId) {
+        window.location.href = `/checkout/session/${data.checkoutSessionId}`;
+        return;
+      }
+      
+      // Fallback just in case
       if (data.paymentUrl) {
         window.location.href = data.paymentUrl as string;
         return;

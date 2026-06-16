@@ -1310,32 +1310,35 @@ model SalesInquiry {
 }
 
 model Proposal {
-  id              String         @id @default(cuid())
-  inquiryId       String
-  version         Int            @default(1)
-  status          ProposalStatus @default(DRAFT)
-  title           String
-  scopeSummary    String         @db.Text
-  deliverables    Json           @default("[]")
-  lineItems       Json           @default("[]")
-  currency        String
-  currencySymbol  String         @default("$")
-  subtotal        Float
-  discount        Float          @default(0)
-  tax             Float          @default(0)
-  total           Float
-  validUntil      DateTime
-  sentAt          DateTime?
-  viewedAt        DateTime?
-  respondedAt     DateTime?
-  acceptedByEmail String?
-  clientNotes     String?        @db.Text  // Client's notes when accepting/declining
-  publicToken     String         @unique @default(cuid())
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id               String         @id @default(cuid())
+  inquiryId        String
+  version          Int            @default(1)
+  status           ProposalStatus @default(DRAFT)
+  title            String
+  scopeSummary     String         @db.Text
+  deliverables     Json           @default("[]")
+  lineItems        Json           @default("[]")
+  revisionLimits   Json?          // E.g., { "Resume": 2, "LinkedIn": 1 }
+  deliveryTimeline Json?          // E.g., { "EstimatedDays": 5, "Description": "5 business days" }
+  currency         String
+  currencySymbol   String         @default("$")
+  subtotal         Float
+  discount         Float          @default(0)
+  tax              Float          @default(0)
+  total            Float
+  validUntil       DateTime
+  sentAt           DateTime?
+  viewedAt         DateTime?
+  respondedAt      DateTime?
+  acceptedByEmail  String?
+  clientNotes      String?        @db.Text  // Client's notes when accepting/declining
+  publicToken      String         @unique @default(cuid())
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
-  inquiry  SalesInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
-  invoices Invoice[]
+  inquiry          SalesInquiry      @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  invoices         Invoice[]
+  checkoutSessions CheckoutSession[] // A proposal can generate one or more checkout sessions (e.g., if one expires)
 
   @@index([inquiryId])
   @@index([status])
@@ -1364,6 +1367,7 @@ model CheckoutSession {
   channel               CheckoutChannel       @default(CHECKOUT)
   contactId             String?
   salesInquiryId        String?
+  proposalId            String?
   invoiceId             String?
   packageSlug           String
   services              Json                  @default("[]")
@@ -1387,10 +1391,12 @@ model CheckoutSession {
   updatedAt             DateTime              @updatedAt
 
   salesInquiry SalesInquiry? @relation(fields: [salesInquiryId], references: [id], onDelete: SetNull)
+  proposal     Proposal?     @relation(fields: [proposalId], references: [id], onDelete: SetNull)
   invoices     Invoice[]
 
   @@index([status])
   @@index([email])
   @@index([channel])
   @@index([invoiceId])
+  @@index([proposalId])
 }
