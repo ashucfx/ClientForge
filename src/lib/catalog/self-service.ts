@@ -29,17 +29,17 @@ export const SELF_SERVICE_PACKAGES: Record<
 };
 
 export const INQUIRE_ONLY_REQUIREMENT_TYPES = [
-  'EXECUTIVE_RESUME',
-  'CONSULTING',
+  'CUSTOM_PACKAGE',
+  'ENTERPRISE',
   'OTHER',
 ] as const;
 
 export type InquireRequirementType = (typeof INQUIRE_ONLY_REQUIREMENT_TYPES)[number];
 
 export const INQUIRE_SERVICES = [
-  { id: 'EXECUTIVE_RESUME', label: 'Executive Resume', sub: 'C-suite and senior leadership positioning' },
-  { id: 'LINKEDIN_EXECUTIVE', label: 'Executive LinkedIn', sub: 'Authority-building profile strategy' },
-  { id: 'CONSULTING', label: 'Career Consulting', sub: 'Complex career transitions and strategy' },
+  { id: 'CUSTOM_RESUME', label: 'Professional Resume & LinkedIn', sub: 'Tailored for your specific career level and industry' },
+  { id: 'PORTFOLIO_DESIGN', label: 'Personal Portfolio Website', sub: 'Custom digital presence to showcase your work' },
+  { id: 'OTHER', label: 'General Inquiry', sub: 'Discuss a specific or custom requirement' },
 ] as const;
 
 export function deriveExperienceLevel(packageSlug: PackageSlug, tierHint?: ClientType): ClientType {

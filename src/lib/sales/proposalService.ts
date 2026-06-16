@@ -204,7 +204,7 @@ export async function createInvoiceFromProposal(proposalId: string, adminId?: st
     const appReq = legacyMeta?.applicationRequest as Record<string, unknown> | undefined;
     const experienceLevel =
       (appReq?.experienceLevel as keyof typeof ClientType) ||
-      (inquiry.requirementType === 'EXECUTIVE_RESUME' ? 'EXECUTIVE' : 'MID_CAREER');
+      (inquiry.requirementType === 'ENTERPRISE' ? 'EXECUTIVE' : 'MID_CAREER');
 
     const isIndia = inquiry.countryCode.toUpperCase() === 'IN';
     const paymentGateway = isIndia

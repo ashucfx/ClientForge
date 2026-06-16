@@ -16,12 +16,9 @@ const COUNTRY_CODES = [
 ] as const;
 
 const REQUIREMENT_LABELS: Record<string, string> = {
-  EXECUTIVE_RESUME: 'Executive Resume',
-  CONSULTING: 'Career Consulting',
-  AGENCY: 'Agency / B2B Project',
-  CUSTOM_DEV: 'Custom Development',
-  RETAINER: 'Retainer Engagement',
-  OTHER: 'Other / Complex Requirement',
+  CUSTOM_PACKAGE: 'Custom Career Package',
+  ENTERPRISE: 'Team / Enterprise Solutions',
+  OTHER: 'Other Request',
 };
 
 export default function CatalystInquirePage() {
@@ -30,7 +27,7 @@ export default function CatalystInquirePage() {
   const [phoneCode, setPhoneCode] = useState('+91');
   const [phone, setPhone] = useState('');
   const [countryCode, setCountryCode] = useState('IN');
-  const [requirementType, setRequirementType] = useState<string>('EXECUTIVE_RESUME');
+  const [requirementType, setRequirementType] = useState<string>('CUSTOM_PACKAGE');
   const [interests, setInterests] = useState<string[]>([]);
   const [requirementNotes, setRequirementNotes] = useState('');
   const [loading, setLoading] = useState(false);

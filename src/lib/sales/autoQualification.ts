@@ -12,11 +12,8 @@
 
 // ── Requirement type weights ──
 const REQUIREMENT_SCORES: Record<string, number> = {
-  EXECUTIVE_RESUME: 30,
-  RETAINER: 28,
-  AGENCY: 25,
-  CUSTOM_DEV: 22,
-  CONSULTING: 20,
+  ENTERPRISE: 30,
+  CUSTOM_PACKAGE: 25,
   OTHER: 10,
 };
 
