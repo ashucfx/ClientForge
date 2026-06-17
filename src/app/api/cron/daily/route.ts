@@ -13,6 +13,8 @@ import { GET as runInvoicesCron } from '../invoices/route';
 import { GET as runSlaCron } from '../sla/route';
 import { GET as runAbandonedCheckoutCron } from '../abandoned-checkout/route';
 import { GET as runUpsellCron } from '../upsell/route';
+import { GET as runProcessCampaigns } from '../../admin/flywheel/cron/process-campaigns/route';
+import { GET as runScoreDecay } from '../../admin/flywheel/cron/score-decay/route';
 
 export async function GET(req: NextRequest) {
   // We pass the original request along so the individual handlers can check the CRON_SECRET auth header.
@@ -73,6 +75,20 @@ export async function GET(req: NextRequest) {
     results['upsell'] = res.status;
   } catch (e: any) {
     results['upsell'] = e.message || 'error';
+  }
+
+  try {
+    const res = await runProcessCampaigns(req);
+    results['process_campaigns'] = res.status;
+  } catch (e: any) {
+    results['process_campaigns'] = e.message || 'error';
+  }
+
+  try {
+    const res = await runScoreDecay(req);
+    results['score_decay'] = res.status;
+  } catch (e: any) {
+    results['score_decay'] = e.message || 'error';
   }
 
   return NextResponse.json({ ok: true, results });

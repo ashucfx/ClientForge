@@ -67,24 +67,21 @@ export default function AnalyticsDashboard() {
   useEffect(() => {
     async function fetchAnalytics() {
       setLoading(true);
-      try {
-        const [execRes, opsRes, slaRes, satRes, lifeRes, chartRes] = await Promise.all([
-          fetch('/api/admin/analytics/executive'),
-          fetch('/api/admin/analytics/operations'),
-          fetch('/api/admin/analytics/sla'),
-          fetch('/api/admin/analytics/satisfaction'),
-          fetch('/api/admin/analytics/lifecycle'),
-          fetch('/api/admin/analytics/revenue-chart'),
-        ]);
-        if (execRes.ok) setExecData(await execRes.json());
-        if (opsRes.ok) setOpsData(await opsRes.json());
-        if (slaRes.ok) setSlaData(await slaRes.json());
-        if (satRes.ok) setSatData(await satRes.json());
-        if (lifeRes.ok) setLifeData(await lifeRes.json());
-        if (chartRes.ok) setChartData(await chartRes.json());
-      } catch (err) {
-        console.error('Failed to fetch analytics', err);
-      }
+      const results = await Promise.allSettled([
+        fetch('/api/admin/analytics/executive').then(r => r.ok ? r.json() : null),
+        fetch('/api/admin/analytics/operations').then(r => r.ok ? r.json() : null),
+        fetch('/api/admin/analytics/sla').then(r => r.ok ? r.json() : null),
+        fetch('/api/admin/analytics/satisfaction').then(r => r.ok ? r.json() : null),
+        fetch('/api/admin/analytics/lifecycle').then(r => r.ok ? r.json() : null),
+        fetch('/api/admin/analytics/revenue-chart').then(r => r.ok ? r.json() : null),
+      ]);
+      const [exec, ops, sla, sat, life, chart] = results;
+      if (exec.status === 'fulfilled' && exec.value) setExecData(exec.value);
+      if (ops.status === 'fulfilled' && ops.value) setOpsData(ops.value);
+      if (sla.status === 'fulfilled' && sla.value) setSlaData(sla.value);
+      if (sat.status === 'fulfilled' && sat.value) setSatData(sat.value);
+      if (life.status === 'fulfilled' && life.value) setLifeData(life.value);
+      if (chart.status === 'fulfilled' && chart.value) setChartData(chart.value);
       setLoading(false);
     }
     fetchAnalytics();
@@ -140,16 +137,38 @@ export default function AnalyticsDashboard() {
             
             {/* SECTION 1 - EXECUTIVE COMMAND CENTER */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard 
-                label="Total Revenue (Global LTV)" 
-                value={execData?.revenue?.value?.toLocaleString()} 
-                trendPct={execData?.revenue?.trendPct}
-                trendDirection={execData?.revenue?.trendDirection}
-                context={execData?.revenue?.context}
-                icon={<IconTrendUp className="text-blue-600" />} 
-                bg="#eff6ff" 
-                accent 
-              />
+              <div className={`card hover-lift transition-all duration-200 p-5 ring-1 ring-blue-200 shadow-sm`}>
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#eff6ff' }}>
+                    <IconTrendUp className="text-blue-600" />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-slate-500 mb-1">Total Revenue (Global LTV)</div>
+                  <div className="text-3xl font-bold tracking-tight mb-1 text-blue-600">
+                    ₹{execData?.revenue?.value != null ? Number(execData.revenue.value).toLocaleString('en-IN') : '—'}
+                  </div>
+                  <div className="text-xs text-slate-400 mb-2">≈ INR equivalent (multi-currency)</div>
+                  {execData?.revenue?.currencyBreakdown?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {execData.revenue.currencyBreakdown.slice(0, 4).map((b: any) => (
+                        <span key={b.currency} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100">
+                          {b.currency} {Number(b.amount).toLocaleString()}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    {execData?.revenue?.trendPct !== undefined && (
+                      <span className={`inline-flex items-center gap-1 text-sm font-medium ${(execData.revenue.trendPct ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {(execData.revenue.trendPct ?? 0) >= 0 ? <IconTrendUp size={14} /> : <IconTrendDown size={14} />}
+                        {Math.abs(execData.revenue.trendPct ?? 0)}%
+                      </span>
+                    )}
+                    <span className="text-xs text-slate-400">vs last 30d</span>
+                  </div>
+                </div>
+              </div>
               <KpiCard 
                 label="Active Clients" 
                 value={execData?.activeClients?.value || 0} 

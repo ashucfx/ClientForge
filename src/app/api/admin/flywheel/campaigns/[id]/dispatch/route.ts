@@ -32,6 +32,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ success: false, error: 'Campaign has no steps configured' }, { status: 400 });
     }
 
+    // Filter DNC contacts before the transaction so the count is available after
+    const dncProfiles = await db.flywheelProfile.findMany({
+      where: { contactId: { in: contactIds }, optInStatus: false },
+      select: { contactId: true },
+    });
+    const dncSet = new Set(dncProfiles.map((p: { contactId: string }) => p.contactId));
+    const eligibleIds: string[] = contactIds.filter((id: string) => !dncSet.has(id));
+    const skipped = contactIds.length - eligibleIds.length;
+
     // Attach leads and set campaign to ACTIVE
     await db.$transaction(async (tx: any) => {
       // 1. Activate campaign
@@ -40,18 +49,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         data: { status: 'ACTIVE' }
       });
 
-      // 2. Filter out Do Not Contact contacts before inserting
-      const dncProfiles = await tx.flywheelProfile.findMany({
-        where: { contactId: { in: contactIds }, optInStatus: false },
-        select: { contactId: true },
-      });
-      const dncSet = new Set(dncProfiles.map((p: { contactId: string }) => p.contactId));
-      const eligibleIds = contactIds.filter((id: string) => !dncSet.has(id));
-
       const now = new Date();
       now.setHours(now.getHours() + firstStep.delayHours);
 
-      // Using createMany and ignoring duplicates
       await tx.flywheelCampaignLead.createMany({
         data: eligibleIds.map((contactId: string) => ({
           campaignId,
@@ -64,7 +64,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       });
     });
 
-    return NextResponse.json({ success: true, message: 'Campaign dispatched successfully' });
+    return NextResponse.json({
+      success: true,
+      dispatched: eligibleIds.length,
+      skipped,
+      message: skipped > 0
+        ? `Dispatched ${eligibleIds.length} contacts. ${skipped} skipped (Do Not Contact).`
+        : `Dispatched ${eligibleIds.length} contacts.`,
+    });
 
   } catch (error) {
     console.error('[FlywheelCampaignDispatch] POST Error:', error);

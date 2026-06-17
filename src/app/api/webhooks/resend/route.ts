@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { prisma as db } from '@/lib/db';
 
 export const runtime = 'nodejs';
@@ -30,19 +31,33 @@ interface ResendWebhookPayload {
 }
 
 export async function POST(req: NextRequest) {
-  // Verify webhook signature if RESEND_WEBHOOK_SECRET is set
+  const rawBody = await req.text();
+
+  // HMAC-SHA256 signature verification
   const secret = process.env.RESEND_WEBHOOK_SECRET;
   if (secret) {
-    const sig = req.headers.get('svix-signature') || req.headers.get('resend-signature');
-    if (!sig || !sig.includes(secret.slice(0, 8))) {
-      // Lightweight check — for production use the svix SDK for full HMAC verification
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-    }
+    const sig = req.headers.get('svix-signature') ?? '';
+    // svix sends: "v1,<timestamp>.<hex-sig>" or multiple comma-separated
+    const sigParts = sig.split(' ').flatMap(s => s.split(','));
+    const ts = sigParts.find(p => p.startsWith('t='))?.slice(2) ?? '';
+    const v1Sigs = sigParts.filter(p => p.startsWith('v1=')).map(p => p.slice(3));
+
+    const expectedPayload = `${ts}.${rawBody}`;
+    const hmac = createHmac('sha256', Buffer.from(secret, 'base64'));
+    hmac.update(expectedPayload);
+    const expectedSig = hmac.digest('hex');
+
+    const verified = v1Sigs.some(s => {
+      try { return timingSafeEqual(Buffer.from(s, 'hex'), Buffer.from(expectedSig, 'hex')); }
+      catch { return false; }
+    });
+
+    if (!verified) return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
 
   let payload: ResendWebhookPayload;
   try {
-    payload = await req.json();
+    payload = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }

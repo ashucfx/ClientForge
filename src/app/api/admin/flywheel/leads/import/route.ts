@@ -65,10 +65,37 @@ export async function POST(req: NextRequest) {
         existingCount++;
         // Update job title if it was missing
         if (jobTitle && !contact.jobTitle) {
-          await db.contact.update({
-            where: { id: contact.id },
-            data: { jobTitle }
-          });
+          await db.contact.update({ where: { id: contact.id }, data: { jobTitle } });
+        }
+
+        // Dedup check: if this import row matches an existing contact by BOTH email AND phone
+        // but those match different contacts, flag for merge review
+        if (email && phone) {
+          const byEmail = email ? await db.contact.findFirst({ where: { email }, select: { id: true } }) : null;
+          const byPhone = phone ? await db.contact.findFirst({ where: { phone }, select: { id: true } }) : null;
+          if (byEmail && byPhone && byEmail.id !== byPhone.id) {
+            // Two different contacts share the same email/phone from this row — likely duplicates
+            const existing = await db.contactMergeReview.findFirst({
+              where: {
+                OR: [
+                  { sourceContactId: byEmail.id, targetContactId: byPhone.id },
+                  { sourceContactId: byPhone.id, targetContactId: byEmail.id },
+                ],
+                status: 'PENDING',
+              },
+            });
+            if (!existing) {
+              await db.contactMergeReview.create({
+                data: {
+                  sourceContactId: byEmail.id,
+                  targetContactId: byPhone.id,
+                  confidenceScore: 90,
+                  reason: 'Same import row matched both email and phone to different contacts',
+                  status: 'PENDING',
+                },
+              }).catch(() => null);
+            }
+          }
         }
       } else {
         // 2. Create new contact

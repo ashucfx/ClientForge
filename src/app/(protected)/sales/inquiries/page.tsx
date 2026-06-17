@@ -26,6 +26,25 @@ export default function SalesInquiriesPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const deleteInquiry = async (id: string, name: string) => {
+    if (!confirm(`Permanently delete inquiry from ${name}? This cannot be undone.`)) return;
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/admin/sales/inquiries/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setInquiries(prev => prev.filter(i => i.id !== id));
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Delete failed');
+      }
+    } catch {
+      alert('Network error');
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   const fetchInquiries = useCallback(async (page = 1) => {
     setLoading(true);
@@ -140,12 +159,22 @@ export default function SalesInquiriesPage() {
                     </td>
                     <td className="px-4 py-3 text-xs">{inq.priority}</td>
                     <td className="px-4 py-3 text-right">
-                      <Link
-                        href={`/sales/inquiries/${inq.id}`}
-                        className="inline-flex items-center gap-1 text-blue-600 hover:underline"
-                      >
-                        Review <IconChevronRight className="w-4 h-4" />
-                      </Link>
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/sales/inquiries/${inq.id}`}
+                          className="inline-flex items-center gap-1 text-blue-600 hover:underline text-sm"
+                        >
+                          Review <IconChevronRight className="w-4 h-4" />
+                        </Link>
+                        <button
+                          onClick={() => deleteInquiry(inq.id, inq.name)}
+                          disabled={deleting === inq.id}
+                          className="px-2 py-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors disabled:opacity-40"
+                          title="Delete inquiry"
+                        >
+                          {deleting === inq.id ? '…' : 'Delete'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

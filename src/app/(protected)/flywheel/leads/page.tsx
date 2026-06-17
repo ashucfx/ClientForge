@@ -725,13 +725,38 @@ export default function FlywheelLeadsPage() {
                 </div>
 
                 {activeTab === 'profile' && (
-                  <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                    <Dialog.Close asChild>
-                      <button className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-50 rounded-lg text-sm transition-colors">Cancel</button>
-                    </Dialog.Close>
-                    <button type="submit" form="edit-form" disabled={saving} className="px-6 py-2 text-white font-medium rounded-lg shadow-sm text-sm transition-transform active:scale-95" style={{ background: brand.gradient }}>
-                      {saving ? 'Saving...' : 'Save Changes'}
-                    </button>
+                  <div className="p-6 border-t border-slate-100 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`/api/admin/contacts/${selectedContact.id}/export?format=json`}
+                          download
+                          className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                        >
+                          Export Data
+                        </a>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!confirm(`GDPR Erase: permanently anonymise all data for ${selectedContact.name}? This cannot be undone.`)) return;
+                            const res = await fetch(`/api/admin/contacts/${selectedContact.id}/erase`, { method: 'POST' });
+                            if (res.ok) { setSelectedContact(null); fetchContacts(); }
+                            else alert('Erase failed — ensure you have SUPER_ADMIN role.');
+                          }}
+                          className="px-3 py-1.5 text-xs text-red-500 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50 transition-colors font-medium"
+                        >
+                          GDPR Erase
+                        </button>
+                      </div>
+                      <div className="flex gap-3">
+                        <Dialog.Close asChild>
+                          <button className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-50 rounded-lg text-sm transition-colors">Cancel</button>
+                        </Dialog.Close>
+                        <button type="submit" form="edit-form" disabled={saving} className="px-6 py-2 text-white font-medium rounded-lg shadow-sm text-sm transition-transform active:scale-95" style={{ background: brand.gradient }}>
+                          {saving ? 'Saving...' : 'Save Changes'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </>
