@@ -6,7 +6,7 @@ import { useBrand } from '@/components/BrandProvider';
 import { IconTrendUp, IconTrendDown, IconDocument, IconCheck, IconPending, IconUser, IconAlert, IconMail, IconFolder } from '@/components/Icons';
 import { formatCurrency } from '@/lib/pricing';
 
-interface MonthlyRevenue { month: string; revenue: number; count: number; }
+interface MonthlyRevenue { month: string; revenue: number; invoiceRevenue?: number; externalRevenue?: number; count: number; }
 interface BrandRevenue { brand: string; revenue: number; count?: number; }
 interface ChannelRevenue { channel: string; revenue: number; count?: number; }
 interface TierRevenue { tier: string; revenue: number; count?: number; }
@@ -142,13 +142,18 @@ export default function AnalyticsDashboard() {
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#eff6ff' }}>
                     <IconTrendUp className="text-blue-600" />
                   </div>
+                  {execData?.revenue?.rateSource && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${execData.revenue.rateSource === 'live' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                      {execData.revenue.rateSource === 'live' ? 'live rates' : 'approx rates'}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <div className="text-sm font-medium text-slate-500 mb-1">Total Revenue (Global LTV)</div>
                   <div className="text-3xl font-bold tracking-tight mb-1 text-blue-600">
                     ₹{execData?.revenue?.value != null ? Number(execData.revenue.value).toLocaleString('en-IN') : '—'}
                   </div>
-                  <div className="text-xs text-slate-400 mb-2">≈ INR equivalent (multi-currency)</div>
+                  <div className="text-xs text-slate-400 mb-2">≈ INR equivalent · portal + manual clients</div>
                   {execData?.revenue?.currencyBreakdown?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-2">
                       {execData.revenue.currencyBreakdown.slice(0, 4).map((b: any) => (
@@ -156,6 +161,11 @@ export default function AnalyticsDashboard() {
                           {b.currency} {Number(b.amount).toLocaleString()}
                         </span>
                       ))}
+                    </div>
+                  )}
+                  {execData?.revenue?.externalRevenue > 0 && (
+                    <div className="text-xs text-slate-500 mb-1">
+                      + ₹{Number(execData.revenue.externalRevenue).toLocaleString('en-IN')} from manual onboarding
                     </div>
                   )}
                   <div className="flex items-center gap-2">
@@ -433,6 +443,9 @@ export default function AnalyticsDashboard() {
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                     <div className="text-xs text-blue-700 uppercase tracking-wider mb-1">Total Lifetime Revenue</div>
                     <div className="text-2xl font-bold text-blue-900">{formatCurrency(execData?.revenue?.lifetimeValue || 0, '₹')}</div>
+                    {execData?.revenue?.externalRevenue > 0 && (
+                      <div className="text-xs text-blue-600 mt-1">incl. ₹{Number(execData.revenue.externalRevenue).toLocaleString('en-IN')} external</div>
+                    )}
                   </div>
                   <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
                     <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Average LTV</div>
