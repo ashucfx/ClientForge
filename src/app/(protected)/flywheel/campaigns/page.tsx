@@ -19,10 +19,11 @@ const STATUS_META: Record<string, { label: string; bg: string; color: string }> 
 
 interface Campaign {
   id: string; name: string; type: string; status: string; createdAt: string;
-  metadata?: { audienceFilter?: string };
+  metadata?: { audienceFilter?: string; contactIds?: string[] };
   _count: { leads: number; steps: number };
   stats?: { sent: number; opens: number; unsubs: number; openRate: number };
 }
+interface LeadOption { id: string; name: string; email: string; }
 
 // ──── Content Block Types ────
 type BlockType = 'heading' | 'paragraph' | 'button' | 'divider';
@@ -47,6 +48,10 @@ export default function FlywheelCampaigns() {
   ]);
   const [audienceFilter, setAudienceFilter] = useState('ALL');
   const [audienceCount, setAudienceCount] = useState(0);
+  const [pickedLeads, setPickedLeads] = useState<LeadOption[]>([]);
+  const [leadSearch, setLeadSearch] = useState('');
+  const [leadSearchResults, setLeadSearchResults] = useState<LeadOption[]>([]);
+  const [leadSearching, setLeadSearching] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Detail / dispatch
@@ -71,6 +76,7 @@ export default function FlywheelCampaigns() {
   // Audience count estimation
   useEffect(() => {
     if (!wizardOpen) return;
+    if (audienceFilter === 'PICK') { setAudienceCount(pickedLeads.length); return; }
     const estimateAudience = async () => {
       try {
         const params = new URLSearchParams();
@@ -83,7 +89,24 @@ export default function FlywheelCampaigns() {
       } catch { /* silent */ }
     };
     estimateAudience();
-  }, [audienceFilter, wizardOpen]);
+  }, [audienceFilter, pickedLeads, wizardOpen]);
+
+  // Lead search for hand-pick mode
+  useEffect(() => {
+    if (audienceFilter !== 'PICK' || !leadSearch.trim()) { setLeadSearchResults([]); return; }
+    const timer = setTimeout(async () => {
+      setLeadSearching(true);
+      try {
+        const res = await fetch(`/api/admin/flywheel/leads?search=${encodeURIComponent(leadSearch)}&pageSize=10`);
+        if (res.ok) {
+          const data = await res.json();
+          const list: LeadOption[] = (data.data || []).map((c: any) => ({ id: c.id, name: c.name, email: c.email }));
+          setLeadSearchResults(list.filter(l => !pickedLeads.find(p => p.id === l.id)));
+        }
+      } catch { /* silent */ } finally { setLeadSearching(false); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [leadSearch, audienceFilter, pickedLeads]);
 
   // ── Block editor helpers ──
   const addBlock = (type: BlockType) => {
@@ -124,7 +147,9 @@ export default function FlywheelCampaigns() {
         name: campaignName,
         type: campaignType,
         brandId: activeBrand === 'all' ? 'catalyst' : activeBrand,
-        metadata: { audienceFilter },
+        metadata: audienceFilter === 'PICK'
+          ? { audienceFilter: 'PICK', contactIds: pickedLeads.map(l => l.id) }
+          : { audienceFilter },
         steps: [{ subject, contentHtml: blocksToHtml(), delayHours: 0 }],
       };
       const res = await fetch('/api/admin/flywheel/campaigns', {
@@ -144,6 +169,7 @@ export default function FlywheelCampaigns() {
   const resetWizard = () => {
     setWizardStep(1); setCampaignName(''); setCampaignType('ONE_OFF');
     setSubject(''); setAudienceFilter('ALL');
+    setPickedLeads([]); setLeadSearch(''); setLeadSearchResults([]);
     setBlocks([
       { id: '1', type: 'heading', content: 'Hello from {brand}' },
       { id: '2', type: 'paragraph', content: 'Write your message here...' },
@@ -157,13 +183,21 @@ export default function FlywheelCampaigns() {
       // Use the filter stored in the campaign's metadata (not the wizard state)
       const campaign = campaigns.find(c => c.id === campaignId) ?? selectedCampaign;
       const savedFilter = campaign?.metadata?.audienceFilter ?? 'ALL';
-      const params = new URLSearchParams({ pageSize: '1000' });
-      if (savedFilter !== 'ALL') params.set('stage', savedFilter);
-      const audienceRes = await fetch(`/api/admin/flywheel/leads?${params}`);
-      if (!audienceRes.ok) { setDispatchResult('Error: Could not resolve audience.'); return; }
-      const audienceData = await audienceRes.json();
-      const contacts: Array<{ id: string }> = audienceData.contacts || audienceData.data || [];
-      const contactIds = contacts.map((c: { id: string }) => c.id);
+      let contactIds: string[] = [];
+
+      if (savedFilter === 'PICK') {
+        // Use the explicit list stored at creation time
+        contactIds = campaign?.metadata?.contactIds ?? [];
+        if (contactIds.length === 0) { setDispatchResult('No specific contacts were saved with this campaign.'); return; }
+      } else {
+        const params = new URLSearchParams({ pageSize: '1000' });
+        if (savedFilter !== 'ALL') params.set('stage', savedFilter);
+        const audienceRes = await fetch(`/api/admin/flywheel/leads?${params}`);
+        if (!audienceRes.ok) { setDispatchResult('Error: Could not resolve audience.'); return; }
+        const audienceData = await audienceRes.json();
+        const contacts: Array<{ id: string }> = audienceData.contacts || audienceData.data || [];
+        contactIds = contacts.map((c: { id: string }) => c.id);
+      }
 
       if (contactIds.length === 0) { setDispatchResult('No contacts match the selected audience.'); return; }
 
@@ -327,23 +361,79 @@ export default function FlywheelCampaigns() {
                     <label className="block text-sm font-semibold text-slate-700 mb-2">Select Audience</label>
                     <div className="grid grid-cols-2 gap-3">
                       {[
-                        { value: 'ALL', label: 'All Contacts', desc: 'Everyone in your registry' },
-                        { value: 'SUBSCRIBER', label: 'Subscribers', desc: 'Early-stage contacts' },
-                        { value: 'LEAD', label: 'Leads', desc: 'Active leads in pipeline' },
-                        { value: 'MQL', label: 'MQL', desc: 'Marketing qualified leads' },
-                        { value: 'SQL', label: 'SQL', desc: 'Sales qualified leads' },
-                        { value: 'CUSTOMER', label: 'Customers', desc: 'Converted customers' },
+                        { value: 'ALL',        label: 'All Contacts',    desc: 'Everyone in your registry' },
+                        { value: 'SUBSCRIBER', label: 'Subscribers',     desc: 'Early-stage contacts' },
+                        { value: 'LEAD',       label: 'Leads',           desc: 'Active leads in pipeline' },
+                        { value: 'MQL',        label: 'MQL',             desc: 'Marketing qualified leads' },
+                        { value: 'SQL',        label: 'SQL',             desc: 'Sales qualified leads' },
+                        { value: 'CUSTOMER',   label: 'Customers',       desc: 'Converted customers' },
+                        { value: 'PICK',       label: 'Hand-pick',       desc: 'Choose specific contacts' },
                       ].map(opt => (
-                        <button key={opt.value} type="button" onClick={() => setAudienceFilter(opt.value)} className={`p-4 rounded-xl border-2 text-left transition-all ${audienceFilter === opt.value ? 'bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`} style={audienceFilter === opt.value ? { borderColor: brand.primaryColor } : {}}>
+                        <button key={opt.value} type="button" onClick={() => { setAudienceFilter(opt.value); setLeadSearch(''); setLeadSearchResults([]); }}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${audienceFilter === opt.value ? 'bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}
+                          style={audienceFilter === opt.value ? { borderColor: brand.primaryColor } : {}}>
                           <div className="font-semibold text-slate-800 text-sm">{opt.label}</div>
                           <div className="text-xs text-slate-500 mt-1">{opt.desc}</div>
                         </button>
                       ))}
                     </div>
                   </div>
+
+                  {/* Hand-pick search UI */}
+                  {audienceFilter === 'PICK' && (
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          value={leadSearch}
+                          onChange={e => setLeadSearch(e.target.value)}
+                          placeholder="Search by name or email…"
+                          className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2"
+                          style={{ '--tw-ring-color': brand.primaryColor } as any}
+                        />
+                      </div>
+                      {leadSearching && <p className="text-xs text-slate-400">Searching…</p>}
+                      {leadSearchResults.length > 0 && (
+                        <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-40 overflow-y-auto">
+                          {leadSearchResults.map(l => (
+                            <button key={l.id} type="button" onClick={() => { setPickedLeads(p => [...p, l]); setLeadSearch(''); setLeadSearchResults([]); }}
+                              className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50 transition-colors">
+                              <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                {l.name[0]?.toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="text-sm font-semibold text-slate-800">{l.name}</div>
+                                <div className="text-xs text-slate-400">{l.email}</div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {pickedLeads.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Selected ({pickedLeads.length})</p>
+                          {pickedLeads.map(l => (
+                            <div key={l.id} className="flex items-center justify-between px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-lg">
+                              <div>
+                                <span className="text-sm font-semibold text-slate-800">{l.name}</span>
+                                <span className="text-xs text-slate-400 ml-2">{l.email}</span>
+                              </div>
+                              <button type="button" onClick={() => setPickedLeads(p => p.filter(x => x.id !== l.id))} className="text-slate-400 hover:text-red-500 transition-colors">
+                                <IconX size={14} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {pickedLeads.length === 0 && !leadSearch && (
+                        <p className="text-xs text-slate-400 text-center py-2">Search above to add contacts</p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="p-4 bg-blue-50 rounded-xl flex items-center gap-3">
                     <IconUser size={18} style={{ color: brand.primaryColor }} />
-                    <span className="text-sm font-semibold text-slate-700">Estimated audience: <span style={{ color: brand.primaryColor }}>{audienceCount.toLocaleString()}</span> contacts</span>
+                    <span className="text-sm font-semibold text-slate-700">Estimated audience: <span style={{ color: brand.primaryColor }}>{audienceCount.toLocaleString()}</span> contact{audienceCount !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
               )}
@@ -418,7 +508,7 @@ export default function FlywheelCampaigns() {
                     {[
                       ['Campaign Name', campaignName],
                       ['Type', campaignType === 'ONE_OFF' ? 'One-Off Blast' : 'Drip Sequence'],
-                      ['Audience', audienceFilter === 'ALL' ? `All contacts (${audienceCount})` : `${audienceFilter} (${audienceCount})`],
+                      ['Audience', audienceFilter === 'PICK' ? `Hand-picked: ${pickedLeads.map(l => l.name).join(', ')}` : audienceFilter === 'ALL' ? `All contacts (${audienceCount})` : `${audienceFilter} (${audienceCount})`],
                       ['Subject', subject],
                       ['Content Blocks', `${blocks.length} blocks`],
                     ].map(([label, value]) => (
@@ -446,7 +536,9 @@ export default function FlywheelCampaigns() {
                 {wizardStep > 1 ? '← Back' : 'Cancel'}
               </button>
               {wizardStep < 4 ? (
-                <button onClick={() => setWizardStep(wizardStep + 1)} disabled={wizardStep === 1 && !campaignName} className="px-5 py-2 text-white font-medium rounded-lg text-sm disabled:opacity-50 transition-all" style={{ background: brand.primaryColor }}>
+                <button onClick={() => setWizardStep(wizardStep + 1)}
+                  disabled={(wizardStep === 1 && !campaignName) || (wizardStep === 2 && audienceFilter === 'PICK' && pickedLeads.length === 0)}
+                  className="px-5 py-2 text-white font-medium rounded-lg text-sm disabled:opacity-50 transition-all" style={{ background: brand.primaryColor }}>
                   Next →
                 </button>
               ) : (
@@ -488,7 +580,12 @@ export default function FlywheelCampaigns() {
 
                 <div className="p-6 overflow-y-auto flex-1 space-y-6">
                   <div className="bg-blue-50 rounded-lg px-4 py-2.5 text-sm text-blue-700 font-medium">
-                    Audience: <strong>{selectedCampaign.metadata?.audienceFilter ?? 'ALL'}</strong>
+                    Audience:{' '}
+                    <strong>
+                      {selectedCampaign.metadata?.audienceFilter === 'PICK'
+                        ? `Hand-picked (${selectedCampaign.metadata.contactIds?.length ?? 0} contacts)`
+                        : selectedCampaign.metadata?.audienceFilter ?? 'ALL'}
+                    </strong>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-slate-50 rounded-lg p-4 text-center">
