@@ -9,12 +9,24 @@ module.exports = {
     extend: {
       colors: {
         brand: {
-          obsidian: '#0A0B0D',
-          bone: '#F4F1EB',
-          graphite: '#1F2226',
+          obsidian:  '#0A0B0D',
+          bone:      '#F4F1EB',
+          graphite:  '#1F2226',
           parchment: '#E6DFD1',
-          gold: '#B8935B',
-          ink: '#0E1A3A',
+          gold:      '#B8935B',
+          ink:       '#0E1A3A',
+        },
+        // Semantic brand colors — used across sections
+        growth:  { DEFAULT: '#10B981', light: 'rgba(16,185,129,0.14)', dark: '#059669' },
+        ripple:  { DEFAULT: '#A78BFA', light: 'rgba(167,139,250,0.14)', dark: '#7C3AED' },
+        // Status semantic tokens
+        status: {
+          open:       '#3b82f6',
+          active:     '#10B981',
+          warning:    '#f59e0b',
+          danger:     '#ef4444',
+          completed:  '#6b7280',
+          archived:   '#94a3b8',
         },
       },
       fontFamily: {

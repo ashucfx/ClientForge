@@ -56,12 +56,16 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      // Ensure they haven't unsubscribed globally
+      // Ensure they haven't unsubscribed globally or are marked Do Not Contact
       const unsubscribed = await db.unsubscribeList.findFirst({
         where: { email: lead.contact.email!, brandId: lead.campaign.brandId }
       });
+      const dnc = await db.flywheelProfile.findFirst({
+        where: { contactId: lead.contact.id, optInStatus: false },
+        select: { id: true },
+      });
 
-      if (unsubscribed) {
+      if (unsubscribed || dnc) {
         await db.flywheelCampaignLead.update({
           where: { id: lead.id },
           data: { status: 'UNSUBSCRIBED' }

@@ -40,20 +40,27 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         data: { status: 'ACTIVE' }
       });
 
-      // 2. Insert leads
+      // 2. Filter out Do Not Contact contacts before inserting
+      const dncProfiles = await tx.flywheelProfile.findMany({
+        where: { contactId: { in: contactIds }, optInStatus: false },
+        select: { contactId: true },
+      });
+      const dncSet = new Set(dncProfiles.map((p: { contactId: string }) => p.contactId));
+      const eligibleIds = contactIds.filter((id: string) => !dncSet.has(id));
+
       const now = new Date();
       now.setHours(now.getHours() + firstStep.delayHours);
 
       // Using createMany and ignoring duplicates
       await tx.flywheelCampaignLead.createMany({
-        data: contactIds.map((contactId: string) => ({
+        data: eligibleIds.map((contactId: string) => ({
           campaignId,
           contactId,
           currentStepId: firstStep.id,
           status: 'ACTIVE',
           nextExecutionAt: now
         })),
-        skipDuplicates: true // Prevents error if lead is already in campaign
+        skipDuplicates: true
       });
     });
 

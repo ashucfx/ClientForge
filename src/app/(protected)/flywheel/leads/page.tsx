@@ -222,6 +222,33 @@ export default function FlywheelLeadsPage() {
     });
   };
 
+  // DNC toggle
+  const toggleDnc = async (contact: any) => {
+    const current = contact.flywheelProfile?.optInStatus ?? true;
+    const label = current ? 'mark as Do Not Contact' : 're-enable contact';
+    if (!confirm(`Are you sure you want to ${label} for ${contact.name}?`)) return;
+    try {
+      const res = await fetch(`/api/admin/contacts/${contact.id}/dnc`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ optInStatus: !current }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setContacts(prev => prev.map(c => c.id === contact.id
+          ? { ...c, flywheelProfile: { ...c.flywheelProfile, optInStatus: data.optInStatus } }
+          : c
+        ));
+        if (selectedContact?.id === contact.id) {
+          setSelectedContact((prev: any) => prev ? {
+            ...prev,
+            flywheelProfile: { ...prev.flywheelProfile, optInStatus: data.optInStatus }
+          } : null);
+        }
+      }
+    } catch (e) { console.error(e); }
+  };
+
   // Selection
   const toggleSelect = (id: string) => {
     const next = new Set(selectedIds);
@@ -641,6 +668,31 @@ export default function FlywheelLeadsPage() {
                             <div className="text-lg font-bold text-blue-600">{selectedContact._count?.flywheelCampaignLeads || 0}</div>
                             <div className="text-xs text-slate-500">Campaigns</div>
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Do Not Contact */}
+                      <div className="border-t border-slate-100 pt-5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-semibold text-slate-900">Marketing Consent</h4>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {selectedContact.flywheelProfile?.optInStatus === false
+                                ? 'Excluded from all campaigns and marketing emails.'
+                                : 'Eligible to receive campaign and marketing emails.'}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => toggleDnc(selectedContact)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                              selectedContact.flywheelProfile?.optInStatus === false
+                                ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                            }`}
+                          >
+                            {selectedContact.flywheelProfile?.optInStatus === false ? 'DNC — Re-enable' : 'Opted In'}
+                          </button>
                         </div>
                       </div>
                     </form>

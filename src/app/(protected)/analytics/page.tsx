@@ -7,7 +7,9 @@ import { IconTrendUp, IconTrendDown, IconDocument, IconCheck, IconPending, IconU
 import { formatCurrency } from '@/lib/pricing';
 
 interface MonthlyRevenue { month: string; revenue: number; count: number; }
-interface BrandRevenue { brand: string; revenue: number; }
+interface BrandRevenue { brand: string; revenue: number; count?: number; }
+interface ChannelRevenue { channel: string; revenue: number; count?: number; }
+interface TierRevenue { tier: string; revenue: number; count?: number; }
 
 function RevenueBarChart({ data }: { data: MonthlyRevenue[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,7 +61,7 @@ export default function AnalyticsDashboard() {
   const [slaData, setSlaData] = useState<any>(null);
   const [satData, setSatData] = useState<any>(null);
   const [lifeData, setLifeData] = useState<any>(null);
-  const [chartData, setChartData] = useState<{ monthly: MonthlyRevenue[]; byBrand: BrandRevenue[] } | null>(null);
+  const [chartData, setChartData] = useState<{ monthly: MonthlyRevenue[]; byBrand: BrandRevenue[]; byChannel: ChannelRevenue[]; byTier: TierRevenue[] } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -436,16 +438,42 @@ export default function AnalyticsDashboard() {
                 <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
                   <div className="text-xs text-slate-500 uppercase tracking-wider mb-3 font-medium">Monthly Revenue (Last 12 Months)</div>
                   <RevenueBarChart data={chartData?.monthly ?? []} />
-                  {chartData?.byBrand && chartData.byBrand.length > 0 && (
-                    <div className="flex gap-4 mt-4 pt-4 border-t border-slate-100">
-                      {chartData.byBrand.map(b => (
-                        <div key={b.brand} className="text-center">
-                          <div className="text-xs text-slate-500 uppercase tracking-wider">{b.brand}</div>
-                          <div className="text-sm font-bold text-slate-900 mt-1">{formatCurrency(b.revenue, '₹')}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {/* Brand + Channel + Tier breakdowns */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-100">
+                    {chartData?.byBrand && chartData.byBrand.length > 0 && (
+                      <div>
+                        <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-semibold">By Brand</div>
+                        {chartData.byBrand.map(b => (
+                          <div key={b.brand} className="flex justify-between items-center py-1">
+                            <span className="text-xs text-slate-600 capitalize">{b.brand || 'Direct'}</span>
+                            <span className="text-xs font-bold text-slate-900">{formatCurrency(b.revenue, '₹')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {chartData?.byChannel && chartData.byChannel.length > 0 && (
+                      <div>
+                        <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-semibold">By Channel</div>
+                        {chartData.byChannel.map(c => (
+                          <div key={c.channel} className="flex justify-between items-center py-1">
+                            <span className="text-xs text-slate-600">{c.channel}</span>
+                            <span className="text-xs font-bold text-slate-900">{formatCurrency(c.revenue, '₹')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {chartData?.byTier && chartData.byTier.length > 0 && (
+                      <div>
+                        <div className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-semibold">By Client Tier</div>
+                        {chartData.byTier.map(t => (
+                          <div key={t.tier} className="flex justify-between items-center py-1">
+                            <span className="text-xs text-slate-600">{t.tier?.replace(/_/g, ' ')}</span>
+                            <span className="text-xs font-bold text-slate-900">{formatCurrency(t.revenue, '₹')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

@@ -45,6 +45,36 @@ function IconKanban({ size = 16 }: { size?: number }) {
     </svg>
   );
 }
+function IconPipeline({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
+      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+      </g>
+    </svg>
+  );
+}
+function IconAnalytics({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
+      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <path d="M7 14l3-3 3 3 4-4" />
+      </g>
+    </svg>
+  );
+}
+function IconTeam({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
+      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+      </g>
+    </svg>
+  );
+}
 
 // ── Active check ──────────────────────────────────────────────────
 function isActive(href: string, pathname: string) {
@@ -88,12 +118,12 @@ function useUnreadSummary() {
 }
 
 // ── Badge ─────────────────────────────────────────────────────────
-function Badge({ count }: { count: number }) {
+function Badge({ count, accent }: { count: number; accent?: string }) {
   if (!count) return null;
   return (
     <span style={{
       marginLeft: 'auto', minWidth: 18, height: 18, padding: '0 4px',
-      background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 700,
+      background: accent || '#ef4444', color: '#fff', fontSize: 10, fontWeight: 700,
       borderRadius: 999, display: 'inline-flex', alignItems: 'center',
       justifyContent: 'center', flexShrink: 0,
     }}>
@@ -102,35 +132,80 @@ function Badge({ count }: { count: number }) {
   );
 }
 
+// ── localStorage helpers ──────────────────────────────────────────
+const STORAGE_KEY = 'cf_sidebar_sections';
+
+function readSidebarState(): Record<string, boolean> {
+  if (typeof window === 'undefined') return {};
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
+}
+
+function writeSidebarState(key: string, open: boolean) {
+  if (typeof window === 'undefined') return;
+  try {
+    const state = readSidebarState();
+    state[key] = open;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch { /* ignore */ }
+}
+
 // ── Collapsible section ───────────────────────────────────────────
 function NavSection({
-  label, color, defaultOpen, children,
+  id, label, color, defaultOpen, hasActiveChild, badge, children,
 }: {
-  label: string; color?: string; defaultOpen?: boolean; children: React.ReactNode;
+  id: string; label: string; color?: string; defaultOpen?: boolean;
+  hasActiveChild?: boolean; badge?: number; children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen ?? false);
-  const prevDefault = useRef(defaultOpen);
+  const [open, setOpen] = useState(() => {
+    const saved = readSidebarState();
+    // if we have a saved value use it; otherwise fall back to defaultOpen
+    return id in saved ? saved[id] : (defaultOpen ?? false);
+  });
+
+  // auto-open when route enters this section (but don't collapse it when leaving)
+  const prevActive = useRef(hasActiveChild);
   useEffect(() => {
-    if (defaultOpen && !prevDefault.current) setOpen(true);
-    prevDefault.current = defaultOpen;
-  }, [defaultOpen]);
+    if (hasActiveChild && !prevActive.current) {
+      setOpen(true);
+      writeSidebarState(id, true);
+    }
+    prevActive.current = hasActiveChild;
+  }, [hasActiveChild, id]);
+
+  const toggle = () => {
+    setOpen(o => {
+      const next = !o;
+      writeSidebarState(id, next);
+      return next;
+    });
+  };
+
   return (
     <div style={{ marginTop: 4 }}>
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={toggle}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '5px 10px', borderRadius: 6, border: 'none', background: 'none',
-          cursor: 'pointer', color: color ?? 'var(--text-tertiary)',
-          fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.9px',
-          marginBottom: 2,
+          padding: '5px 10px', borderRadius: 6, border: 'none',
+          background: hasActiveChild ? `${color ?? 'var(--brand)'}12` : 'none',
+          cursor: 'pointer', color: hasActiveChild ? (color ?? 'var(--brand)') : (color ?? 'var(--text-tertiary)'),
+          fontSize: 10, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.9px',
+          marginBottom: 2, transition: 'background 0.15s',
         }}
       >
-        <span>{label}</span>
-        <IconChevronDown
-          size={12}
-          style={{ transition: 'transform 0.2s', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', opacity: 0.6 }}
-        />
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {hasActiveChild && (
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: color ?? 'var(--brand)', display: 'inline-block', flexShrink: 0 }} />
+          )}
+          {label}
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {badge ? <Badge count={badge} accent={color} /> : null}
+          <IconChevronDown
+            size={12}
+            style={{ transition: 'transform 0.2s', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', opacity: 0.6 }}
+          />
+        </span>
       </button>
       {open && <div>{children}</div>}
     </div>
@@ -200,54 +275,61 @@ function SidebarContent({
           active={isActive('/', pathname)} onClick={onNavigate} />
 
         {/* Finance */}
-        <NavSection label="Finance" defaultOpen={inFinance || true}>
+        <NavSection id="finance" label="Finance" defaultOpen={true} hasActiveChild={inFinance}>
           <NavLink href="/invoices/new" icon={<IconPlus size={16} />} label="New Invoice"
             active={isActive('/invoices/new', pathname)} onClick={onNavigate} />
           <NavLink href="/invoices" icon={<IconList size={16} />} label="All Invoices"
             active={isActive('/invoices', pathname)} onClick={onNavigate} />
-          <NavLink href="/analytics" icon={<IconTrendUp size={16} />} label="Analytics"
+          <NavLink href="/analytics" icon={<IconAnalytics size={16} />} label="Analytics"
             active={isActive('/analytics', pathname)} onClick={onNavigate} />
         </NavSection>
 
         {/* Career Booster */}
         {hasCatalystAccess && (
-          <NavSection label="Career Booster" color="#B8935B" defaultOpen={inCareer}>
+          <NavSection id="career" label="Career Booster" color="#B8935B"
+            defaultOpen={inCareer} hasActiveChild={inCareer} badge={careerUnread}>
             <NavLink href="/career" icon={<IconTarget size={16} />} label="Clients"
               active={isActive('/career', pathname)} accent="#B8935B" badge={careerUnread} onClick={onNavigate} />
             <NavLink href="/career/kanban" icon={<IconKanban size={16} />} label="Kanban Board"
               active={isActive('/career/kanban', pathname)} accent="#B8935B" onClick={onNavigate} />
+            <NavLink href="/career/email-logs" icon={<IconMail size={16} />} label="Email Logs"
+              active={isActive('/career/email-logs', pathname)} accent="#B8935B" onClick={onNavigate} />
           </NavSection>
         )}
 
         {/* Growth */}
-        <NavSection label="Growth" color="#10B981" defaultOpen={inGrowth}>
+        <NavSection id="growth" label="Growth" color="#10B981"
+          defaultOpen={inGrowth} hasActiveChild={inGrowth}>
           <NavLink href="/flywheel" icon={<IconZap size={16} />} label="Flywheel"
             active={isActive('/flywheel', pathname)} accent="#10B981" onClick={onNavigate} />
           <NavLink href="/sales/inquiries" icon={<IconInbox size={16} />} label="Sales Leads"
             active={isActive('/sales/inquiries', pathname)} accent="#10B981" onClick={onNavigate} />
-          <NavLink href="/flywheel/pipeline" icon={<IconTarget size={16} />} label="Pipeline"
+          <NavLink href="/flywheel/pipeline" icon={<IconPipeline size={16} />} label="Pipeline"
             active={isActive('/flywheel/pipeline', pathname)} accent="#10B981" onClick={onNavigate} />
           <NavLink href="/flywheel/leads" icon={<IconUser size={16} />} label="Audience"
             active={isActive('/flywheel/leads', pathname)} accent="#10B981" onClick={onNavigate} />
           <NavLink href="/flywheel/campaigns" icon={<IconMail size={16} />} label="Campaigns"
             active={isActive('/flywheel/campaigns', pathname)} accent="#10B981" onClick={onNavigate} />
-          <NavLink href="/flywheel/analytics" icon={<IconTrendUp size={16} />} label="Flywheel Analytics"
+          <NavLink href="/flywheel/merge-queue" icon={<IconUser size={16} />} label="Merge Queue"
+            active={isActive('/flywheel/merge-queue', pathname)} accent="#10B981" onClick={onNavigate} />
+          <NavLink href="/flywheel/analytics" icon={<IconAnalytics size={16} />} label="Flywheel Analytics"
             active={isActive('/flywheel/analytics', pathname)} accent="#10B981" onClick={onNavigate} />
         </NavSection>
 
         {/* Tools */}
-        <NavSection label="Tools" defaultOpen={inTools}>
+        <NavSection id="tools" label="Tools" defaultOpen={inTools} hasActiveChild={inTools}>
           <NavLink href="/bugs" icon={<IconBug size={16} />} label="Bug Reports"
             active={isActive('/bugs', pathname)} onClick={onNavigate} />
           <NavLink href="/referrals" icon={<IconReferral size={16} />} label="Referrals"
             active={isActive('/referrals', pathname)} onClick={onNavigate} />
-          <NavLink href="/team" icon={<IconUser size={16} />} label="Team & Access"
+          <NavLink href="/team" icon={<IconTeam size={16} />} label="Team & Access"
             active={isActive('/team', pathname)} onClick={onNavigate} />
         </NavSection>
 
         {/* Ripple Nexus */}
         {activeBrand === 'ripple_nexus' && hasRnAccess && (
-          <NavSection label="Ripple Nexus" color="#A78BFA" defaultOpen={inRN}>
+          <NavSection id="rn" label="Ripple Nexus" color="#A78BFA"
+            defaultOpen={inRN} hasActiveChild={inRN} badge={rnUnread}>
             <NavLink href="/rn/clients" icon={<IconUser size={16} />} label="Agency Clients"
               active={isActive('/rn/clients', pathname)} accent="#A78BFA" badge={rnUnread} onClick={onNavigate} />
             <NavLink href="/rn/services" icon={<IconTarget size={16} />} label="Services"

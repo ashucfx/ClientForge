@@ -101,6 +101,8 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
                   lifecycleStage: 'LEAD',
                   leadStatus: 'NEW',
                   dealValue: pricing.finalPayable,
+                  optInStatus: true,
+                  optInSource: 'WEBSITE_CHECKOUT',
                   ...(referrer ? { referredById: referrer.id } : {}),
                 },
               },
@@ -264,15 +266,30 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
   };
 }
 
+/** Derive experience level from requirement type string or fall back to EXECUTIVE */
+function resolveExperienceLevel(requirementType: string | null | undefined): ClientType {
+  if (!requirementType) return 'EXECUTIVE';
+  const upper = requirementType.toUpperCase();
+  if (upper.includes('FRESHER') || upper.includes('ENTRY') || upper.includes('JUNIOR')) return 'FRESHER';
+  if (upper.includes('MID') || upper.includes('SENIOR') || upper.includes('MANAGER')) return 'MID_CAREER';
+  if (upper.includes('EXEC') || upper.includes('DIRECTOR') || upper.includes('VP') || upper.includes('C-LEVEL')) return 'EXECUTIVE';
+  if (upper.includes('PLUS') || upper.includes('PREMIUM')) return 'EXECUTIVE_PLUS';
+  return 'EXECUTIVE';
+}
+
 export async function createCheckoutSessionFromProposal(proposalId: string) {
   const proposal = await db.proposal.findUniqueOrThrow({
     where: { id: proposalId },
-    include: { inquiry: { include: { contact: { include: { flywheelProfile: true } } } } },
+    include: { inquiry: { include: { contact: { include: { flywheelProfile: true, careerClients: { orderBy: { createdAt: 'desc' }, take: 1, select: { packageType: true } } } } } } },
   });
 
   const inquiry = proposal.inquiry;
   const isIndia = inquiry.countryCode.toUpperCase() === 'IN';
   const paymentGateway = isIndia ? 'RAZORPAY' : 'PAYPAL';
+
+  // Derive experience level: existing career package → requirement type → fallback EXECUTIVE
+  const existingPackage = inquiry.contact?.careerClients?.[0]?.packageType as ClientType | null;
+  const derivedExperienceLevel: ClientType = existingPackage ?? resolveExperienceLevel(inquiry.requirementType);
 
   // Generate invoice number before the transaction — uses global prisma, not tx
   const invoiceNumber = await getNextInvoiceNumber('INV');
@@ -298,7 +315,7 @@ export async function createCheckoutSessionFromProposal(proposalId: string) {
         proposalId: proposal.id,
         packageSlug: 'CUSTOM_PROPOSAL',
         services: proposal.deliverables as unknown as Prisma.InputJsonValue,
-        experienceLevel: 'EXECUTIVE', // Generic fallback
+        experienceLevel: derivedExperienceLevel,
         pricingSnapshot: {
           subtotal: proposal.subtotal,
           discountAmount: proposal.discount,
@@ -322,7 +339,7 @@ export async function createCheckoutSessionFromProposal(proposalId: string) {
         clientName: inquiry.name,
         clientEmail: inquiry.email.toLowerCase().trim(),
         clientPhone: inquiry.phone ?? '',
-        clientType: 'EXECUTIVE',
+        clientType: derivedExperienceLevel,
         country: inquiry.countryCode,
         currency: proposal.currency,
         currencySymbol: proposal.currencySymbol,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import AppShell from '@/components/AppShell';
 
@@ -15,91 +15,137 @@ interface KanbanClient {
   services: Array<{ service: { name: string } }>;
 }
 
+type Column = 'AGENCY' | 'CLIENT' | 'OTHER';
+
 const STATUS_COLORS: Record<string, string> = {
-  UNDER_PROCESS: '#3b82f6',
-  DRAFT_SENT:    '#f59e0b',
-  IN_REVIEW:     '#8b5cf6',
-  REVISION_REQUESTED: '#ef4444',
+  UNDER_PROCESS:       '#3b82f6',
+  DRAFT_SENT:          '#f59e0b',
+  IN_REVIEW:           '#8b5cf6',
+  REVISION_REQUESTED:  '#ef4444',
 };
 
-function slaClass(deadline: string | null): { color: string; label: string } | null {
+const COL_META: Record<Column, { title: string; color: string; waitingOn: string | null }> = {
+  AGENCY:  { title: 'My Queue',         color: '#ef4444', waitingOn: 'AGENCY' },
+  CLIENT:  { title: 'Waiting on Client', color: '#eab308', waitingOn: 'CLIENT' },
+  OTHER:   { title: 'Other Active',      color: '#64748b', waitingOn: null },
+};
+
+function slaInfo(deadline: string | null): { color: string; label: string } | null {
   if (!deadline) return null;
   const diff = (new Date(deadline).getTime() - Date.now()) / (1000 * 3600 * 24);
-  if (diff < 0)   return { color: '#ef4444', label: 'Breached' };
-  if (diff <= 1)  return { color: '#ef4444', label: '< 1 day' };
-  if (diff <= 3)  return { color: '#f59e0b', label: `${Math.ceil(diff)}d left` };
-  return { color: '#10b981', label: `${Math.ceil(diff)}d left` };
+  if (diff < 0)  return { color: '#ef4444', label: 'SLA Breached' };
+  if (diff <= 1) return { color: '#ef4444', label: 'SLA < 1d' };
+  if (diff <= 3) return { color: '#f59e0b', label: `SLA ${Math.ceil(diff)}d` };
+  return { color: '#10b981', label: `SLA ${Math.ceil(diff)}d` };
 }
 
-function KanbanCard({ client, onStatusChange }: { client: KanbanClient; onStatusChange: () => void }) {
-  const [changing, setChanging] = useState(false);
-  const sla = slaClass(client.slaDeadline);
-  const statusColor = STATUS_COLORS[client.status] || '#64748b';
+function clientColumn(c: KanbanClient): Column {
+  if (c.waitingOn === 'AGENCY') return 'AGENCY';
+  if (c.waitingOn === 'CLIENT') return 'CLIENT';
+  return 'OTHER';
+}
 
-  const toggle = async (newWaitingOn: string) => {
-    if (changing) return;
-    setChanging(true);
+// ── Drag state singleton (avoids prop drilling) ───────────────────
+let dragId: string | null = null;
+
+function KanbanCard({
+  client,
+  onMove,
+  onRefresh,
+}: {
+  client: KanbanClient;
+  onMove: (id: string, col: Column) => void;
+  onRefresh: () => void;
+}) {
+  const sla = slaInfo(client.slaDeadline);
+  const statusColor = STATUS_COLORS[client.status] || '#64748b';
+  const [saving, setSaving] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const moveTo = async (newWaitingOn: string) => {
+    if (saving) return;
+    setSaving(true);
     try {
       await fetch(`/api/career/admin/clients/${client.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ waitingOn: newWaitingOn }),
       });
-      onStatusChange();
-    } finally { setChanging(false); }
+      onRefresh();
+    } finally { setSaving(false); }
+  };
+
+  // HTML5 drag
+  const handleDragStart = (e: React.DragEvent) => {
+    dragId = client.id;
+    e.dataTransfer.effectAllowed = 'move';
+    if (cardRef.current) cardRef.current.style.opacity = '0.5';
+  };
+  const handleDragEnd = () => {
+    dragId = null;
+    if (cardRef.current) cardRef.current.style.opacity = '';
   };
 
   return (
-    <div style={{ background: '#0d0d0f', borderRadius: 10, border: '1px solid var(--border)', padding: 14, transition: 'border-color 0.15s' }}
-      className="hover:border-[var(--brand)]">
-      {/* Top row */}
+    <div
+      ref={cardRef}
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      style={{
+        background: '#fff',
+        borderRadius: 10,
+        border: `1px solid var(--border)`,
+        padding: '12px 14px',
+        cursor: 'grab',
+        transition: 'box-shadow 0.15s',
+        boxShadow: 'var(--shadow-xs)',
+        userSelect: 'none',
+      }}
+    >
+      {/* Status + Name */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
         <Link href={`/career/${client.id}`} style={{ textDecoration: 'none', flex: 1 }}>
-          <span style={{ fontWeight: 600, color: '#fff', fontSize: 13, display: 'block' }}>{client.name}</span>
+          <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 13 }}>{client.name}</span>
         </Link>
-        <span style={{ fontSize: 10, color: statusColor, fontWeight: 600, background: `${statusColor}18`, padding: '2px 7px', borderRadius: 99, flexShrink: 0, marginLeft: 8 }}>
+        <span style={{ fontSize: 10, color: statusColor, fontWeight: 700, background: `${statusColor}18`, padding: '2px 7px', borderRadius: 99, flexShrink: 0, marginLeft: 8 }}>
           {client.status.replace(/_/g, ' ')}
         </span>
       </div>
 
       {/* Services */}
-      <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10 }}>
+      <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 8 }}>
         {client.services.map(s => s.service.name).join(', ') || '—'}
       </p>
 
-      {/* SLA + Updated */}
+      {/* SLA + last updated */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
-          Updated {new Date(client.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+          {new Date(client.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
         </span>
         {sla && (
           <span style={{ fontSize: 10, fontWeight: 700, color: sla.color, background: `${sla.color}18`, padding: '2px 7px', borderRadius: 99 }}>
-            SLA: {sla.label}
+            {sla.label}
           </span>
         )}
       </div>
 
-      {/* Quick action — move to other column */}
-      <div style={{ display: 'flex', gap: 6 }}>
-        {client.waitingOn === 'AGENCY' ? (
-          <button
-            onClick={() => toggle('CLIENT')}
-            disabled={changing}
-            style={{ fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid #eab30840', background: '#eab30810', color: '#eab308', cursor: 'pointer' }}
-          >
-            {changing ? '…' : '→ Move to Waiting on Client'}
+      {/* Quick move + open */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {client.waitingOn !== 'CLIENT' && (
+          <button onClick={() => moveTo('CLIENT')} disabled={saving}
+            style={{ fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 6, border: '1px solid #eab30840', background: '#eab30810', color: '#ca9a00', cursor: 'pointer' }}>
+            {saving ? '…' : '→ Client'}
           </button>
-        ) : (
-          <button
-            onClick={() => toggle('AGENCY')}
-            disabled={changing}
-            style={{ fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid #ef444440', background: '#ef444410', color: '#ef4444', cursor: 'pointer' }}
-          >
-            {changing ? '…' : '→ Move to My Queue'}
+        )}
+        {client.waitingOn !== 'AGENCY' && (
+          <button onClick={() => moveTo('AGENCY')} disabled={saving}
+            style={{ fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 6, border: '1px solid #ef444440', background: '#ef444410', color: '#ef4444', cursor: 'pointer' }}>
+            {saving ? '…' : '→ My Queue'}
           </button>
         )}
         <Link href={`/career/${client.id}`}
-          style={{ fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', color: 'var(--text-secondary)', textDecoration: 'none' }}>
+          style={{ fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 6, border: '1px solid var(--border)', color: 'var(--text-secondary)', textDecoration: 'none' }}>
           Open
         </Link>
       </div>
@@ -107,29 +153,59 @@ function KanbanCard({ client, onStatusChange }: { client: KanbanClient; onStatus
   );
 }
 
-function KanbanColumn({ title, color, clients, onStatusChange }: {
-  title: string; color: string; clients: KanbanClient[]; onStatusChange: () => void;
+function KanbanCol({
+  col, clients, onMove, onRefresh,
+}: {
+  col: Column; clients: KanbanClient[]; onMove: (id: string, col: Column) => void; onRefresh: () => void;
 }) {
+  const meta = COL_META[col];
+  const [over, setOver] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setOver(true); };
+  const handleDragLeave = () => setOver(false);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setOver(false);
+    if (dragId) onMove(dragId, col);
+  };
+
   return (
-    <div style={{ flex: 1, minWidth: 300, maxWidth: 420, background: 'rgba(255,255,255,0.02)', borderRadius: 12, padding: 20, border: '1px solid rgba(255,255,255,0.05)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 14, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, display: 'inline-block' }} />
-          {title}
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      style={{
+        flex: 1,
+        minWidth: 280,
+        maxWidth: 420,
+        background: over ? `${meta.color}08` : 'rgba(0,0,0,0.01)',
+        borderRadius: 12,
+        padding: 16,
+        border: `2px dashed ${over ? meta.color : 'transparent'}`,
+        outline: `1px solid rgba(0,0,0,0.06)`,
+        transition: 'border-color 0.15s, background 0.15s',
+      }}
+    >
+      {/* Column header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <h2 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 7 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: meta.color, display: 'inline-block' }} />
+          {meta.title}
         </h2>
-        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', background: 'rgba(255,255,255,0.08)', padding: '2px 10px', borderRadius: 12 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', background: 'rgba(0,0,0,0.06)', padding: '2px 10px', borderRadius: 12 }}>
           {clients.length}
         </span>
       </div>
 
+      {/* Cards or empty state */}
       {clients.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-tertiary)', fontSize: 12 }}>
-          All clear here.
+        <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-tertiary)', fontSize: 12, border: '1px dashed var(--border)', borderRadius: 8 }}>
+          {over ? 'Drop here' : 'All clear'}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {clients.map(c => (
-            <KanbanCard key={c.id} client={c} onStatusChange={onStatusChange} />
+            <KanbanCard key={c.id} client={c} onMove={onMove} onRefresh={onRefresh} />
           ))}
         </div>
       )}
@@ -140,15 +216,15 @@ function KanbanColumn({ title, color, clients, onStatusChange }: {
 export default function WorkloadKanbanPage() {
   const [clients, setClients] = useState<KanbanClient[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<string>('');
+  const [filter, setFilter] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/career/admin/clients?kanban=true&pageSize=200');
+      const res = await fetch('/api/career/admin/clients?kanban=true&pageSize=200&lifecycleStatus=ALL');
       if (res.ok) {
         const data = await res.json();
-        const all: KanbanClient[] = (data.clients || data.data || []).filter(
+        const all: KanbanClient[] = (data.clients || []).filter(
           (c: KanbanClient) => c.status !== 'NOT_STARTED' && c.status !== 'COMPLETED'
         );
         setClients(all);
@@ -158,6 +234,19 @@ export default function WorkloadKanbanPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Optimistic move (UI updates immediately, API call follows)
+  const handleMove = useCallback(async (id: string, toCol: Column) => {
+    const newWaitingOn = COL_META[toCol].waitingOn ?? 'AGENCY';
+    setClients(prev => prev.map(c => c.id === id ? { ...c, waitingOn: newWaitingOn } : c));
+    try {
+      await fetch(`/api/career/admin/clients/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ waitingOn: newWaitingOn }),
+      });
+    } catch { load(); } // rollback on error
+  }, [load]);
+
   const filtered = filter
     ? clients.filter(c =>
         c.name.toLowerCase().includes(filter.toLowerCase()) ||
@@ -165,49 +254,45 @@ export default function WorkloadKanbanPage() {
       )
     : clients;
 
-  const myQueue      = filtered.filter(c => c.waitingOn === 'AGENCY');
-  const clientQueue  = filtered.filter(c => c.waitingOn === 'CLIENT');
-  const noWaiting    = filtered.filter(c => !c.waitingOn || (c.waitingOn !== 'AGENCY' && c.waitingOn !== 'CLIENT'));
-  const slaBreached  = clients.filter(c => c.slaDeadline && new Date(c.slaDeadline) < new Date()).length;
+  const byCol = (col: Column) => filtered.filter(c => clientColumn(c) === col);
+  const slaBreached = clients.filter(c => c.slaDeadline && new Date(c.slaDeadline) < new Date()).length;
 
   return (
     <AppShell>
-      <div style={{ padding: '36px 40px', maxWidth: 1400, margin: '0 auto' }}>
+      <div style={{ padding: '28px 32px', maxWidth: 1400, margin: '0 auto' }}>
         {/* Header */}
-        <div style={{ marginBottom: 28, display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <h1 className="title-xl">Workload Kanban</h1>
-            <p className="subtitle mt-2">Active client pipeline by action queue.</p>
+            <h1 className="page-title">Workload Kanban</h1>
+            <p className="page-subtitle mt-1">Drag cards between columns or use the quick buttons.</p>
           </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             {slaBreached > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', background: '#ef444415', border: '1px solid #ef444430', padding: '4px 12px', borderRadius: 99 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', background: '#ef444412', border: '1px solid #ef444430', padding: '4px 12px', borderRadius: 99 }}>
                 ⚠ {slaBreached} SLA breached
               </span>
             )}
             <input
               value={filter}
               onChange={e => setFilter(e.target.value)}
-              placeholder="Filter clients…"
-              style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, width: 200, outline: 'none' }}
+              placeholder="Filter…"
+              style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, width: 180, outline: 'none' }}
             />
-            <button onClick={load} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-secondary)', fontSize: 12, cursor: 'pointer' }}>
-              Refresh
-            </button>
+            <button onClick={load} className="btn btn-ghost btn-sm">Refresh</button>
           </div>
         </div>
 
         {/* Summary strip */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-          {[
-            { label: 'My Queue', count: myQueue.length, color: '#ef4444' },
-            { label: 'Waiting on Client', count: clientQueue.length, color: '#eab308' },
-            { label: 'Other Active', count: noWaiting.length, color: '#64748b' },
-            { label: 'Total Active', count: filtered.length, color: '#B8935B' },
-          ].map(({ label, count, color }) => (
-            <div key={label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 20px', minWidth: 110 }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color }}>{count}</div>
-              <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>{label}</div>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+          {([
+            { label: 'My Queue',        count: byCol('AGENCY').length,  color: '#ef4444' },
+            { label: 'Waiting Client',  count: byCol('CLIENT').length,  color: '#eab308' },
+            { label: 'Other Active',    count: byCol('OTHER').length,   color: '#64748b' },
+            { label: 'Total Active',    count: filtered.length,         color: '#B8935B' },
+          ] as const).map(({ label, count, color }) => (
+            <div key={label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 18px', minWidth: 100 }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color }}>{count}</div>
+              <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
             </div>
           ))}
         </div>
@@ -215,11 +300,12 @@ export default function WorkloadKanbanPage() {
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-tertiary)' }}>Loading…</div>
         ) : (
-          <div style={{ display: 'flex', gap: 20, overflowX: 'auto', paddingBottom: 24, alignItems: 'flex-start' }}>
-            <KanbanColumn title="My Queue (Agency)" color="#ef4444" clients={myQueue} onStatusChange={load} />
-            <KanbanColumn title="Waiting on Client" color="#eab308" clients={clientQueue} onStatusChange={load} />
-            {noWaiting.length > 0 && (
-              <KanbanColumn title="Other Active" color="#64748b" clients={noWaiting} onStatusChange={load} />
+          /* Columns — horizontal scroll on mobile */
+          <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 24, alignItems: 'flex-start', WebkitOverflowScrolling: 'touch' }}>
+            <KanbanCol col="AGENCY" clients={byCol('AGENCY')} onMove={handleMove} onRefresh={load} />
+            <KanbanCol col="CLIENT" clients={byCol('CLIENT')} onMove={handleMove} onRefresh={load} />
+            {byCol('OTHER').length > 0 && (
+              <KanbanCol col="OTHER" clients={byCol('OTHER')} onMove={handleMove} onRefresh={load} />
             )}
           </div>
         )}

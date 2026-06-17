@@ -40,6 +40,17 @@ export async function GET() {
     where: { unreadByAdmin: { gt: 0 } }
   });
 
+  // Real Communication SLA: conversations with an adminSlaDeadline set
+  // SLA is "met" when adminSlaDeadline is in the future (haven't missed deadline yet)
+  // SLA is "breached" when adminSlaDeadline is in the past (overdue)
+  const [totalWithSla, breachedSla] = await Promise.all([
+    db.conversationReadState.count({ where: { adminSlaDeadline: { not: null } } }),
+    db.conversationReadState.count({ where: { adminSlaDeadline: { lt: now, not: null } } }),
+  ]);
+  const communicationSlaCompliance = totalWithSla === 0
+    ? 100
+    : Math.round(((totalWithSla - breachedSla) / totalWithSla) * 100);
+
   // 4. Negative Feedback
   const negativeFeedback = await db.feedback.count({
     where: { rating: { lte: 2 } }
@@ -73,8 +84,7 @@ export async function GET() {
       escalatedUnread: unreadMessages24h + unreadMessages48h,
       clientsWaiting24h: unreadMessages24h,
       clientsWaiting48h: unreadMessages48h,
-      // placeholder for SLA compliance as we don't track message SLA yet explicitly in db
-      communicationSlaCompliance: unreadMessages48h === 0 ? 100 : Math.round(((totalUnreadMessages - unreadMessages48h) / (totalUnreadMessages || 1)) * 100)
+      communicationSlaCompliance
     },
     health: {
       healthy: healthyClients,

@@ -150,6 +150,17 @@ export async function POST(
       }
     }
 
+    prisma.auditLog.create({
+      data: {
+        tenantId: updatedInvoice.brandId ?? 'system',
+        adminId:  session.adminId,
+        action:   `INVOICE_SYNC_${newStatus}`,
+        entity:   'Invoice',
+        entityId: params.id,
+        changes:  { before: { status: invoice.status }, after: { status: newStatus }, gateway: gatewayLabel },
+      },
+    }).catch(() => null);
+
     return NextResponse.json({ synced: true, newStatus, invoice: updatedInvoice });
   }
 
@@ -165,6 +176,17 @@ export async function POST(
       paidAt: new Date(),
     },
   });
+
+  prisma.auditLog.create({
+    data: {
+      tenantId: invoice.brandId ?? 'system',
+      adminId:  session.adminId,
+      action:   'INVOICE_MARKED_PAID',
+      entity:   'Invoice',
+      entityId: params.id,
+      changes:  { before: { status: invoice.status }, after: { status: 'PAID' } },
+    },
+  }).catch(() => null);
 
   // Send confirmation email + auto-onboard (best-effort, non-blocking)
   sendPaymentConfirmationEmail(updatedInvoice as any)

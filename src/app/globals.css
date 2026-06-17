@@ -53,6 +53,22 @@
   --blue:           var(--brand);
   --blue-light:     rgba(184,147,91,.12);
 
+  /* Section brand colors */
+  --growth:         #10B981;
+  --growth-light:   rgba(16,185,129,.14);
+  --growth-dark:    #059669;
+  --ripple:         #A78BFA;
+  --ripple-light:   rgba(167,139,250,.14);
+  --ripple-dark:    #7C3AED;
+
+  /* Status semantic tokens */
+  --status-open:      #3b82f6;
+  --status-active:    #10B981;
+  --status-warning:   #f59e0b;
+  --status-danger:    #ef4444;
+  --status-completed: #6b7280;
+  --status-archived:  #94a3b8;
+
   /* Status */
   --success:        #3FBD8B;
   --success-bg:     rgba(63,189,139,.14);
