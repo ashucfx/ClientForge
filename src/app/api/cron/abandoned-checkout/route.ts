@@ -14,11 +14,12 @@ export async function GET(req: Request) {
 
     const now = new Date();
     
-    // Find all PENDING invoices
+    // Find only self-service CHECKOUT invoices — never admin-created or proposal invoices
     const pendingInvoices = await db.invoice.findMany({
       where: {
         status: 'PENDING',
-      }
+        sourceChannel: 'CHECKOUT',
+      },
     });
 
     let emailsSent = 0;

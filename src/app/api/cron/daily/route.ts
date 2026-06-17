@@ -11,6 +11,8 @@ import { GET as runLifecycleCron } from '../lifecycle/route';
 import { GET as runCleanupCron } from '../cleanup/route';
 import { GET as runInvoicesCron } from '../invoices/route';
 import { GET as runSlaCron } from '../sla/route';
+import { GET as runAbandonedCheckoutCron } from '../abandoned-checkout/route';
+import { GET as runUpsellCron } from '../upsell/route';
 
 export async function GET(req: NextRequest) {
   // We pass the original request along so the individual handlers can check the CRON_SECRET auth header.
@@ -57,6 +59,20 @@ export async function GET(req: NextRequest) {
     results['sla'] = res.status;
   } catch (e: any) {
     results['sla'] = e.message || 'error';
+  }
+
+  try {
+    const res = await runAbandonedCheckoutCron(req as unknown as Request);
+    results['abandoned_checkout'] = res.status;
+  } catch (e: any) {
+    results['abandoned_checkout'] = e.message || 'error';
+  }
+
+  try {
+    const res = await runUpsellCron(req as unknown as Request);
+    results['upsell'] = res.status;
+  } catch (e: any) {
+    results['upsell'] = e.message || 'error';
   }
 
   return NextResponse.json({ ok: true, results });

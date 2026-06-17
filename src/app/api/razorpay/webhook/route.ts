@@ -129,8 +129,12 @@ export async function POST(request: NextRequest) {
       } else {
         waitUntil(
           onboardFromInvoice({ ...invoice, razorpayPaymentId })
+            .then(async (result) => {
+              const { handleSalesFunnelPayment } = await import('@/lib/sales/paymentHooks');
+              await handleSalesFunnelPayment(invoice.id, result.clientId);
+            })
             .catch(async (err) => {
-              console.error('[webhook] Career onboarding failed:', err);
+              console.error('[webhook] Career onboarding or funnel update failed:', err);
               const { sendCareerEmail } = await import('@/lib/career/email');
               const adminEmail = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
               await sendCareerEmail({

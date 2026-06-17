@@ -59,6 +59,7 @@ export async function GET(req: Request) {
   const alreadyWarned = new Set(existingWarningLogs.map(l => l.clientId));
 
   for (const client of ghostWarningClients) {
+    if (alreadyWarned.has(client.id)) continue;
     const sent = await atomicSendEmail(client.id, 'GHOST_WARNING', {
       to: client.email,
       trigger: 'MESSAGE_NOTIFY',
@@ -96,12 +97,9 @@ export async function GET(req: Request) {
   const alreadyClosed = new Set(existingClosureLogs.map(l => l.clientId));
 
   for (const client of ghostClosureClients) {
-    // Auto-close order
-    await db.careerClient.update({
-      where: { id: client.id },
-      data: { status: 'COMPLETED', completedAt: new Date() },
-    });
-
+    if (alreadyClosed.has(client.id)) continue;
+    // Send the closure email first — only auto-complete the client if this is the first time
+    // (atomicSendEmail returns false if already sent, preventing double-completion on cron retries)
     const sent = await atomicSendEmail(client.id, 'GHOST_CLOSURE', {
       to: client.email,
       trigger: 'MESSAGE_NOTIFY',
@@ -114,7 +112,13 @@ export async function GET(req: Request) {
         body: `Hi ${client.name.split(' ')[0]},\n\nSince your revision window has expired, we have finalized your order and marked it as completed. You can download your final documents from the portal.\n\nThank you for choosing our services!`,
       },
     });
-    if (sent) processedCount++;
+    if (sent) {
+      await db.careerClient.update({
+        where: { id: client.id },
+        data: { status: 'COMPLETED', completedAt: new Date() },
+      });
+      processedCount++;
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -139,6 +143,7 @@ export async function GET(req: Request) {
   const alreadyReviewed = new Set(existingReviewLogs.map(l => l.clientId));
 
   for (const client of reviewClients) {
+    if (alreadyReviewed.has(client.id)) continue;
     const sent = await atomicSendEmail(client.id, 'REVIEW_REQUEST', {
       to: client.email,
       trigger: 'MESSAGE_NOTIFY',
@@ -177,6 +182,7 @@ export async function GET(req: Request) {
   const alreadyNudged = new Set(existingExpiringLogs.map(l => l.clientId));
 
   for (const client of expiringClients) {
+    if (alreadyNudged.has(client.id)) continue;
     const sent = await atomicSendEmail(client.id, 'REVISION_EXPIRING', {
       to: client.email,
       trigger: 'MESSAGE_NOTIFY',
