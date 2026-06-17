@@ -44,11 +44,6 @@ export function getAdminSessionSecret(): string {
   return secret;
 }
 
-export function getAdminPassword(): string {
-  const pwd = process.env.ADMIN_PASSWORD;
-  if (!pwd) throw new Error('ADMIN_PASSWORD env var is required');
-  return pwd;
-}
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.randomBytes(16).toString('hex');

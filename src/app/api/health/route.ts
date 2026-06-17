@@ -7,11 +7,11 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
+// Admin auth is database-driven (AdminUser table) — ADMIN_PASSWORD is not used by the login route
 const REQUIRED_ENV = [
   'DATABASE_URL',
   'RESEND_API_KEY',
   'CAREER_PORTAL_SECRET',
-  'ADMIN_PASSWORD',
   'ADMIN_SESSION_SECRET',
   'CLOUDINARY_CLOUD_NAME',
   'CLOUDINARY_API_KEY',
