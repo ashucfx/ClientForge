@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
     }
 
     let processedCount = 0;
+    let failedCount = 0;
 
     // 2. Process each lead
     for (const lead of leadsToProcess) {
@@ -74,9 +75,12 @@ export async function GET(req: NextRequest) {
       }
 
       try {
-        // Send the email using the marketing SMTP wrapper
+        if (!lead.contact.email) {
+          console.error(`[FlywheelCron] Lead ${lead.id} contact has no email — skipping`);
+          continue;
+        }
         await sendMarketingEmail(
-          lead.contact.email!,
+          lead.contact.email,
           lead.currentStep.subject,
           lead.currentStep.contentHtml,
           lead.campaign.brandId,
@@ -119,14 +123,16 @@ export async function GET(req: NextRequest) {
         processedCount++;
       } catch (error) {
         console.error(`[FlywheelCron] Failed to process lead ${lead.id}:`, error);
-        // Could mark as BOUNCED or just leave it ACTIVE to retry next cron run
+        failedCount++;
       }
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Batch processed successfully', 
-      processedCount 
+    return NextResponse.json({
+      success: true,
+      message: 'Batch processed',
+      processedCount,
+      failedCount,
+      totalFound: leadsToProcess.length,
     });
 
   } catch (error) {

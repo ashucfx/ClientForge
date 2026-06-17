@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { getBrand } from '../brand/registry';
 import { BRAND_EMAIL } from '../config';
+import { prisma as db } from '../db';
 
 // Create reusable transporter object using the default SMTP transport
 const transporter = nodemailer.createTransport({
@@ -131,16 +132,30 @@ export async function sendMarketingEmail(
 </body>
 </html>`;
 
-  const info = await transporter.sendMail({
-    from: `"${brand.name}" <${brand.fromEmail}>`, // sender address
-    to, // list of receivers
-    subject, // Subject line
-    html, // html body
-    headers: {
-      'List-Unsubscribe': `<${unsubscribeUrl}>`,
-      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-    }
-  });
-
-  console.log('[MarketingMailer] Message sent: %s', info.messageId);
+  try {
+    const info = await transporter.sendMail({
+      from: `"${brand.name}" <${brand.fromEmail}>`,
+      to,
+      subject,
+      html,
+      headers: {
+        'List-Unsubscribe': `<${unsubscribeUrl}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
+    });
+    console.log('[MarketingMailer] Sent: %s', info.messageId);
+    db.sysEmailLog.create({
+      data: { to, subject, trigger: 'CAMPAIGN', channel: 'smtp', status: 'sent', metadata: { campaignLeadId } as any },
+    }).catch(() => null);
+  } catch (err) {
+    console.error('[MarketingMailer] Failed to send to', to, err);
+    db.sysEmailLog.create({
+      data: {
+        to, subject, trigger: 'CAMPAIGN', channel: 'smtp', status: 'failed',
+        error: err instanceof Error ? err.message : String(err),
+        metadata: { campaignLeadId } as any,
+      },
+    }).catch(() => null);
+    throw err;
+  }
 }
