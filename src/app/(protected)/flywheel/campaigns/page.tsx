@@ -43,8 +43,8 @@ export default function FlywheelCampaigns() {
   const [campaignType, setCampaignType] = useState('ONE_OFF');
   const [subject, setSubject] = useState('');
   const [blocks, setBlocks] = useState<ContentBlock[]>([
-    { id: '1', type: 'heading', content: 'Hello from {brand}' },
-    { id: '2', type: 'paragraph', content: 'Write your message here...' },
+    { id: '1', type: 'heading', content: '' },
+    { id: '2', type: 'paragraph', content: '' },
   ]);
   const [audienceFilter, setAudienceFilter] = useState('ALL');
   const [audienceCount, setAudienceCount] = useState(0);
@@ -132,9 +132,9 @@ export default function FlywheelCampaigns() {
   const blocksToHtml = () => blocks.map(b => {
     const content = resolvePlaceholders(b.content);
     switch (b.type) {
-      case 'heading':   return `<h2 style="font-size:20px;font-weight:700;color:#1e293b;margin:24px 0 8px;">${content}</h2>`;
-      case 'paragraph': return `<p style="font-size:15px;line-height:1.7;color:#475569;margin:12px 0;">${content}</p>`;
-      case 'button':    return `<p style="text-align:center;margin:24px 0;"><a href="${b.extra || '#'}" style="display:inline-block;padding:12px 28px;background:${brand.primaryColor};color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">${content}</a></p>`;
+      case 'heading':   return content ? `<h2 style="font-size:20px;font-weight:700;color:#1e293b;margin:24px 0 8px;">${content}</h2>` : '';
+      case 'paragraph': return content ? `<p style="font-size:15px;line-height:1.7;color:#475569;margin:12px 0;">${content}</p>` : '';
+      case 'button':    return content ? `<p style="text-align:center;margin:24px 0;"><a href="${b.extra || '#'}" style="display:inline-block;padding:12px 28px;background:${brand.primaryColor};color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">${content}</a></p>` : '';
       case 'divider':   return `<hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />`;
       default: return '';
     }
@@ -233,8 +233,8 @@ export default function FlywheelCampaigns() {
     setSubject(''); setAudienceFilter('ALL');
     setPickedLeads([]); setLeadSearch(''); setLeadSearchResults([]);
     setBlocks([
-      { id: '1', type: 'heading', content: 'Hello from {brand}' },
-      { id: '2', type: 'paragraph', content: 'Write your message here...' },
+      { id: '1', type: 'heading', content: '' },
+      { id: '2', type: 'paragraph', content: '' },
     ]);
   };
 
@@ -521,10 +521,10 @@ export default function FlywheelCampaigns() {
                           </div>
                           <div className="flex-1">
                             {block.type === 'heading' && (
-                              <input value={block.content} onChange={e => updateBlock(block.id, 'content', e.target.value)} className="w-full px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm font-bold outline-none focus:ring-1" placeholder="Heading text" />
+                              <input value={block.content} onChange={e => updateBlock(block.id, 'content', e.target.value)} className="w-full px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm font-bold outline-none focus:ring-1" placeholder="Hello from {brand}…" />
                             )}
                             {block.type === 'paragraph' && (
-                              <textarea value={block.content} onChange={e => updateBlock(block.id, 'content', e.target.value)} rows={3} className="w-full px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm outline-none focus:ring-1 resize-none" placeholder="Write your paragraph..." />
+                              <textarea value={block.content} onChange={e => updateBlock(block.id, 'content', e.target.value)} rows={3} className="w-full px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm outline-none focus:ring-1 resize-none" placeholder="Write your message here…" />
                             )}
                             {block.type === 'button' && (
                               <div className="flex gap-2">
