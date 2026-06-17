@@ -43,6 +43,7 @@ interface ClientDetail {
   services: { slug: string; name: string }[];
   Feedback?: { id: string; npsScore: number; rating: number; submittedAt: string } | null;
   Review?: { id: string; content: string; permissionToUse: boolean; submittedAt: string } | null;
+  invoice?: { invoiceNumber: string; totalPayable: number; currency: string; status: string } | null;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -2168,13 +2169,14 @@ function EditClientModal({
   onSaved: () => void;
 }) {
   const [form, setForm] = useState({
-    name:        client.name,
-    email:       client.email,
-    phone:       client.phone ?? '',
-    packageType: client.packageType as CareerPackage,
-    amountPaid:  String(client.amountPaid),
-    currency:    client.currency,
-    notes:       client.notes ?? '',
+    name:          client.name,
+    email:         client.email,
+    phone:         client.phone ?? '',
+    packageType:   client.packageType as CareerPackage,
+    amountPaid:    String(client.amountPaid),
+    currency:      client.currency,
+    notes:         client.notes ?? '',
+    invoiceNumber: client.invoice?.invoiceNumber ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
@@ -2188,7 +2190,16 @@ function EditClientModal({
     const res = await fetch(`/api/career/admin/clients/${client.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, amountPaid: Number(form.amountPaid) }),
+      body: JSON.stringify({
+        name:          form.name,
+        email:         form.email,
+        phone:         form.phone,
+        packageType:   form.packageType,
+        amountPaid:    Number(form.amountPaid),
+        currency:      form.currency,
+        notes:         form.notes,
+        invoiceNumber: form.invoiceNumber,
+      }),
     });
     if (res.ok) { onSaved(); return; }
     const d = await res.json().catch(() => ({})) as { error?: string };
@@ -2241,6 +2252,27 @@ function EditClientModal({
               <input type="text" maxLength={3} value={form.currency} onChange={set('currency')}
                 className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 uppercase" />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              Linked Invoice <span className="normal-case font-normal text-slate-400">(invoice number — links revenue to portal invoice)</span>
+            </label>
+            <input
+              type="text"
+              value={form.invoiceNumber}
+              onChange={set('invoiceNumber')}
+              placeholder="e.g. RN-2604-6695 — leave blank to unlink"
+              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 font-mono"
+            />
+            {client.invoice && (
+              <p className="mt-1 text-xs text-emerald-600">
+                Currently linked: {client.invoice.invoiceNumber} · {client.invoice.currency} {client.invoice.totalPayable} · {client.invoice.status}
+              </p>
+            )}
+            {!client.invoice && client.invoiceId && (
+              <p className="mt-1 text-xs text-amber-600">Linked by ID (no number loaded) — type the number to re-link</p>
+            )}
           </div>
 
           <div>

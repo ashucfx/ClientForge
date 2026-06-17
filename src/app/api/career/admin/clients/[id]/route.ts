@@ -24,11 +24,19 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const { services, forms, ...rest } = client;
+  // Fetch linked invoice separately (no Prisma relation defined on CareerClient.invoiceId)
+  const linkedInvoice = client.invoiceId
+    ? await db.invoice.findUnique({
+        where: { id: client.invoiceId },
+        select: { invoiceNumber: true, totalPayable: true, currency: true, status: true },
+      })
+    : null;
+
+  const { services, forms, ...rest } = client as any;
 
   // Optimize payload: strip massive base64 file payloads from ALL versions
   // to prevent Vercel 504 timeouts and React rendering freezes.
-  const optimizedForms = forms.map((f) => {
+  const optimizedForms = forms.map((f: any) => {
     let cleanData = f.formData as Record<string, any>;
     if (typeof cleanData === 'object' && cleanData !== null) {
       cleanData = JSON.parse(JSON.stringify(cleanData)); // deep clone
@@ -51,7 +59,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       ...rest,
       slaDeadline: rest.expectedDeliveryAt,
       forms: optimizedForms,
-      services: services.map(s => ({ slug: s.service.slug, name: s.service.name })),
+      services: services.map((s: any) => ({ slug: s.service.slug, name: s.service.name })),
+      invoice: linkedInvoice,
     },
   });
 }
@@ -75,6 +84,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.notes       !== undefined) data.notes       = body.notes ? String(body.notes).trim() : null;
   if (body.packageType !== undefined) data.packageType = body.packageType;
   if (body.invoiceId   !== undefined) data.invoiceId   = body.invoiceId || null;
+  if (body.invoiceNumber !== undefined) {
+    const num = String(body.invoiceNumber).trim();
+    if (!num) {
+      data.invoiceId = null;
+    } else {
+      const inv = await db.invoice.findFirst({ where: { invoiceNumber: num }, select: { id: true } });
+      if (!inv) return NextResponse.json({ error: `Invoice "${num}" not found. Check the invoice number and try again.` }, { status: 404 });
+      data.invoiceId = inv.id;
+    }
+  }
   if (body.amountPaid  !== undefined) data.amountPaid  = Number(body.amountPaid);
   if (body.currency    !== undefined) data.currency    = String(body.currency).trim().toUpperCase();
   if (body.lifecycleStatus !== undefined) {
