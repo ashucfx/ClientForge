@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/daily",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/admin/flywheel/cron/process-campaigns",
+      "schedule": "*/30 * * * *"
     }
   ]
 }
