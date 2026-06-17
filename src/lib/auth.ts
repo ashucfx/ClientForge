@@ -17,9 +17,16 @@ export function verifyCsrf(req: NextRequest): boolean {
   // Strict Origin verification
   const origin = req.headers.get('origin');
   const allowedOrigin = process.env.NEXT_PUBLIC_APP_URL;
-  if (origin && allowedOrigin) {
+
+  if (origin) {
+    // If the request carries an Origin header, we MUST validate it.
+    // Reject if NEXT_PUBLIC_APP_URL is not configured — do not silently pass.
+    if (!allowedOrigin) {
+      console.error('[CSRF] NEXT_PUBLIC_APP_URL is not set — rejecting cross-origin request');
+      return false;
+    }
     const isExact = origin === allowedOrigin || origin === allowedOrigin.replace('http://', 'https://');
-    const isWww = origin === allowedOrigin.replace('https://', 'https://www.') || origin === allowedOrigin.replace('http://', 'http://www.');
+    const isWww   = origin === allowedOrigin.replace('https://', 'https://www.') || origin === allowedOrigin.replace('http://', 'http://www.');
     if (!isExact && !isWww) {
       return false;
     }

@@ -5,7 +5,6 @@
 
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
-import { prisma as db } from '@/lib/db';
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -115,4 +114,20 @@ export async function clearPinFailures(email: string): Promise<void> {
   fallbackCache.delete(cacheKey);
   // We can't easily clear Upstash Redis sliding window limits without deleting the keys
   // which might have complex internal names, so we just clear the fallback for local dev.
+}
+
+/**
+ * Rate-limit OTP verification attempts: 5 per clientId per 15 minutes.
+ * Prevents brute-force of the 6-digit OTP space.
+ */
+export async function checkOtpRateLimit(clientId: string): Promise<RateLimitResult> {
+  return rateLimit(`otp_verify:${clientId}`, 'otp_verify', 5, 15 * 60 * 1000);
+}
+
+/**
+ * Rate-limit OTP send requests: 3 per clientId per 10 minutes.
+ * Prevents OTP flooding / SMS/email bombing.
+ */
+export async function checkOtpSendRateLimit(clientId: string): Promise<RateLimitResult> {
+  return rateLimit(`otp_send:${clientId}`, 'otp_send', 3, 10 * 60 * 1000);
 }

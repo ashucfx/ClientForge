@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
 
+// This endpoint has been permanently disabled for security reasons.
+// It previously exposed the database schema without authentication.
 export async function GET() {
-  const result = await prisma.$queryRaw`
-    SELECT table_name 
-    FROM information_schema.tables 
-    WHERE table_schema = 'public';
-  `;
-  return NextResponse.json({ tables: result });
+  return NextResponse.json({ error: 'Not Found' }, { status: 404 });
 }

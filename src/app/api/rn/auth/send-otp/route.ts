@@ -1,41 +1,56 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { verifyCsrf } from '@/lib/auth';
+import { checkOtpSendRateLimit } from '@/lib/ratelimit';
 import crypto from 'crypto';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  if (!verifyCsrf(request)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const { clientId, magicToken } = await request.json();
-    
+
+    if (!clientId || !magicToken) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    }
+
+    // Rate-limit OTP sends per clientId (3 per 10 minutes)
+    const sendLimit = await checkOtpSendRateLimit(clientId);
+    if (!sendLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many OTP requests. Please wait before trying again.' },
+        { status: 429 },
+      );
+    }
+
     const client = await prisma.rnClient.findFirst({
-      where: { id: clientId, magicToken }
+      where: { id: clientId, magicToken },
     });
 
     if (!client) {
       return NextResponse.json({ error: 'Invalid magic token or client' }, { status: 400 });
     }
 
-    // Generate 6 digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate a cryptographically random 6-digit OTP
+    const otp = (crypto.randomInt(100000, 999999)).toString();
     const pinHash = crypto.createHash('sha256').update(otp).digest('hex');
 
-    // Save to DB
     await prisma.rnClient.update({
       where: { id: client.id },
-      data: { pinHash }
+      data: { pinHash },
     });
 
     const { sendRnOtpEmail } = await import('@/lib/rn/email');
     await sendRnOtpEmail(client.email, otp);
-    console.log(`[RN OTP] OTP for ${client.email} is: ${otp}`);
 
-    // If we're in dev mode or haven't configured Resend yet, this guarantees we can test it
-    // because we can read the console log.
-    
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[RN send-otp] Error:', err.message);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
