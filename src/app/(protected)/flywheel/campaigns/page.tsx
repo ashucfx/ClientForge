@@ -126,16 +126,78 @@ export default function FlywheelCampaigns() {
   };
 
   // Build HTML from blocks
-  const blocksToHtml = () => {
-    return blocks.map(b => {
-      switch (b.type) {
-        case 'heading': return `<h2 style="font-size:20px;font-weight:700;color:#1e293b;margin:24px 0 8px;">${b.content}</h2>`;
-        case 'paragraph': return `<p style="font-size:15px;line-height:1.7;color:#475569;margin:12px 0;">${b.content}</p>`;
-        case 'button': return `<p style="text-align:center;margin:24px 0;"><a href="${b.extra || '#'}" style="display:inline-block;padding:12px 28px;background:${brand.primaryColor};color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">${b.content}</a></p>`;
-        case 'divider': return `<hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />`;
-        default: return '';
-      }
-    }).join('\n');
+  const resolvePlaceholders = (text: string) =>
+    text.replace(/\{brand\}/gi, brand.name);
+
+  const blocksToHtml = () => blocks.map(b => {
+    const content = resolvePlaceholders(b.content);
+    switch (b.type) {
+      case 'heading':   return `<h2 style="font-size:20px;font-weight:700;color:#1e293b;margin:24px 0 8px;">${content}</h2>`;
+      case 'paragraph': return `<p style="font-size:15px;line-height:1.7;color:#475569;margin:12px 0;">${content}</p>`;
+      case 'button':    return `<p style="text-align:center;margin:24px 0;"><a href="${b.extra || '#'}" style="display:inline-block;padding:12px 28px;background:${brand.primaryColor};color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">${content}</a></p>`;
+      case 'divider':   return `<hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />`;
+      default: return '';
+    }
+  }).join('\n');
+
+  const buildEmailPreview = () => {
+    const bodyHtml = blocksToHtml();
+    const isCatalyst = brand.id === 'catalyst';
+    const logoHtml = brand.logoEmailHtml(44);
+    const nameColor = isCatalyst ? '#F4F1EB' : '#F4F5FA';
+    const taglineColor = isCatalyst ? 'rgba(184,147,91,0.80)' : 'rgba(34,211,238,0.80)';
+    const footerBg = isCatalyst ? '#F5F3EE' : '#12141F';
+    const footerBorder = isCatalyst ? '#EDE9DF' : '#1E2030';
+    const footerText = isCatalyst ? '#a0926c' : '#6b7280';
+
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:20px;background:${brand.emailBg};font-family:Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr><td align="center">
+<table role="presentation" width="580" cellpadding="0" cellspacing="0"
+  style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(10,11,13,0.14);">
+
+  <!-- Header -->
+  <tr>
+    <td style="background:${brand.gradient};padding:26px 32px 22px;">
+      <table role="presentation" cellpadding="0" cellspacing="0">
+        <tr>
+          <td valign="middle" style="padding-right:12px;">${logoHtml}</td>
+          <td valign="middle">
+            <div style="font-family:Georgia,'Times New Roman',serif;font-size:17px;font-weight:400;color:${nameColor};letter-spacing:2px;">${brand.name.toUpperCase()}</div>
+            <div style="font-family:Helvetica,Arial,sans-serif;font-size:9px;color:${taglineColor};letter-spacing:1.8px;text-transform:uppercase;margin-top:4px;">${brand.tagline}</div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- Accent bar -->
+  <tr><td height="3" style="background:${brand.accentBar};font-size:0;line-height:0;">&nbsp;</td></tr>
+
+  <!-- Body -->
+  <tr>
+    <td style="padding:32px 36px;font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#4a5568;line-height:1.75;">
+      ${bodyHtml}
+    </td>
+  </tr>
+
+  <!-- Footer -->
+  <tr>
+    <td style="background:${footerBg};padding:20px 36px;border-top:1px solid ${footerBorder};border-radius:0 0 16px 16px;">
+      <div style="font-size:10px;color:${footerText};line-height:1.6;text-align:center;">
+        You are receiving this email because you opted in at ${brand.name}.<br/>
+        <a href="#" style="color:${footerText};text-decoration:underline;">Unsubscribe</a>
+        &nbsp;·&nbsp;
+        <a href="${brand.websiteUrl}" style="color:${footerText};text-decoration:underline;">${brand.websiteUrl.replace('https://', '')}</a>
+      </div>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body></html>`;
   };
 
   // Create campaign
@@ -522,8 +584,13 @@ export default function FlywheelCampaigns() {
                   {/* Email Preview */}
                   <div>
                     <h4 className="text-sm font-semibold text-slate-700 mb-2">Email Preview</h4>
-                    <div className="border border-slate-200 rounded-xl p-6 bg-white max-h-72 overflow-y-auto">
-                      <div dangerouslySetInnerHTML={{ __html: blocksToHtml() }} />
+                    <div className="border border-slate-200 rounded-xl overflow-hidden" style={{ height: 420 }}>
+                      <iframe
+                        srcDoc={buildEmailPreview()}
+                        title="Email preview"
+                        style={{ width: '100%', height: '100%', border: 'none' }}
+                        sandbox="allow-same-origin"
+                      />
                     </div>
                   </div>
                 </div>
