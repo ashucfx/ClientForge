@@ -19,6 +19,7 @@ const STATUS_META: Record<string, { label: string; bg: string; color: string }> 
 
 interface Campaign {
   id: string; name: string; type: string; status: string; createdAt: string;
+  metadata?: { audienceFilter?: string };
   _count: { leads: number; steps: number };
   stats?: { sent: number; opens: number; unsubs: number; openRate: number };
 }
@@ -119,15 +120,23 @@ export default function FlywheelCampaigns() {
     if (!campaignName || !subject) return;
     setSaving(true);
     try {
-      const body: any = { name: campaignName, type: campaignType, subject, htmlBody: blocksToHtml(), brandId: activeBrand };
-      if (audienceFilter !== 'ALL') body.filters = { lifecycleStage: audienceFilter };
+      const body = {
+        name: campaignName,
+        type: campaignType,
+        brandId: activeBrand === 'all' ? 'catalyst' : activeBrand,
+        metadata: { audienceFilter },
+        steps: [{ subject, contentHtml: blocksToHtml(), delayHours: 0 }],
+      };
       const res = await fetch('/api/admin/flywheel/campaigns', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
       if (res.ok) {
         setWizardOpen(false);
         resetWizard();
         fetchCampaigns();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Failed to create campaign: ${err.error || res.statusText}`);
       }
     } finally { setSaving(false); }
   };
@@ -145,9 +154,11 @@ export default function FlywheelCampaigns() {
   const handleDispatch = async (campaignId: string) => {
     setDispatching(true); setDispatchResult(null);
     try {
-      // Resolve audience: get contacts matching the campaign's audience filter
+      // Use the filter stored in the campaign's metadata (not the wizard state)
+      const campaign = campaigns.find(c => c.id === campaignId) ?? selectedCampaign;
+      const savedFilter = campaign?.metadata?.audienceFilter ?? 'ALL';
       const params = new URLSearchParams({ pageSize: '1000' });
-      if (audienceFilter !== 'ALL') params.set('stage', audienceFilter);
+      if (savedFilter !== 'ALL') params.set('stage', savedFilter);
       const audienceRes = await fetch(`/api/admin/flywheel/leads?${params}`);
       if (!audienceRes.ok) { setDispatchResult('Error: Could not resolve audience.'); return; }
       const audienceData = await audienceRes.json();
@@ -476,6 +487,9 @@ export default function FlywheelCampaigns() {
                 </div>
 
                 <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                  <div className="bg-blue-50 rounded-lg px-4 py-2.5 text-sm text-blue-700 font-medium">
+                    Audience: <strong>{selectedCampaign.metadata?.audienceFilter ?? 'ALL'}</strong>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-slate-50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-slate-800">{selectedCampaign._count?.leads || 0}</div>
