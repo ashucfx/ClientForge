@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createAdminSessionToken, getAdminCookieName, verifyPassword, verifyCsrf } from '@/lib/auth';
+import { createAdminSessionToken, getAdminCookieName, verifyPassword } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { rateLimit } from '@/lib/ratelimit';
 
@@ -16,10 +16,6 @@ export async function POST(request: NextRequest) {
         { error: 'Too many login attempts. Try again in 15 minutes.' },
         { status: 429 }
       );
-    }
-
-    if (!verifyCsrf(request)) {
-      return NextResponse.json({ error: 'CSRF token validation failed' }, { status: 403 });
     }
 
     const body = await request.json().catch(() => null) as { email?: string; password?: string; brand?: string } | null;

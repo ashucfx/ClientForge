@@ -1,108 +1,282 @@
 'use client';
 // src/components/AppShell.tsx
-// Shared responsive shell: sidebar on desktop, drawer + topbar on mobile
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { IconGrid, IconPlus, IconList, IconLogout, IconTarget, IconUser, IconLink, IconTrendUp, IconMail, IconZap, IconInbox } from '@/components/Icons';
+import { usePathname } from 'next/navigation';
+import {
+  IconGrid, IconPlus, IconList, IconLogout, IconTarget, IconUser,
+  IconTrendUp, IconMail, IconZap, IconInbox, IconChevronDown,
+} from '@/components/Icons';
 import { Logo } from '@/components/Logo';
 import { useBrand } from '@/components/BrandProvider';
 import { useAdmin } from '@/components/AdminProvider';
 import NotificationBell from '@/components/NotificationBell';
 
+// ── Inline icons not in Icons.tsx ────────────────────────────────
+function IconBug({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
+      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 2l1.88 1.88M16 2l-1.88 1.88M9 7.13v-1a3 3 0 013-3h0a3 3 0 013 3v1" />
+        <path d="M12 20c-3.31 0-6-2.69-6-6v-3a6 6 0 0112 0v3c0 3.31-2.69 6-6 6z" />
+        <path d="M6 13H2M22 13h-4M6 17H2M22 17h-4" />
+      </g>
+    </svg>
+  );
+}
+function IconReferral({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
+      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+      </g>
+    </svg>
+  );
+}
+function IconKanban({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
+      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="5" height="18" rx="1" />
+        <rect x="10" y="3" width="5" height="12" rx="1" />
+        <rect x="17" y="3" width="5" height="8" rx="1" />
+      </g>
+    </svg>
+  );
+}
 
-const NAV_MAIN = [
-  { href: '/',             Icon: IconGrid, label: 'Dashboard'    },
-  { href: '/analytics',    Icon: IconTrendUp, label: 'Executive Analytics' },
-  { href: '/invoices/new', Icon: IconPlus, label: 'New Invoice'  },
-  { href: '/invoices',     Icon: IconList, label: 'All Invoices' },
-  { href: '/team',         Icon: IconUser, label: 'Team & Access' },
-];
-
-
-const NAV_CAREER = [
-  { href: '/career', Icon: IconTarget, label: 'Career Booster Services' },
-];
-
-const NAV_RN = [
-  { href: '/rn/clients', Icon: IconUser, label: 'Agency Clients' },
-  { href: '/rn/services', Icon: IconTarget, label: 'Service Modules' },
-];
-
-const NAV_FLYWHEEL = [
-  { href: '/flywheel',           Icon: IconZap,     label: 'Command Center' },
-  { href: '/sales/inquiries',    Icon: IconInbox,   label: 'Lead Review Center' },
-  { href: '/flywheel/pipeline',  Icon: IconTarget,  label: 'Pipeline & CRM' },
-  { href: '/flywheel/leads',     Icon: IconUser,    label: 'Audience & Leads' },
-  { href: '/flywheel/campaigns', Icon: IconMail,    label: 'Campaigns' },
-  { href: '/flywheel/analytics', Icon: IconTrendUp, label: 'Growth Analytics' },
-];
-
-function isNavActive(href: string, pathname: string) {
+// ── Active check ──────────────────────────────────────────────────
+function isActive(href: string, pathname: string) {
   if (href === '/') return pathname === '/';
   if (href === '/invoices/new') return pathname === '/invoices/new';
   if (href === '/invoices') return pathname.startsWith('/invoices') && pathname !== '/invoices/new';
-  if (href === '/career') return pathname.startsWith('/career');
-  if (href === '/rn/clients') return pathname.startsWith('/rn/clients');
-  if (href === '/rn/services') return pathname.startsWith('/rn/services');
+  if (href === '/career') return pathname === '/career' || (pathname.startsWith('/career/') && !pathname.startsWith('/career/kanban'));
   if (href === '/flywheel') return pathname === '/flywheel';
-  if (href.startsWith('/flywheel/')) return pathname.startsWith(href);
-  if (href === '/sales/inquiries') return pathname.startsWith('/sales/inquiries');
+  if (href === '/sales/inquiries') return pathname.startsWith('/sales');
   return pathname.startsWith(href);
 }
 
-
-// ── Unread summary hook (60s polling, schema-free) ─────────────────────────
-interface UnreadSummary {
-  totalUnread: number;
-  totalUnreadMessages: number;
-  pendingRevisions: number;
-}
+// ── Unread polling ────────────────────────────────────────────────
+interface UnreadSummary { totalUnread: number }
 
 function useUnreadSummary() {
   const [careerUnread, setCareerUnread] = useState(0);
   const [rnUnread, setRnUnread] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetch_ = useCallback(async () => {
+  const poll = useCallback(async () => {
     try {
       const [c, r] = await Promise.allSettled([
         fetch('/api/career/admin/unread-summary', { cache: 'no-store' }),
         fetch('/api/rn/admin/unread-summary', { cache: 'no-store' }),
       ]);
-      if (c.status === 'fulfilled' && c.value.ok) {
-        const d: UnreadSummary = await c.value.json();
-        setCareerUnread(d.totalUnread);
-      }
-      if (r.status === 'fulfilled' && r.value.ok) {
-        const d: UnreadSummary = await r.value.json();
-        setRnUnread(d.totalUnread);
-      }
+      if (c.status === 'fulfilled' && c.value.ok)
+        setCareerUnread(((await c.value.json()) as UnreadSummary).totalUnread);
+      if (r.status === 'fulfilled' && r.value.ok)
+        setRnUnread(((await r.value.json()) as UnreadSummary).totalUnread);
     } catch { /* silent */ }
   }, []);
 
   useEffect(() => {
-    fetch_();
-    pollRef.current = setInterval(fetch_, 60_000);
+    poll();
+    pollRef.current = setInterval(poll, 60_000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [fetch_]);
+  }, [poll]);
 
   return { careerUnread, rnUnread };
 }
 
+// ── Badge ─────────────────────────────────────────────────────────
+function Badge({ count }: { count: number }) {
+  if (!count) return null;
+  return (
+    <span style={{
+      marginLeft: 'auto', minWidth: 18, height: 18, padding: '0 4px',
+      background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 700,
+      borderRadius: 999, display: 'inline-flex', alignItems: 'center',
+      justifyContent: 'center', flexShrink: 0,
+    }}>
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
+// ── Collapsible section ───────────────────────────────────────────
+function NavSection({
+  label, color, defaultOpen, children,
+}: {
+  label: string; color?: string; defaultOpen?: boolean; children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen ?? false);
+  const prevDefault = useRef(defaultOpen);
+  useEffect(() => {
+    if (defaultOpen && !prevDefault.current) setOpen(true);
+    prevDefault.current = defaultOpen;
+  }, [defaultOpen]);
+  return (
+    <div style={{ marginTop: 4 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '5px 10px', borderRadius: 6, border: 'none', background: 'none',
+          cursor: 'pointer', color: color ?? 'var(--text-tertiary)',
+          fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.9px',
+          marginBottom: 2,
+        }}
+      >
+        <span>{label}</span>
+        <IconChevronDown
+          size={12}
+          style={{ transition: 'transform 0.2s', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', opacity: 0.6 }}
+        />
+      </button>
+      {open && <div>{children}</div>}
+    </div>
+  );
+}
+
+// ── Nav link ─────────────────────────────────────────────────────
+function NavLink({
+  href, icon, label, active, accent, badge = 0, onClick,
+}: {
+  href: string; icon: React.ReactNode; label: string;
+  active: boolean; accent?: string; badge?: number; onClick?: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={`nav-item${active ? ' active' : ''}`}
+      style={accent && !active ? { color: accent } : undefined}
+    >
+      <span className="nav-icon" style={accent && !active ? { color: accent } : undefined}>{icon}</span>
+      {label}
+      <Badge count={badge} />
+    </Link>
+  );
+}
+
+// ── Sidebar inner content (stable component outside AppShell) ─────
+interface SidebarProps {
+  pathname: string;
+  activeBrand: string;
+  hasCatalystAccess: boolean;
+  hasRnAccess: boolean;
+  careerUnread: number;
+  rnUnread: number;
+  onNavigate: () => void;
+  onLogout: () => void;
+}
+
+function SidebarContent({
+  pathname, activeBrand, hasCatalystAccess, hasRnAccess,
+  careerUnread, rnUnread, onNavigate, onLogout,
+}: SidebarProps) {
+  const inFinance = ['/invoices', '/analytics'].some(p => pathname.startsWith(p));
+  const inCareer  = pathname.startsWith('/career');
+  const inGrowth  = pathname.startsWith('/flywheel') || pathname.startsWith('/sales');
+  const inTools   = pathname.startsWith('/bugs') || pathname.startsWith('/referrals') || pathname.startsWith('/team');
+  const inRN      = pathname.startsWith('/rn/');
+
+  return (
+    <>
+      <div className="sidebar-logo">
+        <Link
+          href="/"
+          onClick={onNavigate}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}
+          aria-label={activeBrand === 'ripple_nexus' ? 'Ripple Nexus · ClientForge' : 'Catalyst · ClientForge'}
+        >
+          <Logo variant="horizontal" size={34}
+            brandId={activeBrand === 'ripple_nexus' ? 'ripple_nexus' : 'catalyst'} dark={false} />
+        </Link>
+      </div>
+
+      <nav className="sidebar-nav">
+        {/* Overview */}
+        <NavLink href="/" icon={<IconGrid size={16} />} label="Dashboard"
+          active={isActive('/', pathname)} onClick={onNavigate} />
+
+        {/* Finance */}
+        <NavSection label="Finance" defaultOpen={inFinance || true}>
+          <NavLink href="/invoices/new" icon={<IconPlus size={16} />} label="New Invoice"
+            active={isActive('/invoices/new', pathname)} onClick={onNavigate} />
+          <NavLink href="/invoices" icon={<IconList size={16} />} label="All Invoices"
+            active={isActive('/invoices', pathname)} onClick={onNavigate} />
+          <NavLink href="/analytics" icon={<IconTrendUp size={16} />} label="Analytics"
+            active={isActive('/analytics', pathname)} onClick={onNavigate} />
+        </NavSection>
+
+        {/* Career Booster */}
+        {hasCatalystAccess && (
+          <NavSection label="Career Booster" color="#B8935B" defaultOpen={inCareer}>
+            <NavLink href="/career" icon={<IconTarget size={16} />} label="Clients"
+              active={isActive('/career', pathname)} accent="#B8935B" badge={careerUnread} onClick={onNavigate} />
+            <NavLink href="/career/kanban" icon={<IconKanban size={16} />} label="Kanban Board"
+              active={isActive('/career/kanban', pathname)} accent="#B8935B" onClick={onNavigate} />
+          </NavSection>
+        )}
+
+        {/* Growth */}
+        <NavSection label="Growth" color="#10B981" defaultOpen={inGrowth}>
+          <NavLink href="/flywheel" icon={<IconZap size={16} />} label="Flywheel"
+            active={isActive('/flywheel', pathname)} accent="#10B981" onClick={onNavigate} />
+          <NavLink href="/sales/inquiries" icon={<IconInbox size={16} />} label="Sales Leads"
+            active={isActive('/sales/inquiries', pathname)} accent="#10B981" onClick={onNavigate} />
+          <NavLink href="/flywheel/pipeline" icon={<IconTarget size={16} />} label="Pipeline"
+            active={isActive('/flywheel/pipeline', pathname)} accent="#10B981" onClick={onNavigate} />
+          <NavLink href="/flywheel/leads" icon={<IconUser size={16} />} label="Audience"
+            active={isActive('/flywheel/leads', pathname)} accent="#10B981" onClick={onNavigate} />
+          <NavLink href="/flywheel/campaigns" icon={<IconMail size={16} />} label="Campaigns"
+            active={isActive('/flywheel/campaigns', pathname)} accent="#10B981" onClick={onNavigate} />
+        </NavSection>
+
+        {/* Tools */}
+        <NavSection label="Tools" defaultOpen={inTools}>
+          <NavLink href="/bugs" icon={<IconBug size={16} />} label="Bug Reports"
+            active={isActive('/bugs', pathname)} onClick={onNavigate} />
+          <NavLink href="/referrals" icon={<IconReferral size={16} />} label="Referrals"
+            active={isActive('/referrals', pathname)} onClick={onNavigate} />
+          <NavLink href="/team" icon={<IconUser size={16} />} label="Team & Access"
+            active={isActive('/team', pathname)} onClick={onNavigate} />
+        </NavSection>
+
+        {/* Ripple Nexus */}
+        {activeBrand === 'ripple_nexus' && hasRnAccess && (
+          <NavSection label="Ripple Nexus" color="#A78BFA" defaultOpen={inRN}>
+            <NavLink href="/rn/clients" icon={<IconUser size={16} />} label="Agency Clients"
+              active={isActive('/rn/clients', pathname)} accent="#A78BFA" badge={rnUnread} onClick={onNavigate} />
+            <NavLink href="/rn/services" icon={<IconTarget size={16} />} label="Services"
+              active={isActive('/rn/services', pathname)} accent="#A78BFA" onClick={onNavigate} />
+          </NavSection>
+        )}
+      </nav>
+
+      <div className="sidebar-footer">
+        <NotificationBell direction="up" label="Notifications" />
+        <button className="nav-item" onClick={onLogout} style={{ marginBottom: 6 }}>
+          <span className="nav-icon" style={{ display: 'inline-flex' }}><IconLogout size={16} /></span>
+          Logout
+        </button>
+        <span className="sidebar-version">
+          ClientForge · {activeBrand === 'ripple_nexus' ? 'B2B Agency' : 'Career Booster'}
+        </span>
+      </div>
+    </>
+  );
+}
+
+// ── AppShell ──────────────────────────────────────────────────────
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const { activeBrand } = useBrand();
-  const pathname   = usePathname();
-  const router     = useRouter();
+  const pathname = usePathname();
   const { hasCatalystAccess, hasRnAccess } = useAdmin();
   const { careerUnread, rnUnread } = useUnreadSummary();
 
-  // Close drawer on route change
   useEffect(() => { setOpen(false); }, [pathname]);
-
-  // Prevent body scroll when drawer is open
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
@@ -113,149 +287,28 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     window.location.href = '/login';
   };
 
-  const SidebarContent = () => (
-    <>
-      {/* Brand logo */}
-      <div className="sidebar-logo">
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }} aria-label={activeBrand === 'ripple_nexus' ? 'Ripple Nexus · ClientForge' : 'Catalyst · ClientForge'}>
-          <Logo variant="horizontal" size={34} brandId={activeBrand === 'ripple_nexus' ? 'ripple_nexus' : 'catalyst'} dark={false} />
-        </Link>
-      </div>
-
-      {/* Navigation */}
-      <nav className="sidebar-nav">
-        <span className="nav-section-label">Main</span>
-        {NAV_MAIN.map(({ href, Icon, label }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`nav-item${isNavActive(href, pathname) ? ' active' : ''}`}
-            onClick={() => setOpen(false)}
-          >
-            <span className="nav-icon"><Icon size={16} /></span>
-            {label}
-          </Link>
-        ))}
-
-        <span className="nav-section-label" style={{ marginTop: 16 }}>Services</span>
-        {hasCatalystAccess && NAV_CAREER.map(({ href, Icon, label }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`nav-item${isNavActive(href, pathname) ? ' active' : ''}`}
-            onClick={() => setOpen(false)}
-          >
-            <span className="nav-icon"><Icon size={16} /></span>
-            {label}
-            {/* Unread badge */}
-            {careerUnread > 0 && (
-              <span style={{
-                marginLeft: 'auto',
-                minWidth: 18, height: 18,
-                padding: '0 4px',
-                background: '#ef4444',
-                color: '#fff',
-                fontSize: 10,
-                fontWeight: 700,
-                borderRadius: 999,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                {careerUnread > 99 ? '99+' : careerUnread}
-              </span>
-            )}
-          </Link>
-        ))}
-
-        {activeBrand === 'ripple_nexus' && hasRnAccess && (
-          <>
-            <span className="nav-section-label" style={{ marginTop: 16, color: '#A78BFA' }}>Ripple Nexus</span>
-            {NAV_RN.map(({ href, Icon, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className={`nav-item${isNavActive(href, pathname) ? ' active' : ''}`}
-                onClick={() => setOpen(false)}
-              >
-                <span className="nav-icon" style={{ color: '#A78BFA' }}><Icon size={16} /></span>
-                {label}
-                {/* RN unread badge — only on Agency Clients nav item */}
-                {href === '/rn/clients' && rnUnread > 0 && (
-                  <span style={{
-                    marginLeft: 'auto',
-                    minWidth: 18, height: 18,
-                    padding: '0 4px',
-                    background: '#ef4444',
-                    color: '#fff',
-                    fontSize: 10,
-                    fontWeight: 700,
-                    borderRadius: 999,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}>
-                    {rnUnread > 99 ? '99+' : rnUnread}
-                  </span>
-                )}
-              </Link>
-            ))}
-          </>
-        )}
-
-        <span className="nav-section-label" style={{ marginTop: 16, color: '#10B981' }}>Growth Intelligence</span>
-        {NAV_FLYWHEEL.map(({ href, Icon, label }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`nav-item${isNavActive(href, pathname) ? ' active' : ''}`}
-            onClick={() => setOpen(false)}
-          >
-            <span className="nav-icon" style={{ color: '#10B981' }}><Icon size={16} /></span>
-            {label}
-          </Link>
-        ))}
-      </nav>
-
-      {/* Footer */}
-      <div className="sidebar-footer">
-        <NotificationBell direction="up" label="Notifications" />
-        <button className="nav-item" onClick={handleLogout} style={{ marginBottom: 6 }}>
-          <span className="nav-icon" style={{ display: 'inline-flex' }}>
-            <IconLogout size={16} />
-          </span>
-          Logout
-        </button>
-        <span className="sidebar-version">ClientForge · {activeBrand === 'ripple_nexus' ? 'B2B Agency' : 'Career Booster'}</span>
-      </div>
-    </>
-  );
+  const sidebarProps: SidebarProps = {
+    pathname,
+    activeBrand,
+    hasCatalystAccess,
+    hasRnAccess,
+    careerUnread,
+    rnUnread,
+    onNavigate: () => setOpen(false),
+    onLogout: handleLogout,
+  };
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      {open && <div className="sidebar-overlay" onClick={() => setOpen(false)} aria-hidden="true" />}
 
-      {/* ── Overlay (mobile) ── */}
-      {open && (
-        <div
-          className="sidebar-overlay"
-          onClick={() => setOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* ── Desktop sidebar ── */}
       <aside className="sidebar desktop-sidebar">
-        <SidebarContent />
+        <SidebarContent {...sidebarProps} />
       </aside>
-
-      {/* ── Mobile drawer ── */}
       <aside className={`sidebar mobile-drawer${open ? ' mobile-drawer-open' : ''}`}>
-        <SidebarContent />
+        <SidebarContent {...sidebarProps} />
       </aside>
 
-      {/* ── Mobile topbar ── */}
       <header className="mobile-topbar">
         <button
           className={`hamburger${open ? ' hamburger-open' : ''}`}
@@ -263,27 +316,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           aria-label={open ? 'Close menu' : 'Open menu'}
           aria-expanded={open}
         >
-          <span />
-          <span />
-          <span />
+          <span /><span /><span />
         </button>
-
-        {/* Centered logo */}
         <div className="topbar-logo">
-          <Logo variant="icon" size={28} brandId={activeBrand === 'ripple_nexus' ? 'ripple_nexus' : 'catalyst'} dark={false} />
+          <Logo variant="icon" size={28}
+            brandId={activeBrand === 'ripple_nexus' ? 'ripple_nexus' : 'catalyst'} dark={false} />
         </div>
-
-        {/* Notification bell in mobile topbar */}
         <div style={{ width: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <NotificationBell />
         </div>
       </header>
 
-      {/* ── Content ── */}
-      <div className="page-wrapper">
-        {children}
-      </div>
-
+      <div className="page-wrapper">{children}</div>
     </div>
   );
 }
