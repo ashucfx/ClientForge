@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { prisma as db } from '@/lib/db';
-import { calculatePricing, PackageSlug, ServiceSlug } from '@/lib/pricing-v2';
+import { PackageSlug, ServiceSlug } from '@/lib/pricing-v2';
 import { ClientType } from '@prisma/client';
 import { createRazorpayPaymentLink } from '@/lib/razorpay';
 import { createPaypalInvoice } from '@/lib/paypal';
@@ -24,6 +23,7 @@ const CheckoutSchema = z.object({
   services: z.array(z.string()).min(1, 'Select at least one service'),
   packageSlug: z.enum(['CAREER_BOOSTER', 'PREMIUM_PLUS', 'CUSTOM']),
   preferredGateway: z.enum(['RAZORPAY', 'PAYPAL']).optional(),
+  ref: z.string().max(16).optional(),
   website: z.string().max(0).optional(),
   startedAt: z.number().optional(),
 });
@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
       services: data.services as ServiceSlug[],
       tierHint: data.experienceLevel,
       preferredGateway: data.preferredGateway,
+      referralCode: data.ref,
     });
     
     // We return checkoutSessionId which the frontend uses to redirect to /checkout/session/[id]

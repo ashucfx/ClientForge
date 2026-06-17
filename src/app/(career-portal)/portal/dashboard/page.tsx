@@ -39,6 +39,17 @@ interface Me {
   hasSubmittedFeedback?: boolean;
   hasSubmittedReview?: boolean;
 }
+interface ReferralStats {
+  referralCode: string | null;
+  referralLink: string | null;
+  stats: {
+    count: number;
+    convertedCount: number;
+    totalRevenue: number;
+    referrals: { name: string; joinedAt: string; isConverted: boolean }[];
+  };
+}
+
 interface DeliverableItem {
   id: string; label: string; fileUrl: string; fileType: string; createdAt: string;
   fileCategory: string; approvalStatus?: string;
@@ -135,6 +146,7 @@ export default function PortalDashboardPage() {
     }, 50);
   };
 
+  const [referral, setReferral] = useState<ReferralStats | null>(null);
   const [upgrading, setUpgrading] = useState(false);
   const handleUpgrade = async (targetService: string) => {
     setUpgrading(true);
@@ -157,23 +169,28 @@ export default function PortalDashboardPage() {
   };
 
   const load = useCallback(async () => {
-    const [meRes, filesRes, commentsRes] = await Promise.all([
+    const [meRes, filesRes, commentsRes, referralRes] = await Promise.all([
       fetch('/api/career/portal/me'),
       fetch('/api/career/portal/deliverables'),
       fetch('/api/career/portal/comments'),
+      fetch('/api/career/portal/referral'),
     ]);
     if (meRes.status === 401) { router.replace('/portal/login'); return; }
-    const [meData, filesData, commentsData] = await Promise.all([
+    const [meData, filesData, commentsData, referralData] = await Promise.all([
       meRes.json() as Promise<Me>,
       filesRes.json() as Promise<{ files: DeliverableItem[] }>,
       commentsRes.ok
         ? commentsRes.json() as Promise<{ comments: CommentItem[] }>
         : Promise.resolve({ comments: [] }),
+      referralRes.ok
+        ? referralRes.json() as Promise<ReferralStats>
+        : Promise.resolve(null),
     ]);
     if (!meData.hasPinSet) { router.replace('/portal/setup-pin'); return; }
     setMe(meData);
     setFiles(filesData.files ?? []);
     setComments(commentsData.comments ?? []);
+    setReferral(referralData);
     setLoading(false);
     scrollThread();
   }, [router]);
@@ -658,6 +675,9 @@ export default function PortalDashboardPage() {
           </div>
         )}
 
+        {/* ── Referral Section ── */}
+        {referral && <ReferralSection data={referral} />}
+
         {/* ── Quick links ── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <QuickLink href="/portal/dashboard/files" title="My Files" desc="View & download deliverables"
@@ -916,6 +936,96 @@ function QuickLink({ href, icon, title, desc, external = false }: {
   return external
     ? <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>{inner}</a>
     : <Link href={href} className={cls}>{inner}</Link>;
+}
+
+function ReferralSection({ data }: { data: ReferralStats }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    if (!data.referralLink) return;
+    try {
+      await navigator.clipboard.writeText(data.referralLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback: do nothing silently
+    }
+  };
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-8 h-8 bg-[#FBF8F3] border border-[#F0EAE0] rounded-xl flex items-center justify-center flex-shrink-0">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
+            <path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+        </div>
+        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Refer a Friend</h3>
+      </div>
+
+      <p className="text-sm text-slate-500 mb-4 leading-relaxed">
+        Know someone who needs a career boost? Share your unique link and help them get started — and we will acknowledge your contribution.
+      </p>
+
+      {data.referralLink ? (
+        <div className="flex gap-2 mb-5">
+          <input
+            readOnly
+            value={data.referralLink}
+            className="flex-1 px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl bg-slate-50 text-slate-600 font-mono truncate focus:outline-none"
+          />
+          <button
+            onClick={copy}
+            className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
+              copied
+                ? 'bg-emerald-500 text-white'
+                : 'bg-[#B8935B] text-white hover:bg-[#9A7540]'
+            }`}
+          >
+            {copied ? 'Copied!' : 'Copy Link'}
+          </button>
+        </div>
+      ) : (
+        <p className="text-xs text-slate-400 italic mb-5">Referral link not available yet. Please check back after your account is fully set up.</p>
+      )}
+
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-slate-50 rounded-xl p-3 text-center">
+          <p className="text-xl font-bold text-slate-900">{data.stats.count}</p>
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">Referred</p>
+        </div>
+        <div className="bg-slate-50 rounded-xl p-3 text-center">
+          <p className="text-xl font-bold text-emerald-600">{data.stats.convertedCount}</p>
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">Converted</p>
+        </div>
+        <div className="bg-slate-50 rounded-xl p-3 text-center">
+          <p className="text-xl font-bold text-[#B8935B]">
+            {data.stats.count > 0 ? Math.round((data.stats.convertedCount / data.stats.count) * 100) : 0}%
+          </p>
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">Rate</p>
+        </div>
+      </div>
+
+      {data.stats.referrals.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-slate-100">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Your Referrals</p>
+          <div className="space-y-2">
+            {data.stats.referrals.slice(0, 5).map((r, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <span className="text-sm text-slate-700 font-medium">{r.name}</span>
+                <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                  r.isConverted ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  {r.isConverted ? 'Client' : 'Lead'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function DashboardSkeleton() {

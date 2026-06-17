@@ -1,5 +1,6 @@
 import { prisma as db } from '@/lib/db';
 import { getExchangeRate } from '@/lib/currency';
+import { ensureReferralCode } from '@/lib/referral';
 
 export async function syncCareerClientToFlywheel(clientId: string) {
   try {
@@ -30,8 +31,6 @@ export async function syncCareerClientToFlywheel(clientId: string) {
     if (!contact) {
       contact = await db.contact.findFirst({ where: { email: { equals: client.email, mode: 'insensitive' } } });
     }
-
-    let contactId = contact?.id;
 
     if (!contact) {
       // Need to create a new Contact. Generate displayId.
@@ -67,7 +66,10 @@ export async function syncCareerClientToFlywheel(clientId: string) {
           }
         }
       });
-      contactId = contact.id;
+
+      // Generate referral code for the new profile
+      const newProfile = await db.flywheelProfile.findUnique({ where: { contactId: contact.id }, select: { id: true } });
+      if (newProfile) await ensureReferralCode(newProfile.id).catch(() => null);
 
       // Link it back to the CareerClient
       await db.careerClient.update({
@@ -108,7 +110,7 @@ export async function syncCareerClientToFlywheel(clientId: string) {
           data: updateData
         });
       } else {
-        await db.flywheelProfile.create({
+        const createdProfile = await db.flywheelProfile.create({
           data: {
             contactId: contact.id,
             lifecycleStage,
@@ -116,8 +118,10 @@ export async function syncCareerClientToFlywheel(clientId: string) {
             totalRevenue: normalizedRevenue,
             createdAt: client.createdAt,
             lastContactedAt: client.status === 'COMPLETED' ? (client.completedAt || new Date()) : null,
-          }
+          },
+          select: { id: true },
         });
+        await ensureReferralCode(createdProfile.id).catch(() => null);
       }
 
       // Link back just in case

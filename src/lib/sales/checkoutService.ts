@@ -15,10 +15,12 @@ import { createRazorpayPaymentLink } from '@/lib/razorpay';
 import { createPaypalInvoice } from '@/lib/paypal';
 import { sendInvoiceEmail } from '@/lib/email';
 import { createWithGeneratedDisplayId, nextContactDisplayId } from '@/lib/displayIds';
+import { getNextInvoiceNumber } from '@/lib/invoiceUtils';
 import {
   inquiryStatusToLeadStatus,
   inquiryStatusToLifecycleStage,
 } from '@/lib/flywheel/inquiryStatusMap';
+import { findReferrerByCode, ensureReferralCode } from '@/lib/referral';
 
 export interface CheckoutSessionInput {
   name: string;
@@ -30,6 +32,7 @@ export interface CheckoutSessionInput {
   services?: ServiceSlug[];
   tierHint?: ClientType;
   preferredGateway?: 'RAZORPAY' | 'PAYPAL';
+  referralCode?: string;
 }
 
 function formatTitleCase(str: string) {
@@ -66,6 +69,14 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
   const isIndia = input.countryCode.toUpperCase() === 'IN';
   const paymentGateway = isIndia ? 'RAZORPAY' : (input.preferredGateway || 'PAYPAL');
 
+  // Generate invoice number before the transaction — uses global prisma, not tx
+  const invoiceNumber = await getNextInvoiceNumber('INV');
+
+  // Resolve referrer before the transaction (global prisma, not tx)
+  const referrer = input.referralCode
+    ? await findReferrerByCode(input.referralCode)
+    : null;
+
   const result = await db.$transaction(async (tx) => {
     let contact = await tx.contact.findFirst({
       where: { email: { equals: input.email, mode: 'insensitive' } },
@@ -84,12 +95,13 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
               email: input.email.toLowerCase().trim(),
               phone: input.phone,
               country: input.countryCode,
-              contactSource: 'WEBSITE_CHECKOUT',
+              contactSource: referrer ? 'REFERRAL' : 'WEBSITE_CHECKOUT',
               flywheelProfile: {
                 create: {
                   lifecycleStage: 'LEAD',
                   leadStatus: 'NEW',
                   dealValue: pricing.finalPayable,
+                  ...(referrer ? { referredById: referrer.id } : {}),
                 },
               },
             },
@@ -123,10 +135,6 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
         countryName: input.countryName,
       },
     });
-
-    const count = await tx.invoice.count();
-    const randomSuffix = Math.random().toString(36).substring(2, 5).toUpperCase();
-    const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(count + 1).padStart(4, '0')}-${randomSuffix}`;
 
     const lineItems = pricing.services.map((s) => ({
       id: crypto.randomUUID(),
@@ -167,6 +175,19 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
 
     return { invoice, session, pricing, lineItems };
   });
+
+  // Generate referral code for new contacts + credit the referrer (fire-and-forget)
+  if (result.session.contactId) {
+    db.flywheelProfile.findUnique({ where: { contactId: result.session.contactId }, select: { id: true } })
+      .then((p) => p && ensureReferralCode(p.id))
+      .catch(() => null);
+  }
+  if (referrer) {
+    db.flywheelProfile.update({
+      where: { id: referrer.id },
+      data: { referralScore: { increment: 1 } },
+    }).catch(() => null);
+  }
 
   let paymentUrl = '';
   if (paymentGateway === 'RAZORPAY') {
@@ -251,6 +272,9 @@ export async function createCheckoutSessionFromProposal(proposalId: string) {
   const isIndia = inquiry.countryCode.toUpperCase() === 'IN';
   const paymentGateway = isIndia ? 'RAZORPAY' : 'PAYPAL';
 
+  // Generate invoice number before the transaction — uses global prisma, not tx
+  const invoiceNumber = await getNextInvoiceNumber('INV');
+
   const result = await db.$transaction(async (tx) => {
     let contact = inquiry.contact;
 
@@ -289,10 +313,6 @@ export async function createCheckoutSessionFromProposal(proposalId: string) {
         countryName: inquiry.countryName,
       },
     });
-
-    const count = await tx.invoice.count();
-    const randomSuffix = Math.random().toString(36).substring(2, 5).toUpperCase();
-    const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(count + 1).padStart(4, '0')}-${randomSuffix}`;
 
     const invoice = await tx.invoice.create({
       data: {

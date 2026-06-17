@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Check, ArrowRight, Loader2, Lock, Star } from 'lucide-react';
 import { Logo } from '@/components/Logo';
@@ -11,6 +12,16 @@ import 'react-phone-input-2/lib/style.css';
 type PackageSlug = 'CAREER_BOOSTER' | 'PREMIUM_PLUS' | 'CUSTOM';
 
 export default function CatalystCheckoutPage() {
+  return (
+    <Suspense>
+      <CheckoutPageInner />
+    </Suspense>
+  );
+}
+
+function CheckoutPageInner() {
+  const searchParams = useSearchParams();
+  const referralCode = searchParams.get('ref') ?? undefined;
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PackageSlug>('CAREER_BOOSTER');
@@ -58,6 +69,7 @@ export default function CatalystCheckoutPage() {
           preferredGateway: countryCode === 'IN' ? 'RAZORPAY' : preferredGateway,
           website,
           startedAt,
+          ...(referralCode ? { ref: referralCode } : {}),
         }),
       });
 
