@@ -51,29 +51,29 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, type = 'ONE_OFF', brandId = 'catalyst', steps } = body;
+    const { name, type = 'ONE_OFF', brandId = 'catalyst', steps, metadata } = body;
 
     if (!name || !Array.isArray(steps) || steps.length === 0) {
       return NextResponse.json({ success: false, error: 'Name and at least one step required' }, { status: 400 });
     }
 
-    // Create Campaign and Steps in a transaction
     const campaign = await db.flywheelCampaign.create({
       data: {
         name,
         type,
         brandId,
         status: 'DRAFT',
+        metadata: metadata ?? null,
         steps: {
           create: steps.map((s: any, i: number) => ({
             subject: s.subject,
             contentHtml: s.contentHtml,
             delayHours: s.delayHours || 0,
-            orderIndex: i
-          }))
-        }
+            orderIndex: i,
+          })),
+        },
       },
-      include: { steps: true }
+      include: { steps: true },
     });
 
     return NextResponse.json({ success: true, data: campaign });

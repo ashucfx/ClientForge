@@ -54,10 +54,11 @@ export default function FlywheelCampaigns() {
   const [leadSearching, setLeadSearching] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Detail / dispatch
+  // Detail / dispatch / mutate
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [dispatching, setDispatching] = useState(false);
   const [dispatchResult, setDispatchResult] = useState<string | null>(null);
+  const [mutating, setMutating] = useState(false);
 
   const fetchCampaigns = useCallback(async () => {
     try {
@@ -277,6 +278,28 @@ export default function FlywheelCampaigns() {
     finally { setDispatching(false); }
   };
 
+  const handlePause = async (campaignId: string, currentStatus: string) => {
+    setMutating(true);
+    const newStatus = currentStatus === 'PAUSED' ? 'ACTIVE' : 'PAUSED';
+    await fetch(`/api/admin/flywheel/campaigns/${campaignId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    await fetchCampaigns();
+    setSelectedCampaign(prev => prev ? { ...prev, status: newStatus } : null);
+    setMutating(false);
+  };
+
+  const handleDelete = async (campaignId: string) => {
+    if (!confirm('Delete this campaign? This cannot be undone.')) return;
+    setMutating(true);
+    await fetch(`/api/admin/flywheel/campaigns/${campaignId}`, { method: 'DELETE' });
+    setSelectedCampaign(null);
+    await fetchCampaigns();
+    setMutating(false);
+  };
+
+
   return (
     <AppShell>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
@@ -353,8 +376,21 @@ export default function FlywheelCampaigns() {
                               <IconSend size={12} /> Launch
                             </button>
                           )}
+                          {c.status === 'ACTIVE' && (
+                            <button onClick={() => handlePause(c.id, c.status)} disabled={mutating} className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-md text-xs font-semibold hover:bg-amber-100 transition-colors flex items-center gap-1">
+                              <IconPause size={12} /> Pause
+                            </button>
+                          )}
+                          {c.status === 'PAUSED' && (
+                            <button onClick={() => handlePause(c.id, c.status)} disabled={mutating} className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-md text-xs font-semibold hover:bg-emerald-100 transition-colors flex items-center gap-1">
+                              <IconPlay size={12} /> Resume
+                            </button>
+                          )}
                           <button onClick={() => setSelectedCampaign(c)} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-md text-xs font-medium hover:text-blue-600 transition-colors flex items-center gap-1">
                             <IconEye size={12} /> Details
+                          </button>
+                          <button onClick={() => handleDelete(c.id)} disabled={mutating} className="px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-md text-xs font-medium hover:bg-red-100 transition-colors flex items-center gap-1">
+                            <IconX size={12} /> Delete
                           </button>
                         </div>
                       </td>
@@ -678,15 +714,30 @@ export default function FlywheelCampaigns() {
                   )}
                 </div>
 
-                <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-                  <Dialog.Close asChild>
-                    <button className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg text-sm">Close</button>
-                  </Dialog.Close>
-                  {selectedCampaign.status === 'DRAFT' && (
-                    <button onClick={() => handleDispatch(selectedCampaign.id)} disabled={dispatching} className="px-5 py-2 text-white font-medium rounded-lg shadow-sm text-sm flex items-center gap-2" style={{ background: brand.primaryColor }}>
-                      <IconSend size={14} /> {dispatching ? 'Dispatching...' : 'Launch Campaign'}
-                    </button>
-                  )}
+                <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-between gap-3">
+                  <button onClick={() => handleDelete(selectedCampaign.id)} disabled={mutating} className="px-4 py-2 text-red-600 font-medium hover:bg-red-50 rounded-lg text-sm border border-red-200 flex items-center gap-1.5">
+                    <IconX size={14} /> Delete
+                  </button>
+                  <div className="flex gap-2">
+                    <Dialog.Close asChild>
+                      <button className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg text-sm">Close</button>
+                    </Dialog.Close>
+                    {selectedCampaign.status === 'DRAFT' && (
+                      <button onClick={() => handleDispatch(selectedCampaign.id)} disabled={dispatching} className="px-5 py-2 text-white font-medium rounded-lg shadow-sm text-sm flex items-center gap-2" style={{ background: brand.primaryColor }}>
+                        <IconSend size={14} /> {dispatching ? 'Dispatching...' : 'Launch Campaign'}
+                      </button>
+                    )}
+                    {selectedCampaign.status === 'ACTIVE' && (
+                      <button onClick={() => handlePause(selectedCampaign.id, selectedCampaign.status)} disabled={mutating} className="px-5 py-2 bg-amber-500 text-white font-medium rounded-lg shadow-sm text-sm flex items-center gap-2">
+                        <IconPause size={14} /> Pause Campaign
+                      </button>
+                    )}
+                    {selectedCampaign.status === 'PAUSED' && (
+                      <button onClick={() => handlePause(selectedCampaign.id, selectedCampaign.status)} disabled={mutating} className="px-5 py-2 text-white font-medium rounded-lg shadow-sm text-sm flex items-center gap-2" style={{ background: brand.primaryColor }}>
+                        <IconPlay size={14} /> Resume Campaign
+                      </button>
+                    )}
+                  </div>
                 </div>
               </>
             )}
