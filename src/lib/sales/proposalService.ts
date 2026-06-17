@@ -123,7 +123,7 @@ export async function getProposalByToken(publicToken: string) {
 }
 
 export async function acceptProposal(publicToken: string, acceptedByEmail: string) {
-  return db.$transaction(async (tx) => {
+  const updated = await db.$transaction(async (tx) => {
     const proposal = await tx.proposal.findUniqueOrThrow({
       where: { publicToken },
       include: { inquiry: true },
@@ -146,13 +146,14 @@ export async function acceptProposal(publicToken: string, acceptedByEmail: strin
       throw new Error('Acceptance email must match the proposal recipient email');
     }
 
-    const updated = await tx.proposal.update({
+    const result = await tx.proposal.update({
       where: { id: proposal.id },
       data: {
         status: 'ACCEPTED',
         respondedAt: new Date(),
         acceptedByEmail: normalizedEmail,
       },
+      include: { inquiry: true },
     });
 
     await transitionInquiryStatusTx(tx, proposal.inquiryId, 'APPROVED', {
@@ -160,12 +161,39 @@ export async function acceptProposal(publicToken: string, acceptedByEmail: strin
       metadata: { proposalId: proposal.id },
     });
 
-    return updated;
+    return result;
   });
+
+  // Fire-and-forget emails
+  Promise.all([
+    (async () => {
+      try {
+        const { sendEmail } = await import('@/lib/mailer');
+        const { BRAND_EMAIL, ADMIN_EMAIL } = await import('@/lib/config');
+        await sendEmail({
+          to: updated.inquiry.email,
+          from: `Catalyst <${BRAND_EMAIL}>`,
+          subject: `Proposal Accepted — ${updated.title}`,
+          html: `<p>Hi ${updated.inquiry.name},</p><p>Thank you for accepting our proposal for <strong>${updated.title}</strong>.</p><p>We're preparing your invoice and will send payment details shortly.</p><p>— The Catalyst Team</p>`,
+        });
+        await sendEmail({
+          to: ADMIN_EMAIL,
+          from: `Catalyst <${BRAND_EMAIL}>`,
+          subject: `Proposal Accepted — ${updated.inquiry.name}`,
+          html: `<p><strong>${updated.inquiry.name}</strong> (${updated.inquiry.email}) accepted proposal v${updated.version}: <em>${updated.title}</em>.</p><p>Log in to create and send the invoice.</p>`,
+          channel: 'transactional',
+        });
+      } catch (e) {
+        console.error('[proposalService] Accept email error:', e);
+      }
+    })(),
+  ]).catch(() => null);
+
+  return updated;
 }
 
 export async function declineProposal(publicToken: string, reason?: string) {
-  return db.$transaction(async (tx) => {
+  const updated = await db.$transaction(async (tx) => {
     const proposal = await tx.proposal.findUniqueOrThrow({
       where: { publicToken },
       include: { inquiry: true },
@@ -175,9 +203,10 @@ export async function declineProposal(publicToken: string, reason?: string) {
       throw new Error('Proposal cannot be declined in current state');
     }
 
-    const updated = await tx.proposal.update({
+    const result = await tx.proposal.update({
       where: { id: proposal.id },
-      data: { status: 'DECLINED', respondedAt: new Date() },
+      data: { status: 'DECLINED', respondedAt: new Date(), clientNotes: reason ?? null },
+      include: { inquiry: true },
     });
 
     await transitionInquiryStatusTx(tx, proposal.inquiryId, 'LOST', {
@@ -185,8 +214,27 @@ export async function declineProposal(publicToken: string, reason?: string) {
       metadata: { proposalId: proposal.id },
     });
 
-    return updated;
+    return result;
   });
+
+  // Alert admin (fire-and-forget)
+  (async () => {
+    try {
+      const { sendEmail } = await import('@/lib/mailer');
+      const { BRAND_EMAIL, ADMIN_EMAIL } = await import('@/lib/config');
+      await sendEmail({
+        to: ADMIN_EMAIL,
+        from: `Catalyst <${BRAND_EMAIL}>`,
+        subject: `Proposal Declined — ${updated.inquiry.name}`,
+        html: `<p><strong>${updated.inquiry.name}</strong> declined proposal v${updated.version}: <em>${updated.title}</em>.</p>${reason ? `<p>Reason: ${reason}</p>` : ''}<p>Consider reaching out or creating a revised proposal.</p>`,
+        channel: 'transactional',
+      });
+    } catch (e) {
+      console.error('[proposalService] Decline email error:', e);
+    }
+  })().catch(() => null);
+
+  return updated;
 }
 
 export async function createInvoiceFromProposal(proposalId: string, adminId?: string) {

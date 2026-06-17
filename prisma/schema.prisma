@@ -1419,3 +1419,21 @@ model BugReport {
   @@index([status])
   @@index([clientId])
 }
+
+// System-level email log — covers emails sent via mailer.ts and sales/email.ts
+// (proposals, invoices, admin alerts). Career lifecycle emails are in CareerEmailLog.
+model SysEmailLog {
+  id       String   @id @default(cuid())
+  to       String
+  subject  String
+  trigger  String   // PROPOSAL_SENT | INVOICE_SENT | PROPOSAL_ACCEPTED | PROPOSAL_DECLINED | ADMIN_ALERT
+  channel  String   @default("smtp") // smtp | resend
+  status   String   @default("sent") // sent | failed
+  error    String?  @db.Text
+  metadata Json?
+  sentAt   DateTime @default(now())
+
+  @@index([sentAt])
+  @@index([trigger])
+  @@index([to])
+}

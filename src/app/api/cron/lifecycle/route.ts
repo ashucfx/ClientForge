@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma as db } from '@/lib/db';
-import { sendCareerEmail } from '@/lib/career/email';
+import { processCareerEmail } from '@/lib/career/email';
 import { PORTAL_URL } from '@/lib/config';
 
 export const runtime = 'nodejs';
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 import { logSystemError } from '@/lib/audit/logger';
 
-async function atomicSendEmail(clientId: string, trigger: string, emailData: any) {
+async function atomicSendEmail(clientId: string, trigger: string, emailData: Parameters<typeof processCareerEmail>[0]) {
   let logId: string | null = null;
   try {
     // Insert with status 'queued' to lock this trigger for this client
@@ -17,11 +17,15 @@ async function atomicSendEmail(clientId: string, trigger: string, emailData: any
     });
     logId = log.id;
 
-    // Send the email
-    await sendCareerEmail(emailData);
+    // Call processCareerEmail directly (skip fire-and-forget queue) so we capture the Resend ID.
+    // Pass clientId: undefined so processCareerEmail does not create its own duplicate log entry.
+    const resendId = await processCareerEmail({ ...emailData, clientId: undefined });
 
-    // Mark as sent only after successful delivery
-    await db.careerEmailLog.update({ where: { id: logId }, data: { status: 'sent' } });
+    // Mark as sent and store the Resend ID for traceability
+    await db.careerEmailLog.update({
+      where: { id: logId },
+      data: { status: 'sent', resendId: resendId ?? null },
+    });
     return true;
   } catch (err: any) {
     if (err.code === 'P2002') {

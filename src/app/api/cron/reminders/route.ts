@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma as db } from '@/lib/db';
-import { sendCareerEmail } from '@/lib/career/email';
+import { processCareerEmail } from '@/lib/career/email';
 import { PORTAL_URL } from '@/lib/config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
-  // Authenticate cron caller — Vercel injects CRON_SECRET automatically
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret || req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -16,12 +15,9 @@ export async function GET(req: Request) {
   const threeDaysAgo = new Date();
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
-  // Find clients in NOT_STARTED status created more than 3 days ago
+  // ── 1. Stale Reminder (NOT_STARTED for 3+ days) ──────────────────────────
   const staleClients = await db.careerClient.findMany({
-    where: {
-      status: 'NOT_STARTED',
-      createdAt: { lte: threeDaysAgo },
-    },
+    where: { status: 'NOT_STARTED', createdAt: { lte: threeDaysAgo } },
     select: { id: true, email: true, name: true },
   });
 
@@ -35,43 +31,34 @@ export async function GET(req: Request) {
   const alreadyReminded = new Set(existingStaleLogs.map(l => l.clientId));
 
   for (const client of staleClients) {
-    if (!alreadyReminded.has(client.id)) {
-      // Send the reminder
-      await sendCareerEmail({
+    if (alreadyReminded.has(client.id)) continue;
+    try {
+      const resendId = await processCareerEmail({
         to: client.email,
-        trigger: 'MESSAGE_NOTIFY', // Re-using a generic notification template
-        clientId: client.id,
+        trigger: 'MESSAGE_NOTIFY',
         data: {
           recipientName: client.name,
           senderType: 'admin',
           portalUrl: `${PORTAL_URL}/portal/dashboard`,
-          subject: 'Action Required: Let\'s get started on your Career Package',
+          subject: "Action Required: Let's get started on your Career Package",
           body: `Hi ${client.name.split(' ')[0]},\n\nWe noticed that you haven't submitted your onboarding forms yet. Please log in to your dashboard to complete them so our team can begin working on your package.\n\nIf you have any questions, feel free to reply to this email or send us a message in the portal!`,
         },
       });
-
-      // Log it so we don't send it again
       await db.careerEmailLog.create({
-        data: {
-          clientId: client.id,
-          trigger: 'STALE_REMINDER',
-          status: 'sent',
-        },
+        data: { clientId: client.id, trigger: 'STALE_REMINDER', resendId: resendId ?? null, status: 'sent' },
       });
-
       processedCount++;
+    } catch (err) {
+      console.error('[STALE_REMINDER] Failed for client', client.id, err);
     }
   }
 
-  // --- 48-Hour Draft Reminder ---
+  // ── 2. Draft Reminder (DRAFT_SENT for 48h+ without feedback) ──────────────
   const twoDaysAgo = new Date();
   twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
 
   const staleDrafts = await db.careerClient.findMany({
-    where: {
-      status: 'DRAFT_SENT',
-      updatedAt: { lte: twoDaysAgo },
-    },
+    where: { status: 'DRAFT_SENT', updatedAt: { lte: twoDaysAgo } },
     select: { id: true, email: true, name: true, packageType: true },
   });
 
@@ -83,11 +70,11 @@ export async function GET(req: Request) {
   const alreadyDraftReminded = new Set(existingDraftLogs.map(l => l.clientId));
 
   for (const client of staleDrafts) {
-    if (!alreadyDraftReminded.has(client.id)) {
-      await sendCareerEmail({
+    if (alreadyDraftReminded.has(client.id)) continue;
+    try {
+      const resendId = await processCareerEmail({
         to: client.email,
         trigger: 'MESSAGE_NOTIFY',
-        clientId: client.id,
         data: {
           recipientName: client.name,
           senderType: 'admin',
@@ -96,34 +83,22 @@ export async function GET(req: Request) {
           body: `Hi ${client.name.split(' ')[0]},\n\nWe sent you a draft of your career materials a couple of days ago, but we haven't received your feedback yet.\n\nPlease log in to your dashboard to review it and request any revisions or approve the draft. Our team is standing by to polish your final deliverables!\n\nIf you have any questions, just reply to this email.`,
         },
       });
-
       await db.careerEmailLog.create({
-        data: {
-          clientId: client.id,
-          trigger: 'DRAFT_REMINDER',
-          status: 'sent',
-        },
+        data: { clientId: client.id, trigger: 'DRAFT_REMINDER', resendId: resendId ?? null, status: 'sent' },
       });
-
       processedCount++;
+    } catch (err) {
+      console.error('[DRAFT_REMINDER] Failed for client', client.id, err);
     }
   }
 
-  // -------------------------------------------------------------------------
-  // 2. Keep-Warm Emails (Entertainment / Updates)
-  // Send an email if client is UNDER_PROCESS and we haven't sent this yet,
-  // and it has been at least 2 days since their expectedDeliveryAt was set (which is 5 days out).
-  // -------------------------------------------------------------------------
+  // ── 3. Keep-Warm (UNDER_PROCESS, delivery < 3 days away) ─────────────────
   const warmClients = await db.careerClient.findMany({
-    where: {
-      status: 'UNDER_PROCESS',
-      expectedDeliveryAt: { not: null },
-    },
+    where: { status: 'UNDER_PROCESS', expectedDeliveryAt: { not: null } },
     select: { id: true, email: true, name: true, expectedDeliveryAt: true },
   });
 
   const now = new Date();
-  
   const warmClientIds = warmClients.map(c => c.id);
   const existingWarmLogs = await db.careerEmailLog.findMany({
     where: { clientId: { in: warmClientIds }, trigger: 'KEEP_WARM', status: 'sent' },
@@ -131,47 +106,39 @@ export async function GET(req: Request) {
   });
   const alreadyWarmed = new Set(existingWarmLogs.map(l => l.clientId));
 
+  const threeDaysFromNow = new Date(now);
+  threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+
+  const quotes = [
+    '“Choose a job you love, and you will never have to work a day in your life.” — Confucius',
+    '“Opportunities don’t happen, you create them.” — Chris Grosser',
+    '“The only way to do great work is to love what you do.” — Steve Jobs',
+  ];
+
   for (const client of warmClients) {
     if (!client.expectedDeliveryAt) continue;
+    if (client.expectedDeliveryAt > threeDaysFromNow) continue;
+    if (alreadyWarmed.has(client.id)) continue;
 
-    // Calculate when they started (roughly 5 days before expected delivery, or just check if 2 days have passed)
-    // Actually, simpler: if expectedDeliveryAt is less than 3 days away, it means they've been in process for 2 days!
-    const threeDaysFromNow = new Date();
-    threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-
-    if (client.expectedDeliveryAt <= threeDaysFromNow) {
-      if (!alreadyWarmed.has(client.id)) {
-        // Send Keep Warm email
-        const quotes = [
-          "“Choose a job you love, and you will never have to work a day in your life.” — Confucius",
-          "“Opportunities don't happen, you create them.” — Chris Grosser",
-          "“The only way to do great work is to love what you do.” — Steve Jobs"
-        ];
-        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-
-        await sendCareerEmail({
-          to: client.email,
-          trigger: 'MESSAGE_NOTIFY', // Re-using generic template
-          clientId: client.id,
-          data: {
-            recipientName: client.name,
-            senderType: 'admin',
-            portalUrl: `${PORTAL_URL}/portal/dashboard`,
-            subject: 'Quick Update on Your Career Package!',
-            body: `Hi ${client.name.split(' ')[0]},\n\nJust dropping a quick note to say our experts are hard at work crafting your documents! We are making sure every detail is tailored to your career goals.\n\nWhile you wait, here is some inspiration for your journey:\n\n${randomQuote}\n\nWe will notify you the moment your draft is ready. Hang tight!`,
-          },
-        });
-
-        await db.careerEmailLog.create({
-          data: {
-            clientId: client.id,
-            trigger: 'KEEP_WARM',
-            status: 'sent',
-          },
-        });
-
-        processedCount++;
-      }
+    try {
+      const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+      const resendId = await processCareerEmail({
+        to: client.email,
+        trigger: 'MESSAGE_NOTIFY',
+        data: {
+          recipientName: client.name,
+          senderType: 'admin',
+          portalUrl: `${PORTAL_URL}/portal/dashboard`,
+          subject: 'Quick Update on Your Career Package!',
+          body: `Hi ${client.name.split(' ')[0]},\n\nJust dropping a quick note to say our experts are hard at work crafting your documents! We are making sure every detail is tailored to your career goals.\n\nWhile you wait, here is some inspiration for your journey:\n\n${randomQuote}\n\nWe will notify you the moment your draft is ready. Hang tight!`,
+        },
+      });
+      await db.careerEmailLog.create({
+        data: { clientId: client.id, trigger: 'KEEP_WARM', resendId: resendId ?? null, status: 'sent' },
+      });
+      processedCount++;
+    } catch (err) {
+      console.error('[KEEP_WARM] Failed for client', client.id, err);
     }
   }
 

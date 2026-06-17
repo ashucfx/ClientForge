@@ -356,18 +356,42 @@ Questions? Reply to this email or write to ${brand.replyTo}
 ${brand.name} | ${brand.websiteUrl}
   `.trim();
 
+  const subject = `Your Custom Proposal: ${proposal.title} — ${brand.name}`;
   try {
     await transporter.sendMail({
       from: `"${brand.name}" <${process.env.SMTP_USER || process.env.FROM_EMAIL || 'catalyst@theripplenexus.com'}>`,
       replyTo: brand.replyTo,
       to: proposal.inquiry.email,
-      subject: `Your Custom Proposal: ${proposal.title} — ${brand.name}`,
+      subject,
       html,
       text,
     });
     console.log(`[SMTP] Proposal email sent successfully to ${proposal.inquiry.email}`);
+    const { prisma } = await import('@/lib/db');
+    prisma.sysEmailLog.create({
+      data: {
+        to: proposal.inquiry.email,
+        subject,
+        trigger: 'PROPOSAL_SENT',
+        channel: 'smtp',
+        status: 'sent',
+        metadata: { proposalId, inquiryId: proposal.inquiryId, version: proposal.version },
+      },
+    }).catch(() => null);
   } catch (error) {
     console.error(`[SMTP] Error sending proposal email:`, error);
+    const { prisma } = await import('@/lib/db');
+    prisma.sysEmailLog.create({
+      data: {
+        to: proposal.inquiry.email,
+        subject,
+        trigger: 'PROPOSAL_SENT',
+        channel: 'smtp',
+        status: 'failed',
+        error: error instanceof Error ? error.message : String(error),
+        metadata: { proposalId, inquiryId: proposal.inquiryId },
+      },
+    }).catch(() => null);
     throw new Error('Failed to send proposal email via SMTP.');
   }
 }

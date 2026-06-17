@@ -2,6 +2,7 @@
 // All outbound email should call sendEmail() rather than hitting Resend or nodemailer directly.
 
 import nodemailer from 'nodemailer';
+import { prisma as db } from '@/lib/db';
 
 export type EmailChannel = 'transactional' | 'marketing';
 
@@ -73,11 +74,31 @@ async function sendViaSmtp(payload: EmailPayload): Promise<void> {
   });
 }
 
-export async function sendEmail(payload: EmailPayload): Promise<void> {
+export async function sendEmail(
+  payload: EmailPayload,
+  opts?: { trigger?: string; metadata?: Record<string, unknown> }
+): Promise<void> {
   const channel = payload.channel ?? 'transactional';
-  if (channel === 'marketing') {
-    await sendViaSmtp(payload);
-  } else {
-    await sendViaResend(payload);
+  const to = Array.isArray(payload.to) ? payload.to.join(', ') : payload.to;
+  const trigger = opts?.trigger ?? (channel === 'marketing' ? 'MARKETING' : 'ADMIN_ALERT');
+
+  try {
+    if (channel === 'marketing') {
+      await sendViaSmtp(payload);
+    } else {
+      await sendViaResend(payload);
+    }
+    db.sysEmailLog.create({
+      data: { to, subject: payload.subject, trigger, channel, status: 'sent', metadata: opts?.metadata as any ?? null },
+    }).catch(() => null);
+  } catch (err) {
+    db.sysEmailLog.create({
+      data: {
+        to, subject: payload.subject, trigger, channel, status: 'failed',
+        error: err instanceof Error ? err.message : String(err),
+        metadata: opts?.metadata as any ?? null,
+      },
+    }).catch(() => null);
+    throw err;
   }
 }
