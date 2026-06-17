@@ -49,6 +49,7 @@ export default function EmailLogsPage() {
 
   const [loading, setLoading]   = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [syncing, setSyncing]   = useState(false);
   const [msg, setMsg]           = useState('');
 
   const loadCareer = useCallback(async (p = 1) => {
@@ -128,6 +129,27 @@ export default function EmailLogsPage() {
               <option value="failed">Failed</option>
               {source === 'career' && <option value="queued">Queued</option>}
             </select>
+            {source === 'career' && (
+              <button
+                onClick={async () => {
+                  setSyncing(true);
+                  try {
+                    const res = await fetch('/api/admin/career/email-logs/sync', { method: 'POST' });
+                    const data = await res.json();
+                    setMsg(data.synced > 0
+                      ? `Synced ${data.synced} Resend ID${data.synced > 1 ? 's' : ''} from matching entries`
+                      : data.message ?? 'Nothing to sync');
+                    loadCareer(careerPage);
+                  } catch { setMsg('Sync failed'); }
+                  finally { setSyncing(false); setTimeout(() => setMsg(''), 4000); }
+                }}
+                disabled={syncing}
+                className="btn btn-ghost btn-sm"
+                style={{ opacity: syncing ? 0.6 : 1 }}
+              >
+                {syncing ? 'Syncing…' : 'Sync IDs'}
+              </button>
+            )}
             <button onClick={() => source === 'career' ? loadCareer(1) : loadSys(1)} className="btn btn-ghost btn-sm">
               Refresh
             </button>
