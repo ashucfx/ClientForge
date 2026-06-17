@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { getAdminSession } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 function calculateTrend(current: number, previous: number) {
@@ -9,6 +11,9 @@ function calculateTrend(current: number, previous: number) {
 }
 
 export async function GET() {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);

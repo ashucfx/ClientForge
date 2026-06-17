@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma as db } from '@/lib/db';
 import { getAdminSession } from '@/lib/auth';
+import { createWithGeneratedDisplayId, nextContactDisplayId } from '@/lib/displayIds';
 
 export async function GET(req: NextRequest) {
   try {
@@ -103,31 +104,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Name is required' }, { status: 400 });
     }
 
-    // Auto-generate display ID
-    const count = await db.contact.count();
-    const displayId = `LD-${1000 + count + 1}`;
-
-    const contact = await db.contact.create({
-      data: {
-        displayId,
-        name,
-        email,
-        phone,
-        companyName,
-        industry,
-        jobTitle,
-        linkedinUrl,
-        city,
-        contactSource: contactSource || 'MANUAL',
-        flywheelProfile: {
-          create: {
-            leadStatus: 'NEW',
-            lifecycleStage: 'LEAD',
-            optInSource: 'MANUAL_ENTRY'
-          }
-        }
-      },
-      include: { flywheelProfile: true }
+    // Safe displayId generation — retry on P2002 collision (collision-safe)
+    const contact = await db.$transaction(async (tx) => {
+      return createWithGeneratedDisplayId(
+        'displayId',
+        () => nextContactDisplayId(tx),
+        (displayId) => tx.contact.create({
+          data: {
+            displayId,
+            name,
+            email,
+            phone,
+            companyName,
+            industry,
+            jobTitle,
+            linkedinUrl,
+            city,
+            contactSource: contactSource || 'MANUAL',
+            flywheelProfile: {
+              create: { leadStatus: 'NEW', lifecycleStage: 'LEAD', optInSource: 'MANUAL_ENTRY' }
+            },
+          },
+          include: { flywheelProfile: true },
+        })
+      );
     });
 
     return NextResponse.json({ success: true, data: contact });

@@ -6,15 +6,9 @@ export const dynamic = 'force-dynamic';
 
 export async function POST() {
   const res = NextResponse.json({ ok: true });
-  res.cookies.set({
-    name: getAdminCookieName(),
-    value: '',
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: 0,
-  });
+  const secure = process.env.NODE_ENV === 'production';
+  res.cookies.set({ name: getAdminCookieName(), value: '', httpOnly: true, sameSite: 'lax', secure, path: '/', maxAge: 0 });
+  res.cookies.set({ name: 'cf_active_brand', value: '', httpOnly: true, sameSite: 'lax', secure, path: '/', maxAge: 0 });
   return res;
 }
 

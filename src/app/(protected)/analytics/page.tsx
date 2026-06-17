@@ -1,10 +1,56 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import AppShell from '@/components/AppShell';
 import { useBrand } from '@/components/BrandProvider';
 import { IconTrendUp, IconTrendDown, IconDocument, IconCheck, IconPending, IconUser, IconAlert, IconMail, IconFolder } from '@/components/Icons';
 import { formatCurrency } from '@/lib/pricing';
+
+interface MonthlyRevenue { month: string; revenue: number; count: number; }
+interface BrandRevenue { brand: string; revenue: number; }
+
+function RevenueBarChart({ data }: { data: MonthlyRevenue[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  if (!data.length) return (
+    <div className="flex items-center justify-center h-[200px] text-slate-400 text-sm">No paid invoices yet.</div>
+  );
+  const max = Math.max(...data.map(d => d.revenue), 1);
+  const W = 560; const H = 180; const PAD_L = 60; const PAD_B = 32; const PAD_T = 10; const BAR_GAP = 6;
+  const barW = (W - PAD_L - (data.length + 1) * BAR_GAP) / data.length;
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(f => ({ v: max * f, y: PAD_T + (H - PAD_B - PAD_T) * (1 - f) }));
+
+  const fmtK = (n: number) => n >= 100000 ? `₹${(n / 100000).toFixed(1)}L` : n >= 1000 ? `₹${(n / 1000).toFixed(0)}K` : `₹${n}`;
+  const fmtMonth = (m: string) => { const [y, mo] = m.split('-'); return new Date(+y, +mo - 1).toLocaleString('default', { month: 'short', year: '2-digit' }); };
+
+  return (
+    <div ref={containerRef} style={{ width: '100%', overflowX: 'auto' }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', minWidth: 320, height: H }} aria-label="Monthly revenue chart">
+        {/* Y axis grid + labels */}
+        {yTicks.map(({ v, y }) => (
+          <g key={v}>
+            <line x1={PAD_L} y1={y} x2={W} y2={y} stroke="#e2e8f0" strokeWidth={1} strokeDasharray={v === 0 ? '' : '4,4'} />
+            <text x={PAD_L - 6} y={y + 4} textAnchor="end" fontSize={9} fill="#94a3b8">{fmtK(v)}</text>
+          </g>
+        ))}
+        {/* Bars */}
+        {data.map((d, i) => {
+          const bh = Math.max(2, ((H - PAD_B - PAD_T) * d.revenue) / max);
+          const bx = PAD_L + BAR_GAP + i * (barW + BAR_GAP);
+          const by = H - PAD_B - bh;
+          return (
+            <g key={d.month}>
+              <rect x={bx} y={by} width={barW} height={bh} rx={3} fill="#3b82f6" opacity={0.85} />
+              <text x={bx + barW / 2} y={H - PAD_B + 12} textAnchor="middle" fontSize={8} fill="#64748b">{fmtMonth(d.month)}</text>
+              {bh > 20 && (
+                <text x={bx + barW / 2} y={by - 3} textAnchor="middle" fontSize={8} fill="#1e40af">{fmtK(d.revenue)}</text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
 
 export default function AnalyticsDashboard() {
   const { activeBrand } = useBrand();
@@ -13,24 +59,27 @@ export default function AnalyticsDashboard() {
   const [slaData, setSlaData] = useState<any>(null);
   const [satData, setSatData] = useState<any>(null);
   const [lifeData, setLifeData] = useState<any>(null);
+  const [chartData, setChartData] = useState<{ monthly: MonthlyRevenue[]; byBrand: BrandRevenue[] } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchAnalytics() {
       setLoading(true);
       try {
-        const [execRes, opsRes, slaRes, satRes, lifeRes] = await Promise.all([
+        const [execRes, opsRes, slaRes, satRes, lifeRes, chartRes] = await Promise.all([
           fetch('/api/admin/analytics/executive'),
           fetch('/api/admin/analytics/operations'),
           fetch('/api/admin/analytics/sla'),
           fetch('/api/admin/analytics/satisfaction'),
-          fetch('/api/admin/analytics/lifecycle')
+          fetch('/api/admin/analytics/lifecycle'),
+          fetch('/api/admin/analytics/revenue-chart'),
         ]);
         if (execRes.ok) setExecData(await execRes.json());
         if (opsRes.ok) setOpsData(await opsRes.json());
         if (slaRes.ok) setSlaData(await slaRes.json());
         if (satRes.ok) setSatData(await satRes.json());
         if (lifeRes.ok) setLifeData(await lifeRes.json());
+        if (chartRes.ok) setChartData(await chartRes.json());
       } catch (err) {
         console.error('Failed to fetch analytics', err);
       }
@@ -384,11 +433,19 @@ export default function AnalyticsDashboard() {
                   </div>
                 </div>
 
-                <div className="bg-slate-50 rounded-lg p-6 border border-slate-100 flex items-center justify-center min-h-[200px]">
-                  <p className="text-slate-500 text-sm flex items-center gap-2">
-                    <IconDocument size={16} />
-                    Detailed Revenue by Service and Brand charting will be available after 10 transactions.
-                  </p>
+                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
+                  <div className="text-xs text-slate-500 uppercase tracking-wider mb-3 font-medium">Monthly Revenue (Last 12 Months)</div>
+                  <RevenueBarChart data={chartData?.monthly ?? []} />
+                  {chartData?.byBrand && chartData.byBrand.length > 0 && (
+                    <div className="flex gap-4 mt-4 pt-4 border-t border-slate-100">
+                      {chartData.byBrand.map(b => (
+                        <div key={b.brand} className="text-center">
+                          <div className="text-xs text-slate-500 uppercase tracking-wider">{b.brand}</div>
+                          <div className="text-sm font-bold text-slate-900 mt-1">{formatCurrency(b.revenue, '₹')}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

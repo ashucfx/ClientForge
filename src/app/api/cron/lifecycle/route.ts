@@ -9,18 +9,28 @@ export const dynamic = 'force-dynamic';
 import { logSystemError } from '@/lib/audit/logger';
 
 async function atomicSendEmail(clientId: string, trigger: string, emailData: any) {
+  let logId: string | null = null;
   try {
-    // Attempt insert FIRST to establish lock
-    await db.careerEmailLog.create({
-      data: { clientId, trigger, status: 'sent' },
+    // Insert with status 'queued' to lock this trigger for this client
+    const log = await db.careerEmailLog.create({
+      data: { clientId, trigger, status: 'queued' },
     });
-    // Send email ONLY if insert succeeded
+    logId = log.id;
+
+    // Send the email
     await sendCareerEmail(emailData);
+
+    // Mark as sent only after successful delivery
+    await db.careerEmailLog.update({ where: { id: logId }, data: { status: 'sent' } });
     return true;
   } catch (err: any) {
     if (err.code === 'P2002') {
-      // Unique constraint failed - a concurrent cron worker already took this
+      // Unique constraint — another worker is handling or already sent this trigger
       return false;
+    }
+    // Send failed: remove the lock so next cron run can retry
+    if (logId) {
+      await db.careerEmailLog.delete({ where: { id: logId } }).catch(() => null);
     }
     await logSystemError(err, 'CRON_LIFECYCLE');
     return false;
@@ -30,7 +40,7 @@ async function atomicSendEmail(clientId: string, trigger: string, emailData: any
 export async function GET(req: Request) {
   // Authenticate cron caller — Vercel injects CRON_SECRET automatically
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

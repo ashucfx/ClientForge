@@ -33,7 +33,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       leadStatus, lifecycleStage, nextActionDate, optInSource // FlywheelProfile
     } = body;
 
+    const { restore } = body;
+
     const contactUpdate: any = {};
+    if (restore) contactUpdate.status = 'ACTIVE';
     if (name !== undefined) contactUpdate.name = name;
     if (email !== undefined) contactUpdate.email = email;
     if (phone !== undefined) contactUpdate.phone = phone;
@@ -75,9 +78,25 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     const session = await getAdminSession();
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-    await db.contact.delete({ where: { id: params.id } });
+    const url = new URL(req.url);
+    const permanent = url.searchParams.get('permanent') === 'true';
 
-    return NextResponse.json({ success: true });
+    if (permanent) {
+      // Permanent delete — requires SUPER_ADMIN
+      if (session.role !== 'SUPER_ADMIN') {
+        return NextResponse.json({ success: false, error: 'Super admin required for permanent delete' }, { status: 403 });
+      }
+      await db.contact.delete({ where: { id: params.id } });
+      return NextResponse.json({ success: true, message: 'Contact permanently deleted' });
+    }
+
+    // Soft delete — archive the contact
+    await db.contact.update({
+      where: { id: params.id },
+      data: { status: 'ARCHIVED' },
+    });
+
+    return NextResponse.json({ success: true, message: 'Contact archived' });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Internal error' }, { status: 500 });
   }

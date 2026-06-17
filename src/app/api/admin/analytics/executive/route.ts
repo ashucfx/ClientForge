@@ -17,43 +17,35 @@ export async function GET() {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixtyDaysAgo  = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-  // 1. Revenue — computed from PAID invoices, not stale FlywheelProfile aggregates
-  const [lifetimeRevenueAggr, currentPeriodRevenueAggr, prevPeriodRevenueAggr] = await Promise.all([
-    db.invoice.aggregate({
-      _sum: { totalPayable: true },
-      where: { status: 'PAID' },
-    }),
-    db.invoice.aggregate({
-      _sum: { totalPayable: true },
-      where: { status: 'PAID', paidAt: { gte: thirtyDaysAgo } },
-    }),
-    db.invoice.aggregate({
-      _sum: { totalPayable: true },
-      where: { status: 'PAID', paidAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
-    }),
+  // 1. Revenue — currency-normalized (totalPayable * exchangeRate → base INR equivalent)
+  const [lifetimeRev, currentRev, prevRev] = await Promise.all([
+    db.$queryRaw<[{ total: string }]>`SELECT COALESCE(SUM("totalPayable" * "exchangeRate"), 0) AS total FROM "Invoice" WHERE "status" = 'PAID'`,
+    db.$queryRaw<[{ total: string }]>`SELECT COALESCE(SUM("totalPayable" * "exchangeRate"), 0) AS total FROM "Invoice" WHERE "status" = 'PAID' AND "paidAt" >= ${thirtyDaysAgo}`,
+    db.$queryRaw<[{ total: string }]>`SELECT COALESCE(SUM("totalPayable" * "exchangeRate"), 0) AS total FROM "Invoice" WHERE "status" = 'PAID' AND "paidAt" >= ${sixtyDaysAgo} AND "paidAt" < ${thirtyDaysAgo}`,
   ]);
 
-  const lifetimeRevenue      = Number(lifetimeRevenueAggr._sum.totalPayable || 0);
-  const currentPeriodRevenue = Number(currentPeriodRevenueAggr._sum.totalPayable || 0);
-  const prevPeriodRevenue    = Number(prevPeriodRevenueAggr._sum.totalPayable || 0);
+  const lifetimeRevenue      = Number(lifetimeRev[0]?.total || 0);
+  const currentPeriodRevenue = Number(currentRev[0]?.total || 0);
+  const prevPeriodRevenue    = Number(prevRev[0]?.total || 0);
   const revenueTrendPct      = calculateTrend(currentPeriodRevenue, prevPeriodRevenue);
 
-  // 2. Active Clients
-  const [activeCareerClients, activeRnClients, currentClientsCreated, prevClientsCreated] = await Promise.all([
-    db.careerClient.count({
-      where: { status: { notIn: ['COMPLETED', 'NOT_STARTED', 'REVISION_REQUESTED'] }, lifecycleStatus: 'ACTIVE' },
-    }),
-    db.rnClient.count({
-      where: { currentStage: { notIn: ['COMPLETED', 'LAUNCHED', 'NOT_STARTED'] }, lifecycleStatus: 'ACTIVE' },
-    }),
-    db.careerClient.count({ where: { createdAt: { gte: thirtyDaysAgo } } })
-      .then(async c => c + await db.rnClient.count({ where: { createdAt: { gte: thirtyDaysAgo } } })),
-    db.careerClient.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } })
-      .then(async c => c + await db.rnClient.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } })),
+  // 2. Active Clients — compare active count this period vs prior period
+  const activeWhere = { status: { notIn: ['COMPLETED', 'NOT_STARTED', 'REVISION_REQUESTED'] as never[] }, lifecycleStatus: 'ACTIVE' as const };
+  const activeRnWhere = { currentStage: { notIn: ['COMPLETED', 'LAUNCHED', 'NOT_STARTED'] }, lifecycleStatus: 'ACTIVE' as const };
+
+  const [activeCareerClients, activeRnClients, activeCareerCurrent, activeRnCurrent, activeCareerPrev, activeRnPrev] = await Promise.all([
+    db.careerClient.count({ where: activeWhere }),
+    db.rnClient.count({ where: activeRnWhere }),
+    db.careerClient.count({ where: { ...activeWhere, createdAt: { gte: thirtyDaysAgo } } }),
+    db.rnClient.count({ where: { ...activeRnWhere, createdAt: { gte: thirtyDaysAgo } } }),
+    db.careerClient.count({ where: { ...activeWhere, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
+    db.rnClient.count({ where: { ...activeRnWhere, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
   ]);
 
-  const totalActiveClients = activeCareerClients + activeRnClients;
-  const activeClientsTrend = calculateTrend(currentClientsCreated, prevClientsCreated);
+  const totalActiveClients    = activeCareerClients + activeRnClients;
+  const currentClientsCreated = activeCareerCurrent + activeRnCurrent;
+  const prevClientsCreated    = activeCareerPrev + activeRnPrev;
+  const activeClientsTrend    = calculateTrend(currentClientsCreated, prevClientsCreated);
 
   // 3. Client Satisfaction & NPS
   const [currentFeedbacks, prevFeedbacks] = await Promise.all([

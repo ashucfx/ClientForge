@@ -21,17 +21,17 @@ export async function GET() {
       funnel[row.lifecycleStage] = row._count.id;
     }
 
-    // 2. Conversion rates between stages
+    // 2. Conversion rates between adjacent stages (toCount / fromCount = stage-to-next rate)
     const stages = ['SUBSCRIBER', 'LEAD', 'MQL', 'SQL', 'CUSTOMER'];
     const conversions: { from: string; to: string; rate: number }[] = [];
     for (let i = 0; i < stages.length - 1; i++) {
       const fromCount = funnel[stages[i]] || 0;
-      const toCount = stages.slice(i + 1).reduce((s, st) => s + (funnel[st] || 0), 0);
+      const toCount = funnel[stages[i + 1]] || 0;
       if (fromCount > 0 || toCount > 0) {
         conversions.push({
           from: stages[i],
           to: stages[i + 1],
-          rate: (fromCount + toCount) > 0 ? Math.round((toCount / (fromCount + toCount)) * 100) : 0
+          rate: fromCount > 0 ? Math.round((toCount / fromCount) * 100) : 0
         });
       }
     }
@@ -115,13 +115,14 @@ export async function GET() {
     const totalClicks = eventCounts.find(e => e.eventType === 'CLICK')?._count?.id || 0;
     const totalUnsubs = eventCounts.find(e => e.eventType === 'UNSUBSCRIBE')?._count?.id || 0;
 
-    // 7. Revenue by stage
-    const revenueByStage = await db.flywheelProfile.groupBy({
+    // 7. Revenue by stage — read from denorm field (kept in sync by syncContactRevenue after each payment)
+    const revenueByStageRaw = await db.flywheelProfile.groupBy({
       by: ['lifecycleStage'],
       _sum: { totalRevenue: true },
+      where: { totalRevenue: { gt: 0 } },
     });
     const revenueStages: Record<string, number> = {};
-    for (const row of revenueByStage) {
+    for (const row of revenueByStageRaw) {
       revenueStages[row.lifecycleStage] = Number(row._sum.totalRevenue || 0);
     }
 

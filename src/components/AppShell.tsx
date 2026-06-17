@@ -231,6 +231,8 @@ function SidebarContent({
             active={isActive('/flywheel/leads', pathname)} accent="#10B981" onClick={onNavigate} />
           <NavLink href="/flywheel/campaigns" icon={<IconMail size={16} />} label="Campaigns"
             active={isActive('/flywheel/campaigns', pathname)} accent="#10B981" onClick={onNavigate} />
+          <NavLink href="/flywheel/analytics" icon={<IconTrendUp size={16} />} label="Flywheel Analytics"
+            active={isActive('/flywheel/analytics', pathname)} accent="#10B981" onClick={onNavigate} />
         </NavSection>
 
         {/* Tools */}

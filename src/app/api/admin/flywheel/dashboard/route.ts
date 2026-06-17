@@ -24,12 +24,12 @@ export async function GET() {
     // 2. Total contacts
     const totalContacts = await db.contact.count({ where: { status: 'ACTIVE' } });
 
-    // 3. Pipeline value (sum of totalRevenue from profiles of active leads)
+    // 3. Pipeline value (expected deal value for leads in active stages)
     const pipelineValueRaw = await db.flywheelProfile.aggregate({
-      _sum: { totalRevenue: true },
+      _sum: { dealValue: true },
       where: { lifecycleStage: { in: ['LEAD', 'MQL', 'SQL'] } },
     });
-    const pipelineValue = Number(pipelineValueRaw._sum.totalRevenue || 0);
+    const pipelineValue = Number(pipelineValueRaw._sum.dealValue || 0);
 
     // 4. Active campaigns
     const activeCampaigns = await db.flywheelCampaign.count({ where: { status: 'ACTIVE' } });

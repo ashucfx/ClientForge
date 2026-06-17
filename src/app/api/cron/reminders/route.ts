@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
   // Authenticate cron caller — Vercel injects CRON_SECRET automatically
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

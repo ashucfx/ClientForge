@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -107,26 +108,25 @@ export async function GET(request: Request) {
       });
     }
 
-    // 4. Auto-approve Career Deliverables (Pending for > 2 Days)
+    // 4. Auto-approve Career Deliverables (Pending for > 2 Days, not yet auto-approved)
     const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
     const pendingDeliverables = await prisma.careerDeliverable.findMany({
       where: {
         fileCategory: 'final',
         approvalStatus: 'PENDING',
-        createdAt: { lte: twoDaysAgo }
+        approvedAt: null,         // guard: skip if approvedAt is already set
+        createdAt: { lte: twoDaysAgo, gt: new Date(0) }
       },
       include: { client: true }
     });
 
     for (const file of pendingDeliverables) {
-      // Auto-approve it
-      await prisma.careerDeliverable.update({
-        where: { id: file.id },
-        data: {
-          approvalStatus: 'APPROVED',
-          approvedAt: now
-        }
+      // updateMany with approvalStatus filter prevents double-approval in concurrent runs
+      const result = await prisma.careerDeliverable.updateMany({
+        where: { id: file.id, approvalStatus: 'PENDING', approvedAt: null },
+        data: { approvalStatus: 'APPROVED', approvedAt: now }
       });
+      if (result.count === 0) continue; // another worker got there first
 
       // Log the activity
       await prisma.careerActivityLog.create({

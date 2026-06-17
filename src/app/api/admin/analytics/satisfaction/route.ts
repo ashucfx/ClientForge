@@ -71,9 +71,12 @@ export async function GET() {
 
   const singleServiceRated = serviceStats.length === 1;
 
-  const reviewsCount = await db.review.count();
-  const prevReviewsCount = await db.review.count({ where: { createdAt: { lt: thirtyDaysAgo } } });
-  const reviewsTrend = calculateTrend(reviewsCount, prevReviewsCount);
+  const [reviewsCount, reviewsCountCurrent, reviewsCountPrev] = await Promise.all([
+    db.review.count(),
+    db.review.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+    db.review.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
+  ]);
+  const reviewsTrend = calculateTrend(reviewsCountCurrent, reviewsCountPrev);
   
   const testimonialsCollected = await db.review.count({ where: { isPublished: true } });
 

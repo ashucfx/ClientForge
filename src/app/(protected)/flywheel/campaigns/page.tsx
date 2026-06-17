@@ -56,14 +56,14 @@ export default function FlywheelCampaigns() {
   const fetchCampaigns = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/flywheel/campaigns');
+      const res = await fetch(`/api/admin/flywheel/campaigns?brandId=${activeBrand === 'all' ? 'catalyst' : activeBrand}`);
       if (res.ok) {
         const json = await res.json();
-        setCampaigns(json.campaigns || []);
+        setCampaigns(json.data || []);
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, []);
+  }, [activeBrand]);
 
   useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
 
@@ -141,14 +141,29 @@ export default function FlywheelCampaigns() {
     ]);
   };
 
-  // Dispatch campaign
+  // Dispatch campaign — resolve audience contactIds first, then send
   const handleDispatch = async (campaignId: string) => {
     setDispatching(true); setDispatchResult(null);
     try {
-      const res = await fetch(`/api/admin/flywheel/campaigns/${campaignId}/dispatch`, { method: 'POST' });
+      // Resolve audience: get contacts matching the campaign's audience filter
+      const params = new URLSearchParams({ pageSize: '1000' });
+      if (audienceFilter !== 'ALL') params.set('stage', audienceFilter);
+      const audienceRes = await fetch(`/api/admin/flywheel/leads?${params}`);
+      if (!audienceRes.ok) { setDispatchResult('Error: Could not resolve audience.'); return; }
+      const audienceData = await audienceRes.json();
+      const contacts: Array<{ id: string }> = audienceData.contacts || audienceData.data || [];
+      const contactIds = contacts.map((c: { id: string }) => c.id);
+
+      if (contactIds.length === 0) { setDispatchResult('No contacts match the selected audience.'); return; }
+
+      const res = await fetch(`/api/admin/flywheel/campaigns/${campaignId}/dispatch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactIds }),
+      });
       const data = await res.json();
       if (data.success) {
-        setDispatchResult(`Campaign dispatched to ${data.leadsQueued || 0} contacts.`);
+        setDispatchResult(`Campaign dispatched to ${contactIds.length} contacts.`);
         fetchCampaigns();
       } else { setDispatchResult(`Error: ${data.error || 'Failed to dispatch'}`); }
     } catch { setDispatchResult('An error occurred.'); }

@@ -161,7 +161,9 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
         taxRate: pricing.taxRate,
         taxAmount: pricing.taxAmount,
         subtotalConverted: pricing.subtotal,
-        processingFeeRate: 0,
+        processingFeeRate: pricing.subtotal > 0
+          ? Math.round((pricing.internalGatewayFee / pricing.subtotal) * 10000) / 100
+          : 0,
         processingFeeConverted: pricing.internalGatewayFee,
         totalPayable: pricing.finalPayable,
         paymentGateway,
