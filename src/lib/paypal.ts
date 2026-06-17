@@ -73,6 +73,7 @@ export interface PaypalInvoiceInput {
   currency:      string;
   dueDate:       Date | string;
   notes?:        string | null;
+  memo?:         string | null;  // overrides the invoice memo line shown to the payer
   lineItems: Array<{
     description: string;
     qty:         number;
@@ -120,7 +121,7 @@ export async function createPaypalInvoice(
             ? { note: `Included free: ${freeItems.map(i => i.description).join(', ')}` }
             : {};
         })()),
-        memo: `Career Booster Package — ${invoice.invoiceNumber}`,
+        memo: invoice.memo ?? `Invoice ${invoice.invoiceNumber}`,
       },
       invoicer: {
         name:    { full_name: 'Catalyst' },
@@ -254,7 +255,7 @@ export async function createPaypalInstallmentInvoice(
     id:            `${invoice.id}-inst${seq}`,  // unique idempotency key per instalment
     invoiceNumber: `${invoice.invoiceNumber}-${seq}`,
     dueDate,
-    notes:         `Instalment ${seq} of your Career Booster Package.${invoice.notes ? ' ' + invoice.notes : ''}`,
+    notes:         `Instalment ${seq} of ${seq === 1 ? 'your order' : 'your instalment plan'}.${invoice.notes ? ' ' + invoice.notes : ''}`,
     lineItems: [{
       description: `Instalment ${seq} — ${invoice.invoiceNumber}`,
       qty:         1,

@@ -110,8 +110,6 @@ export async function GET(request: NextRequest) {
     where.brandId = { in: brandAccess };
   }
 
-  console.log('API INVOICES QUERY WHERE:', where);
-
   const [invoices, total] = await Promise.all([
     prisma.invoice.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
     prisma.invoice.count({ where }),

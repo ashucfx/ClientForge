@@ -1,40 +1,35 @@
 import { prisma } from '@/lib/db';
+import crypto from 'crypto';
 
 /**
- * Generates a sequential invoice number: RN-YYMM-0001
- * Uses the database to find the maximum existing sequence for the current month.
+ * Generates a sequential invoice number with a random collision-guard suffix.
+ * Format: {prefix}-YYMM-{seq}-{6 hex chars}
+ * The 6-char hex suffix (~16M combinations) makes concurrent collision
+ * statistically impossible without requiring a DB sequence or advisory lock.
+ *
+ * @param prefix  - 'RN' for admin-created invoices, 'INV' for self-service checkout
  */
-export async function getNextInvoiceNumber(): Promise<string> {
+export async function getNextInvoiceNumber(prefix: 'RN' | 'INV' = 'RN'): Promise<string> {
   const now = new Date();
-  const year = now.getFullYear().toString().slice(-2);
+  const year  = now.getFullYear().toString().slice(-2);
   const month = String(now.getMonth() + 1).padStart(2, '0');
-  const prefix = `RN-${year}${month}-`;
+  const monthPrefix = `${prefix}-${year}${month}-`;
 
-  // Use a transaction if we needed strict lock, but findFirst is sufficient 
-  // for typical SaaS invoice volume.
   const latest = await prisma.invoice.findFirst({
-    where: {
-      invoiceNumber: {
-        startsWith: prefix,
-      },
-    },
-    orderBy: {
-      invoiceNumber: 'desc',
-    },
+    where: { invoiceNumber: { startsWith: monthPrefix } },
+    orderBy: { invoiceNumber: 'desc' },
     select: { invoiceNumber: true },
   });
 
   let nextSequence = 1;
   if (latest?.invoiceNumber) {
     const parts = latest.invoiceNumber.split('-');
-    if (parts.length === 3) {
-      const seqStr = parts[2];
-      const seqNum = parseInt(seqStr, 10);
-      if (!isNaN(seqNum)) {
-        nextSequence = seqNum + 1;
-      }
-    }
+    const seqPart = parts[2];
+    const seqNum  = seqPart ? parseInt(seqPart, 10) : NaN;
+    if (!isNaN(seqNum)) nextSequence = seqNum + 1;
   }
 
-  return `${prefix}${String(nextSequence).padStart(4, '0')}`;
+  const seq    = String(nextSequence).padStart(4, '0');
+  const suffix = crypto.randomBytes(3).toString('hex').toUpperCase();
+  return `${monthPrefix}${seq}-${suffix}`;
 }

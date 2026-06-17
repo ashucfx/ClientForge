@@ -27,7 +27,9 @@ export async function createRazorpayPaymentLink(
     amount: amountInSmallestUnit,
     currency: invoice.currency,
     accept_partial: false,
-    description: `Career Booster Package — Invoice ${invoice.invoiceNumber}`,
+    description: invoice.brandId === 'ripple_nexus'
+      ? `Ripple Nexus — Invoice ${invoice.invoiceNumber}`
+      : `Catalyst Career Booster — Invoice ${invoice.invoiceNumber}`,
     customer: {
       name: invoice.clientName,
       email: invoice.clientEmail,

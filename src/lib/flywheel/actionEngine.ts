@@ -54,10 +54,15 @@ export async function evaluateContactRules(contactId: string) {
 
 export async function evaluateAllContacts() {
   const contacts = await db.contact.findMany({ select: { id: true }, where: { status: 'ACTIVE' } });
+
+  const BATCH_SIZE = 50;
   let count = 0;
-  for (const c of contacts) {
-    await evaluateContactRules(c.id);
-    count++;
+  for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
+    const batch = contacts.slice(i, i + BATCH_SIZE);
+    await Promise.all(batch.map(c => evaluateContactRules(c.id).catch(err =>
+      console.error(`[ActionEngine] evaluateContactRules failed for ${c.id}:`, err)
+    )));
+    count += batch.length;
   }
   return count;
 }
