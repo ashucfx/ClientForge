@@ -54,6 +54,9 @@ export default function FlywheelCampaigns() {
   const [leadSearching, setLeadSearching] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   // Detail / dispatch / mutate
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [dispatching, setDispatching] = useState(false);
@@ -621,12 +624,14 @@ export default function FlywheelCampaigns() {
                   <div>
                     <h4 className="text-sm font-semibold text-slate-700 mb-2">Email Preview</h4>
                     <div className="border border-slate-200 rounded-xl overflow-hidden" style={{ height: 420 }}>
-                      <iframe
-                        srcDoc={buildEmailPreview()}
-                        title="Email preview"
-                        style={{ width: '100%', height: '100%', border: 'none' }}
-                        sandbox="allow-same-origin"
-                      />
+                      {mounted && (
+                        <iframe
+                          srcDoc={buildEmailPreview()}
+                          title="Email preview"
+                          style={{ width: '100%', height: '100%', border: 'none' }}
+                          sandbox="allow-same-origin"
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
