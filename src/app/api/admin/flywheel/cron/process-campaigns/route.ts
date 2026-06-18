@@ -91,6 +91,9 @@ export async function GET(req: NextRequest) {
           lead.id
         );
 
+        // Brief pause between sends to stay within SMTP provider rate limits
+        await new Promise(r => setTimeout(r, 250));
+
         // Record the event
         await db.flywheelEmailEvent.create({
           data: {

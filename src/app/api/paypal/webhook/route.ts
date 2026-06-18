@@ -149,41 +149,51 @@ export async function POST(request: NextRequest) {
           );
         }
       } else {
-        // ── Installment payment — scan split invoices ────────────────────────
-        // TODO: replace with direct InvoiceInstallment row lookup once paypalInvoiceId
-        // is stored at installment row level, to avoid full table scan at scale.
-        const splitInvoices = await prisma.invoice.findMany({
-          where: { installmentPlan: true, status: { not: 'PAID' } },
-        });
-        const splitInvoice = splitInvoices.find(inv => {
-          const installs = inv.installments as unknown as Installment[];
-          return Array.isArray(installs) && installs.some(i => i.paypalInvoiceId === paypalInvoiceId);
+        // ── Installment payment — direct indexed lookup (no table scan) ──────
+        const installmentRow = await prisma.invoiceInstallment.findFirst({
+          where:   { paypalInvoiceId },
+          include: { invoice: true },
         });
 
-        if (!splitInvoice) {
-          console.warn('[PayPal webhook] No invoice found for paypalInvoiceId:', paypalInvoiceId);
+        if (!installmentRow) {
+          console.warn('[PayPal webhook] No InvoiceInstallment found for paypalInvoiceId:', paypalInvoiceId);
           return NextResponse.json({ received: true });
         }
 
-        if (splitInvoice.status === 'PAID') return NextResponse.json({ received: true });
+        if (installmentRow.invoice.status === 'PAID') return NextResponse.json({ received: true });
 
-        const installs = (splitInvoice.installments as unknown as Installment[]).map(inst =>
-          inst.paypalInvoiceId === paypalInvoiceId
-            ? { ...inst, status: 'PAID' as const, paidAt: new Date().toISOString() }
-            : inst
-        );
+        // Atomic update: mark this installment paid and check if all are done
+        const updatedInvoice = await prisma.$transaction(async (tx) => {
+          await tx.invoiceInstallment.update({
+            where: { id: installmentRow.id },
+            data:  { status: 'PAID', paidAt: new Date() },
+          });
 
-        const allPaid   = installs.every(i => i.status === 'PAID');
-        const newStatus = allPaid ? 'PAID' : 'PARTIALLY_PAID';
+          const allInstallments = await tx.invoiceInstallment.findMany({
+            where:  { invoiceId: installmentRow.invoiceId },
+            select: { status: true },
+          });
+          const allPaid   = allInstallments.every(i => i.status === 'PAID');
+          const newStatus = allPaid ? 'PAID' : 'PARTIALLY_PAID';
 
-        const updatedInvoice = await prisma.invoice.update({
-          where: { id: splitInvoice.id },
-          data:  {
-            status:       newStatus,
-            installments: installs as object[],
-            ...(allPaid ? { paidAt: new Date() } : {}),
-          },
+          const paidAt = new Date().toISOString();
+          const updatedInstalls = (installmentRow.invoice.installments as unknown as Installment[]).map(inst =>
+            inst.paypalInvoiceId === paypalInvoiceId
+              ? { ...inst, status: 'PAID' as const, paidAt }
+              : inst
+          );
+
+          return tx.invoice.update({
+            where: { id: installmentRow.invoiceId },
+            data:  {
+              status:       newStatus,
+              installments: updatedInstalls as object[],
+              ...(allPaid ? { paidAt: new Date() } : {}),
+            },
+          });
         });
+
+        const allPaid = updatedInvoice.status === 'PAID';
 
         if (allPaid) {
           waitUntil(

@@ -301,10 +301,12 @@ export async function POST(request: NextRequest) {
           installments: installs as object[],
           invoiceInstallments: {
             create: installs.map(i => ({
-              seq: i.seq,
-              amount: i.amount,
-              dueDate: new Date(i.dueDate),
-              status: i.status,
+              seq:            i.seq,
+              amount:         i.amount,
+              dueDate:        new Date(i.dueDate),
+              status:         i.status,
+              // Store paypalInvoiceId on the row for O(1) webhook lookup
+              ...(i.paypalInvoiceId ? { paypalInvoiceId: i.paypalInvoiceId } : {}),
             }))
           },
           ...(gateway === 'RAZORPAY'

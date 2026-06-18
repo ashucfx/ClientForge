@@ -450,18 +450,20 @@ model InvoiceLineItem {
 }
 
 model InvoiceInstallment {
-  id        String    @id @default(cuid())
-  invoiceId String
-  seq       Int // e.g. 1, 2, 3
-  amount    Float
-  dueDate   DateTime
-  status    String    @default("PENDING") // PENDING, PAID, CANCELLED, EXPIRED
-  paidAt    DateTime?
-  createdAt DateTime  @default(now())
+  id              String    @id @default(cuid())
+  invoiceId       String
+  seq             Int // e.g. 1, 2, 3
+  amount          Float
+  dueDate         DateTime
+  status          String    @default("PENDING") // PENDING, PAID, CANCELLED, EXPIRED
+  paidAt          DateTime?
+  paypalInvoiceId String?   // PayPal invoice ID for this installment — enables direct webhook lookup
+  createdAt       DateTime  @default(now())
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
+  @@index([paypalInvoiceId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

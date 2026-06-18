@@ -117,9 +117,27 @@ export async function POST(req: NextRequest) {
 
   if (!email) return NextResponse.json({ error: 'No email in payment notes' }, { status: 400 });
 
-  // Idempotency
-  const existing = await db.careerClient.findUnique({ where: { razorpayPaymentId: payment.id } });
-  if (existing) return NextResponse.json({ received: true });
+  // Atomic idempotency via WebhookEvent table — prevents duplicate processing
+  // on simultaneous webhook replays (the careerClient findUnique check was non-atomic)
+  try {
+    await db.webhookEvent.create({
+      data: {
+        provider:  'RAZORPAY_CAREER',
+        eventId:   payment.id,
+        eventType: 'payment.captured',
+        payload:   event as object,
+        status:    'PENDING',
+      },
+    });
+  } catch (err: any) {
+    if (err.code === 'P2002') {
+      const wev = await db.webhookEvent.findUnique({ where: { eventId: payment.id } });
+      if (wev?.status === 'PROCESSED') return NextResponse.json({ received: true });
+      // PENDING or FAILED — allow retry to continue
+    } else {
+      throw err;
+    }
+  }
 
   const serviceRecords = await resolveServices(slugs);
   const magicToken  = generateMagicToken();
@@ -206,6 +224,12 @@ export async function POST(req: NextRequest) {
       }
     })()
   );
+
+  // Mark event processed — prevents future replays from re-sending emails
+  await db.webhookEvent.update({
+    where: { eventId: payment.id },
+    data:  { status: 'PROCESSED' },
+  }).catch(err => console.error('[career/webhook] Failed to mark WebhookEvent PROCESSED:', err));
 
   return NextResponse.json({ received: true });
 }
