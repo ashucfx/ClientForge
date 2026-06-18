@@ -20,10 +20,19 @@ export async function GET(req: NextRequest) {
 
     // 1. Fetch leads ready for processing
     const now = new Date();
+    // Pre-fetch all unsubscribed emails and DNC contacts for this brand to avoid N+1 per lead
+    const [allUnsubscribed, allDnc] = await Promise.all([
+      db.unsubscribeList.findMany({ select: { email: true, brandId: true } }),
+      db.flywheelProfile.findMany({ where: { optInStatus: false }, select: { contactId: true } }),
+    ]);
+    const unsubscribedSet = new Set(allUnsubscribed.map(u => `${u.email}::${u.brandId}`));
+    const dncContactIds = new Set(allDnc.map(p => p.contactId));
+
     const leadsToProcess = await db.flywheelCampaignLead.findMany({
       where: {
         status: 'ACTIVE',
-        nextExecutionAt: { lte: now }
+        nextExecutionAt: { lte: now },
+        campaign: { status: 'ACTIVE' }, // Only process leads for active (non-paused) campaigns
       },
       include: {
         contact: true,
@@ -58,15 +67,10 @@ export async function GET(req: NextRequest) {
       }
 
       // Ensure they haven't unsubscribed globally or are marked Do Not Contact
-      const unsubscribed = await db.unsubscribeList.findFirst({
-        where: { email: lead.contact.email!, brandId: lead.campaign.brandId }
-      });
-      const dnc = await db.flywheelProfile.findFirst({
-        where: { contactId: lead.contact.id, optInStatus: false },
-        select: { id: true },
-      });
+      const isUnsubscribed = unsubscribedSet.has(`${lead.contact.email}::${lead.campaign.brandId}`);
+      const isDnc = dncContactIds.has(lead.contact.id);
 
-      if (unsubscribed || dnc) {
+      if (isUnsubscribed || isDnc) {
         await db.flywheelCampaignLead.update({
           where: { id: lead.id },
           data: { status: 'UNSUBSCRIBED' }

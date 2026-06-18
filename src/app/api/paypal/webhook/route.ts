@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyPaypalWebhook } from '@/lib/paypal';
-import { sendPaymentConfirmationEmail } from '@/lib/email';
+import { sendPaymentConfirmationEmail, sendAdminPaymentAlert } from '@/lib/email';
 import { onboardFromInvoice } from '@/lib/career/onboarding';
 import { rnOnboardFromInvoice } from '@/lib/rn/onboarding';
 import { sendCareerEmail } from '@/lib/career/email';
@@ -105,6 +105,22 @@ export async function POST(request: NextRequest) {
             .catch(err => console.error('[PayPal webhook] Confirmation email failed:', err))
         );
 
+        const PORTAL_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com';
+        waitUntil(
+          sendAdminPaymentAlert({
+            clientName: (updatedInvoice as any).clientName,
+            clientEmail: (updatedInvoice as any).clientEmail,
+            product: 'Service',
+            amount: (updatedInvoice as any).totalPayable,
+            currency: (updatedInvoice as any).currency ?? 'USD',
+            currencySymbol: (updatedInvoice as any).currency === 'INR' ? '₹' : (updatedInvoice as any).currency === 'GBP' ? '£' : '$',
+            invoiceNumber: (updatedInvoice as any).invoiceNumber,
+            invoiceId: updatedInvoice.id,
+            brandId: updatedInvoice.brandId ?? 'catalyst',
+            adminUrl: `${PORTAL_URL}/invoices/${updatedInvoice.id}`,
+          }).catch(err => console.error('[PayPal webhook] Admin alert failed:', err))
+        );
+
         if (updatedInvoice.brandId === 'ripple_nexus') {
           waitUntil(
             rnOnboardFromInvoice(updatedInvoice as any)
@@ -125,7 +141,7 @@ export async function POST(request: NextRequest) {
                   data: {
                     recipientName: 'Catalyst Team',
                     senderType: 'admin',
-                    portalUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/career`,
+                    portalUrl: `${PORTAL_URL}/career`,
                     body: `⚠️ ONBOARDING FAILED for ${updatedInvoice.clientEmail} (Invoice ${updatedInvoice.id}). Error: ${String(err)}. Manual action required.`,
                   },
                 }).catch(console.error);
@@ -173,6 +189,22 @@ export async function POST(request: NextRequest) {
           waitUntil(
             sendPaymentConfirmationEmail(updatedInvoice as any)
               .catch(err => console.error('[PayPal webhook] Confirmation email failed:', err))
+          );
+
+          const PORTAL_URL2 = process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com';
+          waitUntil(
+            sendAdminPaymentAlert({
+              clientName: (updatedInvoice as any).clientName,
+              clientEmail: (updatedInvoice as any).clientEmail,
+              product: 'Installment — Final Payment',
+              amount: (updatedInvoice as any).totalPayable,
+              currency: (updatedInvoice as any).currency ?? 'USD',
+              currencySymbol: (updatedInvoice as any).currency === 'INR' ? '₹' : (updatedInvoice as any).currency === 'GBP' ? '£' : '$',
+              invoiceNumber: (updatedInvoice as any).invoiceNumber,
+              invoiceId: updatedInvoice.id,
+              brandId: updatedInvoice.brandId ?? 'catalyst',
+              adminUrl: `${PORTAL_URL2}/invoices/${updatedInvoice.id}`,
+            }).catch(err => console.error('[PayPal webhook] Admin alert failed:', err))
           );
 
           if (updatedInvoice.brandId === 'ripple_nexus') {

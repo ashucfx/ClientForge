@@ -474,7 +474,7 @@ model WebhookEvent {
   eventId   String   @unique // The unique ID from the provider (e.g., razorpay_payment_id or event_id)
   eventType String // e.g., 'payment.captured'
   payload   Json // The raw payload
-  status    String   @default("PROCESSED") // 'PROCESSED', 'FAILED'
+  status    String   @default("PENDING") // 'PENDING', 'PROCESSED', 'FAILED'
   error     String?
   createdAt DateTime @default(now())
 
