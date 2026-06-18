@@ -57,6 +57,11 @@ export async function GET(req: NextRequest) {
 
     // 2. Process each lead
     for (const lead of leadsToProcess) {
+      // Guard: campaign may have been paused between the initial batch query and now
+      if (lead.campaign.status !== 'ACTIVE') {
+        continue;
+      }
+
       // If no current step, they are somehow done. Mark completed.
       if (!lead.currentStep) {
         await db.flywheelCampaignLead.update({

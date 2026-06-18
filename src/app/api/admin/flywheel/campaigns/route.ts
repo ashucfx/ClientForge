@@ -9,31 +9,49 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Tenant isolation: SUPER_ADMIN may pass ?brandId override; everyone else sees their tenant only
     const url = new URL(req.url);
-    const brandId = url.searchParams.get('brandId') || 'catalyst';
+    const requestedBrand = url.searchParams.get('brandId') || session.activeTenant;
+    const brandId = session.role === 'SUPER_ADMIN' ? requestedBrand : session.activeTenant;
 
     const campaigns = await db.flywheelCampaign.findMany({
       where: { brandId },
       include: {
         _count: { select: { leads: true } },
         steps: { orderBy: { orderIndex: 'asc' } },
-        leads: { select: { events: { select: { eventType: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     });
 
+    // Aggregate email event counts with a single SQL query instead of loading all events in JS
+    const campaignIds = campaigns.map(c => c.id);
+    const eventRows = campaignIds.length > 0
+      ? await db.$queryRaw<{ campaignId: string; eventType: string; count: bigint }[]>`
+          SELECT cl."campaignId", fe."eventType", COUNT(*) as count
+          FROM "FlywheelEmailEvent" fe
+          JOIN "FlywheelCampaignLead" cl ON cl.id = fe."campaignLeadId"
+          WHERE cl."campaignId" = ANY(${campaignIds})
+          GROUP BY cl."campaignId", fe."eventType"
+        `
+      : [];
+
+    type StatsMap = Record<string, { sent: number; opens: number; clicks: number; unsubs: number }>;
+    const statsMap: StatsMap = {};
+    for (const row of eventRows) {
+      if (!statsMap[row.campaignId]) statsMap[row.campaignId] = { sent: 0, opens: 0, clicks: 0, unsubs: 0 };
+      const n = Number(row.count);
+      if (row.eventType === 'SENT')        statsMap[row.campaignId].sent   += n;
+      else if (row.eventType === 'OPEN')   statsMap[row.campaignId].opens  += n;
+      else if (row.eventType === 'CLICK')  statsMap[row.campaignId].clicks += n;
+      else if (row.eventType === 'UNSUBSCRIBE') statsMap[row.campaignId].unsubs += n;
+    }
+
     const data = campaigns.map(c => {
-      let sent = 0, opens = 0, clicks = 0, unsubs = 0;
-      for (const lead of c.leads) {
-        for (const ev of lead.events) {
-          if (ev.eventType === 'SENT') sent++;
-          else if (ev.eventType === 'OPEN') opens++;
-          else if (ev.eventType === 'CLICK') clicks++;
-          else if (ev.eventType === 'UNSUBSCRIBE') unsubs++;
-        }
-      }
-      const { leads: _leads, ...rest } = c;
-      return { ...rest, stats: { sent, opens, clicks, unsubs, openRate: sent > 0 ? Math.round((opens / sent) * 100) : 0 } };
+      const s = statsMap[c.id] ?? { sent: 0, opens: 0, clicks: 0, unsubs: 0 };
+      return {
+        ...c,
+        stats: { ...s, openRate: s.sent > 0 ? Math.round((s.opens / s.sent) * 100) : 0 },
+      };
     });
 
     return NextResponse.json({ success: true, data });
@@ -51,7 +69,10 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, type = 'ONE_OFF', brandId = 'catalyst', steps, metadata } = body;
+    const { name, type = 'ONE_OFF', steps, metadata } = body;
+
+    // Always scope campaign to the admin's active tenant — ignore any client-supplied brandId
+    const brandId = session.activeTenant;
 
     if (!name || !Array.isArray(steps) || steps.length === 0) {
       return NextResponse.json({ success: false, error: 'Name and at least one step required' }, { status: 400 });

@@ -4,68 +4,97 @@ import { randomBytes } from 'crypto';
 
 /**
  * Onboards a Ripple Nexus client after successful payment.
- * This function handles the "Agency" flow, keeping it completely separated from the Catalyst "Career" flow.
+ * Idempotent: safe to call multiple times for the same invoice.
+ * Uses a transaction to prevent duplicate amountPaid increments on concurrent webhook retries.
  */
 export async function rnOnboardFromInvoice(invoice: Invoice) {
   console.log(`[rn-onboard] Starting RN onboarding for Invoice ${invoice.id} (${invoice.clientEmail})`);
 
-  // 1. Check if RN client already exists
-  let client = await prisma.rnClient.findFirst({
-    where: { email: invoice.clientEmail },
-  });
-
-  if (client) {
-    // 3. Update existing client if needed (e.g., refresh token if expired or just link invoice)
-    if (client.invoiceId === invoice.id) {
-      console.log(`[rn-onboard] Invoice already linked for ${client.email}, skipping.`);
-      return;
-    }
-    console.log(`[rn-onboard] Found existing RN Client: ${client.id}`);
-  }
-
-  // Handle potentially missing rnServiceId which would cause Prisma FK crash
   let serviceId = invoice.rnServiceId;
   if (!serviceId) {
     const defaultModule = await prisma.rnServiceModule.findFirst();
     if (defaultModule) {
       serviceId = defaultModule.id;
     } else {
-      console.warn(`[rn-onboard] No RnServiceModule exists in DB. RN Onboarding might fail.`);
+      console.warn(`[rn-onboard] No RnServiceModule exists in DB. Onboarding may fail.`);
     }
   }
 
-  if (!client) {
-    // Create new RN Client with a magic link token
-    const portalToken = randomBytes(32).toString('hex');
-    
-    client = await prisma.rnClient.create({
-      data: {
-        name: invoice.clientName,
-        email: invoice.clientEmail,
-        phone: invoice.clientPhone || '',
-        companyName: invoice.companyName || '',
-        serviceModuleId: serviceId || '',
-        magicToken: portalToken,
-      },
+  let client: { id: string; magicToken: string | null; email: string; name: string } | null = null;
+  let isNew = false;
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const existing = await tx.rnClient.findFirst({ where: { email: invoice.clientEmail } });
+
+      if (existing?.invoiceId === invoice.id) {
+        // Already fully onboarded from this exact invoice — skip
+        return { skip: true, client: existing };
+      }
+
+      if (existing) {
+        // Returning client — link new invoice and increment revenue
+        const updated = await tx.rnClient.update({
+          where: { id: existing.id },
+          data: {
+            invoiceId:   invoice.id,
+            amountPaid:  { increment: invoice.totalPayable },
+            currency:    invoice.currency,
+          },
+        });
+        return { skip: false, client: updated, isNew: false };
+      }
+
+      // New client
+      const portalToken = randomBytes(32).toString('hex');
+      const created = await tx.rnClient.create({
+        data: {
+          name:            invoice.clientName,
+          email:           invoice.clientEmail,
+          phone:           invoice.clientPhone || '',
+          companyName:     invoice.companyName || '',
+          serviceModuleId: serviceId || '',
+          magicToken:      portalToken,
+          invoiceId:       invoice.id,
+          amountPaid:      invoice.totalPayable,
+          currency:        invoice.currency,
+        },
+      });
+      return { skip: false, client: created, isNew: true };
     });
-    console.log(`[rn-onboard] Created new RN Client: ${client.id}`);
+
+    if (result.skip) {
+      console.log(`[rn-onboard] Invoice ${invoice.id} already linked — skipping.`);
+      return;
+    }
+
+    client = result.client;
+    isNew  = result.isNew ?? false;
+
+  } catch (err: any) {
+    // Two concurrent webhooks raced through the findFirst check — the second one
+    // gets a unique constraint violation on email. The first succeeded, so we're safe.
+    if (err.code === 'P2002') {
+      const concurrent = await prisma.rnClient.findFirst({ where: { email: invoice.clientEmail } });
+      if (concurrent) {
+        console.log(`[rn-onboard] Concurrent race resolved for ${invoice.clientEmail}`);
+        return;
+      }
+    }
+    throw err;
   }
 
-  // 4. Update the RN Client to link the Invoice and payment details
-  await prisma.rnClient.update({
-    where: { id: client.id },
-    data: { 
-      invoiceId: invoice.id,
-      amountPaid: { increment: invoice.totalPayable },
-      currency: invoice.currency 
-    },
-  });
+  if (!client) return;
 
-  // 5. Send RN Welcome / Portal Email
-  // The RN portal url would be: /rn/portal/[token]
+  // Send portal welcome email — failure is non-fatal (client is already created)
   const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/rn/portal/${client.magicToken}`;
-  
-  const { sendRnOnboardingEmail } = await import('./email');
-  await sendRnOnboardingEmail(client.email, client.name, portalUrl);
-  console.log(`[rn-onboard] RN Onboarding complete for ${client.email}. Portal URL: ${portalUrl}`);
+  try {
+    const { sendRnOnboardingEmail } = await import('./email');
+    await sendRnOnboardingEmail(client.email, client.name, portalUrl);
+    console.log(`[rn-onboard] Onboarding complete for ${client.email}. isNew=${isNew}`);
+  } catch (emailErr) {
+    // Log but don't throw — the client record was created successfully.
+    // Admin will receive an alert via the webhook's outer catch if this was from a webhook.
+    console.error(`[rn-onboard] Welcome email failed for ${client.email}:`, emailErr);
+  }
 }

@@ -39,10 +39,11 @@ export async function GET(req: Request) {
       }
 
       if (newLevel > invoice.abandonedCheckoutLevel) {
-        // We need to send an email!
         try {
-          // This must be cast or modified because invoice is returned from Prisma
-          // We will use our new email function
+          // Re-fetch status: webhook may have marked this PAID after our initial batch query
+          const fresh = await db.invoice.findUnique({ where: { id: invoice.id }, select: { status: true } });
+          if (fresh?.status !== 'PENDING') continue;
+
           await sendCheckoutRecoveryEmail(invoice as any, newLevel);
           
           await db.invoice.update({

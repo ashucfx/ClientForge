@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ success: false, error: 'At least one contact ID required' }, { status: 400 });
     }
 
-    // Ensure Campaign exists and get first step
+    // Ensure Campaign exists, belongs to this admin's tenant, and get first step
     const campaign = await db.flywheelCampaign.findUnique({
       where: { id: campaignId },
       include: { steps: { orderBy: { orderIndex: 'asc' } } }
@@ -25,6 +25,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     if (!campaign) {
       return NextResponse.json({ success: false, error: 'Campaign not found' }, { status: 404 });
+    }
+
+    // Tenant isolation: EDITOR-role admins can only dispatch their own brand's campaigns
+    if (session.role !== 'SUPER_ADMIN' && campaign.brandId !== session.activeTenant) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
 
     const firstStep = campaign.steps[0];

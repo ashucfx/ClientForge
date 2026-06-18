@@ -24,8 +24,15 @@ export async function POST(request: Request, { params }: { params: { token: stri
       return NextResponse.json({ error: "Proposal has expired" }, { status: 400 });
     }
 
-    if (proposal.status === "ACCEPTED") {
-      // If already accepted, return existing session or invoice if it exists
+    // Atomic transition: only succeeds if the proposal is still in a pre-accept state.
+    // Prevents duplicate invoice creation when two concurrent requests race to accept.
+    const { count } = await prisma.proposal.updateMany({
+      where: { id: proposal.id, status: { in: ['SENT', 'VIEWED', 'DRAFT'] } },
+      data: { status: "ACCEPTED", respondedAt: new Date() },
+    });
+
+    if (count === 0) {
+      // Already accepted (by this request or a concurrent one) — return existing session
       const existingSession = await prisma.checkoutSession.findFirst({
         where: { proposalId: proposal.id },
         orderBy: { createdAt: "desc" },
@@ -33,13 +40,8 @@ export async function POST(request: Request, { params }: { params: { token: stri
       if (existingSession) {
         return NextResponse.json({ sessionId: existingSession.id, checkoutUrl: `/checkout/proposal/${existingSession.id}` });
       }
+      return NextResponse.json({ error: "Proposal already accepted" }, { status: 409 });
     }
-
-    // Mark as accepted
-    await prisma.proposal.update({
-      where: { id: proposal.id },
-      data: { status: "ACCEPTED", respondedAt: new Date() },
-    });
 
     // Create checkout session and invoice
     const result = await createCheckoutSessionFromProposal(proposal.id);

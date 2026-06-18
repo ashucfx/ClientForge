@@ -114,9 +114,16 @@ export async function GET(request: NextRequest) {
               console.error(`[Invoice Cron] RN Onboarding failed for invoice ${invoice.id}:`, err);
             });
           } else {
-            await onboardFromInvoice(updatedInvoice).catch(err => {
+            const result = await onboardFromInvoice(updatedInvoice).catch(err => {
               console.error(`[Invoice Cron] Career Onboarding failed for invoice ${invoice.id}:`, err);
+              return null;
             });
+            if (result) {
+              const { handleSalesFunnelPayment } = await import('@/lib/sales/paymentHooks');
+              await handleSalesFunnelPayment(updatedInvoice.id, result.clientId).catch(err => {
+                console.error(`[Invoice Cron] Funnel hook failed for invoice ${invoice.id}:`, err);
+              });
+            }
           }
           synced++;
         }
