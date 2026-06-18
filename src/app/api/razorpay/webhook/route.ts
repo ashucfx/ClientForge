@@ -4,7 +4,8 @@ import { waitUntil } from '@vercel/functions';
 
 import { prisma } from '@/lib/db';
 import { verifyWebhookSignature } from '@/lib/razorpay';
-import { sendPaymentConfirmationEmail } from '@/lib/email';
+import { sendPaymentConfirmationEmail, sendAdminPaymentAlert, derivePackageLabel } from '@/lib/email';
+import { parseInvoiceLineItems } from '@/lib/invoiceLineItems';
 import { onboardFromInvoice } from '@/lib/career/onboarding';
 import { rnOnboardFromInvoice } from '@/lib/rn/onboarding';
 import type { Installment } from '@/types';
@@ -119,6 +120,26 @@ export async function POST(request: NextRequest) {
       waitUntil(
         sendPaymentConfirmationEmail(invoice as any)
           .catch(err => console.error('Confirmation email failed:', err))
+      );
+
+      // Admin alert
+      const lineItems = parseInvoiceLineItems((invoice as any).lineItems);
+      const product = derivePackageLabel(lineItems) || 'Service';
+      const PORTAL_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com';
+      waitUntil(
+        sendAdminPaymentAlert({
+          clientName: (invoice as any).clientName,
+          clientEmail: (invoice as any).clientEmail,
+          product,
+          amount: (invoice as any).totalPayable,
+          currency: (invoice as any).currency ?? 'INR',
+          currencySymbol: (invoice as any).currencySymbol ?? '₹',
+          razorpayPaymentId: razorpayPaymentId ?? null,
+          invoiceNumber: (invoice as any).invoiceNumber,
+          invoiceId: invoice.id,
+          brandId: (invoice as any).brandId ?? 'catalyst',
+          adminUrl: `${PORTAL_URL}/invoices/${invoice.id}`,
+        })
       );
       
       if (invoice.brandId === 'ripple_nexus') {

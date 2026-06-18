@@ -10,6 +10,7 @@ import { waitUntil } from '@vercel/functions';
 import { prisma as db } from '@/lib/db';
 import { generateMagicToken, magicTokenExpiry } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
+import { sendAdminPaymentAlert } from '@/lib/email';
 import type { CareerServiceSlug } from '@/lib/career/types';
 import { resolveServices } from '@/lib/career/services';
 
@@ -164,6 +165,22 @@ export async function POST(req: NextRequest) {
 
   const serviceNames = serviceRecords.map(s => s.name).join(', ');
   const portalUrl = `${PORTAL_URL}/portal/login?token=${magicToken}`;
+
+  // Fire admin alert immediately (fire-and-forget)
+  waitUntil(
+    sendAdminPaymentAlert({
+      clientName: client.name,
+      clientEmail: email,
+      product: serviceNames || 'Career Services',
+      amount: payment.amount / 100,
+      currency: payment.currency ?? 'INR',
+      currencySymbol: payment.currency === 'USD' ? '$' : payment.currency === 'GBP' ? '£' : '₹',
+      razorpayPaymentId: payment.id,
+      razorpayOrderId: payment.order_id ?? null,
+      brandId: 'catalyst',
+      adminUrl: `${PORTAL_URL}/career/${client.id}`,
+    }).catch(err => console.error('[career/webhook] Admin alert failed:', err))
+  );
 
   waitUntil(
     (async () => {

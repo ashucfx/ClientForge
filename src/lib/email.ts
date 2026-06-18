@@ -90,6 +90,106 @@ export async function sendInvoiceEmail(
 }
 
 // ─────────────────────────────────────────────
+// ADMIN PAYMENT ALERT
+// ─────────────────────────────────────────────
+export async function sendAdminPaymentAlert(opts: {
+  clientName: string;
+  clientEmail: string;
+  product: string;
+  amount: number;
+  currency: string;
+  currencySymbol: string;
+  razorpayPaymentId?: string | null;
+  razorpayOrderId?: string | null;
+  invoiceNumber?: string | null;
+  invoiceId?: string | null;
+  brandId?: string;
+  adminUrl?: string;
+}): Promise<void> {
+  const {
+    clientName, clientEmail, product,
+    amount, currency, currencySymbol,
+    razorpayPaymentId, razorpayOrderId,
+    invoiceNumber, invoiceId, brandId = 'catalyst', adminUrl,
+  } = opts;
+
+  const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
+  const brand = getBrand(brandId);
+  const sym = currencySymbol || currency;
+  const formattedAmount = `${sym}${amount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  const paidAt = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' });
+
+  const row = (label: string, value: string, highlight = false) =>
+    `<tr>
+      <td style="padding:10px 16px;font-size:13px;color:#64748b;border-bottom:1px solid #f1f5f9;white-space:nowrap;width:140px;">${label}</td>
+      <td style="padding:10px 16px;font-size:13px;font-weight:${highlight ? '700' : '500'};color:${highlight ? brand.primaryColor : '#1e293b'};border-bottom:1px solid #f1f5f9;font-family:monospace;">${value}</td>
+    </tr>`;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:24px;background:#F0EDE6;font-family:Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr><td align="center">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0"
+  style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(10,11,13,.10);">
+
+  <tr>
+    <td style="background:${brand.gradient};padding:20px 24px;">
+      <table cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+          <td style="padding-right:12px;">${brand.logoEmailHtml(36)}</td>
+          <td>
+            <div style="font-size:11px;letter-spacing:2px;color:rgba(255,255,255,.7);text-transform:uppercase;">Payment Received</div>
+            <div style="font-size:20px;font-weight:800;color:#fff;margin-top:2px;">${formattedAmount} <span style="font-size:13px;font-weight:400;opacity:.8;">${currency}</span></div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <tr><td height="3" style="background:${brand.accentBar};font-size:0;">&nbsp;</td></tr>
+
+  <tr>
+    <td style="padding:20px 0 8px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        ${row('Client', clientName)}
+        ${row('Email', clientEmail)}
+        ${row('Product', product, true)}
+        ${row('Amount', `${formattedAmount} ${currency}`, true)}
+        ${row('Paid at', paidAt + ' IST')}
+        ${invoiceNumber ? row('Invoice', invoiceNumber) : ''}
+        ${razorpayPaymentId ? row('Payment ID', razorpayPaymentId) : ''}
+        ${razorpayOrderId  ? row('Order ID',   razorpayOrderId)   : ''}
+      </table>
+    </td>
+  </tr>
+
+  ${adminUrl ? `
+  <tr>
+    <td style="padding:16px 24px 24px;text-align:center;">
+      <a href="${adminUrl}" style="display:inline-block;padding:11px 28px;background:${brand.primaryColor};color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px;">
+        View Client →
+      </a>
+    </td>
+  </tr>` : ''}
+
+</table>
+</td></tr>
+</table>
+</body></html>`;
+
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
+    body: JSON.stringify({
+      from:    `${brand.name} <${brand.fromEmail}>`,
+      to:      [ADMIN_EMAIL],
+      subject: `💰 Payment received — ${product} — ${formattedAmount} — ${clientEmail}`,
+      html,
+    }),
+  }).catch(err => console.error('[adminAlert] Failed to send admin payment alert:', err));
+}
+
+// ─────────────────────────────────────────────
 // SEND PAYMENT CONFIRMATION EMAIL
 // ─────────────────────────────────────────────
 export async function sendPaymentConfirmationEmail(invoice: InvoiceData): Promise<void> {
