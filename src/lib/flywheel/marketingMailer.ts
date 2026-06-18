@@ -134,7 +134,7 @@ export async function sendMarketingEmail(
 
   try {
     const info = await transporter.sendMail({
-      from: `"${brand.name}" <${brand.fromEmail}>`,
+      from: `"${brand.name}" <${process.env.SMTP_USER}>`,
       to,
       subject,
       html,
