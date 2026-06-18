@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/admin/flywheel/cron/process-campaigns",
-      "schedule": "*/30 * * * *"
+      "schedule": "30 10 * * *"
     }
   ]
 }
