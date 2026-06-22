@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { countryFlag } from './page';
+import { countryFlag } from '@/lib/countryFlag';
 
 type Review = {
   id: string;
