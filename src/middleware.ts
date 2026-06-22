@@ -54,6 +54,7 @@ const PUBLIC_PREFIXES = [
   '/api/paypal/webhook',
   '/api/razorpay/webhook',
   '/api/cron',
+  '/testimonials',        // Public testimonials page — no login required
   '/rn/portal',          // B2B client portal
   '/portal',             // Catalyst career portal
   '/api/career/webhook',

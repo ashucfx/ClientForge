@@ -59,8 +59,6 @@ export default function ReviewsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'published' | 'unpublished'>('all');
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
   const load = useCallback(async () => {
     setLoading(true);
     const res = await fetch('/api/admin/reviews');
@@ -82,14 +80,6 @@ export default function ReviewsPage() {
     });
     setReviews(prev => prev.map(r => r.id === id ? { ...r, isPublished: !current } : r));
     setTogglingId(null);
-  };
-
-  const deleteReview = async (id: string) => {
-    if (!confirm('Delete this testimonial permanently? This cannot be undone.')) return;
-    setDeletingId(id);
-    await fetch(`/api/admin/reviews/${id}`, { method: 'DELETE' });
-    setReviews(prev => prev.filter(r => r.id !== id));
-    setDeletingId(null);
   };
 
   const filtered = reviews.filter(r => {
@@ -304,19 +294,6 @@ export default function ReviewsPage() {
                             : 'bg-emerald-500 text-white hover:bg-emerald-600'
                         }`}>
                         {togglingId === r.id ? '…' : r.isPublished ? 'Unpublish' : 'Publish'}
-                      </button>
-                      <button
-                        onClick={() => void deleteReview(r.id)}
-                        disabled={deletingId === r.id}
-                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                        title="Delete testimonial">
-                        {deletingId === r.id ? (
-                          <span className="text-[11px]">…</span>
-                        ) : (
-                          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-                          </svg>
-                        )}
                       </button>
                     </div>
                   </div>
