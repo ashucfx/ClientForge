@@ -23,6 +23,11 @@ const nextConfig = {
         destination: '/checkout',
         permanent: true,
       },
+      {
+        source: '/admin/reviews',
+        destination: '/reviews',
+        permanent: true,
+      },
     ];
   },
 
