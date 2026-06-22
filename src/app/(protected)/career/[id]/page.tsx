@@ -1812,9 +1812,9 @@ function MessageBubble({ c, isAdmin, showHeader = true, onEdit, onDelete }: {
             <div className="text-body text-slate-700 leading-relaxed whitespace-pre-wrap break-words [word-break:break-word]">
               {c.content}
             </div>
-            {mine && (onEdit || onDelete) && (
+            {(mine || isAdmin) && (onEdit || onDelete) && (
               <div className="absolute -top-1 -right-1 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5">
-                {onEdit && (
+                {mine && onEdit && (
                   <button onClick={() => onEdit(c.id, c.content)}
                     className="p-1 rounded-md bg-white border border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300 shadow-sm" title="Edit">
                     <svg width="11" height="11" fill="none" viewBox="0 0 24 24">
