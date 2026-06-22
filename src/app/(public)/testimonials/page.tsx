@@ -93,13 +93,8 @@ export default async function TestimonialsPage() {
       </header>
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <section className="relative bg-slate-950 text-white overflow-hidden">
-        {/* Grid texture */}
-        <div aria-hidden className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:48px_48px]" />
-        {/* Gold glow */}
-        <div aria-hidden className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[#B8935B]/8 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
+      <section style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)' }} className="text-white">
+        <div className="max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
           {/* Label pill */}
           <div className="inline-flex items-center gap-2 border border-[#B8935B]/30 bg-[#B8935B]/10 rounded-full px-4 py-1.5 mb-8">
             <svg width={12} height={12} viewBox="0 0 24 24" fill="#B8935B">
