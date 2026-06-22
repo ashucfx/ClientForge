@@ -32,8 +32,29 @@ export async function POST(
         emailResendCount: { increment: 1 },
       },
     });
+    await prisma.sysEmailLog.create({
+      data: {
+        to: invoice.clientEmail,
+        subject: `Invoice ${invoice.invoiceNumber} (resend)`,
+        trigger: 'INVOICE_RESENT',
+        channel: 'resend',
+        status: 'sent',
+        metadata: { invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, amount: invoice.totalPayable, currency: invoice.currency },
+      },
+    }).catch(() => {});
   } catch (err) {
     console.error('Resend email failed:', err);
+    await prisma.sysEmailLog.create({
+      data: {
+        to: invoice.clientEmail,
+        subject: `Invoice ${invoice.invoiceNumber} (resend)`,
+        trigger: 'INVOICE_RESENT',
+        channel: 'resend',
+        status: 'failed',
+        error: err instanceof Error ? err.message : String(err),
+        metadata: { invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber },
+      },
+    }).catch(() => {});
     return NextResponse.json({ error: 'Email send failed' }, { status: 500 });
   }
 

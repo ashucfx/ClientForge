@@ -8,7 +8,7 @@ import { prisma } from '@/lib/db';
 import { getCurrencyForCountry, getExchangeRate } from '@/lib/currency';
 import { FEE_RATES, round2 } from '@/lib/pricing';
 import { createRazorpayPaymentLink, createRazorpayInstallmentLink } from '@/lib/razorpay';
-import { createPaypalInvoice, createPaypalInstallmentInvoice } from '@/lib/paypal';
+import { createPaypalInvoice, createPaypalInstallmentInvoice, PAYPAL_SUPPORTED_CURRENCIES } from '@/lib/paypal';
 import { getNextInvoiceNumber } from '@/lib/invoiceUtils';
 import { sendInvoiceEmail } from '@/lib/email';
 import { normalizePhoneE164 } from '@/lib/phone';
@@ -240,6 +240,16 @@ export async function POST(request: NextRequest) {
     // ── Create payment link(s) ───────────────────────────────────
     let gatewayUpdate: Record<string, unknown> = { paymentGateway: gateway };
 
+    // PayPal only supports ~25 currencies. For unsupported ones (e.g. ZAR), convert to USD.
+    let ppCurrencyCode = currencyCode;
+    let ppConvertFactor = 1;
+    if (gateway === 'PAYPAL' && !PAYPAL_SUPPORTED_CURRENCIES.has(currencyCode)) {
+      const usdRate = await getExchangeRate(currencyCode, 'USD');
+      ppCurrencyCode = 'USD';
+      ppConvertFactor = usdRate;
+    }
+    const ppConvert = (amount: number) => round2(amount * ppConvertFactor);
+
     try {
       if (!isSplit) {
         // ── Single payment ──
@@ -250,11 +260,11 @@ export async function POST(request: NextRequest) {
           const pp = await createPaypalInvoice({
             id: invoice.id, invoiceNumber: invoice.invoiceNumber,
             clientName: invoice.clientName, clientEmail: invoice.clientEmail,
-            currency: invoice.currency, dueDate: invoice.dueDate, notes: invoice.notes,
-            lineItems: (safeItems as LineItem[]).map(i => ({ description: i.description, qty: i.qty, unitPrice: i.unitPrice })),
-            taxAmount: invoice.taxAmount,
-            discountAmount: invoice.discountAmount,
-            processingFeeAmount: invoice.processingFeeConverted,
+            currency: ppCurrencyCode, dueDate: invoice.dueDate, notes: invoice.notes,
+            lineItems: (safeItems as LineItem[]).map(i => ({ description: i.description, qty: i.qty, unitPrice: ppConvert(i.unitPrice) })),
+            taxAmount: invoice.taxAmount ? ppConvert(invoice.taxAmount) : undefined,
+            discountAmount: invoice.discountAmount ? ppConvert(invoice.discountAmount) : undefined,
+            processingFeeAmount: invoice.processingFeeConverted ? ppConvert(invoice.processingFeeConverted) : undefined,
           });
           gatewayUpdate = { paymentGateway: 'PAYPAL', paypalInvoiceId: pp.id, paypalPaymentUrl: pp.paymentUrl };
         }
@@ -283,10 +293,10 @@ export async function POST(request: NextRequest) {
               {
                 id: invoice.id, invoiceNumber: invoice.invoiceNumber,
                 clientName: invoice.clientName, clientEmail: invoice.clientEmail,
-                currency: invoice.currency, dueDate: instDue, notes: invoice.notes,
+                currency: ppCurrencyCode, dueDate: instDue, notes: invoice.notes,
                 lineItems: [],
               },
-              seq, amount, instDue,
+              seq, ppConvert(amount), instDue,
             );
             installs.push({
               seq, amount, dueDate: instDue.toISOString(), status: 'PENDING',
@@ -328,8 +338,29 @@ export async function POST(request: NextRequest) {
     try {
       await sendInvoiceEmail(fullInvoice as unknown as Parameters<typeof sendInvoiceEmail>[0]);
       await prisma.invoice.update({ where: { id: invoice.id }, data: { emailSentAt: new Date() } });
+      await prisma.sysEmailLog.create({
+        data: {
+          to: fullInvoice.clientEmail,
+          subject: `Invoice ${fullInvoice.invoiceNumber} — ${fullInvoice.currencySymbol}${fullInvoice.totalPayable}`,
+          trigger: 'INVOICE_SENT',
+          channel: 'resend',
+          status: 'sent',
+          metadata: { invoiceId: fullInvoice.id, invoiceNumber: fullInvoice.invoiceNumber, amount: fullInvoice.totalPayable, currency: fullInvoice.currency },
+        },
+      }).catch(() => {}); // non-blocking — don't fail invoice creation over a log write
     } catch (emailErr) {
       console.error('[Email] Invoice email failed:', emailErr);
+      await prisma.sysEmailLog.create({
+        data: {
+          to: fullInvoice.clientEmail,
+          subject: `Invoice ${fullInvoice.invoiceNumber}`,
+          trigger: 'INVOICE_SENT',
+          channel: 'resend',
+          status: 'failed',
+          error: emailErr instanceof Error ? emailErr.message : String(emailErr),
+          metadata: { invoiceId: fullInvoice.id, invoiceNumber: fullInvoice.invoiceNumber },
+        },
+      }).catch(() => {});
     }
 
     await logAudit(

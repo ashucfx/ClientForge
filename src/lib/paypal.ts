@@ -8,6 +8,17 @@ export const PAYPAL_API =
     ? 'https://api-m.sandbox.paypal.com'
     : 'https://api-m.paypal.com';
 
+// PayPal only supports these currency codes — everything else must be converted to USD
+export const PAYPAL_SUPPORTED_CURRENCIES = new Set([
+  'AUD','BRL','CAD','CNY','CZK','DKK','EUR','GBP','HKD','HUF',
+  'ILS','JPY','MYR','MXN','NOK','NZD','PHP','PLN','RUB','SGD',
+  'SEK','CHF','TWD','THB','USD',
+]);
+
+export function paypalCurrency(code: string): string {
+  return PAYPAL_SUPPORTED_CURRENCIES.has(code) ? code : 'USD';
+}
+
 const CLIENT_ID     = process.env.PAYPAL_CLIENT_ID!;
 const CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET!;
 export const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID ?? '';
@@ -92,6 +103,10 @@ export async function createPaypalInvoice(
 ): Promise<PaypalInvoiceResult> {
   const token = await getPaypalAccessToken();
 
+  // Caller is responsible for converting amounts to a supported currency.
+  // This is a last-resort safety net only (invoice.currency should already be supported).
+  const ppCurrency = paypalCurrency(invoice.currency);
+
   const dueDateStr =
     typeof invoice.dueDate === 'string'
       ? invoice.dueDate.split('T')[0]
@@ -109,7 +124,7 @@ export async function createPaypalInvoice(
     body: JSON.stringify({
       detail: {
         invoice_number: invoice.invoiceNumber,
-        currency_code:  invoice.currency,
+        currency_code:  ppCurrency,
         payment_term: {
           term_type: 'DUE_ON_DATE_SPECIFIED',
           due_date:  dueDateStr,
@@ -142,19 +157,19 @@ export async function createPaypalInvoice(
             name:     item.description,
             quantity: String(item.qty),
             unit_amount: {
-              currency_code: invoice.currency,
+              currency_code: ppCurrency,
               value:         item.unitPrice.toFixed(2),
             },
           })),
         ...(invoice.taxAmount && invoice.taxAmount > 0 ? [{
           name: 'Tax',
           quantity: '1',
-          unit_amount: { currency_code: invoice.currency, value: invoice.taxAmount.toFixed(2) }
+          unit_amount: { currency_code: ppCurrency, value: invoice.taxAmount.toFixed(2) }
         }] : []),
         ...(invoice.processingFeeAmount && invoice.processingFeeAmount > 0 ? [{
           name: 'Processing Fee',
           quantity: '1',
-          unit_amount: { currency_code: invoice.currency, value: invoice.processingFeeAmount.toFixed(2) }
+          unit_amount: { currency_code: ppCurrency, value: invoice.processingFeeAmount.toFixed(2) }
         }] : []),
       ],
       ...(invoice.discountAmount && invoice.discountAmount > 0 ? {
@@ -162,7 +177,7 @@ export async function createPaypalInvoice(
           breakdown: {
             discount: {
               invoice_discount: {
-                amount: { currency_code: invoice.currency, value: invoice.discountAmount.toFixed(2) }
+                amount: { currency_code: ppCurrency, value: invoice.discountAmount.toFixed(2) }
               }
             }
           }
