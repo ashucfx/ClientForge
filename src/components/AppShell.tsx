@@ -64,6 +64,14 @@ function IconAnalytics({ size = 16 }: { size?: number }) {
     </svg>
   );
 }
+function IconStar({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
+      <polygon stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+        points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+    </svg>
+  );
+}
 function IconTeam({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
@@ -252,7 +260,7 @@ function SidebarContent({
   const inFinance = ['/invoices', '/analytics'].some(p => pathname.startsWith(p));
   const inCareer  = pathname.startsWith('/career');
   const inGrowth  = pathname.startsWith('/flywheel') || pathname.startsWith('/sales');
-  const inTools   = pathname.startsWith('/bugs') || pathname.startsWith('/referrals') || pathname.startsWith('/team');
+  const inTools   = pathname.startsWith('/bugs') || pathname.startsWith('/referrals') || pathname.startsWith('/team') || pathname.startsWith('/reviews');
   const inRN      = pathname.startsWith('/rn/');
 
   return (
@@ -322,6 +330,8 @@ function SidebarContent({
             active={isActive('/bugs', pathname)} onClick={onNavigate} />
           <NavLink href="/referrals" icon={<IconReferral size={16} />} label="Referrals"
             active={isActive('/referrals', pathname)} onClick={onNavigate} />
+          <NavLink href="/reviews" icon={<IconStar size={16} />} label="Testimonials"
+            active={isActive('/reviews', pathname)} onClick={onNavigate} />
           <NavLink href="/team" icon={<IconTeam size={16} />} label="Team & Access"
             active={isActive('/team', pathname)} onClick={onNavigate} />
         </NavSection>
