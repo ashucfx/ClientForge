@@ -113,3 +113,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ ok: true, comment: updated });
 }
 
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const body      = await req.json().catch(() => null);
+  const commentId = body?.commentId as string | undefined;
+  if (!commentId) return NextResponse.json({ error: 'commentId required' }, { status: 400 });
+
+  const existing = await db.careerComment.findFirst({
+    where: { id: commentId, clientId: params.id },
+  });
+  if (!existing) return NextResponse.json({ error: 'Comment not found' }, { status: 404 });
+
+  const updated = await db.careerComment.update({
+    where: { id: commentId },
+    data:  { isDeleted: true, deletedAt: new Date(), content: '', attachments: undefined },
+  });
+  return NextResponse.json({ ok: true, comment: updated });
+}

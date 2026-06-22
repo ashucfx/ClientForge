@@ -151,3 +151,24 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({ ok: true, comment: updated });
 }
+
+export async function DELETE(req: NextRequest) {
+  const client = await getClient();
+  if (!client) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (client.lifecycleStatus === 'ARCHIVED') return NextResponse.json({ error: 'Project is archived.' }, { status: 403 });
+
+  const body      = await req.json().catch(() => null);
+  const commentId = body?.commentId as string | undefined;
+  if (!commentId) return NextResponse.json({ error: 'commentId required' }, { status: 400 });
+
+  const existing = await db.careerComment.findFirst({
+    where: { id: commentId, clientId: client.id, authorType: 'client' },
+  });
+  if (!existing) return NextResponse.json({ error: 'Comment not found' }, { status: 404 });
+
+  const updated = await db.careerComment.update({
+    where: { id: commentId },
+    data:  { isDeleted: true, deletedAt: new Date(), content: '', attachments: undefined },
+  });
+  return NextResponse.json({ ok: true, comment: updated });
+}

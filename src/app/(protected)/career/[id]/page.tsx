@@ -1738,6 +1738,7 @@ interface CommentItem {
   readByClientAt: string | null;
   createdAt: string;
   editedAt: string | null;
+  isDeleted: boolean;
   isInternalOnly?: boolean;
 }
 
@@ -1761,10 +1762,12 @@ function AttachmentChip({ a, onRemove }: { a: Attachment; onRemove?: () => void 
   );
 }
 
-function MessageBubble({ c, isAdmin, showHeader = true, onEdit }: {
+function MessageBubble({ c, isAdmin, showHeader = true, onEdit, onDelete }: {
   c: CommentItem; isAdmin: boolean; showHeader?: boolean;
   onEdit?: (id: string, currentContent: string) => void;
+  onDelete?: (id: string) => void;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const mine = isAdmin ? c.authorType === 'admin' : c.authorType === 'client';
   const seenAt = mine ? (isAdmin ? c.readByClientAt : c.readByAdminAt) : null;
   const atts = c.attachments ?? [];
@@ -1797,21 +1800,46 @@ function MessageBubble({ c, isAdmin, showHeader = true, onEdit }: {
           </div>
         )}
         {/* Bubble content */}
-        {(c.content || atts.length === 0) && (
+        {c.isDeleted ? (
+          <div className="flex items-center gap-1.5 text-slate-400 italic text-sm">
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
+              <path stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
+            </svg>
+            This message was deleted
+          </div>
+        ) : (c.content || atts.length === 0) && (
           <div className="relative group/msg">
             <div className="text-body text-slate-700 leading-relaxed whitespace-pre-wrap break-words [word-break:break-word]">
               {c.content}
             </div>
-            {mine && onEdit && (
-              <button
-                onClick={() => onEdit(c.id, c.content)}
-                className="absolute -top-1 -right-1 opacity-0 group-hover/msg:opacity-100 transition-opacity p-1 rounded-md bg-white border border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300 shadow-sm"
-                title="Edit message"
-              >
-                <svg width="11" height="11" fill="none" viewBox="0 0 24 24">
-                  <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-              </button>
+            {mine && (onEdit || onDelete) && (
+              <div className="absolute -top-1 -right-1 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5">
+                {onEdit && (
+                  <button onClick={() => onEdit(c.id, c.content)}
+                    className="p-1 rounded-md bg-white border border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300 shadow-sm" title="Edit">
+                    <svg width="11" height="11" fill="none" viewBox="0 0 24 24">
+                      <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                )}
+                {onDelete && !confirmDelete && (
+                  <button onClick={() => setConfirmDelete(true)}
+                    className="p-1 rounded-md bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 shadow-sm" title="Delete">
+                    <svg width="11" height="11" fill="none" viewBox="0 0 24 24">
+                      <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
+            )}
+            {confirmDelete && (
+              <div className="mt-2 flex items-center gap-2 text-xs">
+                <span className="text-red-600 font-medium">Delete for everyone?</span>
+                <button onClick={() => { onDelete?.(c.id); setConfirmDelete(false); }}
+                  className="px-2 py-0.5 bg-red-500 text-white rounded font-bold hover:bg-red-600 transition-colors">Delete</button>
+                <button onClick={() => setConfirmDelete(false)}
+                  className="px-2 py-0.5 text-slate-500 hover:text-slate-800 transition-colors">Cancel</button>
+              </div>
             )}
           </div>
         )}
@@ -1950,6 +1978,18 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
 
   const cancelEdit = () => { setEditingId(null); setEditContent(''); };
 
+  const deleteComment = async (id: string) => {
+    const res = await fetch(`/api/career/admin/clients/${clientId}/comments`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commentId: id }),
+    });
+    if (res.ok) {
+      const d = await res.json() as { comment: CommentItem };
+      setComments(prev => prev.map(c => c.id === id ? d.comment : c));
+    }
+  };
+
   const saveEdit = async () => {
     if (!editingId || !editContent.trim()) return;
     setSaving(true);
@@ -2036,7 +2076,7 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
                 </div>
               );
             }
-            return <MessageBubble key={c.id} c={c} isAdmin={true} showHeader={showHeader} onEdit={startEdit} />;
+            return <MessageBubble key={c.id} c={c} isAdmin={true} showHeader={showHeader} onEdit={startEdit} onDelete={deleteComment} />;
           })
         )}
       </div>

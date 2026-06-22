@@ -397,6 +397,8 @@ model CareerComment {
   annotationPage Int?
   isInternalOnly Boolean   @default(false)
   editedAt       DateTime?
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
   createdAt      DateTime  @default(now())
 
   client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
