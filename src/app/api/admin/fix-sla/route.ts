@@ -19,10 +19,14 @@ export async function POST() {
   const skipped: { id: string; name: string; reason: string }[] = [];
 
   // ── Career Clients ────────────────────────────────────────────────
+  // Catch both: slaDeadline in the past, OR slaDeadline is null (old clients where only expectedDeliveryAt was set)
   const breachedCareer = await db.careerClient.findMany({
     where: {
       status: { notIn: ['COMPLETED'] },
-      slaDeadline: { lte: now },
+      OR: [
+        { slaDeadline: { lte: now } },
+        { slaDeadline: null },
+      ],
     },
     select: {
       id: true,
@@ -65,7 +69,7 @@ export async function POST() {
     fixed.push({
       id: client.id,
       name: client.name,
-      oldDeadline: client.slaDeadline!.toLocaleDateString('en-IN'),
+      oldDeadline: client.slaDeadline ? client.slaDeadline.toLocaleDateString('en-IN') : 'not set',
       newDeadline: newDeadline.toLocaleDateString('en-IN'),
       basis: `${slaDays} working days from form submission on ${startDate.toLocaleDateString('en-IN')}`,
     });
@@ -75,7 +79,10 @@ export async function POST() {
   const breachedRn = await db.rnClient.findMany({
     where: {
       currentStage: { notIn: ['LAUNCHED', 'COMPLETED'] },
-      slaDeadline: { lte: now },
+      OR: [
+        { slaDeadline: { lte: now } },
+        { slaDeadline: null },
+      ],
     },
     select: {
       id: true,
@@ -108,7 +115,7 @@ export async function POST() {
     fixed.push({
       id: client.id,
       name: client.name,
-      oldDeadline: client.slaDeadline!.toLocaleDateString('en-IN'),
+      oldDeadline: client.slaDeadline ? client.slaDeadline.toLocaleDateString('en-IN') : 'not set',
       newDeadline: newDeadline.toLocaleDateString('en-IN'),
       basis: `7 working days from stage entry on ${startDate.toLocaleDateString('en-IN')}`,
     });
