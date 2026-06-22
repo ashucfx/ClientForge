@@ -59,6 +59,18 @@ export default function ReviewsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'published' | 'unpublished'>('all');
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const publicUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/testimonials`
+    : '/testimonials';
+
+  const copyLink = () => {
+    void navigator.clipboard.writeText(publicUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
   const load = useCallback(async () => {
     setLoading(true);
     const res = await fetch('/api/admin/reviews');
@@ -141,6 +153,65 @@ export default function ReviewsPage() {
 
       {/* ── Content ─────────────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto px-6 py-8">
+
+        {/* Share bar */}
+        <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 mb-6 shadow-sm flex-wrap">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-[#B8935B]/10 flex items-center justify-center">
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#B8935B" strokeWidth="2" strokeLinecap="round">
+                <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+              </svg>
+            </span>
+            <span className="text-xs text-slate-400 font-medium flex-shrink-0">Public page:</span>
+            <a
+              href="/testimonials"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-slate-700 font-mono truncate hover:text-[#B8935B] transition-colors"
+            >
+              {publicUrl}
+            </a>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <a
+              href="/testimonials"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+                <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+              Preview
+            </a>
+            <button
+              onClick={copyLink}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                copied
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-[#B8935B] text-white hover:bg-[#9A7540]'
+              }`}
+            >
+              {copied ? (
+                <>
+                  <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                  </svg>
+                  Copy link
+                </>
+              )}
+            </button>
+          </div>
+        </div>
 
         {/* Filter tabs */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
