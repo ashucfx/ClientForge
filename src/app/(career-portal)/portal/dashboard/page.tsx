@@ -60,7 +60,7 @@ interface CommentItem {
   attachments: Attachment[] | null;
   readByAdmin: boolean; readByClient: boolean;
   readByAdminAt: string | null; readByClientAt: string | null;
-  createdAt: string;
+  createdAt: string; editedAt: string | null;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -137,8 +137,43 @@ export default function PortalDashboardPage() {
   const [pendingFiles, setPendingFiles] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [viewingFile, setViewingFile] = useState<DeliverableItem | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const threadRef = useRef<HTMLDivElement>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const fileInputRef  = useRef<HTMLInputElement>(null);
+  const threadRef     = useRef<HTMLDivElement>(null);
+  const composeRef    = useRef<HTMLTextAreaElement>(null);
+  const editRef       = useRef<HTMLTextAreaElement>(null);
+
+  const autoResize = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+  };
+
+  const startEdit = (id: string, content: string) => {
+    setEditingId(id);
+    setEditContent(content);
+    setTimeout(() => { if (editRef.current) { autoResize(editRef.current); editRef.current.focus(); } }, 0);
+  };
+
+  const cancelEdit = () => { setEditingId(null); setEditContent(''); };
+
+  const saveEdit = async () => {
+    if (!editingId || !editContent.trim()) return;
+    setSavingEdit(true);
+    const res = await fetch('/api/career/portal/comments', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commentId: editingId, content: editContent.trim() }),
+    });
+    if (res.ok) {
+      const d = await res.json() as { comment: CommentItem };
+      setComments(prev => prev.map(c => c.id === editingId ? d.comment : c));
+      cancelEdit();
+    }
+    setSavingEdit(false);
+  };
 
   const scrollThread = () => {
     setTimeout(() => {
@@ -710,7 +745,35 @@ export default function PortalDashboardPage() {
               const isSameAuthor = prev && prev.authorType === c.authorType;
               const isCloseInTime = prev && (new Date(c.createdAt).getTime() - new Date(prev.createdAt).getTime() < 5 * 60 * 1000);
               const showHeader = !(isSameAuthor && isCloseInTime);
-              return <PortalMessageBubble key={c.id} c={c} myName={me?.name ?? ''} showHeader={showHeader} />;
+              if (editingId === c.id) {
+                return (
+                  <div key={c.id} className="mt-5 flex gap-3">
+                    <div className="w-10 flex-shrink-0">
+                      <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold bg-slate-200 text-slate-700 shadow-sm">
+                        {me?.name?.[0]?.toUpperCase() ?? 'C'}
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <textarea
+                        ref={editRef}
+                        value={editContent}
+                        onChange={e => { setEditContent(e.target.value); autoResize(e.target); }}
+                        onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { void saveEdit(); } if (e.key === 'Escape') cancelEdit(); }}
+                        className="w-full px-3.5 py-2.5 text-sm border border-[#B8935B] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B]/30 bg-white resize-none leading-relaxed overflow-hidden"
+                        style={{ minHeight: '2.5rem' }}
+                      />
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <button onClick={saveEdit} disabled={savingEdit || !editContent.trim()} className="px-3 py-1 bg-[#B8935B] text-white text-xs font-bold rounded-lg hover:bg-[#9A7540] disabled:opacity-50 transition-colors">
+                          {savingEdit ? 'Saving…' : 'Save'}
+                        </button>
+                        <button onClick={cancelEdit} className="px-3 py-1 text-xs text-slate-500 hover:text-slate-800 transition-colors">Cancel</button>
+                        <span className="text-[10px] text-slate-300">Ctrl+Enter · Esc to cancel</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              return <PortalMessageBubble key={c.id} c={c} myName={me?.name ?? ''} showHeader={showHeader} onEdit={startEdit} />;
             })}
           </div>
 
@@ -732,13 +795,15 @@ export default function PortalDashboardPage() {
             <form onSubmit={postComment} className="border-t border-slate-100 pt-4">
               <div className="flex gap-2 items-end">
                 <textarea
+                  ref={composeRef}
                   value={newComment}
-                  onChange={e => setNewComment(e.target.value)}
+                  onChange={e => { setNewComment(e.target.value); autoResize(e.target); }}
                   onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void postComment(e as unknown as React.FormEvent); } }}
                   placeholder="Type a message for the team… (Ctrl+Enter to send)"
                   maxLength={4000}
                   rows={2}
-                  className="flex-1 px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 hover:bg-white transition-colors resize-none"
+                  className="flex-1 px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 hover:bg-white transition-colors resize-none overflow-hidden"
+                  style={{ minHeight: '2.5rem' }}
                 />
                 <div className="flex flex-col gap-1.5 flex-shrink-0">
                   <button
@@ -849,7 +914,10 @@ function PortalAttachmentChip({ att, onRemove }: { att: Attachment; onRemove?: (
   );
 }
 
-function PortalMessageBubble({ c, myName, showHeader = true }: { c: CommentItem; myName: string; showHeader?: boolean }) {
+function PortalMessageBubble({ c, myName, showHeader = true, onEdit }: {
+  c: CommentItem; myName: string; showHeader?: boolean;
+  onEdit?: (id: string, content: string) => void;
+}) {
   const isClient = c.authorType === 'client';
   const atts = c.attachments ?? [];
   const authorName = isClient ? myName : 'Catalyst Team';
@@ -878,13 +946,27 @@ function PortalMessageBubble({ c, myName, showHeader = true }: { c: CommentItem;
           <div className="flex items-baseline gap-2 mb-1">
             <span className="font-bold text-slate-900">{authorName}</span>
             <span className="text-xs font-medium text-slate-400">{fmtTime(c.createdAt)}</span>
+            {c.editedAt && <span className="text-[10px] text-slate-400 italic">(edited)</span>}
           </div>
         )}
 
         {/* Bubble Content */}
         {c.content && (
-          <div className="text-body text-slate-700 leading-relaxed whitespace-pre-wrap break-words [word-break:break-word]">
-            {c.content}
+          <div className="relative group/msg">
+            <div className="text-body text-slate-700 leading-relaxed whitespace-pre-wrap break-words [word-break:break-word]">
+              {c.content}
+            </div>
+            {isClient && onEdit && (
+              <button
+                onClick={() => onEdit(c.id, c.content)}
+                className="absolute -top-1 -right-1 opacity-0 group-hover/msg:opacity-100 transition-opacity p-1 rounded-md bg-white border border-slate-200 text-slate-400 hover:text-slate-700 shadow-sm"
+                title="Edit message"
+              >
+                <svg width="11" height="11" fill="none" viewBox="0 0 24 24">
+                  <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+            )}
           </div>
         )}
 

@@ -126,3 +126,28 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true, comment }, { status: 201 });
 }
+
+export async function PATCH(req: NextRequest) {
+  const client = await getClient();
+  if (!client) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (client.lifecycleStatus === 'ARCHIVED') return NextResponse.json({ error: 'Project is archived.' }, { status: 403 });
+
+  const body      = await req.json().catch(() => null);
+  const commentId = body?.commentId as string | undefined;
+  const content   = (body?.content as string | undefined)?.trim();
+
+  if (!commentId || !content) return NextResponse.json({ error: 'commentId and content required' }, { status: 400 });
+  if (content.length > 4000) return NextResponse.json({ error: 'Message too long (max 4000 chars).' }, { status: 400 });
+
+  const existing = await db.careerComment.findFirst({
+    where: { id: commentId, clientId: client.id, authorType: 'client' },
+  });
+  if (!existing) return NextResponse.json({ error: 'Comment not found' }, { status: 404 });
+
+  const updated = await db.careerComment.update({
+    where: { id: commentId },
+    data:  { content, editedAt: new Date() },
+  });
+
+  return NextResponse.json({ ok: true, comment: updated });
+}

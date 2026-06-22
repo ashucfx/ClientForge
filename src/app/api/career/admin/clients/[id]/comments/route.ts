@@ -90,3 +90,26 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json({ ok: true, comment }, { status: 201 });
 }
 
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const body      = await req.json().catch(() => null);
+  const commentId = body?.commentId as string | undefined;
+  const content   = (body?.content as string | undefined)?.trim();
+
+  if (!commentId || !content) return NextResponse.json({ error: 'commentId and content required' }, { status: 400 });
+  if (content.length > 4000) return NextResponse.json({ error: 'Message too long (max 4000 chars).' }, { status: 400 });
+
+  const existing = await db.careerComment.findFirst({
+    where: { id: commentId, clientId: params.id, authorType: 'admin' },
+  });
+  if (!existing) return NextResponse.json({ error: 'Comment not found' }, { status: 404 });
+
+  const updated = await db.careerComment.update({
+    where: { id: commentId },
+    data:  { content, editedAt: new Date() },
+  });
+
+  return NextResponse.json({ ok: true, comment: updated });
+}
+

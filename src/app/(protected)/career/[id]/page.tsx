@@ -1737,6 +1737,7 @@ interface CommentItem {
   readByAdminAt: string | null;
   readByClientAt: string | null;
   createdAt: string;
+  editedAt: string | null;
   isInternalOnly?: boolean;
 }
 
@@ -1760,7 +1761,10 @@ function AttachmentChip({ a, onRemove }: { a: Attachment; onRemove?: () => void 
   );
 }
 
-function MessageBubble({ c, isAdmin, showHeader = true }: { c: CommentItem; isAdmin: boolean; showHeader?: boolean }) {
+function MessageBubble({ c, isAdmin, showHeader = true, onEdit }: {
+  c: CommentItem; isAdmin: boolean; showHeader?: boolean;
+  onEdit?: (id: string, currentContent: string) => void;
+}) {
   const mine = isAdmin ? c.authorType === 'admin' : c.authorType === 'client';
   const seenAt = mine ? (isAdmin ? c.readByClientAt : c.readByAdminAt) : null;
   const atts = c.attachments ?? [];
@@ -1789,12 +1793,26 @@ function MessageBubble({ c, isAdmin, showHeader = true }: { c: CommentItem; isAd
             <span className="font-bold text-slate-900">{c.authorType === 'admin' ? 'Catalyst Team' : c.authorName}</span>
             <span className="text-xs font-medium text-slate-400">{fmt(c.createdAt, true)}</span>
             {c.isInternalOnly && <span className="text-[10px] font-bold text-yellow-600 bg-yellow-100 px-1.5 py-0.5 rounded ml-2">INTERNAL</span>}
+            {c.editedAt && <span className="text-[10px] text-slate-400 italic">(edited)</span>}
           </div>
         )}
         {/* Bubble content */}
         {(c.content || atts.length === 0) && (
-          <div className="text-body text-slate-700 leading-relaxed whitespace-pre-wrap break-words [word-break:break-word]">
-            {c.content}
+          <div className="relative group/msg">
+            <div className="text-body text-slate-700 leading-relaxed whitespace-pre-wrap break-words [word-break:break-word]">
+              {c.content}
+            </div>
+            {mine && onEdit && (
+              <button
+                onClick={() => onEdit(c.id, c.content)}
+                className="absolute -top-1 -right-1 opacity-0 group-hover/msg:opacity-100 transition-opacity p-1 rounded-md bg-white border border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300 shadow-sm"
+                title="Edit message"
+              >
+                <svg width="11" height="11" fill="none" viewBox="0 0 24 24">
+                  <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+            )}
           </div>
         )}
         {/* Attachments */}
@@ -1852,8 +1870,13 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
   const [pendingFiles, setPendingFiles] = useState<Attachment[]>([]);
   const [uploading,    setUploading]    = useState(false);
   const [isInternalOnly, setIsInternalOnly] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const threadRef    = useRef<HTMLDivElement>(null);
+  const [editingId,    setEditingId]    = useState<string | null>(null);
+  const [editContent,  setEditContent]  = useState('');
+  const [saving,       setSaving]       = useState(false);
+  const fileInputRef  = useRef<HTMLInputElement>(null);
+  const threadRef     = useRef<HTMLDivElement>(null);
+  const replyRef      = useRef<HTMLTextAreaElement>(null);
+  const editRef       = useRef<HTMLTextAreaElement>(null);
 
   const load = () => {
     fetch(`/api/career/admin/clients/${clientId}/comments`)
@@ -1913,6 +1936,36 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
     setPosting(false);
   };
 
+  const autoResize = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+  };
+
+  const startEdit = (id: string, content: string) => {
+    setEditingId(id);
+    setEditContent(content);
+    setTimeout(() => { if (editRef.current) { autoResize(editRef.current); editRef.current.focus(); } }, 0);
+  };
+
+  const cancelEdit = () => { setEditingId(null); setEditContent(''); };
+
+  const saveEdit = async () => {
+    if (!editingId || !editContent.trim()) return;
+    setSaving(true);
+    const res = await fetch(`/api/career/admin/clients/${clientId}/comments`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commentId: editingId, content: editContent.trim() }),
+    });
+    if (res.ok) {
+      const d = await res.json() as { comment: CommentItem };
+      setComments(prev => prev.map(c => c.id === editingId ? d.comment : c));
+      cancelEdit();
+    }
+    setSaving(false);
+  };
+
   const unreadCount = comments.filter(c => c.authorType === 'client' && !c.readByAdmin).length;
 
   return (
@@ -1957,7 +2010,33 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
             const isSameAuthor = prev && prev.authorType === c.authorType && prev.authorName === c.authorName && prev.isInternalOnly === c.isInternalOnly;
             const isCloseInTime = prev && (new Date(c.createdAt).getTime() - new Date(prev.createdAt).getTime() < 5 * 60 * 1000);
             const showHeader = !(isSameAuthor && isCloseInTime);
-            return <MessageBubble key={c.id} c={c} isAdmin={true} showHeader={showHeader} />;
+            if (editingId === c.id) {
+              return (
+                <div key={c.id} className="mt-5 flex gap-4">
+                  <div className="w-10 flex-shrink-0">
+                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold bg-[#B8935B] text-white shadow-sm">C</div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <textarea
+                      ref={editRef}
+                      value={editContent}
+                      onChange={e => { setEditContent(e.target.value); autoResize(e.target); }}
+                      onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { void saveEdit(); } if (e.key === 'Escape') cancelEdit(); }}
+                      className="w-full px-3.5 py-2.5 text-sm border border-[#B8935B] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B]/30 bg-white resize-none leading-relaxed overflow-hidden"
+                      style={{ minHeight: '2.5rem' }}
+                    />
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <button onClick={saveEdit} disabled={saving || !editContent.trim()} className="px-3 py-1 bg-[#B8935B] text-white text-xs font-bold rounded-lg hover:bg-[#9A7540] disabled:opacity-50 transition-colors">
+                        {saving ? 'Saving…' : 'Save'}
+                      </button>
+                      <button onClick={cancelEdit} className="px-3 py-1 text-xs text-slate-500 hover:text-slate-800 transition-colors">Cancel</button>
+                      <span className="text-[10px] text-slate-300">Ctrl+Enter to save · Esc to cancel</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            return <MessageBubble key={c.id} c={c} isAdmin={true} showHeader={showHeader} onEdit={startEdit} />;
           })
         )}
       </div>
@@ -1976,12 +2055,14 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
         {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
         <form onSubmit={postReply} className="flex flex-col gap-2">
           <textarea
+            ref={replyRef}
             value={reply}
-            onChange={e => setReply(e.target.value)}
+            onChange={e => { setReply(e.target.value); autoResize(e.target); }}
             onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { void postReply(e as unknown as React.FormEvent); } }}
             placeholder={`Message ${clientName}… (Ctrl+Enter to send)`}
-            rows={3}
-            className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 resize-none leading-relaxed"
+            rows={2}
+            className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 resize-none leading-relaxed overflow-hidden"
+            style={{ minHeight: '2.5rem' }}
           />
           <div className="flex items-center justify-between gap-2">
             {/* Attach button */}
