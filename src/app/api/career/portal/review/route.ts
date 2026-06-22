@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       title: '🌟 New Testimonial Submitted',
       message: `A client submitted a new testimonial. Pending approval.`,
       type: 'SUCCESS',
-      link: '/admin/reviews'
+      link: '/reviews'
     });
   }
 
