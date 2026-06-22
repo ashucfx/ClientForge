@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { notifyAllAdmins } from '@/lib/notifications';
+import { sendCareerEmail } from '@/lib/career/email';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,13 +17,14 @@ export async function GET(request: Request) {
     const now = new Date();
     const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
 
+    const portalUrl = process.env.NEXT_PUBLIC_APP_URL
+      ? `${process.env.NEXT_PUBLIC_APP_URL}/portal/dashboard`
+      : 'https://catalyst.theripplenexus.com/portal/dashboard';
+
     // 1. Career Clients SLA checks
     const upcomingCareer = await prisma.careerClient.findMany({
       where: {
-        slaDeadline: {
-          lte: threeDaysFromNow,
-          gt: now
-        },
+        slaDeadline: { lte: threeDaysFromNow, gt: now },
         slaStatus: { not: 'COMPLETED' },
         status: { notIn: ['COMPLETED'] }
       },
@@ -35,6 +37,18 @@ export async function GET(request: Request) {
         type: 'WARNING',
         link: `/career/${client.id}`
       });
+      // Notify client as well
+      await sendCareerEmail({
+        to: client.email,
+        trigger: 'MESSAGE_NOTIFY',
+        data: {
+          recipientName: client.name,
+          senderType: 'admin',
+          subject: 'Catalyst — Your delivery is almost ready',
+          portalUrl,
+          body: `Your project is on track! We're working hard to deliver by your deadline on **${client.slaDeadline?.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}**. You'll receive your deliverables very soon.`,
+        },
+      }).catch(console.error);
     }
 
     const breachedCareer = await prisma.careerClient.findMany({

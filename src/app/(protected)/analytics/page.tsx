@@ -124,8 +124,8 @@ export default function AnalyticsDashboard() {
     <AppShell>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Executive Command Center</h1>
-          <p className="text-slate-500 mt-1">Real-time business intelligence and operational alerts</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Business Analytics</h1>
+          <p className="text-slate-500 mt-1">A snapshot of revenue, active clients, delivery performance, and team health — refreshes on every page load.</p>
         </div>
 
         {loading ? (
@@ -149,7 +149,7 @@ export default function AnalyticsDashboard() {
                   )}
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-slate-500 mb-1">Total Revenue (Global LTV)</div>
+                  <div className="text-sm font-medium text-slate-500 mb-1">Total Revenue — All Time</div>
                   <div className="text-3xl font-bold tracking-tight mb-1 text-blue-600">
                     ₹{execData?.revenue?.value != null ? Number(execData.revenue.value).toLocaleString('en-IN') : '—'}
                   </div>
@@ -179,32 +179,32 @@ export default function AnalyticsDashboard() {
                   </div>
                 </div>
               </div>
-              <KpiCard 
-                label="Active Clients" 
-                value={execData?.activeClients?.value || 0} 
+              <KpiCard
+                label="Active Clients"
+                value={execData?.activeClients?.value || 0}
                 trendPct={execData?.activeClients?.trendPct}
                 trendDirection={execData?.activeClients?.trendDirection}
-                context={execData?.activeClients?.context}
-                icon={<IconUser className="text-emerald-600" />} 
-                bg="#d1fae5" 
+                context="Clients currently in progress"
+                icon={<IconUser className="text-emerald-600" />}
+                bg="#d1fae5"
               />
-              <KpiCard 
-                label="Net Promoter Score" 
-                value={execData?.satisfaction?.value !== null ? execData?.satisfaction?.value : 'Insufficient Data'} 
+              <KpiCard
+                label="NPS — Client Satisfaction"
+                value={execData?.satisfaction?.value !== null ? execData?.satisfaction?.value : 'Insufficient Data'}
                 trendPct={execData?.satisfaction?.trendPct}
                 trendDirection={execData?.satisfaction?.trendDirection}
-                context={execData?.satisfaction?.context}
-                icon={<span className="text-violet-600 font-bold text-lg">NPS</span>} 
-                bg="#ede9fe" 
+                context="Net Promoter Score: −100 to +100. Above 50 = excellent"
+                icon={<span className="text-violet-600 font-bold text-lg">NPS</span>}
+                bg="#ede9fe"
               />
-              <KpiCard 
-                label="Pipeline Value" 
-                value={execData?.pipeline?.value?.toLocaleString()} 
+              <KpiCard
+                label="Sales Pipeline Value"
+                value={execData?.pipeline?.value?.toLocaleString()}
                 trendPct={execData?.pipeline?.trendPct}
                 trendDirection={execData?.pipeline?.trendDirection}
-                context={execData?.pipeline?.context}
-                icon={<IconTrendUp className="text-amber-600" />} 
-                bg="#fef3c7" 
+                context="Estimated revenue from leads currently in pipeline"
+                icon={<IconTrendUp className="text-amber-600" />}
+                bg="#fef3c7"
               />
             </div>
 
@@ -212,7 +212,10 @@ export default function AnalyticsDashboard() {
             <div className="card border-l-4 border-l-rose-500 shadow-sm p-0 overflow-hidden">
               <div className="bg-rose-50 px-5 py-4 border-b border-rose-100 flex items-center gap-3">
                 <IconAlert className="text-rose-600" />
-                <h2 className="text-rose-900 font-semibold">Action Required</h2>
+                <div>
+                  <h2 className="text-rose-900 font-semibold">Action Required</h2>
+                  <p className="text-xs text-rose-600 mt-0.5">Items that need your immediate attention right now</p>
+                </div>
               </div>
               <div className="p-5">
                 {(!opsData?.alerts?.nearSlaBreach && !opsData?.alerts?.unreadMessages24h && !opsData?.alerts?.negativeFeedback && !opsData?.alerts?.atRiskClients) ? (
@@ -224,27 +227,39 @@ export default function AnalyticsDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                     {opsData?.alerts?.nearSlaBreach > 0 && (
-                      <div className="flex items-center gap-3 text-slate-700 bg-rose-50 px-4 py-3 rounded-lg border border-rose-100">
-                        <span className="text-rose-600 font-bold text-xl">⚠</span>
-                        <span className="font-medium">{opsData.alerts.nearSlaBreach} Projects Near SLA Breach</span>
+                      <div className="flex items-start gap-3 text-slate-700 bg-rose-50 px-4 py-3 rounded-lg border border-rose-100">
+                        <span className="text-rose-600 font-bold text-xl mt-0.5">⚠</span>
+                        <div>
+                          <p className="font-semibold">{opsData.alerts.nearSlaBreach} project{opsData.alerts.nearSlaBreach > 1 ? 's' : ''} approaching delivery deadline</p>
+                          <p className="text-xs text-rose-600 mt-0.5">SLA deadline within the next 3 working days — review and prioritise these clients</p>
+                        </div>
                       </div>
                     )}
                     {opsData?.alerts?.unreadMessages24h > 0 && (
-                      <div className="flex items-center gap-3 text-slate-700 bg-orange-50 px-4 py-3 rounded-lg border border-orange-100">
-                        <span className="text-orange-600 font-bold text-xl">⚠</span>
-                        <span className="font-medium">{opsData.alerts.unreadMessages24h} Clients waiting &gt; 24 hours for a response</span>
+                      <div className="flex items-start gap-3 text-slate-700 bg-orange-50 px-4 py-3 rounded-lg border border-orange-100">
+                        <span className="text-orange-600 font-bold text-xl mt-0.5">⚠</span>
+                        <div>
+                          <p className="font-semibold">{opsData.alerts.unreadMessages24h} client{opsData.alerts.unreadMessages24h > 1 ? 's' : ''} waiting more than 24 hours for a reply</p>
+                          <p className="text-xs text-orange-600 mt-0.5">Unanswered messages hurt satisfaction scores — respond before the 48-hour mark</p>
+                        </div>
                       </div>
                     )}
                     {opsData?.alerts?.negativeFeedback > 0 && (
-                      <div className="flex items-center gap-3 text-slate-700 bg-rose-50 px-4 py-3 rounded-lg border border-rose-100">
-                        <span className="text-rose-600 font-bold text-xl">⚠</span>
-                        <span className="font-medium">{opsData.alerts.negativeFeedback} Negative Feedbacks require review</span>
+                      <div className="flex items-start gap-3 text-slate-700 bg-rose-50 px-4 py-3 rounded-lg border border-rose-100">
+                        <span className="text-rose-600 font-bold text-xl mt-0.5">⚠</span>
+                        <div>
+                          <p className="font-semibold">{opsData.alerts.negativeFeedback} low-rating feedback submission{opsData.alerts.negativeFeedback > 1 ? 's' : ''} received</p>
+                          <p className="text-xs text-rose-600 mt-0.5">Clients rated their experience 2/5 or below — follow up personally</p>
+                        </div>
                       </div>
                     )}
                     {opsData?.alerts?.atRiskClients > 0 && (
-                      <div className="flex items-center gap-3 text-slate-700 bg-rose-50 px-4 py-3 rounded-lg border border-rose-100">
-                        <span className="text-rose-600 font-bold text-xl">⚠</span>
-                        <span className="font-medium">{opsData.alerts.atRiskClients} Clients At Risk (Health &lt; 50)</span>
+                      <div className="flex items-start gap-3 text-slate-700 bg-rose-50 px-4 py-3 rounded-lg border border-rose-100">
+                        <span className="text-rose-600 font-bold text-xl mt-0.5">⚠</span>
+                        <div>
+                          <p className="font-semibold">{opsData.alerts.atRiskClients} client{opsData.alerts.atRiskClients > 1 ? 's' : ''} flagged as at-risk</p>
+                          <p className="text-xs text-rose-600 mt-0.5">Health score below 50 — signs of disengagement, overdue revision, or poor communication</p>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -256,40 +271,51 @@ export default function AnalyticsDashboard() {
               
               {/* SECTION 3 - DELIVERY PERFORMANCE */}
               <div className="card p-6">
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-1">
                   <h3 className="text-lg font-bold text-slate-900">Delivery Performance</h3>
                   <IconDocument className="text-slate-400" />
                 </div>
-                
+                <p className="text-xs text-slate-400 mb-6">How reliably you deliver work within the committed timeframe. SLA = Service Level Agreement — the deadline promised to each client (weekends &amp; public holidays excluded).</p>
+
                 <div className="space-y-6">
                   <div>
                     <div className="flex justify-between text-sm mb-2">
-                      <span className="text-slate-500 font-medium">SLA Compliance %</span>
-                      <span className="font-bold text-slate-900">{slaData?.current?.slaMetPercentage ?? slaData?.lifetime?.slaMetPercentage ?? 100}%</span>
+                      <div>
+                        <span className="text-slate-700 font-semibold">On-Time Delivery Rate</span>
+                        <p className="text-xs text-slate-400 mt-0.5">% of completed projects delivered by their SLA deadline</p>
+                      </div>
+                      <span className="font-bold text-slate-900 text-xl">{slaData?.current?.slaMetPercentage ?? slaData?.lifetime?.slaMetPercentage ?? 100}%</span>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                      <div className="bg-emerald-500 h-2.5 rounded-full" style={{ width: `${slaData?.current?.slaMetPercentage ?? slaData?.lifetime?.slaMetPercentage ?? 100}%` }}></div>
+                      <div
+                        className={`h-2.5 rounded-full ${(slaData?.current?.slaMetPercentage ?? 100) >= 90 ? 'bg-emerald-500' : (slaData?.current?.slaMetPercentage ?? 100) >= 70 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                        style={{ width: `${slaData?.current?.slaMetPercentage ?? slaData?.lifetime?.slaMetPercentage ?? 100}%` }}
+                      />
                     </div>
-                    {slaData?.trends?.slaMetTrend !== undefined && (
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="text-xs text-slate-400">Current Period</span>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-xs text-slate-400">Last 30 days · 90%+ is target</span>
+                      {slaData?.trends?.slaMetTrend !== undefined && (
                         <TrendIndicator trendPct={slaData.trends.slaMetTrend} trendDirection={slaData.trends.slaMetTrend >= 0 ? 'up' : 'down'} />
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
                     <div>
-                      <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Avg Delivery Time</div>
+                      <div className="text-xs text-slate-500 font-semibold mb-1">Avg Time to Deliver</div>
                       <div className="text-2xl font-bold text-slate-900">
-                        {slaData?.current?.averageDeliveryTimeDays ?? slaData?.lifetime?.averageDeliveryTimeDays ?? 0} <span className="text-sm font-normal text-slate-500">days</span>
+                        {slaData?.current?.averageDeliveryTimeDays ?? slaData?.lifetime?.averageDeliveryTimeDays ?? 0}
+                        <span className="text-sm font-normal text-slate-500 ml-1">days</span>
                       </div>
+                      <p className="text-xs text-slate-400 mt-1">Calendar days from onboarding to completion</p>
                     </div>
                     <div>
-                      <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Avg Revision Count</div>
+                      <div className="text-xs text-slate-500 font-semibold mb-1">Avg Revisions per Client</div>
                       <div className="text-2xl font-bold text-slate-900">
-                        {slaData?.revisionRate ?? 0} <span className="text-sm font-normal text-slate-500">per client</span>
+                        {slaData?.revisionRate ?? 0}
+                        <span className="text-sm font-normal text-slate-500 ml-1">rounds</span>
                       </div>
+                      <p className="text-xs text-slate-400 mt-1">Lower = clearer brief &amp; stronger first drafts</p>
                     </div>
                   </div>
                 </div>
@@ -297,10 +323,11 @@ export default function AnalyticsDashboard() {
 
               {/* SECTION 4 - CLIENT HEALTH CENTER */}
               <div className="card p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-bold text-slate-900">Client Health Center</h3>
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-lg font-bold text-slate-900">Client Health Overview</h3>
                   <IconUser className="text-slate-400" />
                 </div>
+                <p className="text-xs text-slate-400 mb-6">Each active client gets an automated health score (0–100) based on satisfaction rating, response speed, and revision risk. Healthy ≥ 70 · Attention 50–69 · At Risk &lt; 50.</p>
                 
                 {opsData?.health?.totalTracked === 0 ? (
                   <div className="py-8 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
@@ -342,10 +369,11 @@ export default function AnalyticsDashboard() {
 
               {/* SECTION 5 - CUSTOMER SATISFACTION CENTER */}
               <div className="card p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-bold text-slate-900">Satisfaction Intelligence</h3>
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-lg font-bold text-slate-900">Client Satisfaction</h3>
                   <span className="text-xl">⭐</span>
                 </div>
+                <p className="text-xs text-slate-400 mb-6">Collected from the post-project feedback form. NPS measures how likely clients are to recommend you (−100 to +100). Avg Rating is the overall service score (1–5).</p>
                 
                 {satData?.lifetime?.totalResponses === 0 && satData?.lifetime?.reviewsCount === 0 ? (
                   <div className="py-8 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
@@ -396,16 +424,17 @@ export default function AnalyticsDashboard() {
 
               {/* SECTION 8 - COMMUNICATION INTELLIGENCE */}
               <div className="card p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-bold text-slate-900">Communication Intelligence</h3>
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-lg font-bold text-slate-900">Response &amp; Communication</h3>
                   <IconMail className="text-slate-400" />
                 </div>
+                <p className="text-xs text-slate-400 mb-6">Tracks how quickly you respond to client messages. Target: reply within 24 hours. Clients waiting over 48 hours are at high churn risk.</p>
                 
                 <div className="space-y-6">
                   <div className="flex items-center justify-between bg-blue-50 text-blue-900 p-4 rounded-lg">
                     <div>
                       <div className="font-bold text-2xl">{opsData?.communications?.communicationSlaCompliance}%</div>
-                      <div className="text-sm text-blue-700">Communication SLA Compliance</div>
+                      <div className="text-sm text-blue-700">Replied within 24 hrs (compliance)</div>
                     </div>
                     <div className="text-right">
                       <div className="font-bold text-xl">{opsData?.communications?.totalUnreadMessages}</div>
@@ -434,14 +463,15 @@ export default function AnalyticsDashboard() {
 
               {/* SECTION 6 - REVENUE INTELLIGENCE */}
               <div className="card p-6 lg:col-span-2">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-bold text-slate-900">Revenue Intelligence</h3>
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-lg font-bold text-slate-900">Revenue Breakdown</h3>
                   <IconTrendUp className="text-slate-400" />
                 </div>
+                <p className="text-xs text-slate-400 mb-6">All amounts are in ₹ INR equivalent (foreign currency invoices are converted at approximate rates). &ldquo;Repeat Revenue&rdquo; is revenue from clients who purchased more than once.</p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                    <div className="text-xs text-blue-700 uppercase tracking-wider mb-1">Total Lifetime Revenue</div>
+                    <div className="text-xs text-blue-700 uppercase tracking-wider mb-1">All-Time Revenue</div>
                     <div className="text-2xl font-bold text-blue-900">{formatCurrency(execData?.revenue?.lifetimeValue || 0, '₹')}</div>
                     {execData?.revenue?.externalRevenue > 0 && (
                       <div className="text-xs text-blue-600 mt-1">incl. ₹{Number(execData.revenue.externalRevenue).toLocaleString('en-IN')} external</div>
@@ -512,10 +542,11 @@ export default function AnalyticsDashboard() {
               {/* SECTION 7 - LIFECYCLE INTELLIGENCE (Only renders if archived clients > 0) */}
               {lifeData?.totalArchived > 0 ? (
                 <div className="card p-6 lg:col-span-2">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-bold text-slate-900">Lifecycle & Retention Intelligence</h3>
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-lg font-bold text-slate-900">Client Lifecycle &amp; Retention</h3>
                     <IconFolder className="text-slate-400" />
                   </div>
+                  <p className="text-xs text-slate-400 mb-6">Tracks completed (archived) clients. &ldquo;Reactivated&rdquo; means a past client came back for another service. Repeat Revenue = total collected from returning clients.</p>
                   
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">

@@ -9,6 +9,7 @@ import { generateMagicToken, magicTokenExpiry } from './auth';
 import { sendCareerEmail } from './email';
 import { derivePackageLabel } from '@/lib/email';
 import { syncCareerClientToFlywheel } from '@/lib/career/sync';
+import { addWorkingDays } from '@/lib/workingDays';
 import type { CareerServiceSlug } from './types';
 import type { LineItem } from '@/types';
 import { parseInvoiceLineItems } from '@/lib/invoiceLineItems';
@@ -120,11 +121,11 @@ export async function onboardFromInvoice(invoice: {
       if (newSlugs.includes('FULL_PACKAGE')) slaExtensionDays = Math.max(slaExtensionDays, 7);
 
       const newSlaDeadline = existingClient.slaDeadline && slaExtensionDays > 0
-        ? new Date(existingClient.slaDeadline.getTime() + slaExtensionDays * 24 * 60 * 60 * 1000)
+        ? addWorkingDays(existingClient.slaDeadline, slaExtensionDays)
         : existingClient.slaDeadline;
 
       const newExpectedDelivery = existingClient.expectedDeliveryAt && slaExtensionDays > 0
-        ? new Date(existingClient.expectedDeliveryAt.getTime() + slaExtensionDays * 24 * 60 * 60 * 1000)
+        ? addWorkingDays(existingClient.expectedDeliveryAt, slaExtensionDays)
         : existingClient.expectedDeliveryAt;
 
       await tx.careerClient.update({

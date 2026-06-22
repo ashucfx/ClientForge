@@ -10,22 +10,10 @@ import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
 import { getFormsForServices, PACKAGE_FORMS, normalizeFormType, legacyAliasesFor } from '@/lib/career/types';
 import type { FormType, CareerServiceSlug } from '@/lib/career/types';
+import { addWorkingDays, slaForSlugs } from '@/lib/workingDays';
 import { waitUntil } from '@vercel/functions';
 
-
 const VALID_FORM_TYPES: FormType[] = ['career_profile', 'linkedin_profile', 'portfolio_website'];
-
-/** Add N business days (Mon-Fri) to a date */
-function addBusinessDays(from: Date, days: number): Date {
-  const d = new Date(from);
-  let added = 0;
-  while (added < days) {
-    d.setDate(d.getDate() + 1);
-    const dow = d.getDay();
-    if (dow !== 0 && dow !== 6) added++; // skip Sat(6) and Sun(0)
-  }
-  return d;
-}
 
 const FORM_LABELS: Record<FormType, string> = {
   career_profile:    'Career Profile Strategy Brief',
@@ -66,7 +54,7 @@ export async function POST(req: NextRequest, { params }: { params: { type: strin
     where: { id: payload.clientId },
     select: {
       id: true, name: true, email: true, packageType: true,
-      expectedDeliveryAt: true,
+      expectedDeliveryAt: true, slaDeadline: true,
       lifecycleStatus: true,
       services: { select: { service: { select: { slug: true } } } },
     },
@@ -127,22 +115,22 @@ export async function POST(req: NextRequest, { params }: { params: { type: strin
     data: { clientId: client.id, formType, formData: body, version: nextVersion },
   });
 
-  // Set expectedDeliveryAt (5 business days) if this is the first form they are submitting
-  const shouldSetDeliveryDate = !client.expectedDeliveryAt;
+  // SLA: recalculate on every form submit (first submit sets it; re-submissions push it
+  // forward from the new submission date, since the work clock restarts on revised inputs).
+  const slugs = client.services.map(s => s.service.slug);
+  const slaDays = slaForSlugs(slugs);
+  const newDeadline = addWorkingDays(new Date(), slaDays);
+  const isFirstSubmission = !client.expectedDeliveryAt;
 
   await db.careerClient.updateMany({
     where: { id: client.id, status: 'NOT_STARTED' },
-    data: {
-      status: 'SUBMITTED',
-    },
+    data: { status: 'SUBMITTED' },
   });
 
-  if (shouldSetDeliveryDate) {
-    await db.careerClient.update({
-      where: { id: client.id },
-      data: { expectedDeliveryAt: addBusinessDays(new Date(), 5) },
-    });
-  }
+  await db.careerClient.update({
+    where: { id: client.id },
+    data: { expectedDeliveryAt: newDeadline, slaDeadline: newDeadline },
+  });
 
   await db.careerActivityLog.create({
     data: {
@@ -153,8 +141,13 @@ export async function POST(req: NextRequest, { params }: { params: { type: strin
     },
   });
 
-  waitUntil(
-    sendCareerEmail({
+  const deliveryDateStr = newDeadline.toLocaleDateString('en-IN', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  });
+
+  waitUntil((async () => {
+    // Form confirmation email
+    await sendCareerEmail({
       to: client.email,
       trigger: 'FORM_CONFIRM',
       data: { name: client.name, formLabel: FORM_LABELS[formType] },
@@ -162,8 +155,23 @@ export async function POST(req: NextRequest, { params }: { params: { type: strin
       await db.careerEmailLog.create({
         data: { clientId: client.id, trigger: 'FORM_CONFIRM', resendId, status: 'sent' },
       });
-    }).catch(console.error)
-  );
+    }).catch(console.error);
+
+    // SLA notification — only on first submission (re-submissions don't need a new email)
+    if (isFirstSubmission) {
+      await sendCareerEmail({
+        to: client.email,
+        trigger: 'MESSAGE_NOTIFY',
+        data: {
+          recipientName: client.name,
+          senderType: 'admin',
+          subject: 'Catalyst — Your expected delivery date',
+          portalUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/portal/dashboard`,
+          body: `Your brief has been received! Our team will deliver your work by **${deliveryDateStr}** (${slaDays} working days, excluding weekends and public holidays). You'll hear from us as soon as your first draft is ready.`,
+        },
+      }).catch(console.error);
+    }
+  })());
 
   return NextResponse.json({ ok: true, submissionId: submission.id, version: nextVersion });
 }
