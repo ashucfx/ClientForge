@@ -92,13 +92,14 @@ export async function getExchangeRate(baseCurrency: string, targetCurrency: stri
   try {
     // Primary: ExchangeRate-API (free tier: 1500 calls/month)
     const apiKey = process.env.EXCHANGE_RATE_API_KEY;
-    
+    const timeout = AbortSignal.timeout(5000);
+
     let rate: number;
 
     if (apiKey) {
       const res = await fetch(
         `https://v6.exchangerate-api.com/v6/${apiKey}/pair/${baseCurrency}/${targetCurrency}`,
-        { next: { revalidate: CACHE_TTL_HOURS * 3600 } }
+        { next: { revalidate: CACHE_TTL_HOURS * 3600 }, signal: timeout }
       );
       const data = await res.json();
       if (data.result === 'success') {
@@ -110,7 +111,7 @@ export async function getExchangeRate(baseCurrency: string, targetCurrency: stri
       // Fallback: Open Exchange Rates (no key needed for some endpoints)
       const res = await fetch(
         `https://open.er-api.com/v6/latest/${baseCurrency}`,
-        { next: { revalidate: CACHE_TTL_HOURS * 3600 } }
+        { next: { revalidate: CACHE_TTL_HOURS * 3600 }, signal: timeout }
       );
       const data = await res.json();
       if (data.rates && data.rates[targetCurrency]) {
@@ -130,23 +131,31 @@ export async function getExchangeRate(baseCurrency: string, targetCurrency: stri
   } catch (err) {
     console.error('Exchange rate fetch failed:', err);
     // Fallback rates (approximate, used only when API unavailable)
+    // Covers every currency in COUNTRY_CURRENCY_MAP
+    const usdFallbacks: Record<string, number> = {
+      INR: 83.5, GBP: 0.79, EUR: 0.92, AED: 3.67,
+      SGD: 1.35, CAD: 1.37, AUD: 1.50, SAR: 3.75,
+      MYR: 4.70, HKD: 7.80, JPY: 155.0, QAR: 3.64,
+      NZD: 1.66, CHF: 0.91, SEK: 10.8, NOK: 10.9, DKK: 6.9,
+      ZAR: 18.5, NGN: 1580.0, KES: 129.0, BDT: 110.0,
+      PKR: 278.0, LKR: 310.0, NPR: 133.0, KRW: 1370.0,
+      KWD: 0.307, BHD: 0.377, OMR: 0.385, CNY: 7.25,
+      THB: 35.5, PHP: 56.5, IDR: 16200.0, VND: 25400.0,
+      BRL: 5.0, MXN: 17.2,
+    };
+
     let fallbackRate = 1;
     if (baseCurrency === 'USD') {
-      const usdFallbacks: Record<string, number> = {
-        INR: 83.5, GBP: 0.79, EUR: 0.92, AED: 3.67,
-        SGD: 1.35, CAD: 1.37, AUD: 1.50, SAR: 3.75,
-        MYR: 4.70, HKD: 7.80, JPY: 155.0, QAR: 3.64,
-        NZD: 1.66, CHF: 0.91, SEK: 10.8, NOK: 10.9,
-      };
       fallbackRate = usdFallbacks[targetCurrency] ?? 1;
+    } else if (targetCurrency === 'USD' && usdFallbacks[baseCurrency]) {
+      fallbackRate = 1 / usdFallbacks[baseCurrency];
     } else if (baseCurrency === 'INR') {
-      const inrFallbacks: Record<string, number> = {
-        USD: 0.012, GBP: 0.0095, EUR: 0.011, AED: 0.044,
-        SGD: 0.016, CAD: 0.016, AUD: 0.018, SAR: 0.045,
-        MYR: 0.056, HKD: 0.094, JPY: 1.85, QAR: 0.044,
-        NZD: 0.020, CHF: 0.011, SEK: 0.13, NOK: 0.13,
-      };
-      fallbackRate = inrFallbacks[targetCurrency] ?? 0.012;
+      const inrToUsd = 1 / usdFallbacks['INR'];
+      fallbackRate = (usdFallbacks[targetCurrency] ?? 1) * inrToUsd;
+    }
+
+    if (fallbackRate === 1 && baseCurrency !== targetCurrency) {
+      console.error(`No fallback rate for ${baseCurrency}→${targetCurrency}; defaulting to 1`);
     }
     return fallbackRate;
   }

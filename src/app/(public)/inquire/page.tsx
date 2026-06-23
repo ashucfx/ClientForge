@@ -37,8 +37,11 @@ export default function CatalystInquirePage() {
   };
 
   const handleSubmit = async () => {
-    if (!name.trim() || !email.trim() || !phone.trim()) return;
+    if (!name.trim()) return alert('Please enter your full name.');
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return alert('Please enter a valid email address.');
+    if (!phone || phone.replace(/\D/g, '').length < 7) return alert('Please enter a valid phone number including country code.');
     if (interests.length === 0) return alert('Select at least one area of interest.');
+    if (loading) return;
     setLoading(true);
     try {
       const res = await fetch('/api/public/inquire/submit', {
@@ -46,7 +49,7 @@ export default function CatalystInquirePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
-          email: email.trim(),
+          email: email.trim().toLowerCase(),
           phone: `+${phone}`,
           countryCode,
           countryName,
@@ -58,9 +61,9 @@ export default function CatalystInquirePage() {
           startedAt,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Submission failed');
-      setDisplayId(data.displayId || '');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as any).error || 'Submission failed');
+      setDisplayId((data as any).displayId || '');
       setSubmitted(true);
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Something went wrong. Please try again.');

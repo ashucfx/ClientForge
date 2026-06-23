@@ -241,18 +241,21 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
     },
   });
 
-  const fullInvoice = await db.invoice.findUniqueOrThrow({ where: { id: result.invoice.id } });
-
-  if (fullInvoice.clientEmail && paymentUrl) {
+  // Send invoice email using the already-committed invoice data — no extra DB round-trip
+  if (result.invoice.clientEmail && paymentUrl) {
     try {
-      await sendInvoiceEmail(fullInvoice as unknown as Parameters<typeof sendInvoiceEmail>[0]);
+      await sendInvoiceEmail({
+        ...result.invoice,
+        paypalPaymentUrl: paymentUrl,
+        razorpayLinkUrl: paymentUrl,
+      } as unknown as Parameters<typeof sendInvoiceEmail>[0]);
     } catch (e) {
       console.error('Failed to send checkout invoice email:', e);
     }
   }
 
   return {
-    invoiceId: fullInvoice.id,
+    invoiceId: result.invoice.id,
     checkoutSessionId: result.session.id,
     paymentUrl: paymentUrl,
     subtotal: result.pricing.subtotal,

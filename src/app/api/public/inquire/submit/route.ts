@@ -6,7 +6,7 @@ import { isNewInquireFlowEnabled } from '@/lib/features';
 import { INQUIRE_ONLY_REQUIREMENT_TYPES, INQUIRE_SERVICES } from '@/lib/catalog/self-service';
 import { enforcePublicRateLimit } from '@/lib/publicRateLimit';
 import { validatePublicFormMeta } from '@/lib/publicForms';
-import { acquireLock } from '@/lib/idempotency';
+import { acquireLock, releaseLock } from '@/lib/idempotency';
 
 const INQUIRE_SERVICE_IDS = INQUIRE_SERVICES.map((service) => service.id) as [string, ...string[]];
 
@@ -39,7 +39,9 @@ const LegacyInquireSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const useV2 = isNewInquireFlowEnabled() || Boolean(body.requirementType);
+    // Only route to V2 when requirementType is one of the known V2 types
+    const useV2 = isNewInquireFlowEnabled() ||
+      (INQUIRE_ONLY_REQUIREMENT_TYPES as readonly string[]).includes(body.requirementType);
 
     if (useV2) {
       const parsed = InquireSchemaV2.safeParse(body);
@@ -68,10 +70,17 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Inquiry already processing. Please wait a moment.' }, { status: 409 });
       }
 
-      const inquiry = await createSalesInquiry(parsed.data);
+      let inquiry;
+      try {
+        inquiry = await createSalesInquiry(parsed.data);
+      } catch (err) {
+        releaseLock(lockKey);
+        throw err;
+      }
+      releaseLock(lockKey);
       return NextResponse.json({
         success: true,
-        message: 'Consultation request received',
+        message: 'Inquiry received',
         inquiryId: inquiry.id,
         displayId: inquiry.displayId,
       });

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Check, ArrowRight, Loader2, Lock, Star } from 'lucide-react';
@@ -35,6 +35,7 @@ function CheckoutPageInner() {
   const [pricingDraft, setPricingDraft] = useState<Record<string, unknown> | null>(null);
   const [website] = useState('');
   const [startedAt] = useState(() => Date.now());
+  const submitting = useRef(false);
 
   const resolveServices = (): string[] => {
     if (selectedPackage === 'PREMIUM_PLUS') {
@@ -47,10 +48,15 @@ function CheckoutPageInner() {
   };
 
   const handleCheckout = async () => {
-    if (!name || !email || !phone) return alert('Please fill in all contact details.');
+    if (submitting.current) return;
+    if (!name.trim()) return alert('Please enter your full name.');
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return alert('Please enter a valid email address.');
+    // Require at least 7 digits beyond the leading +
+    if (!phone || phone.replace(/\D/g, '').length < 7) return alert('Please enter a valid phone number including country code.');
     const services = resolveServices();
     if (services.length === 0) return alert('Select at least one service.');
 
+    submitting.current = true;
     setLoading(true);
     try {
       const endpoint = '/api/public/checkout/draft';
@@ -95,6 +101,7 @@ function CheckoutPageInner() {
       alert(e instanceof Error ? e.message : 'Checkout failed');
     } finally {
       setLoading(false);
+      submitting.current = false;
     }
   };
 

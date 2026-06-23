@@ -17,13 +17,13 @@ function isUniqueConstraintError(error: unknown, fieldName: string): boolean {
 }
 
 export async function nextContactDisplayId(tx: Prisma.TransactionClient): Promise<string> {
-  let nextId = 1000;
-  const allContacts = await tx.contact.findMany({ select: { displayId: true } });
-  for (const contact of allContacts) {
-    const value = parseNumericSuffix(contact.displayId);
-    if (value !== null && value > nextId) nextId = value;
-  }
-  return `LD-${nextId + 1}`;
+  const latest = await tx.contact.findFirst({
+    where: { displayId: { startsWith: 'LD-' } },
+    orderBy: { displayId: 'desc' },
+    select: { displayId: true },
+  });
+  const last = parseNumericSuffix(latest?.displayId) ?? 999;
+  return `LD-${last + 1}`;
 }
 
 export async function nextInquiryDisplayId(tx: Prisma.TransactionClient): Promise<string> {

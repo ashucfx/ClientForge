@@ -2,30 +2,27 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { PackageSlug, ServiceSlug } from '@/lib/pricing-v2';
 import { ClientType } from '@prisma/client';
-import { createRazorpayPaymentLink } from '@/lib/razorpay';
-import { createPaypalInvoice } from '@/lib/paypal';
-import { sendInvoiceEmail } from '@/lib/email';
-import { isNewCheckoutFlowEnabled } from '@/lib/features';
 import { createCheckoutSession } from '@/lib/sales/checkoutService';
 import { enforcePublicRateLimit } from '@/lib/publicRateLimit';
 import { validatePublicFormMeta } from '@/lib/publicForms';
-import { createWithGeneratedDisplayId, nextContactDisplayId } from '@/lib/displayIds';
-import { acquireLock } from '@/lib/idempotency';
+import { acquireLock, releaseLock } from '@/lib/idempotency';
 import { z } from 'zod';
+
+const VALID_SERVICE_SLUGS = ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'] as const;
 
 const CheckoutSchema = z.object({
   name: z.string().min(2, 'Name is too short').max(100),
   email: z.string().email('Invalid email address'),
-  phone: z.string().min(5, 'Phone number is too short').max(20),
+  phone: z.string().min(7, 'Phone number is too short').max(20),
   countryCode: z.string().length(2, 'Invalid country code'),
   countryName: z.string().min(2),
   experienceLevel: z.nativeEnum(ClientType),
-  services: z.array(z.string()).min(1, 'Select at least one service'),
+  services: z.array(z.enum(VALID_SERVICE_SLUGS)).min(1, 'Select at least one service'),
   packageSlug: z.enum(['CAREER_BOOSTER', 'PREMIUM_PLUS', 'CUSTOM']),
   preferredGateway: z.enum(['RAZORPAY', 'PAYPAL']).optional(),
   ref: z.string().max(16).optional(),
   website: z.string().max(0).optional(),
-  startedAt: z.number().optional(),
+  startedAt: z.number(),
 });
 
 export async function POST(req: NextRequest) {
@@ -37,6 +34,12 @@ export async function POST(req: NextRequest) {
         { error: 'Invalid payload', details: parseResult.error.format() },
         { status: 400 }
       );
+    }
+
+    // Validate meta (stale/bot check) BEFORE acquiring the lock
+    const metaError = validatePublicFormMeta(parseResult.data);
+    if (metaError) {
+      return NextResponse.json({ error: metaError }, { status: 400 });
     }
 
     const limited = await enforcePublicRateLimit(req, {
@@ -52,32 +55,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Checkout already processing. Please wait a moment.' }, { status: 409 });
     }
 
-    const metaError = validatePublicFormMeta(parseResult.data);
-    if (metaError) {
-      return NextResponse.json({ error: metaError }, { status: 400 });
-    }
-
     const data = parseResult.data;
-    
-    // REROUTE: All self-service checkouts now natively use the session-based architecture
-    const result = await createCheckoutSession({
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      countryCode: data.countryCode,
-      countryName: data.countryName,
-      packageSlug: data.packageSlug as PackageSlug,
-      services: data.services as ServiceSlug[],
-      tierHint: data.experienceLevel,
-      preferredGateway: data.preferredGateway,
-      referralCode: data.ref,
-    });
-    
-    // We return checkoutSessionId which the frontend uses to redirect to /checkout/session/[id]
-    return NextResponse.json({ 
-      success: true, 
-      checkoutSessionId: result.checkoutSessionId 
-    });
+
+    try {
+      const result = await createCheckoutSession({
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        countryCode: data.countryCode,
+        countryName: data.countryName,
+        packageSlug: data.packageSlug as PackageSlug,
+        services: data.services as ServiceSlug[],
+        tierHint: data.experienceLevel,
+        preferredGateway: data.preferredGateway,
+        referralCode: data.ref,
+      });
+      releaseLock(lockKey);
+      return NextResponse.json({ success: true, checkoutSessionId: result.checkoutSessionId });
+    } catch (innerError) {
+      releaseLock(lockKey);
+      throw innerError;
+    }
 
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Checkout failed';
