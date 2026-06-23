@@ -82,7 +82,7 @@ export default function CatalystInquirePage() {
               <Check className="w-6 h-6 text-brand-gold" />
             </div>
             <h1 className="font-serif text-display-lg text-brand-obsidian mb-6 leading-tight">
-              Consultation request received.
+              Inquiry received.
             </h1>
             <div className="w-16 h-[1px] bg-brand-gold mb-8" />
             {displayId && (
@@ -90,7 +90,7 @@ export default function CatalystInquirePage() {
             )}
             <p className="text-subheading text-brand-obsidian/60 leading-relaxed max-w-lg mb-6">
               Our team will review your requirements and respond within 24–48 hours with a
-              tailored assessment and next steps. No payment is required at this stage.
+              tailored proposal and next steps. No payment is required at this stage.
             </p>
             <p className="text-body text-brand-obsidian/40 mb-8">
               Need standard packages with instant checkout?{' '}
@@ -119,15 +119,15 @@ export default function CatalystInquirePage() {
 
       <section className="px-8 md:px-16 lg:px-24 pt-16 pb-12">
         <p className="text-status text-brand-gold uppercase tracking-[0.2em] font-bold mb-6">
-          Sales Inquiry
+          Custom Inquiry
         </p>
         <h1 className="font-serif text-[clamp(2rem,5vw,3.25rem)] leading-[1.1] max-w-3xl mb-6">
-          Let&apos;s discuss your requirements.
+          Tell us what you need.
         </h1>
         <div className="w-20 h-[1px] bg-brand-gold mb-8" />
         <p className="text-subheading text-brand-obsidian/55 max-w-xl leading-relaxed">
           For executive positioning, complex career situations, agency projects, and custom
-          engagements. A consultant will scope your needs before any invoice is issued.
+          engagements. Submit your requirements and we&apos;ll respond with a tailored proposal.
         </p>
       </section>
 
@@ -135,10 +135,10 @@ export default function CatalystInquirePage() {
         <div className="px-8 md:px-16 lg:px-24 py-16 md:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
             <div className="lg:col-span-4">
-              <h2 className="font-serif text-heading mb-4">Request Consultation</h2>
+              <h2 className="font-serif text-heading mb-4">Submit Your Inquiry</h2>
               <p className="text-body text-brand-obsidian/50">
-                Name, contact details, and what you need. Detailed intake happens after engagement
-                begins inside your portal.
+                Name, contact details, and what you need. We&apos;ll review and follow up with a
+                tailored proposal — no calls required.
               </p>
             </div>
             <div className="lg:col-span-7 lg:col-start-6 space-y-8 max-w-lg">
@@ -225,7 +225,7 @@ export default function CatalystInquirePage() {
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <>
-                    Request Consultation
+                    Submit Inquiry
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}

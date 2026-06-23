@@ -275,7 +275,7 @@ export function TestimonialsClient({ reviews }: { reviews: Review[] }) {
                   Talk to us first
                 </Link>
               </div>
-              <p className="text-xs text-slate-500 mt-5">No commitment required · Free consultation available</p>
+              <p className="text-xs text-slate-500 mt-5">No commitment required · Response within 24–48 hours</p>
             </div>
           </div>
         </div>
