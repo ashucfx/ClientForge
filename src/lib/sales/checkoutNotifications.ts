@@ -6,6 +6,10 @@
 import { prisma as db } from '@/lib/db';
 import { getBrand } from '@/lib/brand/registry';
 import { ADMIN_EMAIL, PORTAL_URL } from '@/lib/config';
+import * as React from 'react';
+import { render } from '@react-email/render';
+import { InquiryConfirmationEmail } from '@/emails/sales/InquiryConfirmationEmail';
+import { AdminNewLeadEmail } from '@/emails/sales/AdminNewLeadEmail';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY!;
 
@@ -56,64 +60,17 @@ export async function sendInquiryConfirmationEmail(inquiry: {
   const brand = getBrand('catalyst');
   const firstName = inquiry.name.split(' ')[0];
 
-  const html = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
-<body style="margin:0;padding:0;background:#F0EDE6;font-family:Helvetica,Arial,sans-serif;">
-<div style="max-width:600px;margin:0 auto;padding:40px 20px;">
-  <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-    <div style="background:linear-gradient(135deg,#0A0B0D 0%,#1a1a2e 100%);padding:32px;text-align:center;">
-      <div style="font-family:Georgia,serif;font-size:20px;color:#F4F1EB;letter-spacing:2px;">CATALYST</div>
-      <div style="font-size:10px;color:rgba(184,147,91,0.8);letter-spacing:1.8px;margin-top:4px;">THE PROFESSIONAL ADVANTAGE</div>
-    </div>
-    <div style="padding:32px;">
-      <div style="width:48px;height:48px;background:#f0fdf4;border-radius:50%;margin:0 0 20px;display:flex;align-items:center;justify-content:center;">
-        <span style="font-size:20px;">✓</span>
-      </div>
-      <h1 style="font-family:Georgia,serif;font-size:24px;color:#0A0B0D;margin:0 0 12px;">Consultation Request Received</h1>
-      <p style="font-size:15px;color:#4a5568;line-height:1.7;margin:0 0 20px;">
-        Hello ${firstName}, thank you for reaching out. Your consultation request has been received and assigned reference <strong style="color:#b8935b;">${inquiry.displayId}</strong>.
-      </p>
-      <div style="background:#F5F2EC;border-radius:12px;padding:20px;margin:0 0 24px;">
-        <div style="font-size:11px;color:#7c8db5;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:12px;">What happens next</div>
-        <div style="display:flex;align-items:flex-start;margin-bottom:12px;">
-          <div style="width:28px;height:28px;background:#b8935b;border-radius:50%;text-align:center;line-height:28px;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">1</div>
-          <div style="margin-left:12px;">
-            <div style="font-size:14px;font-weight:600;color:#0A0B0D;">Expert Review</div>
-            <div style="font-size:12px;color:#6b7280;">Our team reviews your requirements within 24 hours</div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:flex-start;margin-bottom:12px;">
-          <div style="width:28px;height:28px;background:#b8935b;border-radius:50%;text-align:center;line-height:28px;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">2</div>
-          <div style="margin-left:12px;">
-            <div style="font-size:14px;font-weight:600;color:#0A0B0D;">Tailored Proposal</div>
-            <div style="font-size:12px;color:#6b7280;">You'll receive a detailed scope and pricing proposal</div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:flex-start;">
-          <div style="width:28px;height:28px;background:#b8935b;border-radius:50%;text-align:center;line-height:28px;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">3</div>
-          <div style="margin-left:12px;">
-            <div style="font-size:14px;font-weight:600;color:#0A0B0D;">Portal Activation</div>
-            <div style="font-size:12px;color:#6b7280;">Once approved, your client portal is activated for onboarding</div>
-          </div>
-        </div>
-      </div>
-      <p style="font-size:13px;color:#9ca3af;line-height:1.6;">
-        No payment is required at this stage. Need standard packages with instant checkout?
-        <a href="${PORTAL_URL}/checkout" style="color:#b8935b;">Get started today →</a>
-      </p>
-    </div>
-    <div style="background:#F5F3EE;padding:20px 32px;border-top:1px solid #EDE9DF;">
-      <div style="font-size:11px;color:#9ca3af;text-align:center;">
-        ${brand.name} · <a href="mailto:${brand.replyTo}" style="color:#9ca3af;">${brand.replyTo}</a>
-      </div>
-    </div>
-  </div>
-</div>
-</body></html>`;
+  const html = await render(React.createElement(InquiryConfirmationEmail, {
+    name: inquiry.name,
+    email: inquiry.email,
+    displayId: inquiry.displayId,
+    requirementType: inquiry.requirementType,
+    servicesRequested: inquiry.servicesRequested,
+  })).catch(() => buildLegacyInquiryConfirmationHTML({ brand, firstName, inquiry }));
 
   const text = `Hi ${firstName},
 
-Your consultation request has been received.
+Your inquiry has been received.
 Reference: ${inquiry.displayId}
 
 What happens next:
@@ -131,7 +88,7 @@ Need instant checkout? Visit ${PORTAL_URL}/checkout
     from: `${brand.name} <${brand.fromEmail}>`,
     replyTo: brand.replyTo,
     to: [inquiry.email],
-    subject: `Consultation Request Received — ${inquiry.displayId} | ${brand.name}`,
+    subject: `Inquiry Received — ${inquiry.displayId} | ${brand.name}`,
     html,
     text,
     tags: [
@@ -139,6 +96,15 @@ Need instant checkout? Visit ${PORTAL_URL}/checkout
       { name: 'inquiry_id', value: inquiry.displayId },
     ],
   });
+}
+
+function buildLegacyInquiryConfirmationHTML(opts: {
+  brand: ReturnType<typeof getBrand>;
+  firstName: string;
+  inquiry: { name: string; displayId: string; requirementType: string; servicesRequested: string[] };
+}): string {
+  const { brand, firstName, inquiry } = opts;
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"/></head><body style="margin:0;padding:24px;background:#F0EDE6;font-family:Helvetica,Arial,sans-serif;"><div style="max-width:600px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;"><h1 style="font-size:24px;color:#0A0B0D;">Inquiry Received</h1><p>Hello ${firstName}, your inquiry has been received. Reference: <strong style="color:#b8935b;">${inquiry.displayId}</strong></p><p>Our team will review and respond within 24 hours.</p><p style="font-size:12px;color:#9ca3af;">${brand.name} · <a href="mailto:${brand.replyTo}" style="color:#9ca3af;">${brand.replyTo}</a></p></div></body></html>`;
 }
 
 // ─── 2. Notify admin of new lead ───
@@ -169,21 +135,23 @@ export async function notifyAdminNewLead(inquiry: {
 
   // Also send email to admin
   const brand = getBrand('catalyst');
+  const adminHtml = await render(React.createElement(AdminNewLeadEmail, {
+    id: inquiry.id,
+    displayId: inquiry.displayId,
+    name: inquiry.name,
+    email: inquiry.email,
+    requirementType: inquiry.requirementType,
+    autoQualScore: inquiry.autoQualScore,
+    priority: inquiry.priority,
+  })).catch(() =>
+    `<div style="font-family:Helvetica,Arial,sans-serif;padding:20px;"><h2>New Sales Inquiry: ${inquiry.displayId}</h2><p><strong>Name:</strong> ${inquiry.name}</p><p><strong>Email:</strong> ${inquiry.email}</p><p><strong>Type:</strong> ${inquiry.requirementType.replace(/_/g, ' ')}</p><p><strong>Score:</strong> ${inquiry.autoQualScore ?? 'N/A'} / 100</p><p><strong>Priority:</strong> ${inquiry.priority}</p><p><a href="${PORTAL_URL}/sales/inquiries/${inquiry.id}" style="display:inline-block;background:#0A0B0D;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:600;">Review Lead →</a></p></div>`
+  );
   await sendEmail({
     from: `${brand.name} Alerts <${brand.fromEmail}>`,
     replyTo: brand.replyTo,
     to: [ADMIN_EMAIL],
     subject: `🔔 New Lead: ${inquiry.displayId} — ${inquiry.name} (${inquiry.requirementType.replace(/_/g, ' ')})`,
-    html: `<div style="font-family:Helvetica,Arial,sans-serif;padding:20px;">
-      <h2 style="color:#0A0B0D;">New Sales Inquiry</h2>
-      <p><strong>Reference:</strong> ${inquiry.displayId}</p>
-      <p><strong>Name:</strong> ${inquiry.name}</p>
-      <p><strong>Email:</strong> ${inquiry.email}</p>
-      <p><strong>Type:</strong> ${inquiry.requirementType.replace(/_/g, ' ')}</p>
-      <p><strong>Score:</strong> ${inquiry.autoQualScore ?? 'N/A'} / 100</p>
-      <p><strong>Priority:</strong> ${inquiry.priority}</p>
-      <p><a href="${PORTAL_URL}/sales/inquiries/${inquiry.id}" style="display:inline-block;background:#0A0B0D;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:600;">Review Lead →</a></p>
-    </div>`,
+    html: adminHtml,
     text: `New Sales Inquiry: ${inquiry.displayId}\nName: ${inquiry.name}\nEmail: ${inquiry.email}\nType: ${inquiry.requirementType}\nScore: ${inquiry.autoQualScore ?? 'N/A'}\n\nReview: ${PORTAL_URL}/sales/inquiries/${inquiry.id}`,
     tags: [
       { name: 'type', value: 'admin_new_lead' },

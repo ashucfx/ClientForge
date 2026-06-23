@@ -136,15 +136,15 @@ export async function GET(req: Request) {
   }
 
   // -------------------------------------------------------------------------
-  // 3. Automated Reviews (7 days in COMPLETED)
+  // 3. Automated Reviews (3 days in COMPLETED)
   // -------------------------------------------------------------------------
-  const completedSevenDaysAgo = new Date(now);
-  completedSevenDaysAgo.setDate(completedSevenDaysAgo.getDate() - 7);
+  const completedThreeDaysAgo = new Date(now);
+  completedThreeDaysAgo.setDate(completedThreeDaysAgo.getDate() - 3);
 
   const reviewClients = await db.careerClient.findMany({
     where: {
       status: 'COMPLETED',
-      completedAt: { lte: completedSevenDaysAgo },
+      completedAt: { lte: completedThreeDaysAgo },
     },
     select: { id: true, email: true, name: true },
   });

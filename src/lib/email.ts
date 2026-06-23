@@ -4,8 +4,13 @@ import type { InvoiceData, LineItem } from '@/types';
 import { BRAND_EMAIL, BRAND_WEBSITE_LABEL, BRAND_WEBSITE_URL } from './config';
 import { CLIENT_TYPE_LABELS, formatCurrency, round2 } from './pricing';
 import { parseInvoiceLineItems } from './invoiceLineItems';
-
 import { getBrand } from './brand/registry';
+import * as React from 'react';
+import { render } from '@react-email/render';
+import { InvoiceEmail } from '@/emails/invoice/InvoiceEmail';
+import { PaymentConfirmationEmail } from '@/emails/invoice/PaymentConfirmationEmail';
+import { CheckoutRecoveryEmail } from '@/emails/invoice/CheckoutRecoveryEmail';
+import { AdminPaymentAlertEmail } from '@/emails/invoice/AdminPaymentAlertEmail';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY!;
 
@@ -41,7 +46,8 @@ export async function sendInvoiceEmail(
   const subject =
     `Invoice ${invoice.invoiceNumber}: Your ${brand.id === 'catalyst' ? 'Career Booster Package' : 'Service'} — ${brand.name}`;
 
-  const html = buildInvoiceEmailHTML(invoice);
+  const html = await render(React.createElement(InvoiceEmail, { invoice }))
+    .catch(() => buildInvoiceEmailHTML(invoice));
   const text = buildInvoiceEmailText(invoice);
 
   const payload: Record<string, unknown> = {
@@ -119,63 +125,15 @@ export async function sendAdminPaymentAlert(opts: {
   const formattedAmount = `${sym}${amount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
   const paidAt = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' });
 
-  const row = (label: string, value: string, highlight = false) =>
-    `<tr>
-      <td style="padding:10px 16px;font-size:13px;color:#64748b;border-bottom:1px solid #f1f5f9;white-space:nowrap;width:140px;">${label}</td>
-      <td style="padding:10px 16px;font-size:13px;font-weight:${highlight ? '700' : '500'};color:${highlight ? brand.primaryColor : '#1e293b'};border-bottom:1px solid #f1f5f9;font-family:monospace;">${value}</td>
-    </tr>`;
-
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/></head>
-<body style="margin:0;padding:24px;background:#F0EDE6;font-family:Helvetica,Arial,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-<tr><td align="center">
-<table role="presentation" width="560" cellpadding="0" cellspacing="0"
-  style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(10,11,13,.10);">
-
-  <tr>
-    <td style="background:${brand.gradient};padding:20px 24px;">
-      <table cellpadding="0" cellspacing="0" role="presentation">
-        <tr>
-          <td style="padding-right:12px;">${brand.logoEmailHtml(36)}</td>
-          <td>
-            <div style="font-size:11px;letter-spacing:2px;color:rgba(255,255,255,.7);text-transform:uppercase;">Payment Received</div>
-            <div style="font-size:20px;font-weight:800;color:#fff;margin-top:2px;">${formattedAmount} <span style="font-size:13px;font-weight:400;opacity:.8;">${currency}</span></div>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-
-  <tr><td height="3" style="background:${brand.accentBar};font-size:0;">&nbsp;</td></tr>
-
-  <tr>
-    <td style="padding:20px 0 8px;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-        ${row('Client', clientName)}
-        ${row('Email', clientEmail)}
-        ${row('Product', product, true)}
-        ${row('Amount', `${formattedAmount} ${currency}`, true)}
-        ${row('Paid at', paidAt + ' IST')}
-        ${invoiceNumber ? row('Invoice', invoiceNumber) : ''}
-        ${razorpayPaymentId ? row('Payment ID', razorpayPaymentId) : ''}
-        ${razorpayOrderId  ? row('Order ID',   razorpayOrderId)   : ''}
-      </table>
-    </td>
-  </tr>
-
-  ${adminUrl ? `
-  <tr>
-    <td style="padding:16px 24px 24px;text-align:center;">
-      <a href="${adminUrl}" style="display:inline-block;padding:11px 28px;background:${brand.primaryColor};color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px;">
-        View Client →
-      </a>
-    </td>
-  </tr>` : ''}
-
-</table>
-</td></tr>
-</table>
-</body></html>`;
+  const html = await render(React.createElement(AdminPaymentAlertEmail, {
+    clientName, clientEmail, product, amount, currency,
+    currencySymbol: sym, formattedAmount, paidAt,
+    razorpayPaymentId, razorpayOrderId, invoiceNumber,
+    adminUrl, brandId,
+  })).catch(() => buildLegacyAdminAlertHTML({
+    brand, clientName, clientEmail, product, formattedAmount, currency,
+    paidAt, invoiceNumber, razorpayPaymentId, razorpayOrderId, adminUrl,
+  }));
 
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -194,7 +152,8 @@ export async function sendAdminPaymentAlert(opts: {
 // ─────────────────────────────────────────────
 export async function sendPaymentConfirmationEmail(invoice: InvoiceData): Promise<void> {
   const brand = getBrand(invoice.brandId);
-  const html = buildConfirmationEmailHTML(invoice);
+  const html = await render(React.createElement(PaymentConfirmationEmail, { invoice }))
+    .catch(() => buildConfirmationEmailHTML(invoice));
   const text = buildConfirmationEmailText(invoice);
 
   const res = await fetch('https://api.resend.com/emails', {
@@ -241,11 +200,9 @@ export async function sendCheckoutRecoveryEmail(
 
   const subject = `${subjectPrefix} — ${brand.name}`;
 
-  const html = buildInvoiceEmailHTML(invoice).replace(
-    'Your <strong style="color:#10B981;">',
-    'You left items in your cart for your <strong style="color:#10B981;">'
-  ); // A simple hack, we use the invoice template but change the subject!
-  
+  const safeLevel = Math.min(4, Math.max(1, level)) as 1 | 2 | 3 | 4;
+  const html = await render(React.createElement(CheckoutRecoveryEmail, { invoice, level: safeLevel }))
+    .catch(() => buildInvoiceEmailHTML(invoice));
   const text = buildInvoiceEmailText(invoice);
 
   const payload: Record<string, unknown> = {
@@ -366,6 +323,22 @@ Questions? Write to ${brand.replyTo}
 ${brand.name} | ${brand.websiteUrl}
 To unsubscribe, email ${brand.replyTo}
 `.trim();
+}
+
+// ─────────────────────────────────────────────
+// LEGACY FALLBACK — ADMIN ALERT
+// ─────────────────────────────────────────────
+function buildLegacyAdminAlertHTML(opts: {
+  brand: ReturnType<typeof getBrand>;
+  clientName: string; clientEmail: string; product: string;
+  formattedAmount: string; currency: string; paidAt: string;
+  invoiceNumber?: string | null; razorpayPaymentId?: string | null;
+  razorpayOrderId?: string | null; adminUrl?: string | null;
+}): string {
+  const { brand, clientName, clientEmail, product, formattedAmount, currency, paidAt, invoiceNumber, razorpayPaymentId, razorpayOrderId, adminUrl } = opts;
+  const row = (label: string, value: string, highlight = false) =>
+    `<tr><td style="padding:10px 16px;font-size:13px;color:#64748b;border-bottom:1px solid #f1f5f9;white-space:nowrap;width:140px;">${label}</td><td style="padding:10px 16px;font-size:13px;font-weight:${highlight ? '700' : '500'};color:${highlight ? brand.primaryColor : '#1e293b'};border-bottom:1px solid #f1f5f9;font-family:monospace;">${value}</td></tr>`;
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"/></head><body style="margin:0;padding:24px;background:#F0EDE6;font-family:Helvetica,Arial,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center"><table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;"><tr><td style="background:${brand.gradient};padding:20px 24px;"><table cellpadding="0" cellspacing="0" role="presentation"><tr><td style="padding-right:12px;">${brand.logoEmailHtml(36)}</td><td><div style="font-size:20px;font-weight:800;color:#fff;">${formattedAmount} ${currency}</div></td></tr></table></td></tr><tr><td style="padding:20px 0 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${row('Client', clientName)}${row('Email', clientEmail)}${row('Product', product, true)}${row('Amount', `${formattedAmount} ${currency}`, true)}${row('Paid at', paidAt + ' IST')}${invoiceNumber ? row('Invoice', invoiceNumber) : ''}${razorpayPaymentId ? row('Payment ID', razorpayPaymentId) : ''}${razorpayOrderId ? row('Order ID', razorpayOrderId) : ''}</table></td></tr>${adminUrl ? `<tr><td style="padding:16px 24px 24px;text-align:center;"><a href="${adminUrl}" style="display:inline-block;padding:11px 28px;background:${brand.primaryColor};color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px;">View Client →</a></td></tr>` : ''}</table></td></tr></table></body></html>`;
 }
 
 // ─────────────────────────────────────────────

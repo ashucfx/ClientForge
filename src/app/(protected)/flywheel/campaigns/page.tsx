@@ -302,6 +302,21 @@ export default function FlywheelCampaigns() {
     setMutating(false);
   };
 
+  const [processing, setProcessing] = useState(false);
+  const [processResult, setProcessResult] = useState<{ processedCount: number; failedCount: number; totalFound: number } | null>(null);
+
+  const handleProcessNow = async () => {
+    setProcessing(true);
+    setProcessResult(null);
+    try {
+      const res = await fetch('/api/admin/flywheel/cron/process-campaigns');
+      const data = await res.json();
+      setProcessResult({ processedCount: data.processedCount ?? 0, failedCount: data.failedCount ?? 0, totalFound: data.totalFound ?? 0 });
+      fetchCampaigns();
+    } catch { setProcessResult({ processedCount: 0, failedCount: 0, totalFound: 0 }); }
+    finally { setProcessing(false); }
+  };
+
 
   return (
     <AppShell>
@@ -318,10 +333,39 @@ export default function FlywheelCampaigns() {
             </div>
             <p className="text-slate-500 mt-1 ml-[52px]">Create, manage, and track email marketing campaigns.</p>
           </div>
-          <button onClick={() => { setWizardOpen(true); resetWizard(); }} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium text-sm shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5" style={{ background: brand.gradient }}>
-            <IconPlus size={16} /> New Campaign
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleProcessNow}
+              disabled={processing}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all disabled:opacity-60"
+            >
+              <IconRefresh size={15} className={processing ? 'animate-spin' : ''} />
+              {processing ? 'Processing…' : 'Process Now'}
+            </button>
+            <button onClick={() => { setWizardOpen(true); resetWizard(); }} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium text-sm shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5" style={{ background: brand.gradient }}>
+              <IconPlus size={16} /> New Campaign
+            </button>
+          </div>
         </div>
+
+        {processResult && (
+          <div className={`mb-6 px-5 py-3.5 rounded-xl border text-sm font-medium flex items-center justify-between ${
+            processResult.failedCount > 0
+              ? 'bg-red-50 border-red-200 text-red-700'
+              : processResult.processedCount > 0
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              : 'bg-slate-50 border-slate-200 text-slate-600'
+          }`}>
+            <span>
+              {processResult.totalFound === 0
+                ? 'No pending emails — all campaigns are up to date.'
+                : `Found ${processResult.totalFound} queued · ${processResult.processedCount} sent · ${processResult.failedCount} failed`}
+            </span>
+            <button onClick={() => setProcessResult(null)} className="ml-4 opacity-50 hover:opacity-100">
+              <IconX size={14} />
+            </button>
+          </div>
+        )}
 
         {/* Campaign Table */}
         <div className="card overflow-hidden">
