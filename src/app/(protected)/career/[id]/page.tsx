@@ -1,11 +1,12 @@
 'use client';
 // src/app/(protected)/career/[id]/page.tsx
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { PACKAGE_LABELS, SERVICE_LABELS, STATUS_LABELS } from '@/lib/career/types';
 import type { CareerStatus, CareerPackage, CareerServiceSlug, EmailTrigger } from '@/lib/career/types';
+import { TRIGGER_LABELS } from '@/lib/career/triggerLabels';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,28 @@ const ACTION_LABELS: Record<string, string> = {
 
 type Tab = 'overview' | 'forms' | 'files' | 'emails' | 'activity' | 'revisions' | 'comments';
 
+// ── Utilities ─────────────────────────────────────────────────────────────────
+
+function getPackageTier(slugs: string[]): 'resume' | 'resume_cl' | 'booster' | 'premium' | 'other' {
+  if (slugs.includes('PREMIUM_PLUS') || slugs.includes('PORTFOLIO')) return 'premium';
+  if (slugs.includes('FULL_PACKAGE') || (slugs.includes('RESUME') && slugs.includes('COVER_LETTER') && slugs.includes('LINKEDIN'))) return 'booster';
+  if (slugs.includes('RESUME') && slugs.includes('COVER_LETTER')) return 'resume_cl';
+  if (slugs.includes('RESUME')) return 'resume';
+  return 'other';
+}
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 2) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}d ago`;
+  return fmt(dateStr);
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function CareerClientDetailPage() {
@@ -109,6 +132,12 @@ export default function CareerClientDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [showEdit,    setShowEdit]    = useState(false);
   const [showDelete,  setShowDelete]  = useState(false);
+  const [welcomeSignal, setWelcomeSignal] = useState(0);
+
+  const triggerWelcome = () => {
+    setActiveTab('overview');
+    setWelcomeSignal(n => n + 1);
+  };
   // OTP delete flow: 'idle' | 'requesting' | 'confirm' | 'deleting' | 'done'
   const [deleteStep,  setDeleteStep]  = useState<'idle' | 'requesting' | 'confirm' | 'deleting' | 'done'>('idle');
   const [otpInput,    setOtpInput]    = useState('');
@@ -256,6 +285,35 @@ export default function CareerClientDetailPage() {
               <span className="font-semibold">Note: </span>{client.notes}
             </div>
           )}
+
+          {/* Portal activation banner — only when never logged in AND no welcome email sent */}
+          {!client.lastLoginAt && !client.emailLogs.some(l => l.trigger === 'WELCOME') && (() => {
+            const slugs = client.services?.map(s => s.slug) ?? [];
+            const tier = getPackageTier(slugs);
+            const formsCopy = tier === 'premium' ? 'Resume, LinkedIn, and Portfolio forms'
+              : tier === 'booster' ? 'Resume and LinkedIn Profile forms'
+              : tier === 'resume_cl' ? 'Resume & Cover Letter forms'
+              : tier === 'resume' ? 'Resume Intake Form'
+              : 'intake forms';
+            return (
+              <div className="mt-4 flex items-center justify-between gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg flex-shrink-0">🔑</span>
+                  <div>
+                    <p className="text-sm font-bold text-amber-900">Portal not yet activated</p>
+                    <p className="text-xs text-amber-700">
+                      Send the Welcome Email so <strong>{client.name.split(' ')[0]}</strong> can submit their {formsCopy} to get started.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={triggerWelcome}
+                  className="flex-shrink-0 px-3 py-1.5 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 transition-colors">
+                  Send Welcome →
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -278,12 +336,19 @@ export default function CareerClientDetailPage() {
 
       {/* ── OVERVIEW ── */}
       {activeTab === 'overview' && (
-        <OverviewTab client={client} onUpdated={reload} />
+        <OverviewTab client={client} onUpdated={reload} welcomeSignal={welcomeSignal} />
       )}
 
       {/* ── FORMS ── */}
       {activeTab === 'forms' && (
-        <FormsTab forms={client.forms} packageType={client.packageType ?? null} clientId={client.id} />
+        <FormsTab
+          forms={client.forms}
+          packageType={client.packageType ?? null}
+          clientId={client.id}
+          services={client.services}
+          emailLogs={client.emailLogs}
+          onSendWelcome={triggerWelcome}
+        />
       )}
 
       {/* ── FILES ── */}
@@ -440,11 +505,12 @@ export default function CareerClientDetailPage() {
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: () => void }) {
+function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetail; onUpdated: () => void; welcomeSignal: number }) {
   const [statusLoading,   setStatusLoading]   = useState(false);
   const [pendingStatus,   setPendingStatus]   = useState<CareerStatus | null>(null);
   const [emailSending,    setEmailSending]    = useState(false);
   const [toast,           setToast]           = useState('');
+  const emailPanelRef = useRef<HTMLDivElement>(null);
 
   // ── Derive client capabilities ──────────────────────────────────────────────
   const slugs = client.services?.map(s => s.slug) ?? [];
@@ -524,6 +590,14 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
     setToast(msg);
     setTimeout(() => setToast(''), 4000);
   };
+
+  // When banner/Forms tab triggers welcome signal, auto-select WELCOME and scroll
+  useEffect(() => {
+    if (welcomeSignal > 0) {
+      setSelectedTrigger('WELCOME');
+      setTimeout(() => emailPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+    }
+  }, [welcomeSignal]);
 
   // Lazy-load pending revisions when admin selects the REVISION trigger
   useEffect(() => {
@@ -661,38 +735,142 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
 
       {/* Status control */}
       <Card title="Update Status" icon={<svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>}>
-        <div className="space-y-1.5">
-          {STATUS_OPTIONS.map(s => {
-            const style   = STATUS_STYLES[s];
-            const isCurrent = s === client.status;
-            const autoEmail = autoEmailForStatus[s];
-            return (
-              <button key={s} disabled={statusLoading || isCurrent}
-                onClick={() => setPendingStatus(s)}
-                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
-                  isCurrent
-                    ? `${style.bg} ${style.text} border-transparent cursor-default`
-                    : 'border-slate-200 hover:border-[#D4AF7A] hover:bg-[#FBF8F3] text-slate-600 hover:text-[#9A7540]'
-                } disabled:opacity-60`}>
-                <span className="flex items-center gap-2.5">
-                  <span className={`w-2 h-2 rounded-full ${isCurrent ? style.dot : 'bg-slate-300'}`} />
-                  {STATUS_LABELS[s]}
-                </span>
-                <span className="flex items-center gap-2">
-                  {autoEmail && !isCurrent && (
-                    <span className="text-[10px] px-1.5 py-0.5 bg-[#FBF8F3] text-[#B8935B] border border-[#E8DDD0] rounded font-semibold whitespace-nowrap">
-                      Sends: {autoEmail.label}
+        {(() => {
+          const MAIN_STEPS: { status: CareerStatus; short: string }[] = [
+            { status: 'NOT_STARTED',   short: 'Not Started'   },
+            { status: 'SUBMITTED',     short: 'Forms In'      },
+            { status: 'UNDER_PROCESS', short: 'In Progress'   },
+            { status: 'DRAFT_SENT',    short: 'Draft Review'  },
+            { status: 'COMPLETED',     short: 'Delivered'     },
+          ];
+          const isRevision   = client.status === 'REVISION_REQUESTED';
+          const effectiveIdx = MAIN_STEPS.findIndex(s =>
+            isRevision ? s.status === 'DRAFT_SENT' : s.status === client.status
+          );
+          const tier = getPackageTier(slugs);
+          const TIER_CHIPS: Record<string, Partial<Record<string, string[]>>> = {
+            premium:   {
+              UNDER_PROCESS: ['✍ Resume Rewrite', '✍ Cover Letter', '✍ LinkedIn (Banner & Photo)', '✍ Portfolio Website'],
+              DRAFT_SENT:    ['📄 Resume', '📄 Cover Letter', '🔗 LinkedIn', '🌐 Portfolio'],
+              COMPLETED:     ['✅ Resume', '✅ Cover Letter', '✅ LinkedIn Profile', '✅ Portfolio Website'],
+            },
+            booster:   {
+              UNDER_PROCESS: ['✍ Resume Rewrite', '✍ Cover Letter', '✍ LinkedIn (Banner & Photo)'],
+              DRAFT_SENT:    ['📄 Resume', '📄 Cover Letter', '🔗 LinkedIn'],
+              COMPLETED:     ['✅ Resume', '✅ Cover Letter', '✅ LinkedIn Profile'],
+            },
+            resume_cl: {
+              UNDER_PROCESS: ['✍ Resume Rewrite', '✍ Cover Letter Writing'],
+              DRAFT_SENT:    ['📄 Resume Draft', '📄 Cover Letter Draft'],
+              COMPLETED:     ['✅ Resume', '✅ Cover Letter'],
+            },
+            resume:    {
+              UNDER_PROCESS: ['✍ Resume Rewrite'],
+              DRAFT_SENT:    ['📄 Resume Draft'],
+              COMPLETED:     ['✅ Resume Delivered'],
+            },
+          };
+          const currentChips = TIER_CHIPS[tier]?.[client.status] ?? [];
+          const chipColors: Partial<Record<CareerStatus, string>> = {
+            UNDER_PROCESS: 'bg-amber-100 text-amber-800',
+            DRAFT_SENT:    'bg-purple-100 text-purple-700',
+            COMPLETED:     'bg-emerald-100 text-emerald-700',
+          };
+          const chipWrapColors: Partial<Record<CareerStatus, string>> = {
+            UNDER_PROCESS: 'bg-amber-50 border-amber-100',
+            DRAFT_SENT:    'bg-purple-50 border-purple-100',
+            COMPLETED:     'bg-emerald-50 border-emerald-100',
+          };
+
+          return (
+            <div className="space-y-3">
+              {/* Horizontal stepper */}
+              <div className="flex items-start">
+                {MAIN_STEPS.map((step, idx) => {
+                  const isPast    = idx < effectiveIdx;
+                  const isCurrent = idx === effectiveIdx;
+                  return (
+                    <div key={step.status} className="flex-1 flex flex-col items-center relative min-w-0">
+                      {/* Connector line */}
+                      {idx < MAIN_STEPS.length - 1 && (
+                        <div className={`absolute top-3.5 h-px z-0 ${isPast ? 'bg-[#B8935B]' : 'bg-slate-200'}`}
+                          style={{ left: 'calc(50% + 14px)', right: '-1px' }} />
+                      )}
+                      {/* Circle */}
+                      <button
+                        onClick={() => setPendingStatus(step.status)}
+                        disabled={statusLoading || isCurrent}
+                        title={isCurrent ? `${STATUS_LABELS[step.status]} (current)` : `Set to ${STATUS_LABELS[step.status]}`}
+                        className={`relative z-10 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 disabled:cursor-default ${
+                          isPast    ? 'bg-[#B8935B] border-[#B8935B] text-white hover:bg-[#9A7540]'
+                          : isCurrent ? 'border-[#B8935B] bg-white ring-2 ring-[#B8935B]/20'
+                          : 'border-slate-200 bg-white text-slate-300 hover:border-[#D4AF7A] hover:text-[#B8935B]'
+                        }`}>
+                        {isPast ? (
+                          <svg width="11" height="11" fill="none" viewBox="0 0 24 24">
+                            <path stroke="currentColor" strokeWidth="3" strokeLinecap="round" d="M5 13l4 4L19 7"/>
+                          </svg>
+                        ) : isCurrent ? (
+                          <span className={`w-2.5 h-2.5 rounded-full ${STATUS_STYLES[step.status].dot}`} />
+                        ) : (
+                          <span className="w-2 h-2 rounded-full bg-slate-200" />
+                        )}
+                      </button>
+                      {/* Label */}
+                      <p className={`mt-1 text-center text-[9px] font-bold leading-tight px-0.5 ${
+                        isCurrent ? 'text-[#9A7540]' : isPast ? 'text-slate-400' : 'text-slate-300'
+                      }`}>
+                        {step.short}
+                      </p>
+                      {isCurrent && <span className="text-[8px] text-slate-400">Current</span>}
+                      {/* Auto-email hint — only on future steps */}
+                      {autoEmailForStatus[step.status] && !isCurrent && !isPast && (
+                        <p className="text-[8px] text-[#B8935B]/70 mt-0.5 text-center leading-tight px-0.5">
+                          {autoEmailForStatus[step.status]!.label.split('+')[0].trim()}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Service chips for current step */}
+              {currentChips.length > 0 && (
+                <div className={`px-3 py-2.5 rounded-xl border flex flex-wrap gap-1.5 ${chipWrapColors[client.status] ?? 'bg-slate-50 border-slate-100'}`}>
+                  {currentChips.map((chip, i) => (
+                    <span key={i} className={`text-xs px-2 py-0.5 rounded-full font-medium ${chipColors[client.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                      {chip}
                     </span>
-                  )}
-                  {isCurrent && <span className="text-xs opacity-60 font-normal">Current</span>}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Revision branch */}
+              <div
+                onClick={() => !statusLoading && !isRevision && setPendingStatus('REVISION_REQUESTED')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all ${
+                  isRevision
+                    ? 'bg-orange-50 border-orange-200 text-orange-700 cursor-default'
+                    : 'bg-slate-50 border-slate-100 text-slate-400 cursor-pointer hover:border-orange-200 hover:text-orange-600 hover:bg-orange-50/50'
+                }`}>
+                <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
+                  <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <span className="font-semibold">Revision Requested</span>
+                {isRevision
+                  ? <span className="ml-auto text-[9px] bg-orange-100 border border-orange-200 px-1.5 py-0.5 rounded font-bold uppercase">Current</span>
+                  : <span className="ml-auto text-[9px] opacity-50">→ mark as revision</span>}
+                {autoEmailForStatus.REVISION_REQUESTED && !isRevision && (
+                  <span className="text-[9px] text-[#B8935B]/70">Sends: {autoEmailForStatus.REVISION_REQUESTED.label}</span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </Card>
 
       {/* Email trigger */}
+      <div ref={emailPanelRef}>
       <Card title="Send Email Manually" icon={<svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>}>
         <div className="space-y-4">
 
@@ -800,6 +978,52 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
                         <p className="text-xs text-slate-400 mt-0.5">{t.desc}</p>
                       </div>
                     </label>
+
+                    {/* Welcome Email expansion — shown when WELCOME is selected */}
+                    {t.value === 'WELCOME' && selectedTrigger === 'WELCOME' && (() => {
+                      const prevWelcome = client.emailLogs.find(l => l.trigger === 'WELCOME');
+                      const tier = getPackageTier(slugs);
+                      const tierLabel = tier === 'premium' ? 'Premium Plus Package'
+                        : tier === 'booster' ? 'Career Booster Package'
+                        : tier === 'resume_cl' ? 'Resume Writing + Cover Letter'
+                        : tier === 'resume' ? 'Resume Writing'
+                        : 'Career Services';
+                      const tierServices = tier === 'premium' ? 'Resume · Cover Letter · LinkedIn · Portfolio'
+                        : tier === 'booster' ? 'Resume · Cover Letter · LinkedIn Optimisation'
+                        : tier === 'resume_cl' ? 'Resume Rewrite · Cover Letter Writing'
+                        : tier === 'resume' ? 'Resume Rewrite'
+                        : '';
+                      return (
+                        <div className="mt-1.5 ml-1 space-y-2">
+                          {prevWelcome && (
+                            <div className="px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
+                              <p className="text-xs font-bold text-amber-800">
+                                ⚠ Welcome email was sent {relativeTime(prevWelcome.sentAt)}
+                              </p>
+                              <p className="text-xs text-amber-700 mt-0.5">
+                                Sending again will generate a new magic link — the previous one stops working immediately.
+                              </p>
+                            </div>
+                          )}
+                          <div className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">What this email contains</p>
+                            <p className="text-xs text-slate-600 mb-1.5 font-medium">Subject: Welcome to Catalyst Career Boost</p>
+                            <div className="space-y-0.5">
+                              {[
+                                '✓ Fresh magic link (expires in 7 days)',
+                                `✓ Package: ${tierLabel}`,
+                                ...(tierServices ? [`   ${tierServices}`] : []),
+                                '✓ Direct portal login URL',
+                              ].map((line, i) => (
+                                <p key={i} className={`text-xs leading-relaxed ${line.startsWith('   ') ? 'text-slate-400 pl-4' : 'text-emerald-700 font-medium'}`}>
+                                  {line.trim()}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Revision action panel — shown inline when REVISION is selected */}
                     {t.value === 'REVISION' && selectedTrigger === 'REVISION' && (
@@ -964,6 +1188,7 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
           </button>
         )}
       </Card>
+      </div>
 
       {/* Portal link */}
       <Card title="Client Portal" icon={<svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>}>
@@ -1049,14 +1274,44 @@ function OverviewTab({ client, onUpdated }: { client: ClientDetail; onUpdated: (
 
 // ── Forms Tab ─────────────────────────────────────────────────────────────────
 
-function FormsTab({ forms, packageType, clientId }: { forms: FormSubmission[]; packageType: CareerPackage | null; clientId: string }) {
+function FormsTab({ forms, packageType, clientId, services, emailLogs, onSendWelcome }: {
+  forms: FormSubmission[];
+  packageType: CareerPackage | null;
+  clientId: string;
+  services: { slug: string; name: string }[];
+  emailLogs: EmailLog[];
+  onSendWelcome: () => void;
+}) {
   const [expanded, setExpanded] = useState<string | null>(null);
+  const welcomeSent = emailLogs.some(l => l.trigger === 'WELCOME');
 
   if (forms.length === 0) {
     return (
-      <EmptyCard icon={<svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>}
-        title="No forms submitted yet"
-        subtitle="The client hasn't filled in their details. Trigger a Welcome email to remind them." />
+      <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-10 text-center">
+        <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3 text-slate-400">
+          <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        </div>
+        {!welcomeSent ? (
+          <>
+            <p className="text-slate-700 font-semibold text-sm">Portal not yet activated</p>
+            <p className="text-slate-400 text-xs mt-1 max-w-sm mx-auto">
+              Send the Welcome Email first so the client can log in and submit their intake forms.
+            </p>
+            <button
+              onClick={onSendWelcome}
+              className="mt-4 px-4 py-2 bg-[#B8935B] text-white text-xs font-bold rounded-xl hover:bg-[#9A7540] transition-colors">
+              Send Welcome Email →
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-slate-700 font-semibold text-sm">No forms submitted yet</p>
+            <p className="text-slate-400 text-xs mt-1 max-w-sm mx-auto">
+              Forms will appear here once the client submits them via the portal. The Welcome email has been sent.
+            </p>
+          </>
+        )}
+      </div>
     );
   }
 
@@ -1066,8 +1321,58 @@ function FormsTab({ forms, packageType, clientId }: { forms: FormSubmission[]; p
     return acc;
   }, {});
 
+  // Progress tracker — compute required forms from services
+  const { SERVICE_FORM_MAP, PACKAGE_FORMS, normalizeFormType } = require('@/lib/career/types') as typeof import('@/lib/career/types');
+  const slugs = services.map(s => s.slug);
+  const tier = getPackageTier(slugs);
+  let required: string[] = [];
+  if (slugs.length > 0) {
+    const seen = new Set<string>();
+    for (const slug of slugs) {
+      const forms = (SERVICE_FORM_MAP as Record<string, string[]>)[slug] ?? [];
+      for (const f of forms) { seen.add(f); }
+    }
+    required = Array.from(seen);
+  } else if (packageType) {
+    required = (PACKAGE_FORMS as Record<string, string[]>)[packageType] ?? [];
+  }
+  const submittedTypes = new Set(Object.keys(byType).map((t: string) => normalizeFormType(t)));
+  const submittedCount = required.filter(r => submittedTypes.has(normalizeFormType(r))).length;
+  const totalRequired  = required.length;
+
   return (
     <div className="space-y-4">
+      {/* Progress tracker */}
+      {totalRequired > 0 && (
+        <div className="bg-white border border-slate-200 rounded-2xl px-5 py-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">Form Progress</p>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+              submittedCount === totalRequired ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+            }`}>
+              {submittedCount} / {totalRequired} submitted
+            </span>
+          </div>
+          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${submittedCount === totalRequired ? 'bg-emerald-500' : 'bg-[#B8935B]'}`}
+              style={{ width: `${totalRequired > 0 ? (submittedCount / totalRequired) * 100 : 0}%` }}
+            />
+          </div>
+          {submittedCount < totalRequired && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {required
+                .filter(r => !submittedTypes.has(normalizeFormType(r)))
+                .map((r: string) => (
+                  <span key={r} className="text-[10px] px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-full font-medium">
+                    {FORM_TYPE_LABELS[r] ?? r} pending
+                  </span>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {Object.entries(byType).map(([type, submissions]) => {
         const latest = submissions[0]; // already ordered desc by version
         const isOpen = expanded === type;
@@ -1135,23 +1440,14 @@ function FormsTab({ forms, packageType, clientId }: { forms: FormSubmission[]; p
         );
       })}
 
-      {/* Missing forms warning */}
-      {(() => {
+      {/* Missing forms warning — shown only if progress tracker is not already displayed */}
+      {totalRequired === 0 && (() => {
         const {
-          PACKAGE_FORMS, SERVICE_FORM_MAP, normalizeFormType,
+          PACKAGE_FORMS: PF, normalizeFormType: norm,
         } = require('@/lib/career/types') as typeof import('@/lib/career/types');
-
-        // Build required forms from services (new-style) or packageType (legacy)
-        const clientServices = forms.length > 0
-          ? [] // services prop not available here — use packageType fallback
-          : [];
-        const required: string[] = packageType ? (PACKAGE_FORMS[packageType] ?? []) : [];
-
-        // Normalize ALL submitted form types (old "resume" → "career_profile") before comparing
-        const submittedNormalized = new Set(
-          Object.keys(byType).map((t: string) => normalizeFormType(t))
-        );
-        const missing = required.filter((r: string) => !submittedNormalized.has(r as import('@/lib/career/types').FormType));
+        const req: string[] = packageType ? (PF[packageType] ?? []) : [];
+        const submitted = new Set(Object.keys(byType).map((t: string) => norm(t)));
+        const missing = req.filter((r: string) => !submitted.has(norm(r)));
         if (missing.length === 0) return null;
         return (
           <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
@@ -1409,17 +1705,11 @@ function FileRow({ file, clientId, onDelete, deleting }: {
 // ── Emails Tab ────────────────────────────────────────────────────────────────
 
 function EmailsTab({ logs }: { logs: EmailLog[] }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   if (logs.length === 0) {
     return <EmptyCard icon={<svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>} title="No emails sent yet" subtitle="Email history will appear here once you trigger or send emails." />;
   }
-
-  const triggerLabel: Record<string, string> = {
-    WELCOME: 'Welcome', FORM_CONFIRM: 'Form Confirmation',
-    DRAFT_READY: 'Draft Ready', LINKEDIN_DRAFT: 'LinkedIn Draft Ready',
-    REVISED_DRAFT: 'Revised Draft Ready', REVISION: 'Revision Update',
-    FINAL_DELIVERY: 'Final Delivery', LINKEDIN_SECURITY: 'LinkedIn Security',
-    DELETE_OTP: 'Account Deletion OTP', MESSAGE_NOTIFY: 'Message Notification',
-  };
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
@@ -1428,32 +1718,60 @@ function EmailsTab({ logs }: { logs: EmailLog[] }) {
       </div>
       <div className="divide-y divide-slate-100">
         {logs.map(log => (
-          <div key={log.id} className="flex items-center justify-between px-5 py-3.5">
-            <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${
-                log.status === 'sent' ? 'bg-emerald-100' : 'bg-red-100'
-              }`}>
-                {log.status === 'sent' ? '✓' : '✗'}
+          <div key={log.id}>
+            <button
+              className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 transition-colors text-left"
+              onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}>
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                  log.status === 'sent' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
+                }`}>
+                  {log.status === 'sent' ? '✓' : '✗'}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {TRIGGER_LABELS[log.trigger] ?? log.trigger}
+                  </p>
+                  <p className="text-xs text-slate-400" title={fmt(log.sentAt, true)}>
+                    {relativeTime(log.sentAt)}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">
-                  {triggerLabel[log.trigger] ?? log.trigger}
-                </p>
-                <p className="text-xs text-slate-400">{fmt(log.sentAt, true)}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                log.status === 'sent' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
-              }`}>
-                {log.status}
-              </span>
-              {log.resendId && (
-                <span className="text-xs text-slate-300 font-mono hidden sm:block truncate max-w-[120px]">
-                  {log.resendId.slice(0, 12)}…
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                  log.status === 'sent' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
+                }`}>
+                  {log.status}
                 </span>
-              )}
-            </div>
+                <svg className={`w-4 h-4 text-slate-300 transition-transform ${expandedId === log.id ? 'rotate-180' : ''}`}
+                  fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M19 9l-7 7-7-7"/></svg>
+              </div>
+            </button>
+            {expandedId === log.id && (
+              <div className="px-5 pb-4 bg-slate-50 border-t border-slate-100 space-y-2">
+                <div className="pt-3 grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p className="text-slate-400 font-medium uppercase tracking-wide text-[10px] mb-0.5">Trigger</p>
+                    <p className="font-semibold text-slate-800">{TRIGGER_LABELS[log.trigger] ?? log.trigger}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 font-medium uppercase tracking-wide text-[10px] mb-0.5">Sent</p>
+                    <p className="font-semibold text-slate-800">{fmt(log.sentAt, true)}</p>
+                  </div>
+                </div>
+                {log.resendId && (
+                  <div>
+                    <p className="text-slate-400 font-medium uppercase tracking-wide text-[10px] mb-0.5">Resend ID</p>
+                    <a
+                      href={`https://resend.com/emails/${log.resendId}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="font-mono text-xs text-[#B8935B] hover:underline break-all">
+                      {log.resendId}
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -1463,35 +1781,52 @@ function EmailsTab({ logs }: { logs: EmailLog[] }) {
 
 // ── Activity Tab ──────────────────────────────────────────────────────────────
 
+const ACTIVITY_STYLE: Record<string, { dot: string; border: string; icon: string }> = {
+  status_changed:    { dot: 'bg-[#B8935B]',   border: 'border-l-[#B8935B]',   icon: '→' },
+  email_sent_manual: { dot: 'bg-blue-400',     border: 'border-l-blue-400',     icon: '✉' },
+  email_sent_auto:   { dot: 'bg-blue-300',     border: 'border-l-blue-300',     icon: '✉' },
+  file_uploaded:     { dot: 'bg-emerald-500',  border: 'border-l-emerald-500',  icon: '↑' },
+  form_submitted:    { dot: 'bg-purple-500',   border: 'border-l-purple-500',   icon: '✓' },
+  revision_created:  { dot: 'bg-amber-500',    border: 'border-l-amber-500',    icon: '↺' },
+  revision_actioned: { dot: 'bg-amber-400',    border: 'border-l-amber-400',    icon: '↺' },
+  client_created:    { dot: 'bg-[#B8935B]',   border: 'border-l-[#B8935B]',   icon: '★' },
+};
+const DEFAULT_ACTIVITY_STYLE = { dot: 'bg-slate-300', border: 'border-l-slate-200', icon: '·' };
+
 function ActivityTab({ logs }: { logs: ActivityLog[] }) {
   if (logs.length === 0) {
     return <EmptyCard icon={<svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>} title="No activity yet" subtitle="Actions taken on this client will be logged here." />;
   }
 
   return (
-    <div className="space-y-2">
-      {logs.map(log => (
-        <div key={log.id} className="flex items-start gap-3 bg-white border border-slate-100 rounded-xl px-4 py-3 shadow-sm">
-          <div className="w-2 h-2 rounded-full bg-[#C4A070] mt-1.5 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-800">
-              {ACTION_LABELS[log.action] ?? log.action.replace(/_/g, ' ')}
-            </p>
-            {log.metadata && Object.keys(log.metadata).length > 0 && (
-              <p className="text-xs text-slate-400 mt-0.5">
-                {Object.entries(log.metadata)
-                  .filter(([k]) => !['error'].includes(k))
-                  .map(([k, v]) => `${k}: ${v}`)
-                  .join(' · ')}
+    <div className="space-y-1.5">
+      {logs.map(log => {
+        const style = ACTIVITY_STYLE[log.action] ?? DEFAULT_ACTIVITY_STYLE;
+        return (
+          <div key={log.id} className={`flex items-start gap-3 bg-white border border-slate-100 border-l-2 ${style.border} rounded-xl px-4 py-3 shadow-sm`}>
+            <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${style.dot} text-white`}>
+              {style.icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-slate-800">
+                {ACTION_LABELS[log.action] ?? log.action.replace(/_/g, ' ')}
               </p>
-            )}
+              {log.metadata && Object.keys(log.metadata).length > 0 && (
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {Object.entries(log.metadata)
+                    .filter(([k]) => !['error'].includes(k))
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join(' · ')}
+                </p>
+              )}
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-xs text-slate-400" title={fmt(log.createdAt, true)}>{relativeTime(log.createdAt)}</p>
+              <p className="text-xs text-slate-300">{log.performedBy}</p>
+            </div>
           </div>
-          <div className="text-right flex-shrink-0">
-            <p className="text-xs text-slate-400">{fmt(log.createdAt, true)}</p>
-            <p className="text-xs text-slate-300">{log.performedBy}</p>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
