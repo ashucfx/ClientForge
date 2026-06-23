@@ -98,7 +98,7 @@ export function InquiryConfirmationEmail({
 
       {/* Journey steps */}
       <EmailBody style={{ marginBottom: '16px' }}>
-        Your request has been assigned reference <strong style={{ color: brand.primaryColor }}>{displayId}</strong>. Here's what happens next:
+        Your request has been assigned reference <strong style={{ color: brand.primaryColor }}>{displayId}</strong>. Here&apos;s what happens next:
       </EmailBody>
 
       {JOURNEY_STEPS.map((step, idx) => (

@@ -65,7 +65,7 @@ export function PaymentConfirmationEmail({ invoice }: PaymentConfirmationEmailPr
 
       {/* What's next numbered list */}
       <EmailBody style={{ marginTop: '24px', marginBottom: '16px' }}>
-        <strong style={{ color: '#0f172a' }}>Here's what happens next:</strong>
+        <strong style={{ color: '#0f172a' }}>Here&apos;s what happens next:</strong>
       </EmailBody>
 
       {[

@@ -146,8 +146,8 @@ export function InvoiceEmail({ invoice }: InvoiceEmailProps) {
       {brand.id === 'catalyst' && (
         <InfoBox brand={brand}>
           <em style={{ fontFamily: `"Playfair Display", Georgia, serif`, fontSize: '14px', color: '#065f46', lineHeight: '1.7' }}>
-            "A strategic investment in your career trajectory — crafted to maximise recruiter
-            visibility, increase interview conversion, and give you the competitive edge you deserve."
+            &ldquo;A strategic investment in your career trajectory — crafted to maximise recruiter
+            visibility, increase interview conversion, and give you the competitive edge you deserve.&rdquo;
           </em>
           <br />
           <strong style={{ fontSize: '11px', color: brand.primaryColor, letterSpacing: '0.5px' }}>
