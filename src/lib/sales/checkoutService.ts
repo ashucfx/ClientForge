@@ -249,8 +249,25 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
         paypalPaymentUrl: paymentUrl,
         razorpayLinkUrl: paymentUrl,
       } as unknown as Parameters<typeof sendInvoiceEmail>[0]);
+      db.sysEmailLog.create({ data: {
+        to: result.invoice.clientEmail,
+        subject: `Invoice ${result.invoice.invoiceNumber}`,
+        trigger: 'INVOICE_SENT',
+        channel: 'resend',
+        status: 'sent',
+        metadata: { invoiceId: result.invoice.id, invoiceNumber: result.invoice.invoiceNumber, source: 'checkout' },
+      }}).catch(() => {});
     } catch (e) {
       console.error('Failed to send checkout invoice email:', e);
+      db.sysEmailLog.create({ data: {
+        to: result.invoice.clientEmail,
+        subject: `Invoice ${result.invoice.invoiceNumber}`,
+        trigger: 'INVOICE_SENT',
+        channel: 'resend',
+        status: 'failed',
+        error: e instanceof Error ? e.message : String(e),
+        metadata: { invoiceId: result.invoice.id, invoiceNumber: result.invoice.invoiceNumber, source: 'checkout' },
+      }}).catch(() => {});
     }
   }
 

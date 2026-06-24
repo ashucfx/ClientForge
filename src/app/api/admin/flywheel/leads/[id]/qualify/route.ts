@@ -133,6 +133,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         const { sendInvoiceEmail } = await import('@/lib/email');
         const fullInvoice = await db.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
         await sendInvoiceEmail(fullInvoice as unknown as Parameters<typeof sendInvoiceEmail>[0]);
+        db.sysEmailLog.create({ data: {
+          to: fullInvoice.clientEmail,
+          subject: `Invoice ${fullInvoice.invoiceNumber}`,
+          trigger: 'INVOICE_SENT',
+          channel: 'resend',
+          status: 'sent',
+          metadata: { invoiceId: fullInvoice.id, invoiceNumber: fullInvoice.invoiceNumber, source: 'lead-qualify' },
+        }}).catch(() => {});
       } catch (e) {
         console.error('Qualify invoice email failed:', e);
       }

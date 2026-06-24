@@ -372,8 +372,25 @@ export async function createInvoiceFromProposal(proposalId: string, adminId?: st
     if (fullInvoice.clientEmail && paymentUrl) {
       try {
         await sendInvoiceEmail(fullInvoice as unknown as Parameters<typeof sendInvoiceEmail>[0]);
+        db.sysEmailLog.create({ data: {
+          to: fullInvoice.clientEmail,
+          subject: `Invoice ${fullInvoice.invoiceNumber}`,
+          trigger: 'INVOICE_SENT',
+          channel: 'resend',
+          status: 'sent',
+          metadata: { invoiceId: fullInvoice.id, invoiceNumber: fullInvoice.invoiceNumber, source: 'proposal' },
+        }}).catch(() => {});
       } catch (e) {
         console.error('Failed to send inquiry invoice email:', e);
+        db.sysEmailLog.create({ data: {
+          to: fullInvoice.clientEmail,
+          subject: `Invoice ${fullInvoice.invoiceNumber}`,
+          trigger: 'INVOICE_SENT',
+          channel: 'resend',
+          status: 'failed',
+          error: e instanceof Error ? e.message : String(e),
+          metadata: { invoiceId: fullInvoice.id, invoiceNumber: fullInvoice.invoiceNumber, source: 'proposal' },
+        }}).catch(() => {});
       }
     }
 
