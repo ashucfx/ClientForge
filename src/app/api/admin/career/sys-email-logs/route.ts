@@ -34,3 +34,13 @@ export async function GET(req: NextRequest) {
     pagination: { page, limit, total, pages: Math.ceil(total / limit) },
   });
 }
+
+export async function DELETE(req: NextRequest) {
+  if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id } = await req.json().catch(() => ({}));
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+  await db.sysEmailLog.delete({ where: { id } });
+  return NextResponse.json({ success: true });
+}

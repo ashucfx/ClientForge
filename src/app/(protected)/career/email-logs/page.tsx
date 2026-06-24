@@ -183,6 +183,7 @@ export default function EmailLogsPage() {
   const [resending, setResending] = useState<string | null>(null);
   const [syncing, setSyncing]     = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [triggerFilter, setTriggerFilter] = useState('');
   const [msg, setMsg]             = useState<{ text: string; ok: boolean } | null>(null);
 
   // Load stats (counts per status)
@@ -225,6 +226,7 @@ export default function EmailLogsPage() {
     try {
       const params = new URLSearchParams({ page: String(p) });
       if (filter) params.set('status', filter);
+      if (triggerFilter) params.set('trigger', triggerFilter);
       const res = await fetch(`/api/admin/career/sys-email-logs?${params}`);
       if (res.ok) {
         const data = await res.json();
@@ -233,14 +235,14 @@ export default function EmailLogsPage() {
         setSysPage(p);
       }
     } finally { setLoading(false); }
-  }, [filter]);
+  }, [filter, triggerFilter]);
 
   useEffect(() => {
     loadStats();
     if (source === 'career') loadCareer(1);
     else loadSys(1);
     setExpandedId(null);
-  }, [source, filter, loadCareer, loadSys, loadStats]);
+  }, [source, filter, triggerFilter, loadCareer, loadSys, loadStats]);
 
   function flash(text: string, ok = true) {
     setMsg({ text, ok });
@@ -258,6 +260,22 @@ export default function EmailLogsPage() {
       });
       flash('Log deleted — trigger reset');
       loadCareer(careerPage);
+      loadStats();
+    } catch { flash('Failed to delete', false); }
+    finally { setDeleting(null); }
+  };
+
+  const handleDeleteSys = async (id: string) => {
+    if (!confirm('Delete this log entry?')) return;
+    setDeleting(id);
+    try {
+      await fetch('/api/admin/career/sys-email-logs', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      flash('Log deleted');
+      loadSys(sysPage);
       loadStats();
     } catch { flash('Failed to delete', false); }
     finally { setDeleting(null); }
@@ -345,7 +363,7 @@ export default function EmailLogsPage() {
           {(['career', 'admin'] as Source[]).map(s => (
             <button
               key={s}
-              onClick={() => { setSource(s); setFilter(''); }}
+              onClick={() => { setSource(s); setFilter(''); setTriggerFilter(''); }}
               style={{
                 padding: '8px 18px',
                 fontSize: 13, fontWeight: 600,
@@ -373,9 +391,23 @@ export default function EmailLogsPage() {
             <option value="failed">✗ Failed</option>
             {source === 'career' && <option value="queued">⏳ Queued</option>}
           </select>
-          {filter && (
-            <button onClick={() => setFilter('')} className="btn btn-ghost btn-sm">
-              Clear filter
+          {source === 'admin' && (
+            <select
+              value={triggerFilter}
+              onChange={e => setTriggerFilter(e.target.value)}
+              style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12 }}
+            >
+              <option value="">All types</option>
+              <option value="INVOICE_SENT">Invoice Sent</option>
+              <option value="INVOICE_RESENT">Invoice Resent</option>
+              <option value="PROPOSAL_SENT">Proposal Sent</option>
+              <option value="ADMIN_ALERT">Admin Alert</option>
+              <option value="CAMPAIGN">Campaign</option>
+            </select>
+          )}
+          {(filter || triggerFilter) && (
+            <button onClick={() => { setFilter(''); setTriggerFilter(''); }} className="btn btn-ghost btn-sm">
+              Clear filters
             </button>
           )}
           <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-tertiary)' }}>
@@ -524,6 +556,7 @@ export default function EmailLogsPage() {
                     <th>Channel</th>
                     <th>Status</th>
                     <th>Sent</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -559,10 +592,19 @@ export default function EmailLogsPage() {
                           <td title={fullDate(log.sentAt)} style={{ fontSize: 11, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', cursor: 'default' }}>
                             {relativeTime(log.sentAt)}
                           </td>
+                          <td onClick={e => e.stopPropagation()}>
+                            <button
+                              onClick={() => handleDeleteSys(log.id)}
+                              disabled={deleting === log.id}
+                              style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 6, border: '1px solid #ef444430', background: '#ef444410', color: '#ef4444', cursor: 'pointer', opacity: deleting === log.id ? 0.5 : 1 }}
+                            >
+                              {deleting === log.id ? '…' : 'Delete'}
+                            </button>
+                          </td>
                         </tr>
                         {isExpanded && (
                           <tr key={`${log.id}-detail`} style={{ background: 'var(--surface)' }}>
-                            <td colSpan={6} style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)' }}>
+                            <td colSpan={7} style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)' }}>
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 12 }}>
                                 <div>
                                   <div style={{ fontWeight: 700, color: 'var(--text-tertiary)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>Recipient</div>
