@@ -167,10 +167,18 @@ export async function POST(req: NextRequest) {
     }).catch(console.error)
   );
 
-  return NextResponse.json({ 
-    ok: true, 
+  // Auto-flip client status to REVISION_REQUESTED so admin sees it immediately
+  if (['DRAFT_SENT', 'COMPLETED'].includes(client.status ?? '')) {
+    await db.careerClient.update({
+      where: { id: client.id },
+      data: { status: 'REVISION_REQUESTED' },
+    }).catch(err => console.error('[revisions POST] status flip failed:', err));
+  }
+
+  return NextResponse.json({
+    ok: true,
     revision,
     requiresPayment: false,
-    message: 'Revision requested successfully.'
+    message: 'Revision requested successfully.',
   }, { status: 201 });
 }

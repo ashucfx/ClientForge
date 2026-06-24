@@ -41,19 +41,33 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   });
 
   const FREE_LIMIT = 2;
-  const revisionSummary = client?.services.map(s => {
+  const services = client?.services ?? [];
+  const serviceSlugs = new Set(services.map(s => s.service.slug));
+  const isSingle = services.length === 1;
+  const clientRevisions = revisions.filter(r => r.requestedBy === 'client');
+
+  // GENERAL revisions = legacy slugs not mapped to any actual service
+  const generalFreeUsed = clientRevisions.filter(
+    r => r.chargeStatus === 'FREE' && (!r.serviceSlug || r.serviceSlug === 'GENERAL' || !serviceSlugs.has(r.serviceSlug))
+  ).length;
+
+  const revisionSummary = services.map((s, idx) => {
     const slug = s.service.slug;
-    const freeUsed = revisions.filter(r => r.serviceSlug === slug && r.chargeStatus === 'FREE' && r.requestedBy === 'client').length;
-    const paidUsed = revisions.filter(r => r.serviceSlug === slug && r.chargeStatus !== 'FREE' && r.requestedBy === 'client').length;
+    const slugFreeUsed = clientRevisions.filter(r => r.serviceSlug === slug && r.chargeStatus === 'FREE').length;
+    // Attribute GENERAL to primary service (same logic as portal /me)
+    const freeUsed = isSingle
+      ? slugFreeUsed + generalFreeUsed
+      : idx === 0 ? slugFreeUsed + generalFreeUsed : slugFreeUsed;
+    const paidUsed = clientRevisions.filter(r => r.serviceSlug === slug && r.chargeStatus !== 'FREE').length;
     return {
       slug,
       name: SERVICE_LABELS[slug as CareerServiceSlug] ?? s.service.name,
       freeLimit: FREE_LIMIT,
       freeUsed,
       revisionsLeft: Math.max(0, FREE_LIMIT - freeUsed),
-      paidUsed
+      paidUsed,
     };
-  }) || [];
+  });
 
   return NextResponse.json({ revisions, revisionSummary });
 }
@@ -79,9 +93,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   });
   if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
 
-  const revision = await db.careerRevision.create({
-    data: { clientId: client.id, requestedBy: 'admin', note, fileLabel, status: 'PENDING' },
-  });
+  const [revision, currentClient] = await db.$transaction([
+    db.careerRevision.create({
+      data: { clientId: client.id, requestedBy: 'admin', note, fileLabel, status: 'PENDING' },
+    }),
+    db.careerClient.findUnique({ where: { id: client.id }, select: { status: true } }),
+  ]);
+
+  // Auto-set client to REVISION_REQUESTED so the admin dashboard reflects it
+  if (['DRAFT_SENT', 'COMPLETED', 'UNDER_PROCESS'].includes(currentClient?.status ?? '')) {
+    await db.careerClient.update({
+      where: { id: client.id },
+      data: { status: 'REVISION_REQUESTED' },
+    });
+  }
 
   await db.careerActivityLog.create({
     data: {
@@ -127,6 +152,36 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     where: { id: revisionId, clientId: params.id },
     data: { status: status!, adminNote },
   });
+
+  // Sync client status based on revision decision
+  if (status === 'APPROVED') {
+    // Admin is about to start work → UNDER_PROCESS
+    await db.careerClient.update({
+      where: { id: params.id },
+      data: { status: 'UNDER_PROCESS' },
+    });
+  } else if (status === 'DENIED') {
+    // Only revert if no other active (PENDING or APPROVED) revisions remain
+    const otherActive = await db.careerRevision.count({
+      where: {
+        clientId: params.id,
+        id: { not: revisionId },
+        status: { in: ['PENDING', 'APPROVED'] },
+      },
+    });
+    if (otherActive === 0) {
+      const current = await db.careerClient.findUnique({
+        where: { id: params.id }, select: { status: true },
+      });
+      if (current?.status === 'REVISION_REQUESTED' || current?.status === 'UNDER_PROCESS') {
+        // Revert to DRAFT_SENT — admin still has a valid draft; they can bump to COMPLETED if needed
+        await db.careerClient.update({
+          where: { id: params.id },
+          data: { status: 'DRAFT_SENT' },
+        });
+      }
+    }
+  }
 
   await db.careerActivityLog.create({
     data: {
