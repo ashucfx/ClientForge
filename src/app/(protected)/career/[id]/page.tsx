@@ -368,7 +368,7 @@ export default function CareerClientDetailPage() {
 
       {/* ── REVISIONS ── */}
       {activeTab === 'revisions' && (
-        <RevisionAdminTab clientId={client.id} clientName={client.name} clientPackage={client.packageType ?? null} />
+        <RevisionAdminTab clientId={client.id} clientName={client.name} clientPackage={client.packageType ?? null} services={client.services ?? []} />
       )}
 
       {/* ── COMMENTS ── */}
@@ -1929,17 +1929,20 @@ const REV_STATUS_STYLE: Record<string, string> = {
   DENIED:   'bg-red-50 text-red-700 border-red-200',
 };
 
-function RevisionAdminTab({ clientId, clientName, clientPackage }: {
+function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
   clientId: string;
   clientName: string;
   clientPackage: CareerPackage | null;
+  services: { slug: string; name: string }[];
 }) {
-  const [revisions,   setRevisions]   = useState<RevisionItem[]>([]);
-  const [loading,     setLoading]     = useState(true);
-  const [showForm,    setShowForm]    = useState(false);
-  const [note,        setNote]        = useState('');
-  const [fileLabel,   setFileLabel]   = useState('');
-  const [sendEmail,   setSendEmail]   = useState(true);
+  const [revisions,      setRevisions]      = useState<RevisionItem[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [showForm,       setShowForm]       = useState(false);
+  const [note,           setNote]           = useState('');
+  const [fileLabel,      setFileLabel]      = useState('');
+  const [sendEmail,      setSendEmail]      = useState(true);
+  const [countAsClient,  setCountAsClient]  = useState(false);
+  const [serviceSlug,    setServiceSlug]    = useState('');
   const [saving,      setSaving]      = useState(false);
   const [error,       setError]       = useState('');
   const [toast,       setToast]       = useState('');
@@ -1965,13 +1968,19 @@ function RevisionAdminTab({ clientId, clientName, clientPackage }: {
     const res = await fetch(`/api/career/admin/clients/${clientId}/revisions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ note: note.trim(), fileLabel: fileLabel.trim() || undefined, sendEmail }),
+      body: JSON.stringify({
+      note: note.trim(),
+      fileLabel: fileLabel.trim() || undefined,
+      sendEmail,
+      countAsClient,
+      serviceSlug: countAsClient ? (serviceSlug || undefined) : undefined,
+    }),
     });
     setSaving(false);
     if (res.ok) {
       const d = await res.json() as { revision: RevisionItem };
       setRevisions(prev => [d.revision, ...prev]);
-      setNote(''); setFileLabel(''); setShowForm(false);
+      setNote(''); setFileLabel(''); setServiceSlug(''); setCountAsClient(false); setShowForm(false);
       showToast(sendEmail ? 'Revision created · email sent' : 'Revision created');
     } else {
       const d = await res.json().catch(() => ({})) as { error?: string };
@@ -2043,8 +2052,29 @@ function RevisionAdminTab({ clientId, clientName, clientPackage }: {
                 className="w-4 h-4 rounded border-slate-300 accent-[#B8935B]" />
               Send revision email to client ({clientPackage})
             </label>
+            {/* Count against client's free limit — use when client asked via chat/call */}
+            <div className="border border-amber-200 bg-amber-50 rounded-xl p-3 space-y-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-amber-800 cursor-pointer">
+                <input type="checkbox" checked={countAsClient} onChange={e => { setCountAsClient(e.target.checked); if (!e.target.checked) setServiceSlug(''); }}
+                  className="w-4 h-4 rounded border-amber-300 accent-amber-600" />
+                Count against client&apos;s free revision limit
+              </label>
+              <p className="text-xs text-amber-600 pl-6">Use when the client requested this via chat or call — prevents them from bypassing the 2-revision cap.</p>
+              {countAsClient && services.length > 0 && (
+                <div className="pl-6">
+                  <label className="block text-xs font-semibold text-amber-700 mb-1">Which service? *</label>
+                  <select required value={serviceSlug} onChange={e => setServiceSlug(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+                    <option value="">Select service…</option>
+                    {services.map(s => (
+                      <option key={s.slug} value={s.slug}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
             <div className="flex gap-2">
-              <button type="submit" disabled={saving || note.trim().length < 5}
+              <button type="submit" disabled={saving || note.trim().length < 5 || (countAsClient && services.length > 0 && !serviceSlug)}
                 className="px-5 py-2 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center gap-2">
                 {saving && <Spinner />}
                 {saving ? 'Creating…' : 'Create Revision'}

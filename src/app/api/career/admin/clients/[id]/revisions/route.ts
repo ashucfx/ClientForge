@@ -76,9 +76,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const note       = (body?.note as string | undefined)?.trim();
-  const fileLabel  = (body?.fileLabel as string | undefined)?.trim() || undefined;
-  const doSendEmail = body?.sendEmail !== false; // default true
+  const note            = (body?.note as string | undefined)?.trim();
+  const fileLabel       = (body?.fileLabel as string | undefined)?.trim() || undefined;
+  const serviceSlug     = (body?.serviceSlug as string | undefined)?.trim() || undefined;
+  const doSendEmail     = body?.sendEmail !== false; // default true
+  // Set to true when client requested via chat/call — counts against their free limit
+  const countAsClient   = body?.countAsClient === true;
 
   if (!note || note.length < 5) {
     return NextResponse.json({ error: 'Note required (min 5 chars).' }, { status: 400 });
@@ -96,13 +99,37 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const currentClient = await db.careerClient.findUnique({
     where: { id: client.id }, select: { status: true },
   });
+
+  // If counting as client, enforce the same 2-revision limit to prevent chat-bypass
+  if (countAsClient && serviceSlug) {
+    const FREE_LIMIT = 2;
+    const serviceSlugs = client.services.map(s => s.service.slug);
+    const isSingle = serviceSlugs.length <= 1;
+    const existing = await db.careerRevision.count({
+      where: {
+        clientId: client.id,
+        requestedBy: 'client',
+        chargeStatus: 'FREE',
+        serviceSlug: isSingle ? { in: [serviceSlug, 'GENERAL'] } : serviceSlug,
+      },
+    });
+    if (existing >= FREE_LIMIT) {
+      return NextResponse.json({
+        error: `Client has already used all ${FREE_LIMIT} free revisions for this service.`,
+        limitExceeded: true,
+      }, { status: 422 });
+    }
+  }
+
   const revision = await db.careerRevision.create({
     data: {
       clientId: client.id,
-      requestedBy: 'admin',
+      requestedBy: countAsClient ? 'client' : 'admin',
       note,
       fileLabel,
+      serviceSlug,
       status: 'PENDING',
+      chargeStatus: 'FREE',
       clientStatusBefore: currentClient?.status ?? null,
     },
   });
