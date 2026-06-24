@@ -35,6 +35,10 @@ export async function GET(req: NextRequest) {
         select: { formType: true, submittedAt: true, version: true },
         orderBy: { submittedAt: 'desc' },
       },
+      deliverables: {
+        select: { fileType: true, fileCategory: true, label: true, approvalStatus: true },
+        orderBy: { createdAt: 'desc' },
+      },
       revisions: {
         where: { requestedBy: 'client' },
         select: { id: true },
@@ -170,5 +174,6 @@ export async function GET(req: NextRequest) {
     unreadMessages: client.ConversationReadState?.unreadByClient ?? 0,
     hasSubmittedFeedback: !!client.Feedback,
     hasSubmittedReview: !!client.Review,
+    deliverables: client.deliverables,
   });
 }

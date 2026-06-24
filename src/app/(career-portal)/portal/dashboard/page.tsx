@@ -38,6 +38,7 @@ interface Me {
   unreadMessages?: number;
   hasSubmittedFeedback?: boolean;
   hasSubmittedReview?: boolean;
+  deliverables?: { fileType: string; fileCategory: string; label: string; approvalStatus: string }[];
 }
 interface ReferralStats {
   referralCode: string | null;
@@ -122,6 +123,56 @@ const STATUS_STEPS: { key: CareerStatus | 'REVISION_IN_PROGRESS'; label: string 
   { key: 'REVISION_IN_PROGRESS', label: 'Revision In Progress'  },
   { key: 'COMPLETED',            label: 'Final Delivered'       },
 ];
+
+// ── Portal service helpers ─────────────────────────────────────────────────────
+
+function getPortalTierLabel(slugs: string[]): string {
+  if (slugs.includes('PREMIUM_PLUS') || slugs.includes('PORTFOLIO')) return 'Premium Plus Package';
+  if (slugs.includes('FULL_PACKAGE') || (['RESUME', 'COVER_LETTER', 'LINKEDIN'].every(s => slugs.includes(s)))) return 'Career Booster Package';
+  if (slugs.includes('RESUME') && slugs.includes('COVER_LETTER')) return 'Resume & Cover Letter';
+  if (slugs.includes('RESUME')) return 'Resume Writing';
+  return 'Your Package';
+}
+
+function portalServiceChips(files: { fileType: string; label: string }[]): { type: string; label: string }[] {
+  const seen = new Set<string>();
+  return files.reduce<{ type: string; label: string }[]>((acc, d) => {
+    const k = d.fileType.startsWith('linkedin') ? 'linkedin' : d.fileType;
+    if (!seen.has(k)) {
+      seen.add(k);
+      acc.push({ type: k, label: k === 'linkedin' ? 'LinkedIn Profile' : (d.label || d.fileType.replace(/_/g, ' ')) });
+    }
+    return acc;
+  }, []);
+}
+
+function portalChipIcon(type: string) {
+  if (type === 'resume') return (
+    <svg width="10" height="10" fill="none" viewBox="0 0 24 24" style={{flexShrink:0}}>
+      <path stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"
+        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+    </svg>
+  );
+  if (type === 'cover_letter') return (
+    <svg width="10" height="10" fill="none" viewBox="0 0 24 24" style={{flexShrink:0}}>
+      <path stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"
+        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+    </svg>
+  );
+  if (type === 'linkedin') return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style={{flexShrink:0}}>
+      <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-4 0v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/>
+      <circle cx="4" cy="4" r="2"/>
+    </svg>
+  );
+  if (type === 'portfolio') return (
+    <svg width="10" height="10" fill="none" viewBox="0 0 24 24" style={{flexShrink:0}}>
+      <path stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"
+        d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+    </svg>
+  );
+  return null;
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -440,6 +491,16 @@ export default function PortalDashboardPage() {
                 <span className="text-orange-300 text-xs font-medium">Revision in progress</span>
               )}
             </div>
+            {me.services && me.services.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {me.services.map(s => (
+                  <span key={s.slug}
+                    className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/10 text-white/70 border border-white/15">
+                    {s.name}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -525,22 +586,66 @@ export default function PortalDashboardPage() {
                       <p className="text-sm text-slate-500 mt-1">Our team is reviewing your submission</p>
                     )}
                     {current && me.status === 'UNDER_PROCESS' && (
-                      <p className="text-sm text-slate-500 mt-1">Work in progress - we will notify you when your draft is ready</p>
+                      <div className="mt-2 space-y-1.5">
+                        <p className="text-sm text-slate-500">Work in progress — we&apos;ll notify you when your draft is ready</p>
+                        <div className="flex items-center gap-2">
+                          <svg width="11" height="11" fill="none" viewBox="0 0 24 24" style={{color:'#B8935B',flexShrink:0}}>
+                            <path stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                          </svg>
+                          <span className="text-xs font-semibold text-amber-700">
+                            {getPortalTierLabel(me.services?.map(s => s.slug) ?? [])}
+                          </span>
+                          <span className="text-[10px] text-amber-500 ml-auto">In Progress</span>
+                        </div>
+                      </div>
                     )}
-                    {current && me.status === 'DRAFT_SENT' && (
-                      <p className="text-sm text-slate-500 mt-1">
-                        Check your email for the draft - <Link href="/portal/dashboard/files" className="font-semibold text-[#B8935B] hover:underline">View in Files</Link>
-                      </p>
-                    )}
+                    {current && me.status === 'DRAFT_SENT' && (() => {
+                      const drafts = portalServiceChips((me.deliverables ?? []).filter(d => d.fileCategory === 'draft'));
+                      return (
+                        <div className="mt-2 space-y-2">
+                          <p className="text-sm text-slate-500">
+                            Your draft{drafts.length > 1 ? 's are' : ' is'} ready —{' '}
+                            <Link href="/portal/dashboard/files" className="font-semibold text-[#B8935B] hover:underline">view in Files</Link>
+                          </p>
+                          {drafts.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {drafts.map(c => (
+                                <span key={c.type} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-purple-50 border border-purple-100 text-purple-700">
+                                  {portalChipIcon(c.type)}
+                                  {c.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {current && me.status === 'REVISION_REQUESTED' && (
                       <p className="text-sm text-orange-500 mt-1">Your revision is being worked on</p>
                     )}
-                    {current && me.status === 'COMPLETED' && (
-                      <p className="text-sm text-emerald-600 mt-1 flex items-center gap-1.5 font-medium">
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/></svg>
-                        All done! <Link href="/portal/dashboard/files" className="underline ml-1 hover:text-emerald-700">Download your files</Link>
-                      </p>
-                    )}
+                    {current && me.status === 'COMPLETED' && (() => {
+                      const finals = portalServiceChips((me.deliverables ?? []).filter(d => d.fileCategory !== 'draft'));
+                      return (
+                        <div className="mt-2 space-y-2">
+                          <p className="text-sm text-emerald-600 font-medium flex items-center gap-1.5">
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/></svg>
+                            All done!{' '}
+                            <Link href="/portal/dashboard/files" className="underline ml-1 hover:text-emerald-700">Download your files</Link>
+                          </p>
+                          {finals.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {finals.map(c => (
+                                <span key={c.type} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-50 border border-emerald-100 text-emerald-700">
+                                  {portalChipIcon(c.type)}
+                                  {c.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               );
@@ -601,6 +706,23 @@ export default function PortalDashboardPage() {
               </span>
             )}
           </div>
+
+          {me.availableForms.length > 0 && (() => {
+            const submittedCount = me.availableForms.filter(ft => me.submittedForms.includes(ft)).length;
+            const total = me.availableForms.length;
+            const pct = Math.round((submittedCount / total) * 100);
+            return (
+              <div className="mb-4">
+                <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                  <span>Form Progress</span>
+                  <span className="font-semibold text-slate-600">{submittedCount} / {total} submitted</span>
+                </div>
+                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#B8935B] rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })()}
 
           {me.availableForms.length === 0 ? (
             <p className="text-slate-400 text-sm text-center py-4">No forms available for your package.</p>

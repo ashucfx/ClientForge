@@ -828,12 +828,9 @@ function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetai
               ? uniqueDeliverableChips(finalFiles)
               : (TIER_CHIPS[tier]?.COMPLETED ?? []);
           }
-          const chipColorMap: Record<string, string> = {
-            resume:       'bg-[#FBF8F3] border-[#E8DDD0] text-[#9A7540]',
-            cover_letter: 'bg-blue-50 border-blue-100 text-blue-700',
-            linkedin:     'bg-sky-50 border-sky-100 text-sky-700',
-            portfolio:    'bg-emerald-50 border-emerald-100 text-emerald-700',
-          };
+          const chipClass = isRevision || client.status === 'DRAFT_SENT'
+            ? 'bg-purple-50 border-purple-100 text-purple-700'
+            : 'bg-emerald-50 border-emerald-100 text-emerald-700';
           const wrapColor = client.status === 'DRAFT_SENT' || isRevision
             ? 'bg-purple-50 border-purple-100'
             : 'bg-emerald-50 border-emerald-100';
@@ -930,7 +927,7 @@ function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetai
               ) : currentChips.length > 0 ? (
                 <div className={`px-3 py-2.5 rounded-xl border flex flex-wrap gap-1.5 ${wrapColor}`}>
                   {currentChips.map((chip) => (
-                    <span key={chip.type} className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border ${chipColorMap[chip.type] ?? 'bg-slate-50 border-slate-100 text-slate-600'}`}>
+                    <span key={chip.type} className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border ${chipClass}`}>
                       {chipSvg(chip.type)}
                       {chip.label}
                     </span>
