@@ -246,25 +246,23 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <div className="page-header" style={{ paddingBottom: 48 }}>
+      <div className="page-header pb-6 sm:pb-10">
 
         {/* Page title row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 48, flexWrap: 'wrap', gap: 12 }}>
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-6 sm:mb-10">
           <div>
-            <h1 className="text-display font-semibold" style={{ color: 'var(--text-primary)' }}>
-              {activeBrand === 'ripple_nexus' ? 'Mission Control' : 'Mission Control'}
-            </h1>
-            <p className="text-subheading mt-2" style={{ color: 'var(--text-secondary)' }}>
+            <h1 className="text-display font-semibold" style={{ color: 'var(--text-primary)' }}>Mission Control</h1>
+            <p className="text-subheading mt-1 sm:mt-2" style={{ color: 'var(--text-secondary)' }}>
               {activeBrand === 'ripple_nexus' ? 'Ripple Nexus Operations Overview' : 'Catalyst Operations Overview'}
             </p>
           </div>
-          <Link href="/invoices/new" className="btn btn-primary hover-lift" style={{ padding: '12px 24px', fontSize: 14 }}>
+          <Link href="/invoices/new" className="btn btn-primary hover-lift" style={{ padding: '10px 20px', fontSize: 14 }}>
             <span>New Invoice</span>
           </Link>
         </div>
 
         {/* KPI Row - Matches Active Brand Style */}
-        <div className="grid-4" style={{ marginBottom: 48 }}>
+        <div className="grid-4 mb-6 sm:mb-10">
           {activeBrand === 'ripple_nexus' ? (
             <>
               <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: '#7C5CFF' }} />} bg="#f3f0ff" accent />
@@ -283,7 +281,7 @@ export default function Dashboard() {
         </div>
 
         {/* Action Center & Revenue */}
-        <div className="grid-2" style={{ marginBottom: 24, gap: 32 }}>
+        <div className="grid-2 mb-4" style={{ gap: 24 }}>
           {/* Action Center */}
           <div className="card hover-lift" style={{ padding: '24px 32px' }}>
             <div className="text-heading font-semibold" style={{ color: 'var(--text-primary)', marginBottom: 16 }}>
@@ -368,17 +366,100 @@ export default function Dashboard() {
           </span>
         </div>
 
-        {/* Invoice table */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        {/* ── Mobile invoice cards (< md) ──────────────────────────── */}
+        {loading ? (
+          <div className="md:hidden space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white border border-slate-200 rounded-2xl p-4 animate-pulse">
+                <div className="flex justify-between mb-2">
+                  <div className="h-3.5 w-28 bg-slate-100 rounded-full" />
+                  <div className="h-5 w-16 bg-slate-100 rounded-full" />
+                </div>
+                <div className="h-4 w-40 bg-slate-100 rounded-full mb-1" />
+                <div className="h-3 w-32 bg-slate-100 rounded-full" />
+              </div>
+            ))}
+          </div>
+        ) : visible.length === 0 ? (
+          <div className="md:hidden py-16 text-center">
+            <p className="text-sm font-semibold text-slate-700 mb-1">No invoices found</p>
+            <p className="text-xs text-slate-400 mb-4">Adjust filters or create a new invoice</p>
+            <Link href="/invoices/new" className="inline-flex items-center gap-2 px-4 py-2 bg-[#B8935B] text-white text-sm font-semibold rounded-xl">
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M12 5v14m-7-7h14"/></svg>
+              New Invoice
+            </Link>
+          </div>
+        ) : (
+          <div className="md:hidden space-y-2">
+            {visible.map(inv => {
+              const payLink = inv.paymentGateway === 'PAYPAL' ? inv.paypalPaymentUrl : inv.razorpayLinkUrl;
+              const isPending = inv.status === 'PENDING';
+              return (
+                <div key={inv.id} className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                  <Link href={`/invoices/${inv.id}`} className="block p-4 hover:bg-[#FBF8F3]/40 transition-colors">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-mono font-bold text-[12px] text-[#B8935B]">{inv.invoiceNumber}</span>
+                          {inv.paymentGateway === 'PAYPAL'
+                            ? <span className="text-[9px] font-bold text-blue-500">PayPal</span>
+                            : <span className="text-[9px] font-bold text-orange-500">Razorpay</span>}
+                          {inv.customPricing && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[9px] font-bold">edited</span>}
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{format(new Date(inv.invoiceDate), 'dd MMM yyyy')}</div>
+                      </div>
+                      <StatusBadge status={inv.status} />
+                    </div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-slate-900 text-sm truncate">{inv.clientName}</div>
+                        <div className="text-[11px] text-slate-400 truncate">{inv.clientEmail}</div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="font-bold text-slate-900 text-sm">{formatCurrency(inv.totalPayable, inv.currencySymbol)}</div>
+                        <div className="mt-0.5"><TierTag type={inv.clientType} /></div>
+                      </div>
+                    </div>
+                  </Link>
+                  <div className="border-t border-slate-100 px-4 py-2 flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                    <Link href={`/invoices/${inv.id}`}
+                      className="px-3 py-1.5 text-[11px] font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                      View
+                    </Link>
+                    {isPending && (
+                      <button onClick={e => handleResend(inv.id, e)} title="Resend email"
+                        className="p-1.5 text-slate-400 border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-[#B8935B] transition-colors">
+                        <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                      </button>
+                    )}
+                    {isPending && payLink && (
+                      <button onClick={() => { void navigator.clipboard.writeText(payLink); show('Payment link copied!'); }} title="Copy payment link"
+                        className="p-1.5 text-slate-400 border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">
+                        <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                      </button>
+                    )}
+                    <button onClick={e => { e.stopPropagation(); setDeleteTarget(inv); }} title="Delete"
+                      className="ml-auto p-1.5 text-slate-400 border border-slate-200 rounded-lg hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors">
+                      <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Desktop invoice table (≥ md) ─────────────────────────── */}
+        <div className="hidden md:block bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/70">
                 <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Invoice</th>
                 <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Client</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider hidden sm:table-cell">Package</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Package</th>
                 <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Amount</th>
                 <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider hidden md:table-cell">Date</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</th>
                 <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -437,7 +518,7 @@ export default function Dashboard() {
                       {inv.companyName && <div className="text-[11px] text-slate-400">{inv.companyName}</div>}
                       <div className="text-[11px] text-slate-400">{inv.clientEmail}</div>
                     </td>
-                    <td className="px-4 py-3.5 hidden sm:table-cell">
+                    <td className="px-4 py-3.5">
                       <TierTag type={inv.clientType} />
                     </td>
                     <td className="px-4 py-3.5 text-right">
@@ -445,7 +526,7 @@ export default function Dashboard() {
                       <div className="text-[10px] text-slate-400">{inv.currency}</div>
                     </td>
                     <td className="px-4 py-3.5"><StatusBadge status={inv.status} /></td>
-                    <td className="px-4 py-3.5 text-xs text-slate-500 hidden md:table-cell whitespace-nowrap">
+                    <td className="px-4 py-3.5 text-xs text-slate-500 whitespace-nowrap">
                       {format(new Date(inv.invoiceDate), 'dd MMM yyyy')}
                     </td>
                     <td className="px-4 py-3.5">
