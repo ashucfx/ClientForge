@@ -45,10 +45,15 @@ const STATUS_STYLE: Record<string, string> = {
   DENIED:   'bg-red-50 text-red-700 border-red-200',
 };
 
+interface RevisionSummaryItem {
+  slug: string; name: string; freeLimit: number; freeUsed: number; revisionsLeft: number;
+}
+
 export default function FilesPage() {
   const router = useRouter();
   const [files,     setFiles]     = useState<FileItem[]>([]);
   const [revisions, setRevisions] = useState<RevisionItem[]>([]);
+  const [revSummary, setRevSummary] = useState<RevisionSummaryItem[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [copying,   setCopying]   = useState<string | null>(null);
   const [showRevModal, setShowRevModal] = useState(false);
@@ -59,14 +64,17 @@ export default function FilesPage() {
     Promise.all([
       fetch('/api/career/portal/deliverables'),
       fetch('/api/career/portal/revisions'),
-    ]).then(async ([fRes, rRes]) => {
+      fetch('/api/career/portal/me'),
+    ]).then(async ([fRes, rRes, mRes]) => {
       if (fRes.status === 401) { router.replace('/portal/login'); return; }
-      const [fData, rData] = await Promise.all([
+      const [fData, rData, mData] = await Promise.all([
         fRes.json() as Promise<{ files: FileItem[] }>,
         rRes.ok ? rRes.json() as Promise<{ revisions: RevisionItem[] }> : Promise.resolve({ revisions: [] }),
+        mRes.ok ? mRes.json() as Promise<{ revisionSummary?: RevisionSummaryItem[] }> : Promise.resolve({ revisionSummary: [] }),
       ]);
       setFiles(fData.files ?? []);
       setRevisions(rData.revisions ?? []);
+      setRevSummary(mData.revisionSummary ?? []);
       setLoading(false);
     }).catch(() => router.replace('/portal/login'));
   }, [router]);
@@ -317,7 +325,7 @@ export default function FilesPage() {
         {/* ── Revision Requests ── */}
         {!loading && (
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Revision Requests</h3>
               <button
                 onClick={() => openRevision()}
@@ -325,6 +333,30 @@ export default function FilesPage() {
                 + New Request
               </button>
             </div>
+
+            {/* Per-service revision tracker */}
+            {revSummary.length > 0 && (
+              <div className="mb-4 space-y-2 px-3 py-3 bg-slate-50 rounded-xl border border-slate-100">
+                {revSummary.map(s => {
+                  const exhausted = s.revisionsLeft === 0;
+                  const pct = Math.round((s.freeUsed / s.freeLimit) * 100);
+                  return (
+                    <div key={s.slug}>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-xs font-medium text-slate-600">{s.name}</span>
+                        <span className={`text-[11px] font-bold ${exhausted ? 'text-red-500' : 'text-slate-500'}`}>
+                          {s.freeUsed}/{s.freeLimit} used{exhausted ? ' — contact us' : ` · ${s.revisionsLeft} left`}
+                        </span>
+                      </div>
+                      <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${exhausted ? 'bg-red-400' : s.freeUsed > 0 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                          style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {revisions.length === 0 ? (
               <p className="text-sm text-slate-400 text-center py-4">No revision requests yet.</p>

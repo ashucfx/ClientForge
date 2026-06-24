@@ -27,6 +27,7 @@ interface Me {
   submittedForms: string[];
   forms: FormMeta[];
   createdAt: string;
+  completedAt?: string | null;
   currency?: string;
   hasPinSet?: boolean;
   revisionCount?: number;
@@ -426,15 +427,15 @@ export default function PortalDashboardPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-12 space-y-8" style={{ animation: 'fadeSlideIn 0.4s ease-out' }}>
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 sm:space-y-8" style={{ animation: 'fadeSlideIn 0.4s ease-out' }}>
         <style>{`@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }`}</style>
 
         {/* ── Greeting ── */}
-        <div className="mb-8">
-          <h1 className="text-display font-semibold text-slate-900">
+        <div>
+          <h1 className="text-2xl sm:text-display font-semibold text-slate-900">
             Hi, {me.name.split(' ')[0]}
           </h1>
-          <p className="text-subheading text-slate-500 mt-2">Welcome to your ClientForge Boost portal</p>
+          <p className="text-sm sm:text-subheading text-slate-500 mt-1 sm:mt-2">Welcome to your ClientForge Boost portal</p>
         </div>
 
         {me.lifecycleStatus === 'ARCHIVED' && (
@@ -468,7 +469,7 @@ export default function PortalDashboardPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center flex-wrap gap-2">
               <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
                 me.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30' :
                 me.status === 'REVISION_REQUESTED' ? 'bg-orange-400/20 text-orange-300 border border-orange-400/30' :
@@ -481,10 +482,10 @@ export default function PortalDashboardPage() {
                 {me.statusLabel}
               </div>
               {me.waitingOn && (
-                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
                   me.waitingOn === 'CLIENT' ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30' : 'bg-blue-400/20 text-blue-300 border border-blue-400/30'
                 }`}>
-                  WAITING ON: {me.waitingOn === 'CLIENT' ? 'YOU' : 'CATALYST'}
+                  Waiting: {me.waitingOn === 'CLIENT' ? 'YOU' : 'CATALYST'}
                 </div>
               )}
               {me.status === 'REVISION_REQUESTED' && (
@@ -506,27 +507,60 @@ export default function PortalDashboardPage() {
 
         {/* ── Stats row: Revisions + Delivery Date ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Revisions left (Per service) */}
+          {/* Revisions (per-service progress bars) */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
-            <div className="flex justify-between items-center mb-2">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisions Left</p>
-            </div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Free Revisions</p>
+            {/* 15-day post-delivery window notice */}
+            {me.status === 'COMPLETED' && me.completedAt && (() => {
+              const days = Math.floor((Date.now() - new Date(me.completedAt!).getTime()) / (1000 * 60 * 60 * 24));
+              const daysLeft = 15 - days;
+              if (daysLeft <= 0) return (
+                <p className="text-[11px] text-red-500 font-medium mb-2 flex items-center gap-1">
+                  <span>⚠️</span> Revision window closed · contact us for paid support
+                </p>
+              );
+              if (daysLeft <= 5) return (
+                <p className="text-[11px] text-amber-600 font-medium mb-2">
+                  {daysLeft} day{daysLeft !== 1 ? 's' : ''} left in your free revision window
+                </p>
+              );
+              return null;
+            })()}
             {me.revisionSummary && me.revisionSummary.length > 0 ? (
-              <div className="space-y-2">
-                {me.revisionSummary.map(s => (
-                  <div key={s.slug} className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-700 truncate max-w-[150px]" title={s.name}>{s.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-slate-900">{s.revisionsLeft}</span>
-                      <span className="text-xs text-slate-400">/ {s.freeLimit}</span>
+              <div className="space-y-3">
+                {me.revisionSummary.map(s => {
+                  const pct = Math.round((s.freeUsed / s.freeLimit) * 100);
+                  const exhausted = s.revisionsLeft === 0;
+                  return (
+                    <div key={s.slug}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-semibold text-slate-600 truncate max-w-[160px]" title={s.name}>{s.name}</span>
+                        <span className={`text-xs font-bold ${exhausted ? 'text-red-500' : 'text-slate-700'}`}>
+                          {s.freeUsed} <span className="font-normal text-slate-400">/ {s.freeLimit} used</span>
+                        </span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${exhausted ? 'bg-red-400' : s.freeUsed > 0 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      {exhausted && (
+                        <p className="text-[10px] text-red-500 mt-1 font-medium">Contact us for a paid revision</p>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
-              <div className="flex items-end gap-1.5">
-                <span className="text-2xl font-bold text-slate-900">{me.revisionsLeft ?? 2}</span>
-                <span className="text-sm text-slate-400 mb-0.5">/ 2</span>
+              <div>
+                <div className="flex items-end gap-1.5 mb-2">
+                  <span className="text-2xl font-bold text-slate-900">{me.revisionsLeft ?? 2}</span>
+                  <span className="text-sm text-slate-400 mb-0.5">/ 2 left</span>
+                </div>
+                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-amber-400 rounded-full" style={{ width: `${((2 - (me.revisionsLeft ?? 2)) / 2) * 100}%` }} />
+                </div>
               </div>
             )}
           </div>
@@ -553,7 +587,7 @@ export default function PortalDashboardPage() {
         </div>
 
         {/* ── Progress tracker (Reach-Style Vertical Timeline) ── */}
-        <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-8 hover-lift">
+        <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-5 sm:p-8 hover-lift">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-metadata font-bold text-slate-400 uppercase tracking-widest">Project Journey</h3>
             <span className="text-sm font-medium text-slate-400">{progressIdx + 1} / {STATUS_STEPS.length}</span>

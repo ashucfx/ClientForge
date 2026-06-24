@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     select: {
       id: true, name: true, email: true,
       packageType: true, status: true,
-      lifecycleStatus: true,
+      lifecycleStatus: true, completedAt: true,
       waitingOn: true,
       pinHash: true, currency: true,
       createdAt: true,
@@ -108,11 +108,23 @@ export async function GET(req: NextRequest) {
   });
 
   const FREE_LIMIT = 2;
-  
-  // Calculate usage per service
-  const revisionSummary = client.services.map(s => {
+  const serviceSlugs = new Set(client.services.map(s => s.service.slug));
+  const isSingleService = client.services.length === 1;
+
+  // Revisions with 'GENERAL' slug (legacy default when service wasn't mapped yet)
+  const generalFreeUsed = revisionsList.filter(
+    r => r.chargeStatus === 'FREE' && (!r.serviceSlug || r.serviceSlug === 'GENERAL' || !serviceSlugs.has(r.serviceSlug))
+  ).length;
+
+  // Calculate usage per service — GENERAL revisions count toward the primary service
+  // for single-service clients (prevents showing 2/2 when 1 GENERAL revision exists)
+  const revisionSummary = client.services.map((s, idx) => {
     const slug = s.service.slug;
-    const freeUsed = revisionsList.filter(r => r.serviceSlug === slug && r.chargeStatus === 'FREE').length;
+    const slugFreeUsed = revisionsList.filter(r => r.serviceSlug === slug && r.chargeStatus === 'FREE').length;
+    // Attribute GENERAL revisions to primary (first) service for single-service clients
+    const freeUsed = isSingleService
+      ? slugFreeUsed + generalFreeUsed
+      : (idx === 0 ? slugFreeUsed + generalFreeUsed : slugFreeUsed);
     const paidUsed = revisionsList.filter(r => r.serviceSlug === slug && r.chargeStatus !== 'FREE').length;
     return {
       slug,
@@ -120,11 +132,11 @@ export async function GET(req: NextRequest) {
       freeLimit: FREE_LIMIT,
       freeUsed,
       revisionsLeft: Math.max(0, FREE_LIMIT - freeUsed),
-      paidUsed
+      paidUsed,
     };
   });
-  
-  // Fallback for global legacy view or clients with no services linked yet
+
+  // Global fallback (for clients with no services linked yet)
   const globalFreeUsed = revisionsList.filter(r => r.chargeStatus === 'FREE').length;
   const revisionsLeft = Math.max(0, FREE_LIMIT - globalFreeUsed);
   const revisionCount = revisionsList.length;
@@ -164,6 +176,7 @@ export async function GET(req: NextRequest) {
     revisionCount,
     revisionsLeft,
     revisionSummary,
+    completedAt: client.completedAt,
     availableForms,
     submittedForms: Array.from(submittedFormsNormalized),
     forms: formsNormalized,

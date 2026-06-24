@@ -24,7 +24,10 @@ async function getClient() {
   if (!payload) return null;
   const client = await db.careerClient.findUnique({
     where: { id: payload.clientId },
-    select: { id: true, name: true, email: true, status: true, completedAt: true, lifecycleStatus: true },
+    select: {
+      id: true, name: true, email: true, status: true, completedAt: true, lifecycleStatus: true,
+      services: { select: { service: { select: { slug: true } } } },
+    },
   });
   return client ?? null;
 }
@@ -45,17 +48,34 @@ export async function POST(req: NextRequest) {
   const client = await getClient();
   if (!client) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // Enforce strict archival check (Phase 4 standards)
+  // Enforce strict archival check
   if (client.lifecycleStatus === 'ARCHIVED') {
-    return NextResponse.json({ 
-      error: 'This project is archived. Revisions are no longer available. Please purchase a new engagement or upgrade.' 
+    return NextResponse.json({
+      error: 'This project is archived. Revisions are no longer available. Please purchase a new engagement or upgrade.',
     }, { status: 403 });
+  }
+
+  // 15-day post-delivery window: after final delivery, only 15 days of free revisions
+  if (client.status === 'COMPLETED' && client.completedAt) {
+    const daysSinceDelivery = Math.floor((Date.now() - new Date(client.completedAt).getTime()) / (1000 * 60 * 60 * 24));
+    if (daysSinceDelivery > 15) {
+      return NextResponse.json({
+        error: `The 15-day revision window has closed (delivered ${daysSinceDelivery} days ago). Please contact us to arrange a paid revision.`,
+        windowExpired: true,
+      }, { status: 403 });
+    }
   }
 
   const body      = await req.json().catch(() => null);
   const note      = (body?.note as string | undefined)?.trim();
   const fileLabel = (body?.fileLabel as string | undefined)?.trim() || undefined;
-  const serviceSlug = (body?.serviceSlug as string | undefined)?.trim() || 'GENERAL';
+
+  // Resolve service slug: prefer what the client sends, fall back to primary service, then GENERAL
+  const serviceSlugs = client.services.map(s => s.service.slug);
+  const rawSlug = (body?.serviceSlug as string | undefined)?.trim();
+  const serviceSlug = rawSlug && rawSlug !== 'GENERAL'
+    ? rawSlug
+    : (serviceSlugs.length === 1 ? serviceSlugs[0] : (rawSlug ?? 'GENERAL'));
 
   if (!note || note.length < 5) {
     return NextResponse.json({ error: 'Please describe the revision needed (min 5 chars).' }, { status: 400 });
@@ -64,18 +84,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Note too long (max 2000 chars).' }, { status: 400 });
   }
 
-  // Enforce max 2 FREE revision requests per service per client TRANSACTIONALLY
+  // Enforce 2 FREE revisions per service (global count prevents cross-slug bypass)
   const FREE_LIMIT = 2;
 
   let revision;
   try {
     revision = await db.$transaction(async (tx) => {
+      // Count ALL free revisions for this service slug (including any legacy GENERAL ones)
       const existingFreeRevisions = await tx.careerRevision.count({
-        where: { 
-          clientId: client.id, 
+        where: {
+          clientId: client.id,
           requestedBy: 'client',
-          serviceSlug,
-          chargeStatus: 'FREE'
+          chargeStatus: 'FREE',
+          serviceSlug: serviceSlugs.length <= 1
+            ? { in: [serviceSlug, 'GENERAL'] }  // single-service: treat GENERAL as same bucket
+            : serviceSlug,                        // multi-service: per-slug only
         },
       });
 
@@ -97,8 +120,8 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     if (err.message === 'REVISION_LIMIT_EXCEEDED') {
-      return NextResponse.json({ 
-        error: 'Free revisions exhausted for this service. Please contact support for a paid revision link.' 
+      return NextResponse.json({
+        error: 'You have used all 2 free revisions for this service. Contact support for a paid revision.',
       }, { status: 403 });
     }
     throw err;
