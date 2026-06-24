@@ -25,7 +25,7 @@ interface SysLog {
   status: string;
   error: string | null;
   sentAt: string;
-  metadata?: unknown;
+  metadata?: { invoiceId?: string; invoiceNumber?: string; source?: string; [key: string]: unknown } | null;
 }
 
 interface Stats { sent: number; failed: number; queued: number }
@@ -103,7 +103,16 @@ function relativeTime(dateStr: string): string {
 
 function fullDate(dateStr: string): string {
   if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+  return new Date(dateStr).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'medium' });
+}
+
+function exactDateTime(dateStr: string): { date: string; time: string } {
+  if (!dateStr) return { date: '—', time: '' };
+  const d = new Date(dateStr);
+  return {
+    date: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+    time: d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
+  };
 }
 
 function StatusChip({ status }: { status: string }) {
@@ -299,6 +308,13 @@ export default function EmailLogsPage() {
     } catch { flash('Resend failed', false); }
     finally { setResending(null); }
   };
+
+  // Compute send frequency per invoiceId from current page data
+  const invoiceSendCounts = sysLogs.reduce<Record<string, number>>((acc, log) => {
+    const id = log.metadata?.invoiceId;
+    if (id) acc[id] = (acc[id] ?? 0) + 1;
+    return acc;
+  }, {});
 
   const total = source === 'career' ? careerTotal : sysTotal;
   const page  = source === 'career' ? careerPage : sysPage;
@@ -562,6 +578,9 @@ export default function EmailLogsPage() {
                 <tbody>
                   {sysLogs.map(log => {
                     const isExpanded = expandedId === log.id;
+                    const dt = exactDateTime(log.sentAt);
+                    const invoiceId = log.metadata?.invoiceId;
+                    const sendCount = invoiceId ? (invoiceSendCounts[invoiceId] ?? 1) : 1;
                     return (
                       <>
                         <tr key={log.id} onClick={() => setExpandedId(isExpanded ? null : log.id)} style={{ cursor: 'pointer' }}>
@@ -578,7 +597,16 @@ export default function EmailLogsPage() {
                               </span>
                             )}
                           </td>
-                          <td><TriggerLabel trigger={log.trigger} /></td>
+                          <td>
+                            <TriggerLabel trigger={log.trigger} />
+                            {sendCount > 1 && (
+                              <div style={{ marginTop: 3 }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 99, background: '#fef3c714', color: '#d97706', border: '1px solid #fde68a' }}>
+                                  ✉ {sendCount}× sent
+                                </span>
+                              </div>
+                            )}
+                          </td>
                           <td>
                             <span style={{
                               fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99,
@@ -589,8 +617,9 @@ export default function EmailLogsPage() {
                             </span>
                           </td>
                           <td><StatusChip status={log.status} /></td>
-                          <td title={fullDate(log.sentAt)} style={{ fontSize: 11, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', cursor: 'default' }}>
-                            {relativeTime(log.sentAt)}
+                          <td style={{ whiteSpace: 'nowrap', cursor: 'default' }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{dt.date}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 1 }}>{dt.time}</div>
                           </td>
                           <td onClick={e => e.stopPropagation()}>
                             <button
@@ -605,13 +634,25 @@ export default function EmailLogsPage() {
                         {isExpanded && (
                           <tr key={`${log.id}-detail`} style={{ background: 'var(--surface)' }}>
                             <td colSpan={7} style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)' }}>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 12 }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, fontSize: 12 }}>
                                 <div>
                                   <div style={{ fontWeight: 700, color: 'var(--text-tertiary)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>Recipient</div>
                                   <span>{log.to}</span>
                                 </div>
                                 <div>
-                                  <div style={{ fontWeight: 700, color: 'var(--text-tertiary)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>Full Subject</div>
+                                  <div style={{ fontWeight: 700, color: 'var(--text-tertiary)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>Sent At (exact)</div>
+                                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{fullDate(log.sentAt)}</span>
+                                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>{relativeTime(log.sentAt)}</div>
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: 700, color: 'var(--text-tertiary)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>Send Frequency</div>
+                                  <span style={{ fontWeight: 600 }}>{sendCount}× sent to this invoice</span>
+                                  {log.metadata?.source && (
+                                    <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>via {log.metadata.source}</div>
+                                  )}
+                                </div>
+                                <div style={{ gridColumn: '1 / -1' }}>
+                                  <div style={{ fontWeight: 700, color: 'var(--text-tertiary)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>Subject</div>
                                   <span>{log.subject}</span>
                                 </div>
                                 {log.error && (
