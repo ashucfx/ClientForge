@@ -748,38 +748,121 @@ function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetai
             isRevision ? s.status === 'DRAFT_SENT' : s.status === client.status
           );
           const tier = getPackageTier(slugs);
-          const TIER_CHIPS: Record<string, Partial<Record<string, string[]>>> = {
-            premium:   {
-              UNDER_PROCESS: ['✍ Resume Rewrite', '✍ Cover Letter', '✍ LinkedIn (Banner & Photo)', '✍ Portfolio Website'],
-              DRAFT_SENT:    ['📄 Resume', '📄 Cover Letter', '🔗 LinkedIn', '🌐 Portfolio'],
-              COMPLETED:     ['✅ Resume', '✅ Cover Letter', '✅ LinkedIn Profile', '✅ Portfolio Website'],
+          type Chip = { label: string; type: string };
+          const TIER_CHIPS: Record<string, Partial<Record<string, Chip[]>>> = {
+            premium: {
+              DRAFT_SENT: [
+                { label: 'Resume',           type: 'resume'       },
+                { label: 'Cover Letter',     type: 'cover_letter' },
+                { label: 'LinkedIn Profile', type: 'linkedin'     },
+                { label: 'Portfolio',        type: 'portfolio'    },
+              ],
+              COMPLETED: [
+                { label: 'Resume',            type: 'resume'       },
+                { label: 'Cover Letter',      type: 'cover_letter' },
+                { label: 'LinkedIn Profile',  type: 'linkedin'     },
+                { label: 'Portfolio Website', type: 'portfolio'    },
+              ],
             },
-            booster:   {
-              UNDER_PROCESS: ['✍ Resume Rewrite', '✍ Cover Letter', '✍ LinkedIn (Banner & Photo)'],
-              DRAFT_SENT:    ['📄 Resume', '📄 Cover Letter', '🔗 LinkedIn'],
-              COMPLETED:     ['✅ Resume', '✅ Cover Letter', '✅ LinkedIn Profile'],
+            booster: {
+              DRAFT_SENT: [
+                { label: 'Resume',           type: 'resume'       },
+                { label: 'Cover Letter',     type: 'cover_letter' },
+                { label: 'LinkedIn Profile', type: 'linkedin'     },
+              ],
+              COMPLETED: [
+                { label: 'Resume',           type: 'resume'       },
+                { label: 'Cover Letter',     type: 'cover_letter' },
+                { label: 'LinkedIn Profile', type: 'linkedin'     },
+              ],
             },
             resume_cl: {
-              UNDER_PROCESS: ['✍ Resume Rewrite', '✍ Cover Letter Writing'],
-              DRAFT_SENT:    ['📄 Resume Draft', '📄 Cover Letter Draft'],
-              COMPLETED:     ['✅ Resume', '✅ Cover Letter'],
+              DRAFT_SENT: [
+                { label: 'Resume Draft',       type: 'resume'       },
+                { label: 'Cover Letter Draft', type: 'cover_letter' },
+              ],
+              COMPLETED: [
+                { label: 'Resume',       type: 'resume'       },
+                { label: 'Cover Letter', type: 'cover_letter' },
+              ],
             },
-            resume:    {
-              UNDER_PROCESS: ['✍ Resume Rewrite'],
-              DRAFT_SENT:    ['📄 Resume Draft'],
-              COMPLETED:     ['✅ Resume Delivered'],
+            resume: {
+              DRAFT_SENT: [{ label: 'Resume Draft', type: 'resume' }],
+              COMPLETED:  [{ label: 'Resume',       type: 'resume' }],
             },
           };
-          const currentChips = TIER_CHIPS[tier]?.[client.status] ?? [];
-          const chipColors: Partial<Record<CareerStatus, string>> = {
-            UNDER_PROCESS: 'bg-amber-100 text-amber-800',
-            DRAFT_SENT:    'bg-purple-100 text-purple-700',
-            COMPLETED:     'bg-emerald-100 text-emerald-700',
+          const TIER_LABEL: Record<string, string> = {
+            premium:   'Premium Plus Package',
+            booster:   'Career Booster Package',
+            resume_cl: 'Resume & Cover Letter',
+            resume:    'Resume Writing',
           };
-          const chipWrapColors: Partial<Record<CareerStatus, string>> = {
-            UNDER_PROCESS: 'bg-amber-50 border-amber-100',
-            DRAFT_SENT:    'bg-purple-50 border-purple-100',
-            COMPLETED:     'bg-emerald-50 border-emerald-100',
+          const normType = (t: string) => t.startsWith('linkedin') ? 'linkedin' : t;
+          const uniqueDeliverableChips = (files: Deliverable[]): Chip[] => {
+            const seen = new Set<string>();
+            return files.reduce<Chip[]>((acc, d) => {
+              const k = normType(d.fileType);
+              if (!seen.has(k)) {
+                seen.add(k);
+                acc.push({
+                  label: k === 'linkedin' ? 'LinkedIn Profile'
+                       : FILE_TYPE_LABELS[d.fileType] ?? d.fileType.replace(/_/g, ' '),
+                  type: k,
+                });
+              }
+              return acc;
+            }, []);
+          };
+          let currentChips: Chip[] = [];
+          let processLabel = '';
+          if (client.status === 'UNDER_PROCESS') {
+            processLabel = TIER_LABEL[tier] ?? 'Your Package';
+          } else if (client.status === 'DRAFT_SENT' || isRevision) {
+            const draftFiles = client.deliverables.filter(d => d.fileCategory === 'draft');
+            currentChips = draftFiles.length > 0
+              ? uniqueDeliverableChips(draftFiles)
+              : (TIER_CHIPS[tier]?.DRAFT_SENT ?? []);
+          } else if (client.status === 'COMPLETED') {
+            const finalFiles = client.deliverables.filter(d => d.fileCategory !== 'draft');
+            currentChips = finalFiles.length > 0
+              ? uniqueDeliverableChips(finalFiles)
+              : (TIER_CHIPS[tier]?.COMPLETED ?? []);
+          }
+          const chipColorMap: Record<string, string> = {
+            resume:       'bg-[#FBF8F3] border-[#E8DDD0] text-[#9A7540]',
+            cover_letter: 'bg-blue-50 border-blue-100 text-blue-700',
+            linkedin:     'bg-sky-50 border-sky-100 text-sky-700',
+            portfolio:    'bg-emerald-50 border-emerald-100 text-emerald-700',
+          };
+          const wrapColor = client.status === 'DRAFT_SENT' || isRevision
+            ? 'bg-purple-50 border-purple-100'
+            : 'bg-emerald-50 border-emerald-100';
+          const chipSvg = (type: string) => {
+            if (type === 'resume') return (
+              <svg width="10" height="10" fill="none" viewBox="0 0 24 24" style={{flexShrink:0}}>
+                <path stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+            );
+            if (type === 'cover_letter') return (
+              <svg width="10" height="10" fill="none" viewBox="0 0 24 24" style={{flexShrink:0}}>
+                <path stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+              </svg>
+            );
+            if (type === 'linkedin') return (
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style={{flexShrink:0}}>
+                <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-4 0v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/>
+                <circle cx="4" cy="4" r="2"/>
+              </svg>
+            );
+            if (type === 'portfolio') return (
+              <svg width="10" height="10" fill="none" viewBox="0 0 24 24" style={{flexShrink:0}}>
+                <path stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"
+                  d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+              </svg>
+            );
+            return null;
           };
 
           return (
@@ -834,16 +917,26 @@ function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetai
                 })}
               </div>
 
-              {/* Service chips for current step */}
-              {currentChips.length > 0 && (
-                <div className={`px-3 py-2.5 rounded-xl border flex flex-wrap gap-1.5 ${chipWrapColors[client.status] ?? 'bg-slate-50 border-slate-100'}`}>
-                  {currentChips.map((chip, i) => (
-                    <span key={i} className={`text-xs px-2 py-0.5 rounded-full font-medium ${chipColors[client.status] ?? 'bg-slate-100 text-slate-600'}`}>
-                      {chip}
+              {/* Service context for current step */}
+              {processLabel ? (
+                <div className="px-3 py-2 rounded-xl border bg-amber-50 border-amber-100 flex items-center gap-2">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" style={{color:'#B8935B',flexShrink:0}}>
+                    <path stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                  </svg>
+                  <span className="text-xs font-semibold text-amber-800">{processLabel}</span>
+                  <span className="text-[10px] text-amber-600 ml-auto">In Progress</span>
+                </div>
+              ) : currentChips.length > 0 ? (
+                <div className={`px-3 py-2.5 rounded-xl border flex flex-wrap gap-1.5 ${wrapColor}`}>
+                  {currentChips.map((chip) => (
+                    <span key={chip.type} className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border ${chipColorMap[chip.type] ?? 'bg-slate-50 border-slate-100 text-slate-600'}`}>
+                      {chipSvg(chip.type)}
+                      {chip.label}
                     </span>
                   ))}
                 </div>
-              )}
+              ) : null}
 
               {/* Revision branch */}
               <div
