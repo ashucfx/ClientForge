@@ -96,54 +96,113 @@ export default function CareerClientsPage() {
 
   useEffect(() => { void fetchClients(); }, [fetchClients]);
 
+  function SlaChip({ c }: { c: Client }) {
+    if (c.status === 'COMPLETED') {
+      return <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-500">✔ Fulfilled</span>;
+    }
+    const effectiveSla = c.ConversationReadState?.adminSlaDeadline || c.expectedDeliveryAt;
+    if (!effectiveSla) return <span className="text-xs text-slate-400">—</span>;
+    const deadline = new Date(effectiveSla);
+    const isBreached = deadline.getTime() < Date.now();
+    const isDueSoon = deadline.getTime() - Date.now() < 2 * 60 * 60 * 1000 && !isBreached;
+    if (isBreached)  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-red-100 text-red-700"><span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />Breached</span>;
+    if (isDueSoon)   return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800"><span className="w-1.5 h-1.5 rounded-full bg-yellow-400 flex-shrink-0" />Due Soon</span>;
+    return               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />Healthy</span>;
+  }
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-start sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Career Booster Services</h1>
-          <p className="text-sm text-slate-500 mt-1">{total} clients total</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Career Booster</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{total} clients total</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="px-4 py-2 bg-[#B8935B] text-white text-sm font-semibold rounded-lg hover:bg-[#9A7540] transition-colors"
+          className="flex-shrink-0 px-3 py-2 sm:px-4 bg-[#B8935B] text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-[#9A7540] transition-colors"
         >
           + Add Client
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4">
         <input
           type="text"
           placeholder="Search name or email…"
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1); }}
-          className="px-3 py-2 text-sm border border-slate-200 rounded-lg w-64 focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
+          className="w-full sm:w-64 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
         />
-        <select
-          value={filterLifecycle}
-          onChange={e => { setFilterLifecycle(e.target.value); setPage(1); }}
-          className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-        >
-          <option value="ALL">All Clients</option>
-          <option value="ACTIVE">Active Only</option>
-          <option value="ARCHIVED">Archived Only</option>
-        </select>
-        <select 
-          value={filterStatus}
-          onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
-          className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-        >
-          <option value="">All Statuses</option>
-          {Object.entries(STATUS_LABELS).map(([key, label]) => (
-            <option key={key} value={key}>{label}</option>
-          ))}
-        </select>
+        <div className="flex gap-2">
+          <select
+            value={filterLifecycle}
+            onChange={e => { setFilterLifecycle(e.target.value); setPage(1); }}
+            className="flex-1 sm:flex-none px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-[#B8935B]"
+          >
+            <option value="ALL">All</option>
+            <option value="ACTIVE">Active</option>
+            <option value="ARCHIVED">Archived</option>
+          </select>
+          <select
+            value={filterStatus}
+            onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
+            className="flex-1 sm:flex-none px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-[#B8935B]"
+          >
+            <option value="">All Statuses</option>
+            {Object.entries(STATUS_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      {/* ── Mobile card list (< md) ─────────────────────────────────── */}
+      <div className="md:hidden space-y-2">
+        {loading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="bg-white border border-slate-200 rounded-xl p-4 animate-pulse">
+              <div className="h-4 bg-slate-100 rounded w-2/3 mb-2" />
+              <div className="h-3 bg-slate-100 rounded w-1/2" />
+            </div>
+          ))
+        ) : clients.length === 0 ? (
+          <div className="bg-white border border-slate-200 rounded-xl py-12 text-center text-slate-400 text-sm">
+            No clients found
+          </div>
+        ) : clients.map(c => (
+          <Link key={c.id} href={`/career/${c.id}`} className="block bg-white border border-slate-200 rounded-xl p-4 hover:border-[#E8DDD0] hover:bg-[#FBF8F3]/30 transition-colors active:bg-[#FBF8F3]">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-semibold text-slate-900 text-sm">{c.name}</span>
+                  {c.ConversationReadState && c.ConversationReadState.unreadByAdmin > 0 && (
+                    <span className="flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse">
+                      {c.ConversationReadState.unreadByAdmin}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-slate-400 mt-0.5 truncate">{c.email}</div>
+              </div>
+              <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLORS[c.status]}`}>
+                {STATUS_LABELS[c.status]}
+              </span>
+            </div>
+            <div className="mt-2.5 flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-xs text-slate-500 truncate max-w-[60%]">{clientServiceLabel(c)}</span>
+              <SlaChip c={c} />
+            </div>
+            <div className="mt-1.5 text-[11px] text-slate-400">
+              {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* ── Desktop table (≥ md) ────────────────────────────────────── */}
+      <div className="hidden md:block bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
@@ -184,37 +243,12 @@ export default function CareerClientsPage() {
                     {clientServiceLabel(c)}
                   </span>
                 </td>
-                <td className="px-4 py-3">
-                  {(() => {
-                    if (c.status === 'COMPLETED') {
-                      return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-600">✔️ Fulfilled</span>;
-                    }
-
-                    const effectiveSla = c.ConversationReadState?.adminSlaDeadline || c.expectedDeliveryAt;
-                    if (!effectiveSla) return <span className="text-sm text-slate-400">—</span>;
-
-                    const deadline = new Date(effectiveSla);
-                    const isBreached = deadline.getTime() < Date.now();
-                    const isDueSoon = deadline.getTime() - Date.now() < 2 * 60 * 60 * 1000 && !isBreached;
-                    const isCommsSla = !!c.ConversationReadState?.adminSlaDeadline;
-
-                    if (isBreached) {
-                      return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700" title={isCommsSla ? "Message SLA" : "Delivery SLA"}>🔴 Breached</span>;
-                    }
-                    if (isDueSoon) {
-                      return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800" title={isCommsSla ? "Message SLA" : "Delivery SLA"}>🟡 Due Soon</span>;
-                    }
-                    return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-700" title={isCommsSla ? "Message SLA" : "Delivery SLA"}>🟢 Healthy</span>;
-                  })()}
-                </td>
+                <td className="px-4 py-3"><SlaChip c={c} /></td>
                 <td className="px-4 py-3 text-slate-500 text-xs">
                   {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <Link
-                    href={`/career/${c.id}`}
-                    className="px-3 py-1 text-xs font-semibold text-[#B8935B] border border-[#E8DDD0] rounded-lg hover:bg-[#FBF8F3] transition-colors"
-                  >
+                  <Link href={`/career/${c.id}`} className="px-3 py-1 text-xs font-semibold text-[#B8935B] border border-[#E8DDD0] rounded-lg hover:bg-[#FBF8F3] transition-colors">
                     View →
                   </Link>
                 </td>
@@ -228,17 +262,26 @@ export default function CareerClientsPage() {
             <p className="text-xs text-slate-400">Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total}</p>
             <div className="flex gap-2">
               <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
-                className="px-3 py-1 text-xs border border-slate-200 rounded disabled:opacity-40 hover:bg-slate-50">
-                Previous
-              </button>
+                className="px-3 py-1 text-xs border border-slate-200 rounded disabled:opacity-40 hover:bg-slate-50">← Prev</button>
               <button disabled={page * 20 >= total} onClick={() => setPage(p => p + 1)}
-                className="px-3 py-1 text-xs border border-slate-200 rounded disabled:opacity-40 hover:bg-slate-50">
-                Next
-              </button>
+                className="px-3 py-1 text-xs border border-slate-200 rounded disabled:opacity-40 hover:bg-slate-50">Next →</button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Mobile pagination */}
+      {total > 20 && (
+        <div className="md:hidden flex items-center justify-between mt-3 px-1">
+          <p className="text-xs text-slate-400">{(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total}</p>
+          <div className="flex gap-2">
+            <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
+              className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg disabled:opacity-40 bg-white">← Prev</button>
+            <button disabled={page * 20 >= total} onClick={() => setPage(p => p + 1)}
+              className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg disabled:opacity-40 bg-white">Next →</button>
+          </div>
+        </div>
+      )}
 
       {showAddModal && <AddClientModal onClose={() => setShowAddModal(false)} onAdded={fetchClients} />}
     </div>
