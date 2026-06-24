@@ -20,19 +20,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Find invoices that have been PENDING for more than 1 hour, but less than 30 days
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  // Find all PENDING invoices created within the last 30 days
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   const staleInvoices = await db.invoice.findMany({
     where: {
-      status: 'PENDING',
-      createdAt: {
-        lt: oneHourAgo,
-        gt: thirtyDaysAgo,
-      },
+      status: { in: ['PENDING', 'PARTIALLY_PAID'] },
+      createdAt: { gt: thirtyDaysAgo },
     },
-    take: 50, // Process in batches
+    take: 50,
   });
 
   let synced = 0;

@@ -42,34 +42,34 @@ function ToastStack({ toasts }: { toasts: ToastItem[] }) {
 }
 
 // ─── Status badge ─────────────────────────────────────────────────
-const STATUS_META: Record<InvoiceStatus, { label: string; cls: string; dot: string }> = {
-  PAID:           { label: 'Paid',           cls: 'badge-paid',      dot: '#059669' },
-  PARTIALLY_PAID: { label: 'Partially Paid', cls: 'badge-pending',   dot: '#2563eb' },
-  PENDING:        { label: 'Pending',        cls: 'badge-pending',   dot: '#d97706' },
-  EXPIRED:        { label: 'Expired',        cls: 'badge-expired',   dot: '#94a3b8' },
-  CANCELLED:      { label: 'Cancelled',      cls: 'badge-cancelled', dot: '#ef4444' },
+const STATUS_META: Record<InvoiceStatus, { label: string; bg: string; text: string; dot: string }> = {
+  PAID:           { label: 'Paid',           bg: 'bg-emerald-50',  text: 'text-emerald-700', dot: 'bg-emerald-500'  },
+  PARTIALLY_PAID: { label: 'Partial',        bg: 'bg-blue-50',     text: 'text-blue-700',    dot: 'bg-blue-500'     },
+  PENDING:        { label: 'Pending',        bg: 'bg-amber-50',    text: 'text-amber-700',   dot: 'bg-amber-400'    },
+  EXPIRED:        { label: 'Expired',        bg: 'bg-slate-100',   text: 'text-slate-500',   dot: 'bg-slate-400'    },
+  CANCELLED:      { label: 'Cancelled',      bg: 'bg-red-50',      text: 'text-red-600',     dot: 'bg-red-400'      },
 };
 function StatusBadge({ status }: { status: InvoiceStatus }) {
   const m = STATUS_META[status];
   return (
-    <span className={`badge ${m.cls}`}>
-      <span className="badge-dot" style={{ background: m.dot }} />
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${m.bg} ${m.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${m.dot}`} />
       {m.label}
     </span>
   );
 }
 
 // ─── Tier tag ─────────────────────────────────────────────────────
-const TIER_CLS: Record<ClientType, string> = {
-  FRESHER:        'tag-fresher',
-  MID_CAREER:     'tag-mid-career',
-  EXECUTIVE:      'tag-executive',
-  EXECUTIVE_PLUS: 'tag-executive-plus',
-  AGENCY_CLIENT:  'tag-agency-client',
+const TIER_COLORS: Record<ClientType, string> = {
+  FRESHER:        'bg-slate-100 text-slate-600',
+  MID_CAREER:     'bg-[#FBF8F3] text-[#9A7540] border border-[#E8DDD0]',
+  EXECUTIVE:      'bg-purple-50 text-purple-700 border border-purple-100',
+  EXECUTIVE_PLUS: 'bg-purple-100 text-purple-800 border border-purple-200',
+  AGENCY_CLIENT:  'bg-violet-100 text-violet-700 border border-violet-200',
 };
 function TierTag({ type }: { type: ClientType }) {
   return (
-    <span className={`badge ${TIER_CLS[type]}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${TIER_COLORS[type] ?? 'bg-slate-100 text-slate-600'}`}>
       {CLIENT_TYPE_LABELS[type]}
     </span>
   );
@@ -312,34 +312,38 @@ export default function Dashboard() {
 
       <div className="page-body" style={{ paddingTop: 0 }}>
 
-        {/* Standard Table Area */}
-        <div className="text-heading font-semibold" style={{ marginBottom: 16, marginTop: 16, color: 'var(--text-primary)' }}>All Invoices</div>
-        
-        {/* Filters / Search bar */}
-        <div className="card" style={{ padding: '16px 24px', marginBottom: 24, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* All Invoices header */}
+        <div className="flex items-center justify-between mt-4 mb-4">
+          <h2 className="text-base font-bold text-slate-800">All Invoices</h2>
+        </div>
 
-          <div style={{ position: 'relative', flex: 1, minWidth: 240 }}>
-            <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }}>
-              <IconSearch />
-            </span>
+        {/* Filter bar */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-5 flex items-center gap-3 flex-wrap shadow-sm">
+          <div className="relative flex-1" style={{ minWidth: 200 }}>
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" width="14" height="14" fill="none" viewBox="0 0 24 24">
+              <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
             <input
-              className="input hover-lift"
-              style={{ paddingLeft: 40 }}
-              placeholder="Search by client name, email, or invoice #..."
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-[#B8935B] transition-colors placeholder:text-slate-300"
+              placeholder="Search client, email, invoice #..."
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-
-          <select className="input" style={{ width: 140, flexShrink: 0 }} value={statusFilter} onChange={e => setStatus(e.target.value)}>
+          <select
+            className="px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-[#B8935B] transition-colors text-slate-600 bg-white"
+            style={{ minWidth: 130 }}
+            value={statusFilter} onChange={e => setStatus(e.target.value)}>
             <option value="">All Status</option>
             <option value="PENDING">Pending</option>
             <option value="PAID">Paid</option>
             <option value="EXPIRED">Expired</option>
             <option value="CANCELLED">Cancelled</option>
           </select>
-
-            <select className="input" style={{ width: 160, flexShrink: 0 }} value={typeFilter} onChange={e => setType(e.target.value)}>
+          <select
+            className="px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-[#B8935B] transition-colors text-slate-600 bg-white"
+            style={{ minWidth: 150 }}
+            value={typeFilter} onChange={e => setType(e.target.value)}>
             <option value="">All Packages</option>
             {activeBrand === 'ripple_nexus' ? (
               <option value="AGENCY_CLIENT">Agency Client</option>
@@ -352,106 +356,132 @@ export default function Dashboard() {
               </>
             )}
           </select>
-
           {(search || statusFilter || typeFilter) && (
-            <button className="btn btn-ghost btn-sm hover-lift" onClick={() => { setSearch(''); setStatus(''); setType(''); }}>✕ Clear</button>
+            <button onClick={() => { setSearch(''); setStatus(''); setType(''); }}
+              className="px-3 py-2 text-sm font-medium text-slate-500 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5">
+              <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M18 6L6 18M6 6l12 12"/></svg>
+              Clear
+            </button>
           )}
-
-          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+          <span className="ml-auto text-xs text-slate-400 font-medium whitespace-nowrap">
             {visible.length} of {stats.total}
           </span>
         </div>
 
-        {/* Invoice table — scrollable on mobile */}
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <div className="table-scroll-wrapper">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Invoice #</th>
-                  <th>Client</th>
-                  <th>Package</th>
-                  <th style={{ textAlign: 'right' }}>Amount</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i}>
-                      {Array.from({ length: 7 }).map((_, j) => (
-                        <td key={j}><div className="skeleton" style={{ height: 14, width: j === 0 ? 90 : j === 1 ? 140 : 80 }} /></td>
-                      ))}
-                    </tr>
-                  ))
-                ) : visible.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '80px 0' }}>
-                      <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-5 text-slate-300 shadow-sm">
-                        <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                      </div>
-                      <h3 className="text-body font-semibold text-slate-900 mb-2">No invoices found</h3>
-                      <p className="text-metadata text-slate-500 mb-6 max-w-sm mx-auto leading-relaxed">
-                        We couldn&apos;t find any invoices matching your current filters. Adjust your search or create a new invoice to get started.
-                      </p>
-                      <Link href="/invoices/new" className="btn btn-primary hover-lift" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600 }}>
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14"/></svg>
-                        Create Invoice
-                      </Link>
-                    </td>
+        {/* Invoice table */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50/70">
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Invoice</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Client</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider hidden sm:table-cell">Package</th>
+                <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Amount</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider hidden md:table-cell">Date</th>
+                <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-slate-100">
+                    {Array.from({ length: 7 }).map((_, j) => (
+                      <td key={j} className="px-4 py-3.5">
+                        <div className="h-3.5 rounded-full bg-slate-100 animate-pulse" style={{ width: j === 0 ? 100 : j === 1 ? 140 : 70 }} />
+                      </td>
+                    ))}
                   </tr>
-                ) : visible.map(inv => (
-                  <tr key={inv.id} onClick={() => router.push(`/invoices/${inv.id}`)}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span className="mono" style={{ fontWeight: 700, color: inv.brandId === 'ripple_nexus' ? '#7C5CFF' : 'var(--brand)', fontSize: 13 }}>{inv.invoiceNumber}</span>
+                ))
+              ) : visible.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-20 text-center">
+                    <div className="w-14 h-14 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-300">
+                      <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-700 mb-1">No invoices found</p>
+                    <p className="text-xs text-slate-400 mb-5">Try adjusting your filters or create a new invoice</p>
+                    <Link href="/invoices/new" className="inline-flex items-center gap-2 px-4 py-2 bg-[#B8935B] text-white text-sm font-semibold rounded-xl hover:bg-[#9A7540] transition-colors">
+                      <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M12 5v14m-7-7h14"/></svg>
+                      New Invoice
+                    </Link>
+                  </td>
+                </tr>
+              ) : visible.map(inv => {
+                const payLink = inv.paymentGateway === 'PAYPAL' ? inv.paypalPaymentUrl : inv.razorpayLinkUrl;
+                const isPending = inv.status === 'PENDING';
+                return (
+                  <tr key={inv.id}
+                    onClick={() => router.push(`/invoices/${inv.id}`)}
+                    className="border-b border-slate-100 last:border-0 hover:bg-[#FBF8F3]/40 cursor-pointer transition-colors">
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono font-bold text-[12px] text-[#B8935B]">{inv.invoiceNumber}</span>
                         {inv.brandId === 'ripple_nexus' && (
-                          <span className="badge" style={{ background: '#ede9fe', color: '#5b21b6', fontSize: 10 }}>nexus</span>
+                          <span className="px-1.5 py-0.5 bg-violet-100 text-violet-700 rounded text-[9px] font-bold">nexus</span>
                         )}
                         {inv.customPricing && (
-                          <span className="badge" style={{ background: '#fef9c3', color: '#78350f', fontSize: 10 }}>edited</span>
+                          <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[9px] font-bold">edited</span>
+                        )}
+                      </div>
+                      <div className="mt-0.5">
+                        {inv.paymentGateway === 'PAYPAL' ? (
+                          <span className="text-[9px] font-semibold text-blue-500">PayPal</span>
+                        ) : (
+                          <span className="text-[9px] font-semibold text-orange-500">Razorpay</span>
                         )}
                       </div>
                     </td>
-                    <td>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13.5 }}>{inv.clientName}</div>
-                      {inv.companyName && <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{inv.companyName}</div>}
-                      <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{inv.clientEmail}</div>
+                    <td className="px-4 py-3.5">
+                      <div className="font-semibold text-slate-900 text-sm">{inv.clientName}</div>
+                      {inv.companyName && <div className="text-[11px] text-slate-400">{inv.companyName}</div>}
+                      <div className="text-[11px] text-slate-400">{inv.clientEmail}</div>
                     </td>
-                    <td><TierTag type={inv.clientType} /></td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)' }}>
-                        {formatCurrency(inv.totalPayable, inv.currencySymbol)}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{inv.currency}</div>
+                    <td className="px-4 py-3.5 hidden sm:table-cell">
+                      <TierTag type={inv.clientType} />
                     </td>
-                    <td><StatusBadge status={inv.status} /></td>
-                    <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+                    <td className="px-4 py-3.5 text-right">
+                      <div className="font-bold text-slate-900 text-sm">{formatCurrency(inv.totalPayable, inv.currencySymbol)}</div>
+                      <div className="text-[10px] text-slate-400">{inv.currency}</div>
+                    </td>
+                    <td className="px-4 py-3.5"><StatusBadge status={inv.status} /></td>
+                    <td className="px-4 py-3.5 text-xs text-slate-500 hidden md:table-cell whitespace-nowrap">
                       {format(new Date(inv.invoiceDate), 'dd MMM yyyy')}
                     </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 8 }} onClick={e => e.stopPropagation()}>
-                        <Link href={`/invoices/${inv.id}`} className="btn btn-ghost btn-sm hover-lift">View</Link>
-                        {inv.status === 'PENDING' && (
-                          <button className="btn btn-ghost btn-sm" onClick={e => handleResend(inv.id, e)}>Resend</button>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+                        <Link href={`/invoices/${inv.id}`}
+                          className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                          View
+                        </Link>
+                        {isPending && (
+                          <button onClick={e => handleResend(inv.id, e)}
+                            title="Resend payment email"
+                            className="p-1.5 text-slate-400 border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-[#B8935B] transition-colors">
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                          </button>
+                        )}
+                        {isPending && payLink && (
+                          <button
+                            onClick={() => { void navigator.clipboard.writeText(payLink); show('Payment link copied!'); }}
+                            title={`Copy ${inv.paymentGateway === 'PAYPAL' ? 'PayPal' : 'Razorpay'} payment link`}
+                            className="p-1.5 text-slate-400 border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                          </button>
                         )}
                         <button
-                          className="btn btn-danger btn-icon-sm"
-                          title="Delete"
+                          title="Delete invoice"
                           onClick={e => { e.stopPropagation(); setDeleteTarget(inv); }}
-                          style={{ fontSize: 13 }}
-                        >
-                          🗑
+                          className="p-1.5 text-slate-400 border border-slate-200 rounded-lg hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors">
+                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
