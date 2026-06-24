@@ -93,12 +93,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   });
   if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
 
-  const [revision, currentClient] = await db.$transaction([
-    db.careerRevision.create({
-      data: { clientId: client.id, requestedBy: 'admin', note, fileLabel, status: 'PENDING' },
-    }),
-    db.careerClient.findUnique({ where: { id: client.id }, select: { status: true } }),
-  ]);
+  const currentClient = await db.careerClient.findUnique({
+    where: { id: client.id }, select: { status: true },
+  });
+  const revision = await db.careerRevision.create({
+    data: {
+      clientId: client.id,
+      requestedBy: 'admin',
+      note,
+      fileLabel,
+      status: 'PENDING',
+      clientStatusBefore: currentClient?.status ?? null,
+    },
+  });
 
   // Auto-set client to REVISION_REQUESTED so the admin dashboard reflects it
   if (['DRAFT_SENT', 'COMPLETED', 'UNDER_PROCESS'].includes(currentClient?.status ?? '')) {
@@ -151,6 +158,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const revision = await db.careerRevision.update({
     where: { id: revisionId, clientId: params.id },
     data: { status: status!, adminNote },
+    select: {
+      id: true, status: true, adminNote: true,
+      clientStatusBefore: true, chargeStatus: true,
+      serviceSlug: true, note: true, requestedBy: true, createdAt: true, updatedAt: true,
+      fileLabel: true, invoiceId: true,
+    },
   });
 
   // Sync client status based on revision decision
@@ -173,11 +186,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       const current = await db.careerClient.findUnique({
         where: { id: params.id }, select: { status: true },
       });
-      if (current?.status === 'REVISION_REQUESTED' || current?.status === 'UNDER_PROCESS') {
-        // Revert to DRAFT_SENT — admin still has a valid draft; they can bump to COMPLETED if needed
+      // Restore exact state the client was in before the revision was requested
+      const beforeStatus = revision.clientStatusBefore;
+      const isBlockedStatus = current?.status === 'REVISION_REQUESTED' || current?.status === 'UNDER_PROCESS';
+      if (isBlockedStatus) {
+        // Use stored prior state; fall back to DRAFT_SENT if unknown
+        const restoreTo = (beforeStatus === 'COMPLETED' || beforeStatus === 'DRAFT_SENT')
+          ? beforeStatus
+          : 'DRAFT_SENT';
         await db.careerClient.update({
           where: { id: params.id },
-          data: { status: 'DRAFT_SENT' },
+          data: { status: restoreTo },
         });
       }
     }

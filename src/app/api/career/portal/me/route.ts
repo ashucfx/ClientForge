@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     select: {
       id: true, name: true, email: true,
       packageType: true, status: true,
-      lifecycleStatus: true, completedAt: true,
+      lifecycleStatus: true, completedAt: true, firstCompletedAt: true,
       waitingOn: true,
       pinHash: true, currency: true,
       createdAt: true,
@@ -177,6 +177,7 @@ export async function GET(req: NextRequest) {
     revisionsLeft,
     revisionSummary,
     completedAt: client.completedAt,
+    firstCompletedAt: client.firstCompletedAt,
     availableForms,
     submittedForms: Array.from(submittedFormsNormalized),
     forms: formsNormalized,

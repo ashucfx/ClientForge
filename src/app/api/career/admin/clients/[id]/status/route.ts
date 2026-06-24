@@ -62,7 +62,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   // Fetch current status for transition validation
   const existing = await db.careerClient.findUnique({
     where:  { id: params.id },
-    select: { status: true },
+    select: { status: true, firstCompletedAt: true },
   });
   if (!existing) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
 
@@ -75,7 +75,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const updateData: any = { status: newStatus };
   if (newStatus === 'DRAFT_SENT') updateData.draftSentAt = new Date();
-  if (newStatus === 'COMPLETED') updateData.completedAt = new Date();
+  if (newStatus === 'COMPLETED') {
+    updateData.completedAt = new Date();
+    // firstCompletedAt is set once and never changed — it anchors the 15-day revision window
+    if (!existing.firstCompletedAt) updateData.firstCompletedAt = new Date();
+  }
 
   const client = await db.careerClient.update({
     where: { id: params.id },

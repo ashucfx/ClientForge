@@ -28,6 +28,7 @@ interface Me {
   forms: FormMeta[];
   createdAt: string;
   completedAt?: string | null;
+  firstCompletedAt?: string | null;
   currency?: string;
   hasPinSet?: boolean;
   revisionCount?: number;
@@ -510,9 +511,10 @@ export default function PortalDashboardPage() {
           {/* Revisions (per-service progress bars) */}
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Free Revisions</p>
-            {/* 15-day post-delivery window notice */}
-            {me.status === 'COMPLETED' && me.completedAt && (() => {
-              const days = Math.floor((Date.now() - new Date(me.completedAt!).getTime()) / (1000 * 60 * 60 * 24));
+            {/* 15-day post-delivery window notice — anchored to firstCompletedAt so re-deliveries don't reset it */}
+            {me.status === 'COMPLETED' && (me.firstCompletedAt || me.completedAt) && (() => {
+              const anchor = me.firstCompletedAt ?? me.completedAt!;
+              const days = Math.floor((Date.now() - new Date(anchor).getTime()) / (1000 * 60 * 60 * 24));
               const daysLeft = 15 - days;
               if (daysLeft <= 0) return (
                 <p className="text-[11px] text-red-500 font-medium mb-2 flex items-center gap-1">

@@ -233,6 +233,7 @@ model CareerClient {
   expectedDeliveryAt DateTime?
   draftSentAt        DateTime?
   completedAt        DateTime?
+  firstCompletedAt   DateTime? // set once on first COMPLETED — revision window is always relative to this
   slaDeadline        DateTime?
   slaStatus          String?
   createdAt          DateTime       @default(now())
@@ -369,9 +370,10 @@ model CareerRevision {
   adminNote   String?
 
   // Phase 3: Per-service tracking & Paid revisions
-  serviceSlug  String? // e.g., 'RESUME', 'LINKEDIN'
-  chargeStatus String  @default("FREE") // "FREE" | "PENDING_PAYMENT" | "PAID"
-  invoiceId    String? // Links to the generated invoice for paid revisions
+  serviceSlug       String? // e.g., 'RESUME', 'LINKEDIN'
+  chargeStatus      String  @default("FREE") // "FREE" | "PENDING_PAYMENT" | "PAID"
+  invoiceId         String? // Links to the generated invoice for paid revisions
+  clientStatusBefore String? // careerClient.status at the moment this revision was created — used to restore state on DENY
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

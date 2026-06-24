@@ -25,7 +25,8 @@ async function getClient() {
   const client = await db.careerClient.findUnique({
     where: { id: payload.clientId },
     select: {
-      id: true, name: true, email: true, status: true, completedAt: true, lifecycleStatus: true,
+      id: true, name: true, email: true, status: true,
+      completedAt: true, firstCompletedAt: true, lifecycleStatus: true,
       services: { select: { service: { select: { slug: true } } } },
     },
   });
@@ -55,9 +56,10 @@ export async function POST(req: NextRequest) {
     }, { status: 403 });
   }
 
-  // 15-day post-delivery window: after final delivery, only 15 days of free revisions
-  if (client.status === 'COMPLETED' && client.completedAt) {
-    const daysSinceDelivery = Math.floor((Date.now() - new Date(client.completedAt).getTime()) / (1000 * 60 * 60 * 24));
+  // 15-day post-delivery window — anchored to firstCompletedAt so re-deliveries never extend it
+  const windowAnchor = client.firstCompletedAt ?? client.completedAt;
+  if (client.status === 'COMPLETED' && windowAnchor) {
+    const daysSinceDelivery = Math.floor((Date.now() - new Date(windowAnchor).getTime()) / (1000 * 60 * 60 * 24));
     if (daysSinceDelivery > 15) {
       return NextResponse.json({
         error: `The 15-day revision window has closed (delivered ${daysSinceDelivery} days ago). Please contact us to arrange a paid revision.`,
@@ -115,6 +117,7 @@ export async function POST(req: NextRequest) {
           serviceSlug,
           status: 'PENDING',
           chargeStatus: 'FREE',
+          clientStatusBefore: client.status,
         },
       });
     });

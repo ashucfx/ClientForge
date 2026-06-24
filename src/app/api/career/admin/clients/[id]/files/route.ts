@@ -231,10 +231,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           );
         }
 
-        // Auto-sync status to COMPLETED and set completedAt clock
+        // Auto-sync status to COMPLETED; set firstCompletedAt once (revision window anchor)
+        const existingForWindow = await db.careerClient.findUnique({
+          where: { id: params.id }, select: { firstCompletedAt: true },
+        });
         await db.careerClient.update({
           where: { id: params.id },
-          data: { status: 'COMPLETED', completedAt: new Date() }
+          data: {
+            status: 'COMPLETED',
+            completedAt: new Date(),
+            ...(existingForWindow?.firstCompletedAt ? {} : { firstCompletedAt: new Date() }),
+          },
         });
       }
     }
