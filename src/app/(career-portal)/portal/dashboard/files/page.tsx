@@ -406,6 +406,14 @@ export default function FilesPage() {
 
 // ── Revision Request Modal ────────────────────────────────────────────────────
 
+const REVISION_AREAS: Record<string, string[]> = {
+  RESUME:       ['Summary / Profile Statement', 'Work Experience', 'Skills & Keywords', 'Education / Certifications', 'Formatting & Layout'],
+  COVER_LETTER: ['Opening Paragraph', 'Core Content / Body', 'Closing Paragraph', 'Tone & Personalisation'],
+  LINKEDIN:     ['Headline', 'About Section', 'Work Experience', 'Featured Section', 'Skills & Endorsements', 'Overall Profile'],
+  PORTFOLIO:    ['About Page', 'Project Showcase', 'Skills / Services', 'Contact Section', 'Design & Layout'],
+};
+const MIN_NOTE = 30;
+
 function RevisionModal({
   fileLabel,
   serviceSlug,
@@ -417,6 +425,7 @@ function RevisionModal({
   onClose: () => void;
   onAdded: (r: RevisionItem) => void;
 }) {
+  const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [note,    setNote]    = useState('');
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
@@ -424,13 +433,27 @@ function RevisionModal({
   const [requiresPayment, setRequiresPayment] = useState(false);
   const [paymentMsg, setPaymentMsg] = useState('');
 
+  const areas = REVISION_AREAS[serviceSlug] ?? [];
+  const toggleArea = (a: string) =>
+    setSelectedAreas(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]);
+
+  const composedNote = (): string => {
+    const areaPrefix = selectedAreas.length > 0
+      ? `Areas: ${selectedAreas.join(', ')}\n\n`
+      : '';
+    return (areaPrefix + note.trim()).trim();
+  };
+
+  const canSubmit = note.trim().length >= MIN_NOTE && (areas.length === 0 || selectedAreas.length > 0);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canSubmit) return;
     setLoading(true); setError('');
     const res = await fetch('/api/career/portal/revisions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ note: note.trim(), fileLabel: fileLabel || undefined, serviceSlug }),
+      body: JSON.stringify({ note: composedNote(), fileLabel: fileLabel || undefined, serviceSlug }),
     });
     setLoading(false);
     
@@ -485,23 +508,63 @@ function RevisionModal({
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{error}</p>}
+
+              {/* Area selection — shown for known services */}
+              {areas.length > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                    What needs to change? <span className="text-red-400">*</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {areas.map(a => (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() => toggleArea(a)}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all ${
+                          selectedAreas.includes(a)
+                            ? 'bg-[#B8935B] text-white border-[#B8935B]'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-[#B8935B] hover:text-[#B8935B]'
+                        }`}
+                      >
+                        {a}
+                      </button>
+                    ))}
+                  </div>
+                  {areas.length > 0 && selectedAreas.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1.5">Select at least one area above</p>
+                  )}
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Describe what needs to be changed
+                  Describe exactly what to change <span className="text-red-400">*</span>
                 </label>
                 <textarea
                   required
                   rows={5}
                   value={note}
                   onChange={e => setNote(e.target.value)}
-                  placeholder="e.g. Please update my job title on the resume to Senior Software Engineer, and fix the spacing in the skills section..."
-                  className="w-full px-3.5 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 hover:bg-white resize-none transition-colors"
+                  placeholder="Be specific — e.g. 'Update my job title on the resume to Senior Software Engineer. In the Skills section, add Python and remove Excel. Fix the inconsistent bullet spacing in the Work Experience section.'"
+                  className={`w-full px-3.5 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 hover:bg-white resize-none transition-colors ${
+                    note.trim().length > 0 && note.trim().length < MIN_NOTE ? 'border-amber-300' : 'border-slate-200'
+                  }`}
                 />
-                <p className="text-xs text-slate-400 mt-1 text-right">{note.length}/2000</p>
+                <div className="flex items-center justify-between mt-1">
+                  {note.trim().length > 0 && note.trim().length < MIN_NOTE ? (
+                    <p className="text-xs text-amber-600">{MIN_NOTE - note.trim().length} more characters needed — the more detail, the better the result</p>
+                  ) : (
+                    <span />
+                  )}
+                  <p className={`text-xs ml-auto ${note.trim().length < MIN_NOTE ? 'text-amber-500' : 'text-slate-400'}`}>
+                    {note.trim().length}/{MIN_NOTE} min
+                  </p>
+                </div>
               </div>
               <button
                 type="submit"
-                disabled={loading || note.trim().length < 5}
+                disabled={loading || !canSubmit}
                 className="w-full py-2.5 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
                 {loading && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                 {loading ? 'Submitting...' : 'Submit Revision Request'}

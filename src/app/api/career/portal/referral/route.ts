@@ -41,7 +41,8 @@ export async function GET(req: NextRequest) {
   }
 
   const referralCode = await ensureReferralCode(profile.id);
-  const referralLink = `${APP_URL}/?ref=${referralCode}`;
+  // Link goes directly to /checkout so the ?ref param is captured by the form
+  const referralLink = `${APP_URL}/checkout?ref=${referralCode}`;
   const stats = await getReferralStats(profile.id);
 
   return NextResponse.json({

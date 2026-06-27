@@ -21,6 +21,8 @@ import {
   inquiryStatusToLifecycleStage,
 } from '@/lib/flywheel/inquiryStatusMap';
 import { findReferrerByCode, ensureReferralCode } from '@/lib/referral';
+import { sendCareerEmail } from '@/lib/career/email';
+import { notifyAllAdmins } from '@/lib/notifications';
 
 export interface CheckoutSessionInput {
   name: string;
@@ -190,6 +192,29 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
     db.flywheelProfile.update({
       where: { id: referrer.id },
       data: { referralScore: { increment: 1 } },
+    }).catch(() => null);
+
+    // Notify the referrer by email so they know their link was used
+    const referrerName = referrer.contact.name ?? 'there';
+    const referrerEmail = referrer.contact.email;
+    if (referrerEmail) {
+      sendCareerEmail({
+        to: referrerEmail,
+        trigger: 'MESSAGE_NOTIFY',
+        data: {
+          recipientName: referrerName,
+          senderType: 'admin',
+          portalUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/portal/dashboard`,
+          body: `Great news! Someone signed up for Catalyst using your referral link. If they complete their purchase, your referral will be counted. You can check your referral stats in your portal.`,
+        },
+      }).catch(() => null);
+    }
+
+    // Notify admin about the referral
+    notifyAllAdmins({
+      title: `Referral used by ${input.name}`,
+      message: `${input.name} signed up using ${referrerName}'s referral link`,
+      type: 'SUCCESS',
     }).catch(() => null);
   }
 

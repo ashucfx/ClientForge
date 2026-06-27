@@ -1952,6 +1952,8 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
   const [confirmNote,     setConfirmNote]     = useState('');
   const [confirmEmail,    setConfirmEmail]    = useState(true);
   const [confirming,      setConfirming]      = useState(false);
+  const [deletingId,      setDeletingId]      = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
@@ -2008,6 +2010,20 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
       const label = confirmDecision === 'APPROVED' ? 'approved' : 'denied';
       showToast(`Revision ${label}${confirmEmail ? ' - email sent' : ''}`);
       setConfirmId(null); setConfirmDecision(null); setConfirmNote('');
+    }
+  };
+
+  const deleteRevision = async (id: string) => {
+    setDeletingId(id);
+    const res = await fetch(`/api/career/admin/clients/${clientId}/revisions?revisionId=${id}`, { method: 'DELETE' });
+    setDeletingId(null);
+    setDeleteConfirmId(null);
+    if (res.ok) {
+      setRevisions(prev => prev.filter(r => r.id !== id));
+      showToast('Revision deleted');
+    } else {
+      const d = await res.json().catch(() => ({})) as { error?: string };
+      showToast(d.error ?? 'Delete failed');
     }
   };
 
@@ -2115,6 +2131,28 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
                     <div className="mt-2 px-3 py-2 bg-[#FBF8F3] border border-[#F0EAE0] rounded-lg">
                       <p className="text-xs text-[#9A7540]"><strong>Admin note:</strong> {r.adminNote}</p>
                     </div>
+                  )}
+                </div>
+                {/* Delete button */}
+                <div className="flex-shrink-0">
+                  {deleteConfirmId === r.id ? (
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => deleteRevision(r.id)} disabled={deletingId === r.id}
+                        className="px-2 py-1 text-[11px] font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors">
+                        {deletingId === r.id ? '…' : 'Delete'}
+                      </button>
+                      <button onClick={() => setDeleteConfirmId(null)}
+                        className="px-2 py-1 text-[11px] font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setDeleteConfirmId(r.id)} title="Delete revision"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                      <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
+                        <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
+                      </svg>
+                    </button>
                   )}
                 </div>
               </div>

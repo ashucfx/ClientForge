@@ -266,3 +266,49 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   return NextResponse.json({ ok: true, revision });
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { searchParams } = req.nextUrl;
+  const revisionId = searchParams.get('revisionId');
+  if (!revisionId) return NextResponse.json({ error: 'revisionId required' }, { status: 400 });
+
+  const revision = await db.careerRevision.findUnique({
+    where: { id: revisionId, clientId: params.id },
+    select: { id: true, status: true, clientStatusBefore: true },
+  });
+  if (!revision) return NextResponse.json({ error: 'Revision not found' }, { status: 404 });
+
+  await db.careerRevision.delete({ where: { id: revisionId } });
+
+  // If this was an active revision, check whether to restore client status
+  if (revision.status === 'PENDING' || revision.status === 'APPROVED') {
+    const otherActive = await db.careerRevision.count({
+      where: { clientId: params.id, status: { in: ['PENDING', 'APPROVED'] } },
+    });
+    if (otherActive === 0) {
+      const current = await db.careerClient.findUnique({
+        where: { id: params.id }, select: { status: true },
+      });
+      const isBlocked = current?.status === 'REVISION_REQUESTED' || current?.status === 'UNDER_PROCESS';
+      if (isBlocked) {
+        const restoreTo = (revision.clientStatusBefore === 'COMPLETED' || revision.clientStatusBefore === 'DRAFT_SENT')
+          ? revision.clientStatusBefore
+          : 'DRAFT_SENT';
+        await db.careerClient.update({ where: { id: params.id }, data: { status: restoreTo } });
+      }
+    }
+  }
+
+  await db.careerActivityLog.create({
+    data: {
+      clientId: params.id,
+      action: 'revision_deleted',
+      performedBy: 'admin',
+      metadata: { revisionId },
+    },
+  });
+
+  return NextResponse.json({ ok: true });
+}
