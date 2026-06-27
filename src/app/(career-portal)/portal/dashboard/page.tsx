@@ -247,25 +247,60 @@ export default function PortalDashboardPage() {
   };
 
   const [referral, setReferral] = useState<ReferralStats | null>(null);
-  const [upgrading, setUpgrading] = useState(false);
+  const [upgrading,       setUpgrading]       = useState(false);
+  const [upgradeTarget,   setUpgradeTarget]   = useState<string | null>(null);
+  const [upgradePreview,  setUpgradePreview]  = useState<{
+    upgradeLabel: string; whatYouGet: string[];
+    differenceInr: number; processingFee: number; totalPayable: number;
+    existingPaymentUrl: string | null;
+  } | null>(null);
+  const [upgradePreviewLoading, setUpgradePreviewLoading] = useState(false);
+
   const handleUpgrade = async (targetService: string) => {
+    setUpgradeTarget(targetService);
+    setUpgradePreviewLoading(true);
+    setUpgradePreview(null);
+    try {
+      const res = await fetch(`/api/career/portal/upgrade?target=${targetService}`);
+      if (res.ok) {
+        const data = await res.json();
+        setUpgradePreview(data);
+      } else {
+        alert('Could not load upgrade details. Please try again.');
+        setUpgradeTarget(null);
+      }
+    } catch {
+      alert('Network error. Please try again.');
+      setUpgradeTarget(null);
+    }
+    setUpgradePreviewLoading(false);
+  };
+
+  const confirmUpgrade = async () => {
+    if (!upgradeTarget) return;
+    // Reuse the existing payment link if one is still valid (avoids duplicate invoices)
+    if (upgradePreview?.existingPaymentUrl) {
+      window.location.href = upgradePreview.existingPaymentUrl;
+      return;
+    }
     setUpgrading(true);
     try {
       const res = await fetch('/api/career/portal/upgrade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetService }),
+        body: JSON.stringify({ targetService: upgradeTarget }),
       });
       const data = await res.json();
       if (data.ok && data.paymentUrl) {
         window.location.href = data.paymentUrl;
       } else {
         alert(data.error || 'Failed to initialize upgrade');
+        setUpgrading(false);
       }
-    } catch (err) {
+    } catch {
       alert('Network error. Please try again.');
+      setUpgrading(false);
     }
-    setUpgrading(false);
   };
 
   const load = useCallback(async () => {
@@ -428,8 +463,99 @@ export default function PortalDashboardPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 sm:space-y-8" style={{ animation: 'fadeSlideIn 0.4s ease-out' }}>
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 sm:space-y-8" style={{ animation: 'fadeSlideIn 0.4s ease-out' }}>
         <style>{`@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+
+        {/* ── Upgrade Preview Modal ── */}
+        {upgradeTarget && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => { if (!upgrading) { setUpgradeTarget(null); setUpgradePreview(null); } }}>
+            <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden"
+              onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="bg-gradient-to-br from-[#0A0B0D] to-[#1C1812] px-6 pt-6 pb-8 text-white">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <p className="text-[#D4AF7A] text-xs font-semibold uppercase tracking-widest mb-1">Package Upgrade</p>
+                    <h2 className="text-xl font-bold">{upgradePreview?.upgradeLabel ?? 'Loading…'}</h2>
+                  </div>
+                  {!upgrading && (
+                    <button onClick={() => { setUpgradeTarget(null); setUpgradePreview(null); }}
+                      className="text-white/50 hover:text-white p-1 transition-colors">
+                      <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+                        <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M18 6L6 18M6 6l12 12"/>
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                {upgradePreview && (
+                  <div className="mt-4 text-right">
+                    <p className="text-3xl font-bold text-white">₹{upgradePreview.totalPayable.toLocaleString('en-IN')}</p>
+                    <p className="text-xs text-white/50 mt-0.5">incl. ₹{upgradePreview.processingFee.toLocaleString('en-IN')} processing fee</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Body */}
+              <div className="px-6 py-5">
+                {upgradePreviewLoading ? (
+                  <div className="flex items-center justify-center py-8 gap-3">
+                    <span className="w-5 h-5 border-2 border-[#B8935B] border-t-transparent rounded-full animate-spin" />
+                    <span className="text-sm text-slate-500">Loading upgrade details…</span>
+                  </div>
+                ) : upgradePreview ? (
+                  <>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">What you will get</p>
+                    <div className="space-y-2.5 mb-6">
+                      {upgradePreview.whatYouGet.map((item, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <div className="w-6 h-6 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center flex-shrink-0">
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
+                              <path stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/>
+                            </svg>
+                          </div>
+                          <span className="text-sm font-medium text-slate-800">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="bg-[#FBF8F3] border border-[#F0EAE0] rounded-xl p-4 mb-5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-500">Upgrade cost</span>
+                        <span className="font-semibold text-slate-800">₹{upgradePreview.differenceInr.toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm mt-1.5">
+                        <span className="text-slate-500">Processing fee</span>
+                        <span className="font-medium text-slate-600">₹{upgradePreview.processingFee.toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex items-center justify-between font-bold mt-3 pt-3 border-t border-[#F0EAE0]">
+                        <span className="text-slate-900">Total payable</span>
+                        <span className="text-[#B8935B] text-lg">₹{upgradePreview.totalPayable.toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                    {upgradePreview?.existingPaymentUrl && (
+                      <div className="flex items-center gap-2 mb-4 px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-xl">
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" className="text-amber-500 flex-shrink-0">
+                          <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                        </svg>
+                        <p className="text-xs text-amber-700">You have a pending payment link. We&apos;ll take you there — no new link needed.</p>
+                      </div>
+                    )}
+                    <button
+                      onClick={confirmUpgrade}
+                      disabled={upgrading}
+                      className="w-full py-3.5 bg-[#B8935B] text-white font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                      {upgrading
+                        ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Processing…</>
+                        : upgradePreview?.existingPaymentUrl ? 'Resume Payment →' : 'Continue to Payment →'
+                      }
+                    </button>
+                    <p className="text-center text-[11px] text-slate-400 mt-3">Secure payment via Razorpay · Link valid for 24 hours</p>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Greeting ── */}
         <div>
@@ -712,12 +838,12 @@ export default function PortalDashboardPage() {
                 </h3>
                 <p className="text-xs text-slate-600 mt-1.5 max-w-md leading-relaxed">{desc}</p>
               </div>
-              <button 
+              <button
                 onClick={() => handleUpgrade(target)}
-                disabled={upgrading}
+                disabled={upgradePreviewLoading || upgrading}
                 className="whitespace-nowrap px-4 py-2 bg-[#B8935B] text-white text-xs font-bold rounded-xl hover:bg-[#9A7540] transition-colors disabled:opacity-50 shadow-sm shadow-[#B8935B]/20"
               >
-                {upgrading ? 'Processing...' : 'View Upgrade Details'}
+                {upgradePreviewLoading ? 'Loading…' : 'View Upgrade Details'}
               </button>
             </div>
           );
@@ -884,13 +1010,18 @@ export default function PortalDashboardPage() {
         {referral && <ReferralSection data={referral} />}
 
         {/* ── Quick links ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <QuickLink href="/portal/dashboard/files" title="My Files" desc="View & download deliverables"
             icon={<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>} />
           <QuickLink href="mailto:catalyst@theripplenexus.com" title="Contact Us" desc="Write to our team" external
             icon={<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>} />
           <QuickLink href="https://catalyst.theripplenexus.com" title="Our Website" desc="catalyst.theripplenexus.com" external
             icon={<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#B8935B" strokeWidth="2"/><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>} />
+          <QuickLinkButton title="Report an Issue" desc="Something not working?" onClick={() => {
+            const btn = document.querySelector('[title="Report an issue"]') as HTMLButtonElement | null;
+            btn?.click();
+          }}
+            icon={<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8v4M12 16h.01"/></svg>} />
         </div>
 
         {/* ── Comments / Messages ── */}
@@ -905,7 +1036,7 @@ export default function PortalDashboardPage() {
           </div>
 
           {/* Thread */}
-          <div ref={threadRef} className="space-y-3 mb-4 max-h-80 overflow-y-auto pr-1">
+          <div ref={threadRef} className="space-y-3 mb-4 max-h-[480px] overflow-y-auto pr-1">
             {comments.length === 0 ? (
               <p className="text-sm text-slate-400 text-center py-4">
                 No messages yet. Leave a note for our team below.
@@ -1215,6 +1346,21 @@ function QuickLink({ href, icon, title, desc, external = false }: {
   return external
     ? <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>{inner}</a>
     : <Link href={href} className={cls}>{inner}</Link>;
+}
+
+function QuickLinkButton({ title, desc, icon, onClick }: { title: string; desc: string; icon: React.ReactNode; onClick: () => void }) {
+  return (
+    <button onClick={onClick}
+      className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-[#D4AF7A] hover:bg-[#FBF8F3] transition-all group text-left w-full">
+      <div className="w-9 h-9 bg-[#FBF8F3] border border-[#F0EAE0] rounded-xl flex items-center justify-center flex-shrink-0 group-hover:border-[#D4AF7A] transition-colors">
+        {icon}
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-slate-800">{title}</p>
+        <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
+      </div>
+    </button>
+  );
 }
 
 function ReferralSection({ data }: { data: ReferralStats }) {

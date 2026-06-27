@@ -11,6 +11,109 @@ import type { ClientType } from '@/types';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+export async function GET(req: NextRequest) {
+  const token = cookies().get(PORTAL_COOKIE)?.value ?? '';
+  const payload = await verifyPortalToken(token);
+  if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { searchParams } = req.nextUrl;
+  const targetUpgrade = searchParams.get('target');
+  if (targetUpgrade !== 'FULL_PACKAGE' && targetUpgrade !== 'PREMIUM_PLUS') {
+    return NextResponse.json({ error: 'Invalid upgrade target' }, { status: 400 });
+  }
+
+  const client = await db.careerClient.findUnique({
+    where: { id: payload.clientId },
+    include: {
+      services: { select: { service: { select: { slug: true } } } },
+      invoiceLinks: {
+        include: { invoice: { select: { clientType: true } } },
+        take: 1,
+        orderBy: { createdAt: 'desc' }
+      }
+    }
+  });
+  if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+
+  const existingServices = client.services.map(s => s.service.slug as CareerServiceSlug);
+  const hasFull = existingServices.includes('FULL_PACKAGE');
+  const hasPortfolio = existingServices.includes('PORTFOLIO');
+  const hasResume = existingServices.includes('RESUME');
+  const hasLinkedIn = existingServices.includes('LINKEDIN');
+  const hasCoverLetter = existingServices.includes('COVER_LETTER');
+
+  if (targetUpgrade === 'FULL_PACKAGE' && hasFull) {
+    return NextResponse.json({ error: 'Already have full package' }, { status: 400 });
+  }
+  if (targetUpgrade === 'PREMIUM_PLUS' && hasPortfolio && hasFull) {
+    return NextResponse.json({ error: 'Already have premium plus' }, { status: 400 });
+  }
+
+  const clientType = (client.invoiceLinks[0]?.invoice?.clientType as ClientType) || 'MID_CAREER';
+  const base = BASE_PRICING[clientType];
+  if (!base) return NextResponse.json({ error: 'Pricing not configured' }, { status: 400 });
+
+  let targetPrice = 0;
+  let currentlyPaid = 0;
+  const whatYouGet: string[] = [];
+
+  if (targetUpgrade === 'FULL_PACKAGE') {
+    targetPrice = base.resume + base.linkedin + base.coverLetter;
+    if (!hasResume) whatYouGet.push('Professional Resume Writing');
+    if (!hasLinkedIn) whatYouGet.push('LinkedIn Profile Optimisation');
+    if (!hasCoverLetter) whatYouGet.push('Cover Letter Writing');
+  } else {
+    targetPrice = base.resume + base.linkedin + base.coverLetter + base.portfolio;
+    if (!hasResume) whatYouGet.push('Professional Resume Writing');
+    if (!hasLinkedIn) whatYouGet.push('LinkedIn Profile Optimisation');
+    if (!hasCoverLetter) whatYouGet.push('Cover Letter Writing');
+    if (!hasPortfolio) whatYouGet.push('Portfolio Website Development');
+  }
+
+  if (hasFull) {
+    currentlyPaid += base.resume + base.linkedin + base.coverLetter;
+  } else {
+    if (hasResume) currentlyPaid += base.resume;
+    if (hasLinkedIn) currentlyPaid += base.linkedin;
+    if (hasCoverLetter) currentlyPaid += base.coverLetter;
+  }
+  if (hasPortfolio) currentlyPaid += base.portfolio;
+
+  const differenceInr = targetPrice - currentlyPaid;
+  if (differenceInr <= 0) {
+    return NextResponse.json({ error: 'No price difference to upgrade' }, { status: 400 });
+  }
+
+  const processingFeeRate = FEE_RATES.INR;
+  const processingFee = round2(differenceInr * processingFeeRate);
+  const totalPayable = round2(differenceInr + processingFee);
+
+  // Check for an existing unexpired payment link the client can reuse
+  const upgradeNoteMarker = `Portal automated upgrade. Target: ${targetUpgrade}`;
+  const existingInvoice = await db.invoice.findFirst({
+    where: {
+      clientEmail: client.email,
+      notes: { contains: upgradeNoteMarker },
+      razorpayLinkUrl: { not: null },
+      dueDate: { gt: new Date() },
+    },
+    select: { razorpayLinkUrl: true },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    targetService: targetUpgrade,
+    upgradeLabel: targetUpgrade === 'FULL_PACKAGE' ? 'Career Booster Package' : 'Premium Plus Package',
+    whatYouGet,
+    differenceInr,
+    processingFee,
+    totalPayable,
+    currency: 'INR',
+    existingPaymentUrl: existingInvoice?.razorpayLinkUrl ?? null,
+  });
+}
+
 export async function POST(req: NextRequest) {
   const token = cookies().get(PORTAL_COOKIE)?.value ?? '';
   const payload = await verifyPortalToken(token);
@@ -83,8 +186,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No price difference to upgrade' }, { status: 400 });
   }
 
+  // Reuse an existing unexpired upgrade invoice instead of creating duplicates
+  const upgradeNoteMarker = `Portal automated upgrade. Target: ${targetUpgrade}`;
+  const existingInvoice = await db.invoice.findFirst({
+    where: {
+      clientEmail: client.email,
+      notes: { contains: upgradeNoteMarker },
+      razorpayLinkUrl: { not: null },
+      dueDate: { gt: new Date() },
+    },
+    select: { razorpayLinkUrl: true },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (existingInvoice?.razorpayLinkUrl) {
+    return NextResponse.json({
+      ok: true,
+      paymentUrl: existingInvoice.razorpayLinkUrl,
+      difference: differenceInr,
+      totalPayable: round2(differenceInr + round2(differenceInr * FEE_RATES.INR)),
+      reused: true,
+    });
+  }
+
   // Calculate final amounts including fee
-  const exchangeRate = 1; 
   const subtotalConverted = round2(differenceInr);
   const processingFeeRate = FEE_RATES.INR;
   const processingFeeConverted = round2(subtotalConverted * processingFeeRate);

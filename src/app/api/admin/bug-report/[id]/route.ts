@@ -28,3 +28,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'Failed to update bug report' }, { status: 500 });
   }
 }
+
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const admin = await getAdminSession();
+    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    await db.bugReport.delete({ where: { id: params.id } });
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    if (error.code === 'P2025') return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json({ error: 'Failed to delete bug report' }, { status: 500 });
+  }
+}

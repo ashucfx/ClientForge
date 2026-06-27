@@ -34,6 +34,8 @@ export default function BugsPage() {
   const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [viewImg, setViewImg]   = useState<string | null>(null);
+  const [deletingId,      setDeletingId]      = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,6 +64,14 @@ export default function BugsPage() {
       }
     }
     setSavingId(null);
+  };
+
+  const deleteBug = async (id: string) => {
+    setDeletingId(id);
+    const res = await fetch(`/api/admin/bug-report/${id}`, { method: 'DELETE' });
+    setDeletingId(null);
+    setDeleteConfirmId(null);
+    if (res.ok) setBugs(prev => prev.filter(b => b.id !== id));
   };
 
   const counts: Record<BugStatus | 'ALL', number> = {
@@ -265,6 +275,31 @@ export default function BugsPage() {
                             {savingId === bug.id ? 'Saving…' : 'Save Notes'}
                           </button>
                         </div>
+                      )}
+                    </div>
+
+                    {/* Delete */}
+                    <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                      {deleteConfirmId === bug.id ? (
+                        <>
+                          <span className="text-xs text-red-600 font-medium">Delete this report?</span>
+                          <button onClick={() => deleteBug(bug.id)} disabled={deletingId === bug.id}
+                            className="px-3 py-1.5 text-xs font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors">
+                            {deletingId === bug.id ? 'Deleting…' : 'Yes, delete'}
+                          </button>
+                          <button onClick={() => setDeleteConfirmId(null)}
+                            className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => setDeleteConfirmId(bug.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-400 border border-slate-200 rounded-lg hover:border-red-200 hover:text-red-500 hover:bg-red-50 transition-colors">
+                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
+                            <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
+                          </svg>
+                          Delete Report
+                        </button>
                       )}
                     </div>
                   </div>

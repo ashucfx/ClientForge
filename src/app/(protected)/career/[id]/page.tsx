@@ -98,7 +98,7 @@ const ACTION_LABELS: Record<string, string> = {
   email_sent_manual: 'Email sent (manual)',
 };
 
-type Tab = 'overview' | 'forms' | 'files' | 'emails' | 'activity' | 'revisions' | 'comments';
+type Tab = 'overview' | 'forms' | 'files' | 'emails' | 'activity' | 'revisions' | 'comments' | 'invoices';
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
@@ -319,7 +319,7 @@ export default function CareerClientDetailPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto">
-        {(['overview','forms','files','emails','activity','revisions','comments'] as Tab[]).map(tab => (
+        {(['overview','forms','files','emails','activity','revisions','comments','invoices'] as Tab[]).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`flex-shrink-0 px-4 py-1.5 text-sm font-semibold rounded-lg capitalize transition-all ${
               activeTab === tab
@@ -374,6 +374,11 @@ export default function CareerClientDetailPage() {
       {/* ── COMMENTS ── */}
       {activeTab === 'comments' && (
         <CommentsAdminTab clientId={client.id} clientName={client.name} />
+      )}
+
+      {/* ── INVOICES ── */}
+      {activeTab === 'invoices' && (
+        <UpgradeInvoicesTab clientId={client.id} />
       )}
 
       {/* ── EDIT MODAL ── */}
@@ -2636,6 +2641,114 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
           onChange={e => void handleFileSelect(e.target.files)} />
         <p className="text-[10px] text-slate-300 mt-2">PNG · JPG · PDF · DOCX · max 10 MB · max 3 per message</p>
       </div>
+    </div>
+  );
+}
+
+// ── Upgrade Invoices Tab ──────────────────────────────────────────────────────
+
+type UpgradeInvoice = {
+  id: string;
+  invoiceNumber: string;
+  notes: string | null;
+  totalPayable: number;
+  currency: string;
+  currencySymbol: string;
+  status: string;
+  razorpayLinkUrl: string | null;
+  razorpayPaymentId: string | null;
+  invoiceDate: string;
+  dueDate: string;
+  paidAt: string | null;
+};
+
+function UpgradeInvoicesTab({ clientId }: { clientId: string }) {
+  const [invoices, setInvoices] = useState<UpgradeInvoice[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/career/admin/clients/${clientId}/upgrade-invoices`)
+      .then(r => r.json())
+      .then(d => { setInvoices(d.invoices ?? []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [clientId]);
+
+  const statusColor = (s: string, dueDate: string) => {
+    if (s === 'PAID') return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+    if (s === 'CANCELLED') return 'bg-slate-100 text-slate-500 border-slate-200';
+    if (new Date(dueDate) < new Date()) return 'bg-red-50 text-red-600 border-red-100';
+    return 'bg-amber-50 text-amber-700 border-amber-100';
+  };
+
+  const statusLabel = (s: string, dueDate: string) => {
+    if (s === 'PAID') return 'Paid';
+    if (s === 'CANCELLED') return 'Cancelled';
+    if (new Date(dueDate) < new Date()) return 'Expired';
+    return 'Pending';
+  };
+
+  if (loading) return <div className="py-12 text-center text-sm text-slate-400">Loading invoices…</div>;
+
+  if (invoices.length === 0) {
+    return (
+      <div className="py-16 text-center">
+        <p className="text-slate-400 text-sm">No upgrade invoices found.</p>
+        <p className="text-slate-300 text-xs mt-1">Auto-generated upgrade invoices appear here when the client initiates an upgrade from the portal.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-400">
+        These invoices are created automatically when a client initiates an upgrade from the client portal. No manual action needed — Razorpay handles payment collection.
+      </p>
+      {invoices.map(inv => {
+        const label = statusLabel(inv.status, inv.dueDate);
+        const colorClass = statusColor(inv.status, inv.dueDate);
+        const target = inv.notes?.match(/Target:\s*(\S+)/)?.[1] ?? '—';
+        return (
+          <div key={inv.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-bold text-slate-800">{inv.invoiceNumber}</span>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${colorClass}`}>{label}</span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Upgrade target: <span className="font-medium text-slate-700">{target === 'FULL_PACKAGE' ? 'Career Booster Package' : target === 'PREMIUM_PLUS' ? 'Premium Plus Package' : target}</span>
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Created {new Date(inv.invoiceDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {' · '}Due {new Date(inv.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {inv.paidAt && <span className="text-emerald-600"> · Paid {new Date(inv.paidAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+                </p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-lg font-bold text-slate-900">{inv.currencySymbol}{inv.totalPayable.toLocaleString('en-IN')}</p>
+                <p className="text-[11px] text-slate-400">{inv.currency}</p>
+              </div>
+            </div>
+            {inv.razorpayLinkUrl && inv.status !== 'PAID' && (
+              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-3">
+                <a href={inv.razorpayLinkUrl} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-[#B8935B] hover:underline">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                  Open Razorpay Link
+                </a>
+                <button
+                  onClick={() => { void navigator.clipboard.writeText(inv.razorpayLinkUrl!); }}
+                  className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
+                  Copy link
+                </button>
+              </div>
+            )}
+            {inv.razorpayPaymentId && (
+              <p className="text-[11px] text-slate-400 mt-2">Payment ID: <span className="font-mono">{inv.razorpayPaymentId}</span></p>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
