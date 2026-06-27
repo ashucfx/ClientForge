@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
   const totalPayable = round2(subtotalConverted + processingFeeConverted);
 
   const invoiceDate = new Date();
-  const dueDate = new Date(); // Due immediately
+  const dueDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h window — Razorpay expire_by uses this
 
   let invoice;
   let createError;
@@ -153,15 +153,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to generate invoice sequence. Please try again.' }, { status: 500 });
   }
 
-  // Set link to expire in 24 hours to prevent stale pricing exploitation
-  const expireBy = Math.floor(Date.now() / 1000) + 86400;
-
   try {
-    const rzpPayload = {
-      ...(invoice as any),
-      expire_by: expireBy
-    };
-    const rzp = await createRazorpayPaymentLink(rzpPayload);
+    const rzp = await createRazorpayPaymentLink(invoice as any);
     await db.invoice.update({
       where: { id: invoice.id },
       data: {
@@ -176,8 +169,8 @@ export async function POST(req: NextRequest) {
       difference: differenceInr,
       totalPayable
     });
-  } catch (err) {
-    console.error('Upgrade Razorpay Error:', err);
+  } catch (err: any) {
+    console.error('Upgrade Razorpay Error:', err?.message ?? err);
     await db.invoice.delete({ where: { id: invoice.id }});
     return NextResponse.json({ error: 'Payment link creation failed' }, { status: 500 });
   }
