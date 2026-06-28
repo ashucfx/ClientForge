@@ -6,10 +6,46 @@ import Link from 'next/link';
 import { Check, ArrowRight, Loader2, Lock, Star } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { SELF_SERVICE_PACKAGES } from '@/lib/catalog/self-service';
+import { PRICING } from '@/lib/pricing-v2';
+import type { ServiceSlug, PackageSlug as PkgSlug } from '@/lib/pricing-v2';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 
 type PackageSlug = 'CAREER_BOOSTER' | 'PREMIUM_PLUS' | 'CUSTOM';
+
+type ExperienceKey = 'FRESHER' | 'MID_CAREER' | 'EXECUTIVE' | 'EXECUTIVE_PLUS';
+
+const SERVICE_LABELS: Record<ServiceSlug, string> = {
+  RESUME:       'Resume Writing',
+  LINKEDIN:     'LinkedIn Optimisation',
+  COVER_LETTER: 'Cover Letter',
+  PORTFOLIO:    'Portfolio Website',
+};
+
+const PKG_SERVICES: Record<Exclude<PackageSlug, 'CUSTOM'>, ServiceSlug[]> = {
+  CAREER_BOOSTER: ['RESUME', 'LINKEDIN', 'COVER_LETTER'],
+  PREMIUM_PLUS:   ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'],
+};
+
+function computePrice(
+  pkg: PackageSlug,
+  tier: ExperienceKey,
+  cur: 'INR' | 'USD',
+  customSlugs: string[] = [],
+) {
+  const prices = PRICING.basePrices[cur];
+  const sym    = cur === 'INR' ? '₹' : '$';
+  const slugs: ServiceSlug[] =
+    pkg === 'CUSTOM'
+      ? (customSlugs as ServiceSlug[]).filter(s => s in prices)
+      : PKG_SERVICES[pkg] ?? [];
+
+  const services = slugs.map(slug => ({ slug, label: SERVICE_LABELS[slug], price: prices[slug]?.[tier] ?? 0 }));
+  const subtotal  = services.reduce((s, x) => s + x.price, 0);
+  const rate      = PRICING.packageDiscounts[pkg as PkgSlug] ?? 0;
+  const discount  = Math.round(subtotal * rate);
+  return { sym, services, subtotal, discount, total: subtotal - discount, rate };
+}
 
 export default function CatalystCheckoutPage() {
   return (
@@ -303,35 +339,61 @@ function CheckoutPageInner() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
             <div className="lg:col-span-6 space-y-6">
               <h2 className="font-serif text-heading mb-2">Choose Package</h2>
-              {(['PREMIUM_PLUS', 'CAREER_BOOSTER', 'CUSTOM'] as PackageSlug[]).map((pkg) => (
-                <button
-                  key={pkg}
-                  type="button"
-                  onClick={() => setSelectedPackage(pkg)}
-                  className={`w-full text-left p-6 border transition-all ${
-                    selectedPackage === pkg
-                      ? 'border-brand-gold bg-brand-gold/5'
-                      : 'border-brand-parchment hover:border-brand-obsidian/20'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-serif text-subheading">
-                      {SELF_SERVICE_PACKAGES[pkg].label}
-                    </h3>
-                    {pkg === 'PREMIUM_PLUS' && (
-                      <Star className="w-4 h-4 text-brand-gold fill-brand-gold" />
-                    )}
-                  </div>
-                  <p className="text-body text-brand-obsidian/60 mb-3 font-medium">
-                    {SELF_SERVICE_PACKAGES[pkg].description}
-                  </p>
-                  <ul className="text-sm text-brand-obsidian/50 space-y-1 list-disc list-inside">
-                    {SELF_SERVICE_PACKAGES[pkg].features.map((feature, i) => (
-                      <li key={i}>{feature}</li>
-                    ))}
-                  </ul>
-                </button>
-              ))}
+              {(['PREMIUM_PLUS', 'CAREER_BOOSTER', 'CUSTOM'] as PackageSlug[]).map((pkg) => {
+                const cur  = countryCode === 'IN' ? 'INR' : 'USD';
+                const live = computePrice(pkg, experienceLevel, cur, customServices);
+                return (
+                  <button
+                    key={pkg}
+                    type="button"
+                    onClick={() => setSelectedPackage(pkg)}
+                    className={`w-full text-left p-6 border transition-all ${
+                      selectedPackage === pkg
+                        ? 'border-brand-gold bg-brand-gold/5'
+                        : 'border-brand-parchment hover:border-brand-obsidian/20'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-serif text-subheading">
+                          {SELF_SERVICE_PACKAGES[pkg].label}
+                        </h3>
+                        {pkg === 'PREMIUM_PLUS' && (
+                          <Star className="w-4 h-4 text-brand-gold fill-brand-gold flex-shrink-0" />
+                        )}
+                      </div>
+                      {/* Live price badge */}
+                      {live.total > 0 ? (
+                        <div className="text-right flex-shrink-0">
+                          {live.discount > 0 && (
+                            <p className="text-[10px] text-brand-obsidian/35 line-through leading-none mb-0.5">
+                              {live.sym}{live.subtotal.toLocaleString()}
+                            </p>
+                          )}
+                          <p className="text-base font-bold text-brand-gold leading-none">
+                            {live.sym}{live.total.toLocaleString()}
+                          </p>
+                          {live.discount > 0 && (
+                            <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                              {Math.round(live.rate * 100)}% off
+                            </p>
+                          )}
+                        </div>
+                      ) : pkg === 'CUSTOM' ? (
+                        <p className="text-xs text-brand-obsidian/40 flex-shrink-0">Select services →</p>
+                      ) : null}
+                    </div>
+                    <p className="text-body text-brand-obsidian/60 mb-3 font-medium">
+                      {SELF_SERVICE_PACKAGES[pkg].description}
+                    </p>
+                    <ul className="text-sm text-brand-obsidian/50 space-y-1 list-disc list-inside">
+                      {SELF_SERVICE_PACKAGES[pkg].features.map((feature, i) => (
+                        <li key={i}>{feature}</li>
+                      ))}
+                    </ul>
+                  </button>
+                );
+              })}
 
               {selectedPackage === 'CUSTOM' && (
                 <div className="pt-2 space-y-2">
@@ -425,6 +487,94 @@ function CheckoutPageInner() {
                   ))}
                 </div>
               </div>
+
+              {/* ── Live price estimate ─────────────────────────────── */}
+              {(() => {
+                const cur  = countryCode === 'IN' ? 'INR' : 'USD';
+                const live = computePrice(selectedPackage, experienceLevel, cur, customServices);
+                if (live.services.length === 0) return null;
+                return (
+                  <div className="border border-brand-parchment p-5 bg-white/60">
+                    <p className="text-status text-brand-gold uppercase tracking-widest font-bold mb-4 text-[10px]">
+                      Estimated Price · {experienceLevel === 'FRESHER' ? '0–2 yrs' : experienceLevel === 'MID_CAREER' ? '3–8 yrs' : experienceLevel === 'EXECUTIVE' ? '9–15 yrs' : '15+ yrs'}
+                    </p>
+                    <div className="space-y-2.5 mb-4">
+                      {live.services.map(s => (
+                        <div key={s.slug} className="flex items-center justify-between text-sm">
+                          <span className="text-brand-obsidian/70">{s.label}</span>
+                          <span className="font-medium text-brand-obsidian tabular-nums">{live.sym}{s.price.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {live.discount > 0 && (
+                      <div className="flex items-center justify-between text-sm border-t border-brand-parchment pt-3 mb-2">
+                        <span className="text-brand-obsidian/50">Subtotal</span>
+                        <span className="text-brand-obsidian/50 tabular-nums">{live.sym}{live.subtotal.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {live.discount > 0 && (
+                      <div className="flex items-center justify-between text-sm mb-3">
+                        <span className="text-emerald-700 font-semibold">Package discount ({Math.round(live.rate * 100)}%)</span>
+                        <span className="text-emerald-700 font-semibold tabular-nums">−{live.sym}{live.discount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between border-t border-brand-parchment pt-3">
+                      <span className="font-serif text-subheading">
+                        {live.discount > 0 ? 'Total' : 'Subtotal'}
+                      </span>
+                      <span className="font-bold text-xl text-brand-gold tabular-nums">{live.sym}{live.total.toLocaleString()}</span>
+                    </div>
+                    <p className="text-[10px] text-brand-obsidian/30 mt-2">
+                      + gateway fee &amp; applicable taxes shown at checkout · no card details needed here
+                    </p>
+                  </div>
+                );
+              })()}
+
+              {/* ── Full pricing table ──────────────────────────────── */}
+              <details className="group">
+                <summary className="cursor-pointer text-xs text-brand-obsidian/40 hover:text-brand-gold uppercase tracking-widest font-semibold list-none flex items-center gap-2 select-none">
+                  <svg className="w-3 h-3 transition-transform group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+                  View full pricing table (all services &amp; experience levels)
+                </summary>
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-brand-parchment">
+                        <th className="text-left py-2 pr-3 font-semibold text-brand-obsidian/50 uppercase tracking-wide">Service</th>
+                        {(['FRESHER','MID_CAREER','EXECUTIVE','EXECUTIVE_PLUS'] as ExperienceKey[]).map(t => (
+                          <th key={t} className={`text-right py-2 px-2 font-semibold uppercase tracking-wide whitespace-nowrap ${experienceLevel === t ? 'text-brand-gold' : 'text-brand-obsidian/40'}`}>
+                            {t === 'FRESHER' ? '0–2 yrs' : t === 'MID_CAREER' ? '3–8 yrs' : t === 'EXECUTIVE' ? '9–15 yrs' : '15+ yrs'}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(['RESUME','LINKEDIN','COVER_LETTER','PORTFOLIO'] as ServiceSlug[]).map(slug => {
+                        const cur = countryCode === 'IN' ? 'INR' : 'USD';
+                        const sym = cur === 'INR' ? '₹' : '$';
+                        return (
+                          <tr key={slug} className="border-b border-brand-parchment/60">
+                            <td className="py-2.5 pr-3 text-brand-obsidian/70 font-medium">{SERVICE_LABELS[slug]}</td>
+                            {(['FRESHER','MID_CAREER','EXECUTIVE','EXECUTIVE_PLUS'] as ExperienceKey[]).map(t => (
+                              <td key={t} className={`text-right py-2.5 px-2 tabular-nums font-medium ${experienceLevel === t ? 'text-brand-obsidian font-bold' : 'text-brand-obsidian/40'}`}>
+                                {sym}{PRICING.basePrices[cur][slug][t].toLocaleString()}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td colSpan={5} className="pt-3 text-brand-obsidian/30 text-[10px]">
+                          Career Booster (Resume + LinkedIn + Cover Letter) = 15% off · Premium Plus (all 4) = 20% off · Custom = no discount
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </details>
 
               <h2 className="font-serif text-heading">Your Details</h2>
               <input
