@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       designation: cleanDesignation,
       company: cleanCompany,
       linkedinUrl: cleanLinkedinUrl,
-      isPublished: false // requires admin approval
+      isPublished: true // verified portal clients — auto-publish, admin can unpublish if needed
     }
   });
 

@@ -12,6 +12,19 @@ export const metadata = {
   description: 'Real results from real professionals across the globe. See how Catalyst transforms careers.',
 };
 
+function pkgFromSlugs(slugs: string[]): string | null {
+  const s = new Set(slugs);
+  const hasAll3 = ['RESUME', 'COVER_LETTER', 'LINKEDIN'].every(sl => s.has(sl));
+  if (s.has('PREMIUM_PLUS') || (hasAll3 && s.has('PORTFOLIO'))) return 'Premium Plus';
+  if (s.has('FULL_PACKAGE') || hasAll3) return 'Career Booster';
+  const parts: string[] = [];
+  if (s.has('RESUME'))       parts.push('Resume Writing');
+  if (s.has('LINKEDIN'))     parts.push('LinkedIn');
+  if (s.has('COVER_LETTER')) parts.push('Cover Letter');
+  if (s.has('PORTFOLIO'))    parts.push('Portfolio Site');
+  return parts.length ? parts.join(' + ') : null;
+}
+
 export default async function TestimonialsPage() {
   const raw = await db.review.findMany({
     where: { isPublished: true, careerClientId: { not: null } },
@@ -30,19 +43,24 @@ export default async function TestimonialsPage() {
           contact: {
             select: { country: true, jobTitle: true, industry: true, city: true },
           },
+          services: {
+            select: { service: { select: { slug: true } } },
+          },
         },
       },
     },
   });
 
   const reviews = raw.map(r => {
-    const name = r.careerClient?.name ?? 'Anonymous';
-    const contact = r.careerClient?.contact ?? null;
-    const country = contact?.country ?? null;
-    const role = r.designation ?? contact?.jobTitle ?? null;
+    const name     = r.careerClient?.name ?? 'Anonymous';
+    const contact  = r.careerClient?.contact ?? null;
+    const country  = contact?.country ?? null;
+    const role     = r.designation ?? contact?.jobTitle ?? null;
     const industry = contact?.industry ?? null;
-    const city = contact?.city ?? null;
-    const flag = countryFlag(country);
+    const city     = contact?.city ?? null;
+    const flag     = countryFlag(country);
+    const slugs    = (r.careerClient?.services ?? []).map(s => s.service.slug);
+    const packageLabel = pkgFromSlugs(slugs);
 
     return {
       id: r.id,
@@ -57,6 +75,7 @@ export default async function TestimonialsPage() {
       country,
       city,
       flag,
+      packageLabel,
       isCareer: true,
     };
   });
@@ -67,11 +86,8 @@ export default async function TestimonialsPage() {
   const fiveStarPct = reviews.length
     ? Math.round((reviews.filter(r => r.rating === 5).length / reviews.length) * 100)
     : 0;
-
-  // Unique countries for the filter
-  const countries = Array.from(
-    new Set(reviews.map(r => r.country).filter(Boolean) as string[])
-  ).sort();
+  const countries  = Array.from(new Set(reviews.map(r => r.country).filter(Boolean) as string[])).sort();
+  const industries = Array.from(new Set(reviews.map(r => r.industry).filter(Boolean) as string[]));
 
   return (
     <div className="min-h-screen bg-[#F8F7F4] font-sans">
@@ -95,7 +111,7 @@ export default async function TestimonialsPage() {
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)' }} className="text-white">
         <div className="max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
-          {/* Label pill */}
+
           <div className="inline-flex items-center gap-2 border border-[#B8935B]/30 bg-[#B8935B]/10 rounded-full px-4 py-1.5 mb-8">
             <svg width={12} height={12} viewBox="0 0 24 24" fill="#B8935B">
               <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
@@ -111,31 +127,37 @@ export default async function TestimonialsPage() {
           </h1>
 
           <p className="text-slate-400 text-lg max-w-2xl mx-auto mb-12 leading-relaxed">
-            Every review is unedited and written by a real client — professionals from across
-            the globe who trusted us with their career growth.
+            Every story is unedited and written by a real client — professionals across
+            {countries.length > 0 ? ` ${countries.length} countries` : ' the globe'} and
+            {industries.length > 0 ? ` ${industries.length} industries` : ' diverse industries'} who
+            trusted us with their career growth.
           </p>
 
           {/* Stats */}
           {reviews.length > 0 && (
-            <div className="inline-grid grid-cols-3 divide-x divide-white/10 border border-white/10 rounded-2xl bg-white/5 backdrop-blur-sm overflow-hidden">
-              <div className="px-8 py-5 text-center">
-                <p className="text-4xl font-bold text-white tabular-nums">{avgRating}</p>
+            <div className="inline-grid grid-cols-4 divide-x divide-white/10 border border-white/10 rounded-2xl bg-white/5 backdrop-blur-sm overflow-hidden">
+              <div className="px-6 py-5 text-center">
+                <p className="text-3xl font-bold text-white tabular-nums">{avgRating}</p>
                 <div className="flex justify-center gap-0.5 mt-1.5 mb-1">
                   {[1,2,3,4,5].map(i => (
-                    <svg key={i} width={13} height={13} viewBox="0 0 24 24" fill="#F59E0B">
+                    <svg key={i} width={11} height={11} viewBox="0 0 24 24" fill="#F59E0B">
                       <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
                     </svg>
                   ))}
                 </div>
-                <p className="text-xs text-slate-400 tracking-wide">Avg rating</p>
+                <p className="text-[10px] text-slate-400 tracking-wide uppercase">Avg rating</p>
               </div>
-              <div className="px-8 py-5 text-center">
-                <p className="text-4xl font-bold text-white tabular-nums">{reviews.length}</p>
-                <p className="text-xs text-slate-400 tracking-wide mt-3">Verified reviews</p>
+              <div className="px-6 py-5 text-center">
+                <p className="text-3xl font-bold text-white tabular-nums">{reviews.length}</p>
+                <p className="text-[10px] text-slate-400 tracking-wide mt-3 uppercase">Reviews</p>
               </div>
-              <div className="px-8 py-5 text-center">
-                <p className="text-4xl font-bold text-[#B8935B] tabular-nums">{fiveStarPct}%</p>
-                <p className="text-xs text-slate-400 tracking-wide mt-3">5-star experiences</p>
+              <div className="px-6 py-5 text-center">
+                <p className="text-3xl font-bold text-[#B8935B] tabular-nums">{fiveStarPct}%</p>
+                <p className="text-[10px] text-slate-400 tracking-wide mt-3 uppercase">5-star</p>
+              </div>
+              <div className="px-6 py-5 text-center">
+                <p className="text-3xl font-bold text-white tabular-nums">{countries.length}</p>
+                <p className="text-[10px] text-slate-400 tracking-wide mt-3 uppercase">Countries</p>
               </div>
             </div>
           )}
