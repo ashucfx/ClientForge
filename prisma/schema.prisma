@@ -984,6 +984,7 @@ model Contact {
   name          String
   email         String?  @unique
   phone         String?
+  whatsapp      String?
   companyName   String?
   country       String?
   city          String?
@@ -1387,6 +1388,7 @@ model CheckoutSession {
   name                  String
   email                 String
   phone                 String?
+  whatsapp              String?
   countryCode           String
   countryName           String
 

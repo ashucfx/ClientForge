@@ -40,9 +40,17 @@ function CheckoutPageInner() {
     subtotalAfterDiscount: number; taxRate: number; taxAmount: number;
     finalPayable: number; isIndia: boolean; gateway: string;
   } | null>(null);
+  const [whatsapp, setWhatsapp] = useState('');
   const [website] = useState('');
   const [startedAt] = useState(() => Date.now());
   const submitting = useRef(false);
+
+  // Email OTP state
+  const [otpStep,      setOtpStep]      = useState(false);
+  const [otpToken,     setOtpToken]     = useState('');
+  const [otpCode,      setOtpCode]      = useState('');
+  const [otpError,     setOtpError]     = useState('');
+  const [otpResending, setOtpResending] = useState(false);
 
   const resolveServices = (): string[] => {
     if (selectedPackage === 'PREMIUM_PLUS') {
@@ -65,7 +73,64 @@ function CheckoutPageInner() {
     submitting.current = true;
     setLoading(true);
     try {
-      const res = await fetch('/api/public/checkout/preview', {
+      const res = await fetch('/api/public/checkout/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), name: name.trim() }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Could not send verification code. Please try again.');
+      }
+      const { token } = await res.json();
+      setOtpToken(token);
+      setOtpCode('');
+      setOtpError('');
+      setOtpStep(true);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Failed to send verification code');
+    } finally {
+      setLoading(false);
+      submitting.current = false;
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setOtpResending(true);
+    try {
+      const res = await fetch('/api/public/checkout/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), name: name.trim() }),
+      });
+      if (res.ok) {
+        const { token } = await res.json();
+        setOtpToken(token);
+        setOtpCode('');
+        setOtpError('');
+      }
+    } finally {
+      setOtpResending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otpCode.length !== 6) return;
+    setLoading(true);
+    setOtpError('');
+    try {
+      const verifyRes = await fetch('/api/public/checkout/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), code: otpCode, token: otpToken }),
+      });
+      if (!verifyRes.ok) {
+        const d = await verifyRes.json().catch(() => ({}));
+        setOtpError(d.error ?? 'Incorrect code. Please try again.');
+        return;
+      }
+      const services = resolveServices();
+      const previewRes = await fetch('/api/public/checkout/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -77,17 +142,17 @@ function CheckoutPageInner() {
           preferredGateway: countryCode === 'IN' ? 'RAZORPAY' : preferredGateway,
         }),
       });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
+      if (!previewRes.ok) {
+        const d = await previewRes.json().catch(() => ({}));
         throw new Error(d.error || 'Could not load pricing. Please try again.');
       }
-      setPricingPreview(await res.json());
+      setPricingPreview(await previewRes.json());
+      setOtpStep(false);
       setStep(2);
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'Failed to load pricing');
+      setOtpError(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
-      submitting.current = false;
     }
   };
 
@@ -103,6 +168,7 @@ function CheckoutPageInner() {
           name,
           email,
           phone: `+${phone}`,
+          ...(whatsapp.trim() ? { whatsapp: whatsapp.trim() } : {}),
           countryCode,
           countryName,
           experienceLevel,
@@ -141,7 +207,7 @@ function CheckoutPageInner() {
       <div className="fixed top-0 left-0 h-[2px] bg-brand-parchment w-full z-50">
         <div
           className="h-full bg-brand-gold transition-all duration-500"
-          style={{ width: step === 1 ? '50%' : '100%' }}
+          style={{ width: step === 2 ? '100%' : otpStep ? '67%' : '33%' }}
         />
       </div>
 
@@ -155,7 +221,61 @@ function CheckoutPageInner() {
         </Link>
       </header>
 
-      {step === 1 && (
+      {step === 1 && otpStep && (
+        <main className="px-8 md:px-16 lg:px-24 pb-24 pt-12 max-w-md mx-auto">
+          <button
+            onClick={() => { setOtpStep(false); setOtpCode(''); setOtpError(''); }}
+            className="flex items-center gap-2 text-brand-obsidian/40 hover:text-brand-obsidian text-sm uppercase tracking-widest mb-12 transition-colors"
+          >
+            ← Back
+          </button>
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-6 bg-[#F0EAE0] rounded-full flex items-center justify-center">
+              <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
+                <path stroke="#B8935B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+              </svg>
+            </div>
+            <p className="text-status text-brand-gold uppercase tracking-widest font-bold mb-3">Verify Email</p>
+            <h2 className="font-serif text-[clamp(1.6rem,4vw,2.2rem)] leading-tight mb-3">Check your inbox</h2>
+            <p className="text-sm text-brand-obsidian/50 mb-8">
+              We sent a 6-digit code to{' '}
+              <strong className="text-brand-obsidian">{email}</strong>
+            </p>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              autoComplete="one-time-code"
+              value={otpCode}
+              onChange={(e) => { setOtpCode(e.target.value.replace(/\D/g, '')); setOtpError(''); }}
+              placeholder="000000"
+              className="w-full text-center text-3xl font-bold tracking-[0.5em] border-b-2 border-brand-parchment py-4 bg-transparent outline-none focus:border-brand-gold mb-2 transition-colors"
+            />
+            {otpError
+              ? <p className="text-sm text-red-600 mb-6 mt-1">{otpError}</p>
+              : <p className="text-xs text-brand-obsidian/35 mb-6 mt-1">Expires in 10 minutes · Check spam if not received</p>
+            }
+            <button
+              onClick={handleVerifyOtp}
+              disabled={loading || otpCode.length !== 6}
+              className="w-full inline-flex items-center justify-center gap-2 bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest hover:bg-brand-graphite disabled:opacity-50 transition-colors mb-5"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Verify & Continue <ArrowRight className="w-4 h-4" /></>}
+            </button>
+            <button
+              onClick={handleResendOtp}
+              disabled={otpResending}
+              className="text-sm text-brand-obsidian/40 hover:text-brand-gold transition-colors"
+            >
+              {otpResending ? 'Sending…' : 'Resend code'}
+            </button>
+          </div>
+        </main>
+      )}
+
+      {step === 1 && !otpStep && (
         <main className="px-8 md:px-16 lg:px-24 pb-24">
           <section className="mb-16 max-w-3xl">
             <p className="text-status text-brand-gold uppercase tracking-widest font-bold mb-4">
@@ -324,6 +444,16 @@ function CheckoutPageInner() {
                   containerClass="!w-full"
                   placeholder="Mobile Number"
                 />
+              </div>
+              <div>
+                <input
+                  type="tel"
+                  placeholder="WhatsApp number (optional, if different from above)"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
+                  className="w-full border-b border-brand-parchment py-3 bg-transparent outline-none focus:border-brand-gold text-sm"
+                />
+                <p className="text-xs text-brand-obsidian/30 mt-1">Include country code · e.g. +91 98765 43210</p>
               </div>
 
               <button

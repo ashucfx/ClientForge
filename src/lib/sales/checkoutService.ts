@@ -28,6 +28,7 @@ export interface CheckoutSessionInput {
   name: string;
   email: string;
   phone: string;
+  whatsapp?: string;
   countryCode: string;
   countryName: string;
   packageSlug: PackageSlug;
@@ -96,6 +97,7 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
               name: input.name,
               email: input.email.toLowerCase().trim(),
               phone: input.phone,
+              ...(input.whatsapp ? { whatsapp: input.whatsapp } : {}),
               country: input.countryCode,
               contactSource: referrer ? 'REFERRAL' : 'WEBSITE_CHECKOUT',
               flywheelProfile: {
@@ -139,6 +141,7 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
         name: input.name,
         email: input.email.toLowerCase().trim(),
         phone: input.phone,
+        ...(input.whatsapp ? { whatsapp: input.whatsapp } : {}),
         countryCode: input.countryCode,
         countryName: input.countryName,
       },
