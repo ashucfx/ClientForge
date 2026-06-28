@@ -464,7 +464,7 @@ function CheckoutPageInner() {
               <div>
                 <h2 className="font-serif text-heading mb-1.5">Years of Experience</h2>
                 <p className="text-sm text-brand-obsidian/45 mb-4">How many years have you been working professionally?</p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2 mb-3">
                   {([
                     { value: 'FRESHER',        label: '0–2 years',  sub: 'Graduate or early career' },
                     { value: 'MID_CAREER',     label: '3–8 years',  sub: 'Established professional' },
@@ -486,6 +486,9 @@ function CheckoutPageInner() {
                     </button>
                   ))}
                 </div>
+                <p className="text-xs text-brand-obsidian/40 leading-relaxed mt-3">
+                  Pricing reflects the complexity of your career journey — senior and executive profiles involve deeper research, more nuanced positioning, and significantly more iterative work than early-career documents.
+                </p>
               </div>
 
               {/* ── Live price estimate ─────────────────────────────── */}
