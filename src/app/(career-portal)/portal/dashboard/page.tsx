@@ -846,36 +846,81 @@ export default function PortalDashboardPage() {
           </div>
         </div>
 
-        {/* ── Premium Upgrade Banner ── */}
+        {/* ── Upgrade Options ── */}
         {me.services && (() => {
           const slugs = me.services.map(s => s.slug);
-          const hasFull = slugs.includes('FULL_PACKAGE');
+          const hasFull      = slugs.includes('FULL_PACKAGE');
           const hasPortfolio = slugs.includes('PORTFOLIO');
-          
-          if (hasFull && hasPortfolio) return null; // Fully upgraded
-          
-          const target = hasFull ? 'PREMIUM_PLUS' : 'FULL_PACKAGE';
-          const title = hasFull ? 'Premium Upgrade Available' : 'Package Upgrade Available';
-          const desc = hasFull 
-            ? 'Strengthen your digital credibility further through a dedicated professional portfolio website.'
-            : 'Upgrade to the Complete Career Booster package to maximize your professional visibility.';
-            
-          return (
-            <div className="bg-gradient-to-r from-[#B8935B]/10 to-[#B8935B]/5 border border-[#B8935B]/20 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+
+          const showFullPackage  = !hasFull;
+          const showPremiumPlus  = !(hasFull && hasPortfolio);
+          if (!showFullPackage && !showPremiumPlus) return null;
+
+          const UpgradeCard = ({ target, title, tagline, bullets }: {
+            target: string; title: string; tagline: string; bullets: string[];
+          }) => (
+            <div className="flex-1 min-w-0 bg-white border border-[#E8DDD0] rounded-2xl p-5 shadow-sm flex flex-col gap-3">
               <div>
-                <h3 className="text-sm font-bold text-[#9A7540] uppercase tracking-wide flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#B8935B] animate-pulse"></span>
-                  {title}
-                </h3>
-                <p className="text-xs text-slate-600 mt-1.5 max-w-md leading-relaxed">{desc}</p>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#B8935B] animate-pulse flex-shrink-0" />
+                  <p className="text-[11px] font-bold text-[#9A7540] uppercase tracking-widest">{title}</p>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">{tagline}</p>
               </div>
+              <ul className="space-y-1">
+                {bullets.map((b, i) => (
+                  <li key={i} className="flex items-center gap-2 text-xs text-slate-700">
+                    <svg width="11" height="11" fill="none" viewBox="0 0 24 24" className="flex-shrink-0 text-[#B8935B]">
+                      <path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    {b}
+                  </li>
+                ))}
+              </ul>
               <button
                 onClick={() => handleUpgrade(target)}
                 disabled={upgradePreviewLoading || upgrading}
-                className="whitespace-nowrap px-4 py-2 bg-[#B8935B] text-white text-xs font-bold rounded-xl hover:bg-[#9A7540] transition-colors disabled:opacity-50 shadow-sm shadow-[#B8935B]/20"
+                className="mt-auto w-full py-2 bg-[#B8935B] text-white text-xs font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors"
               >
-                {upgradePreviewLoading ? 'Loading…' : 'View Upgrade Details'}
+                {(upgradePreviewLoading || upgrading) && upgradeTarget === target
+                  ? 'Loading…'
+                  : 'View Details & Price'}
               </button>
+            </div>
+          );
+
+          return (
+            <div>
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-3">
+                {showFullPackage && showPremiumPlus ? 'Upgrade Options Available' : 'Upgrade Available'}
+              </p>
+              <div className={`flex ${showFullPackage && showPremiumPlus ? 'flex-col sm:flex-row' : ''} gap-3`}>
+                {showFullPackage && (
+                  <UpgradeCard
+                    target="FULL_PACKAGE"
+                    title="Career Booster Package"
+                    tagline="Get all three career essentials to maximise recruiter visibility."
+                    bullets={[
+                      ...(!slugs.includes('RESUME')      ? ['Professional Resume Writing']       : []),
+                      ...(!slugs.includes('LINKEDIN')    ? ['LinkedIn Profile Optimisation']     : []),
+                      'Cover Letter Writing (included free)',
+                    ]}
+                  />
+                )}
+                {showPremiumPlus && (
+                  <UpgradeCard
+                    target="PREMIUM_PLUS"
+                    title="Premium Plus Package"
+                    tagline="Add a dedicated portfolio website to stand out with a full digital presence."
+                    bullets={[
+                      ...(!hasFull && !slugs.includes('RESUME')   ? ['Professional Resume Writing']   : []),
+                      ...(!hasFull && !slugs.includes('LINKEDIN') ? ['LinkedIn Profile Optimisation'] : []),
+                      ...(!hasFull                                 ? ['Cover Letter Writing (free)']   : []),
+                      'Portfolio Website Development',
+                    ]}
+                  />
+                )}
+              </div>
             </div>
           );
         })()}
