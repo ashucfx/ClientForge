@@ -253,14 +253,14 @@ function CheckoutPageInner() {
 
             <div className="lg:col-span-5 lg:col-start-8 space-y-6">
               <div>
-                <h2 className="font-serif text-heading mb-4">Your Experience Level</h2>
-                <p className="text-sm text-brand-obsidian/50 mb-4">Pricing is tailored to your career stage.</p>
+                <h2 className="font-serif text-heading mb-1.5">Years of Experience</h2>
+                <p className="text-sm text-brand-obsidian/45 mb-4">How many years have you been working professionally?</p>
                 <div className="grid grid-cols-2 gap-2">
                   {([
-                    { value: 'FRESHER',        label: 'Entry Level', sub: '0–2 years' },
-                    { value: 'MID_CAREER',     label: 'Mid-Career',  sub: '2–8 years' },
-                    { value: 'EXECUTIVE',      label: 'Executive',   sub: '8–15 years' },
-                    { value: 'EXECUTIVE_PLUS', label: 'C-Suite',     sub: '15+ years' },
+                    { value: 'FRESHER',        label: '0–2 years',  sub: 'Graduate or early career' },
+                    { value: 'MID_CAREER',     label: '3–8 years',  sub: 'Established professional' },
+                    { value: 'EXECUTIVE',      label: '9–15 years', sub: 'Senior, manager or specialist' },
+                    { value: 'EXECUTIVE_PLUS', label: '15+ years',  sub: 'Director, VP or C-level' },
                   ] as const).map(({ value, label, sub }) => (
                     <button
                       key={value}
@@ -345,11 +345,11 @@ function CheckoutPageInner() {
             Review before you pay
           </h1>
           <p className="text-sm text-brand-obsidian/50 mb-8">
-            Pricing for: <span className="font-semibold text-brand-obsidian">
-              {experienceLevel === 'FRESHER' ? 'Entry Level (0–2 yrs)'
-               : experienceLevel === 'MID_CAREER' ? 'Mid-Career (2–8 yrs)'
-               : experienceLevel === 'EXECUTIVE' ? 'Executive (8–15 yrs)'
-               : 'C-Suite / Executive Plus (15+ yrs)'}
+            Your experience: <span className="font-semibold text-brand-obsidian">
+              {experienceLevel === 'FRESHER' ? '0–2 years'
+               : experienceLevel === 'MID_CAREER' ? '3–8 years'
+               : experienceLevel === 'EXECUTIVE' ? '9–15 years'
+               : '15+ years'}
             </span>
           </p>
 
