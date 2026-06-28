@@ -91,11 +91,9 @@ const WebIcon = (
 
 // Covers both legacy names (resume, linkedin, cover_letter) and new canonical names
 const FORM_LABELS: Record<string, string> = {
-  // New canonical names
   career_profile:    'Career Profile Strategy Brief',
   linkedin_profile:  'LinkedIn Profile Optimization Brief',
   portfolio_website: 'Portfolio Website Development Brief',
-  // Legacy aliases (kept so old URL params still show correct labels)
   resume:            'Career Profile Strategy Brief',
   linkedin:          'LinkedIn Profile Optimization Brief',
   cover_letter:      'Career Profile Strategy Brief',
@@ -124,6 +122,16 @@ const STATUS_STEPS: { key: CareerStatus | 'REVISION_IN_PROGRESS'; label: string 
   { key: 'DRAFT_SENT',           label: 'Draft Sent'            },
   { key: 'REVISION_IN_PROGRESS', label: 'Revision In Progress'  },
   { key: 'COMPLETED',            label: 'Final Delivered'       },
+];
+
+const QUOTES = [
+  { text: "Your career is your business. It's time to manage it like one.", author: "Dorit Sher" },
+  { text: "Success is where preparation and opportunity meet.", author: "Bobby Unser" },
+  { text: "The best investment you can ever make is in yourself.", author: "Warren Buffett" },
+  { text: "Opportunities don't happen. You create them.", author: "Chris Grosser" },
+  { text: "Your resume is your first impression — make it unforgettable.", author: "Catalyst" },
+  { text: "Great things never come from comfort zones.", author: "" },
+  { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
 ];
 
 // ── Portal service helpers ─────────────────────────────────────────────────────
@@ -288,7 +296,6 @@ export default function PortalDashboardPage() {
 
   const confirmUpgrade = async () => {
     if (!upgradeTarget) return;
-    // Reuse the existing payment link if one is still valid (avoids duplicate invoices)
     if (upgradePreview?.existingPaymentUrl) {
       window.location.href = upgradePreview.existingPaymentUrl;
       return;
@@ -411,7 +418,6 @@ export default function PortalDashboardPage() {
     router.push('/portal/login');
   };
 
-  // Map status to step key
   const currentKey = useMemo(() => {
     if (!me) return '';
     if (me.status === 'REVISION_REQUESTED') return 'REVISION_IN_PROGRESS';
@@ -419,18 +425,34 @@ export default function PortalDashboardPage() {
   }, [me]);
 
   const progressIdx = useMemo(() => STATUS_STEPS.findIndex(s => s.key === currentKey), [currentKey]);
-  
+
   const allFormsSubmitted = useMemo(() => {
     if (!me) return false;
     return me.availableForms.every(f => me.submittedForms.includes(f));
   }, [me]);
 
+  // Deterministic quote per client (stable across sessions)
+  const quoteIdx = useMemo(() => {
+    if (!me) return 0;
+    let h = 0;
+    for (let i = 0; i < me.id.length; i++) h = (h * 31 + me.id.charCodeAt(i)) >>> 0;
+    return h % QUOTES.length;
+  }, [me]);
+
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
+
   if (loading) return <DashboardSkeleton />;
   if (!me) return null;
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#FAFAF8] via-[#F5F2EC]/30 to-[#FAFAF8]">
+    <div className="min-h-screen" style={{ background: 'linear-gradient(160deg, #F8F5F1 0%, #FAF8F4 60%, #F5F1EB 100%)' }}>
+
       {/* ── Navbar ── */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-20 shadow-sm shadow-slate-100/50">
+      <header className="bg-white/90 backdrop-blur-md border-b border-[#EDE6DA] sticky top-0 z-20 shadow-[0_1px_0_rgba(10,11,13,0.04)]">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl overflow-hidden border border-slate-200 shadow-sm flex-shrink-0 bg-black flex items-center justify-center">
@@ -448,7 +470,7 @@ export default function PortalDashboardPage() {
               if (threadRef.current) {
                 threadRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
               }
-            }} className="relative p-2 text-slate-500 hover:text-slate-700 transition-colors">
+            }} className="relative p-2 text-slate-400 hover:text-slate-700 transition-colors">
               <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
                 <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9zM13.73 21a2 2 0 01-3.46 0"/>
               </svg>
@@ -456,14 +478,14 @@ export default function PortalDashboardPage() {
                 <span className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
               ) : null}
             </button>
-            <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 bg-slate-100 rounded-xl">
+            <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 bg-[#F5F1EB] rounded-xl border border-[#EDE6DA]">
               <div className="w-6 h-6 rounded-full bg-[#B8935B] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                 {me.name[0]?.toUpperCase()}
               </div>
-              <span className="text-xs font-medium text-slate-700 max-w-[80px] sm:max-w-[140px] truncate">{me.name.split(' ')[0]}</span>
+              <span className="text-xs font-semibold text-slate-700 max-w-[80px] sm:max-w-[140px] truncate">{me.name.split(' ')[0]}</span>
             </div>
             <button onClick={logout} aria-label="Sign out"
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 px-2 sm:px-3 py-1.5 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 px-2 sm:px-3 py-1.5 border border-[#EDE6DA] rounded-xl hover:bg-white transition-colors">
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
                 <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
               </svg>
@@ -473,25 +495,28 @@ export default function PortalDashboardPage() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 sm:space-y-8" style={{ animation: 'fadeSlideIn 0.4s ease-out' }}>
-        <style>{`@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-5 sm:space-y-7" style={{ animation: 'fadeSlideIn 0.5s ease-out' }}>
+        <style>{`@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }`}</style>
 
         {/* ── Upgrade Preview Modal ── */}
         {upgradeTarget && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
             onClick={() => { if (!upgrading) { setUpgradeTarget(null); setUpgradePreview(null); } }}>
             <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}>
               {/* Header */}
-              <div className="bg-gradient-to-br from-[#0A0B0D] to-[#1C1812] px-6 pt-6 pb-8 text-white">
-                <div className="flex items-start justify-between mb-3">
+              <div className="relative bg-gradient-to-br from-[#0A0B0D] to-[#1C1812] px-6 pt-6 pb-8 text-white overflow-hidden">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-[#B8935B]/8 rounded-full blur-3xl -translate-y-16 translate-x-16 pointer-events-none" />
+                <div className="relative flex items-start justify-between mb-3">
                   <div>
-                    <p className="text-[#D4AF7A] text-xs font-semibold uppercase tracking-widest mb-1">Package Upgrade</p>
-                    <h2 className="text-xl font-bold">{upgradePreview?.upgradeLabel ?? 'Loading…'}</h2>
+                    <p className="text-[#B8935B] text-[9px] font-bold uppercase tracking-[0.22em] mb-1.5 flex items-center gap-1.5">
+                      <span className="w-3 h-px bg-[#B8935B]/50" />Package Upgrade
+                    </p>
+                    <h2 className="text-xl font-bold tracking-tight">{upgradePreview?.upgradeLabel ?? 'Loading…'}</h2>
                   </div>
                   {!upgrading && (
                     <button onClick={() => { setUpgradeTarget(null); setUpgradePreview(null); }}
-                      className="text-white/50 hover:text-white p-1 transition-colors">
+                      className="text-white/40 hover:text-white p-1 transition-colors">
                       <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
                         <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M18 6L6 18M6 6l12 12"/>
                       </svg>
@@ -500,8 +525,8 @@ export default function PortalDashboardPage() {
                 </div>
                 {upgradePreview && (
                   <div className="mt-4 text-right">
-                    <p className="text-3xl font-bold text-white">{upgradePreview.currencySymbol}{upgradePreview.totalPayable.toLocaleString()}</p>
-                    <p className="text-xs text-white/50 mt-0.5">
+                    <p className="text-3xl font-bold text-white tracking-tight">{upgradePreview.currencySymbol}{upgradePreview.totalPayable.toLocaleString()}</p>
+                    <p className="text-xs text-white/40 mt-0.5">
                       {upgradePreview.gateway === 'PAYPAL' ? 'All-inclusive via PayPal' : 'Incl. GST · all-inclusive via Razorpay'}
                     </p>
                   </div>
@@ -517,10 +542,9 @@ export default function PortalDashboardPage() {
                   </div>
                 ) : upgradePreview ? (
                   <>
-                    {/* Already in their plan */}
                     {upgradePreview.currentPlan.length > 0 && (
                       <div className="mb-4">
-                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Already in your plan</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-2">Already in your plan</p>
                         <div className="space-y-1.5">
                           {upgradePreview.currentPlan.map((item, i) => (
                             <div key={i} className="flex items-center gap-2.5">
@@ -536,9 +560,8 @@ export default function PortalDashboardPage() {
                       </div>
                     )}
 
-                    {/* Being added */}
-                    <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-2">
-                      {upgradePreview.currentPlan.length > 0 ? 'Not in your current package — being added' : 'What you will get'}
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-2">
+                      {upgradePreview.currentPlan.length > 0 ? 'Being added to your package' : 'What you will get'}
                     </p>
                     <div className="space-y-2 mb-5">
                       {upgradePreview.whatYouGet.map((item, i) => (
@@ -553,8 +576,7 @@ export default function PortalDashboardPage() {
                       ))}
                     </div>
 
-                    {/* Cost breakdown */}
-                    <div className="bg-[#FBF8F3] border border-[#F0EAE0] rounded-xl p-4 mb-5">
+                    <div className="bg-[#FBF8F3] border border-[#EDE6DA] rounded-2xl p-4 mb-5">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-slate-500">Service cost</span>
                         <span className="font-semibold text-slate-800">{upgradePreview.currencySymbol}{upgradePreview.differenceBase.toLocaleString()}</span>
@@ -573,7 +595,7 @@ export default function PortalDashboardPage() {
                         </span>
                         <span className="font-medium text-slate-600">+{upgradePreview.currencySymbol}{upgradePreview.processingFee.toLocaleString()}</span>
                       </div>
-                      <div className="flex items-center justify-between font-bold mt-3 pt-3 border-t border-[#F0EAE0]">
+                      <div className="flex items-center justify-between font-bold mt-3 pt-3 border-t border-[#EDE6DA]">
                         <span className="text-slate-900">Total payable</span>
                         <span className="text-[#B8935B] text-lg">{upgradePreview.currencySymbol}{upgradePreview.totalPayable.toLocaleString()}</span>
                       </div>
@@ -589,7 +611,7 @@ export default function PortalDashboardPage() {
                     <button
                       onClick={confirmUpgrade}
                       disabled={upgrading}
-                      className="w-full py-3.5 bg-[#B8935B] text-white font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                      className="w-full py-3.5 bg-[#B8935B] text-white font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center justify-center gap-2 tracking-wide">
                       {upgrading
                         ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Processing…</>
                         : upgradePreview?.existingPaymentUrl
@@ -610,15 +632,16 @@ export default function PortalDashboardPage() {
         )}
 
         {/* ── Greeting ── */}
-        <div>
-          <h1 className="text-2xl sm:text-display font-semibold text-slate-900">
-            Hi, {me.name.split(' ')[0]}
+        <div className="pt-1">
+          <p className="text-[10px] font-bold tracking-[0.22em] uppercase text-[#B8935B] mb-1">{greeting}</p>
+          <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight leading-none">
+            {me.name.split(' ')[0]}
           </h1>
-          <p className="text-sm sm:text-subheading text-slate-500 mt-1 sm:mt-2">Welcome to your ClientForge Boost portal</p>
+          <p className="text-sm text-slate-400 mt-2.5">Your career investment is in expert hands</p>
         </div>
 
         {me.lifecycleStatus === 'ARCHIVED' && (
-          <div className="bg-slate-800 text-white p-4 rounded-xl shadow-md border border-slate-700">
+          <div className="bg-slate-800 text-white p-4 rounded-2xl shadow-md border border-slate-700">
             <h3 className="font-bold mb-1 flex items-center gap-2">
               <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
@@ -631,51 +654,88 @@ export default function PortalDashboardPage() {
           </div>
         )}
 
-        {/* ── Package hero ── */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#0A0B0D] rounded-2xl p-6 text-white">
-          {/* decorative circles */}
-          <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-[#B8935B]/10" />
-          <div className="absolute -right-4 -bottom-6 w-20 h-20 rounded-full bg-emerald-400/10" />
+        {/* ── Premium Hero Banner ── */}
+        <div className="relative overflow-hidden rounded-3xl border border-white/5"
+          style={{ background: 'linear-gradient(135deg, #0A0B0D 0%, #1A1208 55%, #0D0E10 100%)' }}>
+          {/* Atmospheric glow layers */}
+          <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-[#B8935B]/10 blur-3xl -translate-y-24 translate-x-24 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-40 h-40 rounded-full bg-[#B8935B]/5 blur-2xl translate-y-14 -translate-x-10 pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_85%_85%,rgba(184,147,91,0.07),transparent)] pointer-events-none" />
 
-          <div className="relative">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-[#D4AF7A] text-xs font-semibold uppercase tracking-widest mb-1">Active Package</p>
-                <h2 className="text-xl font-bold">{me.packageLabel}</h2>
+          <div className="relative px-5 pt-7 pb-6 sm:px-8 sm:pt-9 sm:pb-8">
+            {/* Top row */}
+            <div className="flex items-start justify-between mb-7">
+              <div className="flex-1 min-w-0 pr-4">
+                <p className="text-[#B8935B] text-[9px] font-bold uppercase tracking-[0.26em] mb-3 flex items-center gap-2">
+                  <span className="w-5 h-px bg-[#B8935B]/50 flex-shrink-0" />
+                  Active Package
+                </p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight leading-tight">
+                  {me.packageLabel}
+                </h2>
               </div>
-              <div className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-bold">
-                {me.currency ?? ''}
+              <div className="flex-shrink-0 mt-1 px-2.5 py-1 bg-white/5 border border-white/8 rounded-full text-[9px] font-bold text-white/30 tracking-[0.18em] uppercase">
+                {me.currency ?? 'INR'}
               </div>
             </div>
 
-            <div className="flex items-center flex-wrap gap-2">
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
-                me.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30' :
-                me.status === 'REVISION_REQUESTED' ? 'bg-orange-400/20 text-orange-300 border border-orange-400/30' :
-                'bg-white/10 text-white border border-white/20'
+            {/* Gold accent line */}
+            <div className="w-14 h-px mb-7" style={{ background: 'linear-gradient(to right, #B8935B, transparent)' }} />
+
+            {/* Integrated motivational quote */}
+            <div className="mb-7">
+              <svg className="w-5 h-5 mb-2.5" fill="#B8935B" fillOpacity="0.25" viewBox="0 0 32 32">
+                <path d="M10 8C6.134 8 3 11.134 3 15v9h9v-9H6c0-2.21 1.79-4 4-4V8zm13 0c-3.866 0-7 3.134-7 7v9h9v-9h-6c0-2.21 1.79-4 4-4V8z"/>
+              </svg>
+              <p className="text-white/55 text-sm sm:text-[15px] leading-relaxed italic font-light">
+                &ldquo;{QUOTES[quoteIdx].text}&rdquo;
+              </p>
+              {QUOTES[quoteIdx].author && (
+                <p className="mt-2 text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: 'rgba(184,147,91,0.55)' }}>
+                  — {QUOTES[quoteIdx].author}
+                </p>
+              )}
+            </div>
+
+            {/* Thin divider */}
+            <div className="w-full h-px bg-white/5 mb-6" />
+
+            {/* Status indicators */}
+            <div className="flex items-center flex-wrap gap-2 mb-4">
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${
+                me.status === 'COMPLETED'
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                  : me.status === 'REVISION_REQUESTED'
+                  ? 'border-orange-400/30 bg-orange-400/10 text-orange-300'
+                  : 'border-white/10 bg-white/5 text-white/55'
               }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${
+                <span className={`w-1.5 h-1.5 rounded-full animate-pulse flex-shrink-0 ${
                   me.status === 'COMPLETED' ? 'bg-emerald-400' :
-                  me.status === 'REVISION_REQUESTED' ? 'bg-orange-400' : 'bg-[#C4A070]'
-                } animate-pulse`} />
+                  me.status === 'REVISION_REQUESTED' ? 'bg-orange-400' : 'bg-[#B8935B]'
+                }`} />
                 {me.statusLabel}
               </div>
               {me.waitingOn && (
-                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-                  me.waitingOn === 'CLIENT' ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30' : 'bg-blue-400/20 text-blue-300 border border-blue-400/30'
+                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold border ${
+                  me.waitingOn === 'CLIENT'
+                    ? 'border-amber-400/30 bg-amber-400/10 text-amber-300'
+                    : 'border-blue-400/30 bg-blue-400/10 text-blue-300'
                 }`}>
-                  Waiting: {me.waitingOn === 'CLIENT' ? 'YOU' : 'CATALYST'}
+                  Waiting: {me.waitingOn === 'CLIENT' ? 'You' : 'Catalyst'}
                 </div>
               )}
               {me.status === 'REVISION_REQUESTED' && (
-                <span className="text-orange-300 text-xs font-medium">Revision in progress</span>
+                <span className="text-orange-300/70 text-xs font-medium">Revision in progress</span>
               )}
             </div>
+
+            {/* Service pills */}
             {me.services && me.services.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
+              <div className="flex flex-wrap gap-1.5">
                 {me.services.map(s => (
                   <span key={s.slug}
-                    className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/10 text-white/70 border border-white/15">
+                    className="px-2.5 py-1 rounded-full text-[10px] font-semibold border border-[#B8935B]/22 bg-[#B8935B]/8 tracking-wide"
+                    style={{ color: '#C9A870' }}>
                     {s.name}
                   </span>
                 ))}
@@ -686,10 +746,9 @@ export default function PortalDashboardPage() {
 
         {/* ── Stats row: Revisions + Delivery Date ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Revisions (per-service progress bars) */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Free Revisions</p>
-            {/* 15-day post-delivery window notice — anchored to firstCompletedAt so re-deliveries don't reset it */}
+          {/* Revisions */}
+          <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-3">Free Revisions</p>
             {me.status === 'COMPLETED' && (me.firstCompletedAt || me.completedAt) && (() => {
               const anchor = me.firstCompletedAt ?? me.completedAt!;
               const days = Math.floor((Date.now() - new Date(anchor).getTime()) / (1000 * 60 * 60 * 24));
@@ -713,15 +772,15 @@ export default function PortalDashboardPage() {
                   const exhausted = s.revisionsLeft === 0;
                   return (
                     <div key={s.slug}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-semibold text-slate-600 truncate max-w-[160px]" title={s.name}>{s.name}</span>
-                        <span className={`text-xs font-bold ${exhausted ? 'text-red-500' : 'text-slate-700'}`}>
-                          {s.freeUsed} <span className="font-normal text-slate-400">/ {s.freeLimit} used</span>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-semibold text-slate-700 truncate max-w-[160px]" title={s.name}>{s.name}</span>
+                        <span className={`text-xs font-bold ${exhausted ? 'text-red-500' : 'text-slate-600'}`}>
+                          {s.freeUsed} <span className="font-normal text-slate-400">/ {s.freeLimit}</span>
                         </span>
                       </div>
-                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-1.5 bg-[#F0EAE0] rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${exhausted ? 'bg-red-400' : s.freeUsed > 0 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                          className={`h-full rounded-full transition-all duration-500 ${exhausted ? 'bg-red-400' : s.freeUsed > 0 ? 'bg-[#B8935B]' : 'bg-emerald-400'}`}
                           style={{ width: `${pct}%` }}
                         />
                       </div>
@@ -738,44 +797,54 @@ export default function PortalDashboardPage() {
                   <span className="text-2xl font-bold text-slate-900">{me.revisionsLeft ?? 2}</span>
                   <span className="text-sm text-slate-400 mb-0.5">/ 2 left</span>
                 </div>
-                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-amber-400 rounded-full" style={{ width: `${((2 - (me.revisionsLeft ?? 2)) / 2) * 100}%` }} />
+                <div className="h-1.5 bg-[#F0EAE0] rounded-full overflow-hidden">
+                  <div className="h-full bg-[#B8935B] rounded-full" style={{ width: `${((2 - (me.revisionsLeft ?? 2)) / 2) * 100}%` }} />
                 </div>
               </div>
             )}
           </div>
 
-          {/* Expected delivery */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Expected Delivery</p>
+          {/* Delivery */}
+          <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-2">Expected Delivery</p>
             {me.expectedDeliveryAt ? (
               <>
-                <p className="text-sm font-bold text-slate-900 leading-tight">
+                <p className="text-lg font-bold text-slate-900 leading-tight">
                   {new Date(me.expectedDeliveryAt).toLocaleDateString('en-GB', {
                     day: 'numeric', month: 'short', year: 'numeric',
                   })}
                 </p>
-                <p className="text-xs text-slate-400 mt-1">5 business days from submission</p>
+                <p className="text-xs text-slate-400 mt-1.5">5 business days from submission</p>
               </>
             ) : (
               <>
-                <p className="text-sm font-bold text-slate-400 leading-tight">Pending</p>
-                <p className="text-xs text-slate-300 mt-1">Submit your form to set date</p>
+                <p className="text-sm font-semibold text-slate-300 leading-tight">Pending</p>
+                <p className="text-xs text-slate-300 mt-1.5">Submit your form to set date</p>
               </>
             )}
           </div>
         </div>
 
-        {/* ── Progress tracker (Reach-Style Vertical Timeline) ── */}
-        <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-5 sm:p-8 hover-lift">
+        {/* ── Project Journey ── */}
+        <div className="bg-white border border-[#EBE4D9] rounded-3xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-6 sm:p-8">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-metadata font-bold text-slate-400 uppercase tracking-widest">Project Journey</h3>
-            <span className="text-sm font-medium text-slate-400">{progressIdx + 1} / {STATUS_STEPS.length}</span>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-0.5">Project Journey</p>
+              <p className="text-xs text-slate-400">{progressIdx + 1} of {STATUS_STEPS.length} milestones</p>
+            </div>
+            <div className="flex gap-0.5">
+              {STATUS_STEPS.map((_, i) => (
+                <div key={i} className={`h-1 rounded-full transition-all duration-300 ${
+                  i < progressIdx ? 'bg-emerald-400 w-5' :
+                  i === progressIdx ? 'bg-[#B8935B] w-7' :
+                  'bg-slate-100 w-5'
+                }`} />
+              ))}
+            </div>
           </div>
 
-          {/* Steps */}
           <div className="relative pl-4 space-y-6">
-            <div className="absolute top-4 bottom-4 left-[31px] w-0.5 bg-slate-100" />
+            <div className="absolute top-4 bottom-4 left-[31px] w-px bg-gradient-to-b from-[#B8935B]/20 via-slate-100 to-transparent" />
             {STATUS_STEPS.map((step, idx) => {
               const done    = idx < progressIdx;
               const current = idx === progressIdx;
@@ -783,34 +852,38 @@ export default function PortalDashboardPage() {
               return (
                 <div key={step.key} className="relative z-10 flex items-start gap-5">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold transition-all border-4 border-white ${
-                    current ? 'bg-[#B8935B] text-white shadow-md scale-125' :
+                    current ? 'bg-[#B8935B] text-white shadow-[0_0_0_3px_rgba(184,147,91,0.15)] scale-125' :
                     done    ? 'bg-emerald-500 text-white' :
-                              'bg-slate-200 text-slate-400'
+                              'bg-[#F0EAE0] text-slate-400'
                   }`}>
-                    {done ? '✓' : idx + 1}
+                    {done ? (
+                      <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
+                        <path stroke="white" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/>
+                      </svg>
+                    ) : idx + 1}
                   </div>
-                  <div className={`flex-1 pt-1 ${!current && !done ? 'opacity-50' : ''}`}>
-                    <p className={`text-body font-semibold ${
-                      current ? 'text-slate-900' : done ? 'text-slate-700' : 'text-slate-500'
+                  <div className={`flex-1 pt-1 ${pending ? 'opacity-40' : ''}`}>
+                    <p className={`text-sm font-bold ${
+                      current ? 'text-slate-900' : done ? 'text-slate-600' : 'text-slate-400'
                     }`}>{step.label}</p>
                     {current && me.status === 'NOT_STARTED' && (
-                      <p className="text-sm text-slate-500 mt-1">Fill in your forms below to get started</p>
+                      <p className="text-xs text-slate-500 mt-1.5">Fill in your forms below to get started</p>
                     )}
                     {current && me.status === 'SUBMITTED' && (
-                      <p className="text-sm text-slate-500 mt-1">Our team is reviewing your submission</p>
+                      <p className="text-xs text-slate-500 mt-1.5">Our team is reviewing your submission</p>
                     )}
                     {current && me.status === 'UNDER_PROCESS' && (
-                      <div className="mt-2 space-y-1.5">
-                        <p className="text-sm text-slate-500">Work in progress — we&apos;ll notify you when your draft is ready</p>
-                        <div className="flex items-center gap-2">
+                      <div className="mt-2 space-y-2">
+                        <p className="text-xs text-slate-500">Work in progress — we&apos;ll notify you when your draft is ready</p>
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-100">
                           <svg width="11" height="11" fill="none" viewBox="0 0 24 24" style={{color:'#B8935B',flexShrink:0}}>
                             <path stroke="currentColor" strokeWidth="2" strokeLinecap="round"
                               d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
                           </svg>
-                          <span className="text-xs font-semibold text-amber-700">
+                          <span className="text-xs font-semibold text-amber-800">
                             {getPortalTierLabel(me.services?.map(s => s.slug) ?? [])}
                           </span>
-                          <span className="text-[10px] text-amber-500 ml-auto">In Progress</span>
+                          <span className="text-[10px] text-amber-500 font-semibold">· In Progress</span>
                         </div>
                       </div>
                     )}
@@ -818,7 +891,7 @@ export default function PortalDashboardPage() {
                       const drafts = portalServiceChips((me.deliverables ?? []).filter(d => d.fileCategory === 'draft'));
                       return (
                         <div className="mt-2 space-y-2">
-                          <p className="text-sm text-slate-500">
+                          <p className="text-xs text-slate-500">
                             Your draft{drafts.length > 1 ? 's are' : ' is'} ready —{' '}
                             <Link href="/portal/dashboard/files" className="font-semibold text-[#B8935B] hover:underline">view in Files</Link>
                           </p>
@@ -836,16 +909,16 @@ export default function PortalDashboardPage() {
                       );
                     })()}
                     {current && me.status === 'REVISION_REQUESTED' && (
-                      <p className="text-sm text-orange-500 mt-1">Your revision is being worked on</p>
+                      <p className="text-xs text-orange-500 mt-1.5 font-medium">Your revision is being worked on</p>
                     )}
                     {current && me.status === 'COMPLETED' && (() => {
                       const finals = portalServiceChips((me.deliverables ?? []).filter(d => d.fileCategory !== 'draft'));
                       return (
                         <div className="mt-2 space-y-2">
-                          <p className="text-sm text-emerald-600 font-medium flex items-center gap-1.5">
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/></svg>
+                          <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1.5">
+                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/></svg>
                             All done!{' '}
-                            <Link href="/portal/dashboard/files" className="underline ml-1 hover:text-emerald-700">Download your files</Link>
+                            <Link href="/portal/dashboard/files" className="underline ml-0.5 hover:text-emerald-700 font-semibold">Download your files</Link>
                           </p>
                           {finals.length > 0 && (
                             <div className="flex flex-wrap gap-1.5">
@@ -880,15 +953,15 @@ export default function PortalDashboardPage() {
           const UpgradeCard = ({ target, title, tagline, bullets }: {
             target: string; title: string; tagline: string; bullets: string[];
           }) => (
-            <div className="flex-1 min-w-0 bg-white border border-[#E8DDD0] rounded-2xl p-5 shadow-sm flex flex-col gap-3">
+            <div className="flex-1 min-w-0 bg-white border border-[#E8DDD0] rounded-2xl p-5 shadow-[0_1px_4px_rgba(10,11,13,0.05)] flex flex-col gap-3">
               <div>
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="w-2 h-2 rounded-full bg-[#B8935B] animate-pulse flex-shrink-0" />
-                  <p className="text-[11px] font-bold text-[#9A7540] uppercase tracking-widest">{title}</p>
+                  <p className="text-[10px] font-bold text-[#9A7540] uppercase tracking-[0.18em]">{title}</p>
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">{tagline}</p>
+                <p className="text-xs text-slate-500 leading-relaxed">{tagline}</p>
               </div>
-              <ul className="space-y-1">
+              <ul className="space-y-1.5">
                 {bullets.map((b, i) => (
                   <li key={i} className="flex items-center gap-2 text-xs text-slate-700">
                     <svg width="11" height="11" fill="none" viewBox="0 0 24 24" className="flex-shrink-0 text-[#B8935B]">
@@ -901,18 +974,18 @@ export default function PortalDashboardPage() {
               <button
                 onClick={() => handleUpgrade(target)}
                 disabled={upgradePreviewLoading || upgrading}
-                className="mt-auto w-full py-2 bg-[#B8935B] text-white text-xs font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors"
+                className="mt-auto w-full py-2.5 bg-[#B8935B] text-white text-xs font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors tracking-wide"
               >
                 {(upgradePreviewLoading || upgrading) && upgradeTarget === target
                   ? 'Loading…'
-                  : 'View Details & Price'}
+                  : 'View Details & Price →'}
               </button>
             </div>
           );
 
           return (
             <div>
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-3">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-3">
                 {showFullPackage && showPremiumPlus ? 'Upgrade Options Available' : 'Upgrade Available'}
               </p>
               <div className={`flex ${showFullPackage && showPremiumPlus ? 'flex-col sm:flex-row' : ''} gap-3`}>
@@ -946,21 +1019,24 @@ export default function PortalDashboardPage() {
           );
         })()}
 
-        {/* ── Feedback & Testimonial (Visible after completion) ── */}
+        {/* ── Feedback & Testimonial ── */}
         {me.status === 'COMPLETED' && (!me.hasSubmittedFeedback || !me.hasSubmittedReview) && (
-          <ClientFeedbackForms 
-            hasSubmittedFeedback={me.hasSubmittedFeedback ?? false} 
-            hasSubmittedReview={me.hasSubmittedReview ?? false} 
-            onSubmitted={() => void load()} 
+          <ClientFeedbackForms
+            hasSubmittedFeedback={me.hasSubmittedFeedback ?? false}
+            hasSubmittedReview={me.hasSubmittedReview ?? false}
+            onSubmitted={() => void load()}
           />
         )}
 
-        {/* ── Forms section ── */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Your Forms</h3>
+        {/* ── Forms Section ── */}
+        <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Your Forms</p>
+              <p className="text-base font-bold text-slate-900 mt-0.5">Complete your brief</p>
+            </div>
             {allFormsSubmitted && (
-              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
+              <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-100">
                 All submitted ✓
               </span>
             )}
@@ -971,12 +1047,12 @@ export default function PortalDashboardPage() {
             const total = me.availableForms.length;
             const pct = Math.round((submittedCount / total) * 100);
             return (
-              <div className="mb-4">
+              <div className="mb-5">
                 <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
-                  <span>Form Progress</span>
-                  <span className="font-semibold text-slate-600">{submittedCount} / {total} submitted</span>
+                  <span className="font-medium">Form Progress</span>
+                  <span className="font-bold text-slate-600">{submittedCount} / {total} submitted</span>
                 </div>
-                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-[#F0EAE0] rounded-full overflow-hidden">
                   <div className="h-full bg-[#B8935B] rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
                 </div>
               </div>
@@ -986,7 +1062,7 @@ export default function PortalDashboardPage() {
           {me.availableForms.length === 0 ? (
             <p className="text-slate-400 text-sm text-center py-4">No forms available for your package.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {me.availableForms.map(ft => {
                 const submitted = me.submittedForms.includes(ft);
                 const formMeta  = me.forms.find(f => f.formType === ft);
@@ -995,30 +1071,30 @@ export default function PortalDashboardPage() {
                     className={`group flex items-center justify-between p-4 border rounded-xl hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ${
                       submitted
                         ? 'border-emerald-200 bg-emerald-50/50 hover:border-emerald-300'
-                        : 'border-slate-200 hover:border-[#D4AF7A] hover:bg-[#FBF8F3]/30'
+                        : 'border-[#EBE4D9] hover:border-[#D4AF7A] hover:bg-[#FBF8F3]/60'
                     }`}>
                     <div className="flex items-center gap-3.5">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${
-                        submitted ? 'bg-emerald-100' : 'bg-slate-100'
+                        submitted ? 'bg-emerald-100' : 'bg-[#F5F0E8]'
                       }`}>
                         {FORM_ICON_SVG[ft] ?? (
-                        <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
-                          <path stroke="#B8935B" strokeWidth="1.8" strokeLinecap="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        </svg>
-                      )}
+                          <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+                            <path stroke="#B8935B" strokeWidth="1.8" strokeLinecap="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                          </svg>
+                        )}
                       </div>
                       <div>
                         <p className="text-sm font-bold text-slate-900">{FORM_LABELS[ft] ?? ft}</p>
                         <p className="text-xs text-slate-400 mt-0.5">
                           {submitted
-                            ? `v${formMeta?.version ?? 1} · Last updated ${fmtDate(formMeta?.submittedAt ?? '')}`
+                            ? `v${formMeta?.version ?? 1} · Updated ${fmtDate(formMeta?.submittedAt ?? '')}`
                             : FORM_DESCS[ft] ?? 'Provide your details'}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2.5 flex-shrink-0">
                       {submitted ? (
-                        <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
+                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-100">
                           Submitted ✓
                         </span>
                       ) : (
@@ -1026,7 +1102,7 @@ export default function PortalDashboardPage() {
                           Fill now
                         </span>
                       )}
-                      <svg className="w-4 h-4 text-slate-300 group-hover:text-[#B8935B] transition-colors"
+                      <svg className="w-4 h-4 text-slate-300 group-hover:text-[#B8935B] group-hover:translate-x-0.5 transition-all flex-shrink-0"
                         fill="none" viewBox="0 0 24 24">
                         <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M9 18l6-6-6-6"/>
                       </svg>
@@ -1038,28 +1114,31 @@ export default function PortalDashboardPage() {
           )}
 
           {!allFormsSubmitted && me.availableForms.length > 0 && (
-            <p className="mt-3 text-xs text-slate-400 text-center">
-              Fill in all forms so our team can start working on your package.
+            <p className="mt-4 text-xs text-slate-400 text-center">
+              Fill in all forms so our team can begin crafting your package.
             </p>
           )}
         </div>
 
-        {/* ── Recent files ── */}
+        {/* ── Recent Files ── */}
         {files.length > 0 && (
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+          <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Deliverables</h3>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Deliverables</p>
+                <p className="text-base font-bold text-slate-900 mt-0.5">Your files</p>
+              </div>
               <Link href="/portal/dashboard/files"
-                className="text-xs text-[#B8935B] hover:underline font-medium">
-                View all ({files.length})
+                className="text-xs text-[#B8935B] hover:underline font-semibold">
+                View all ({files.length}) →
               </Link>
             </div>
             <div className="space-y-2">
               {files.slice(0, 3).map(file => (
                 <div key={file.id}
-                  className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl hover:bg-[#FBF8F3] hover:border-[#E8DDD0] hover:-translate-y-0.5 hover:shadow-sm transition-all duration-200">
+                  className="flex items-center justify-between p-3 bg-[#F8F5F1] border border-[#EBE4D9] rounded-xl hover:bg-[#FBF8F3] hover:border-[#D4AF7A] hover:-translate-y-0.5 hover:shadow-sm transition-all duration-200">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-[#FBF8F3] border border-[#F0EAE0] flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-white border border-[#EBE4D9] flex items-center justify-center flex-shrink-0">
                       {file.fileType === 'resume' ? (
                         <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M9 13h6M9 17h4"/></svg>
                       ) : file.fileType === 'linkedin_banner' ? (
@@ -1088,7 +1167,7 @@ export default function PortalDashboardPage() {
                       </span>
                     )}
                     <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setViewingFile(file); }}
-                      className="px-3 py-1.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-200 transition-colors">
+                      className="px-3 py-1.5 bg-white border border-[#EBE4D9] text-slate-700 text-xs font-bold rounded-lg hover:bg-[#F5F0E8] transition-colors">
                       View
                     </button>
                     <a href={file.fileUrl} target="_blank" rel="noopener noreferrer" download
@@ -1106,7 +1185,7 @@ export default function PortalDashboardPage() {
         {/* ── Referral Section ── */}
         {referral && <ReferralSection data={referral} />}
 
-        {/* ── Quick links ── */}
+        {/* ── Quick Links ── */}
         <div className="grid grid-cols-2 gap-3">
           <QuickLink href="/portal/dashboard/files" title="My Files" desc="View & download deliverables"
             icon={<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>} />
@@ -1121,12 +1200,15 @@ export default function PortalDashboardPage() {
             icon={<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8v4M12 16h.01"/></svg>} />
         </div>
 
-        {/* ── Comments / Messages ── */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Messages & Notes</h3>
+        {/* ── Messages ── */}
+        <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-6">
+          <div className="flex items-center gap-2 mb-5">
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Messages & Notes</p>
+              <p className="text-base font-bold text-slate-900 mt-0.5">Direct line to your team</p>
+            </div>
             {me.unreadMessages ? (
-              <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full leading-none">
+              <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full leading-none ml-auto">
                 {me.unreadMessages} new
               </span>
             ) : null}
@@ -1135,7 +1217,7 @@ export default function PortalDashboardPage() {
           {/* Thread */}
           <div ref={threadRef} className="space-y-3 mb-4 max-h-[480px] overflow-y-auto pr-1">
             {comments.length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-4">
+              <p className="text-sm text-slate-400 text-center py-6">
                 No messages yet. Leave a note for our team below.
               </p>
             ) : comments.map((c, i) => {
@@ -1175,7 +1257,7 @@ export default function PortalDashboardPage() {
             })}
           </div>
 
-          {/* Pending attachments preview */}
+          {/* Pending attachments */}
           {pendingFiles.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3 px-1">
               {pendingFiles.map((f, i) => (
@@ -1186,11 +1268,11 @@ export default function PortalDashboardPage() {
 
           {/* Compose */}
           {me.lifecycleStatus === 'ARCHIVED' ? (
-            <div className="border-t border-slate-100 pt-4 text-center">
+            <div className="border-t border-[#EBE4D9] pt-4 text-center">
               <p className="text-sm text-slate-400 italic">This project is archived. New messages and uploads are disabled.</p>
             </div>
           ) : (
-            <form onSubmit={postComment} className="border-t border-slate-100 pt-4">
+            <form onSubmit={postComment} className="border-t border-[#EBE4D9] pt-4">
               <div className="flex gap-2 items-end">
                 <textarea
                   ref={composeRef}
@@ -1200,7 +1282,7 @@ export default function PortalDashboardPage() {
                   placeholder="Type a message for the team… (Ctrl+Enter to send)"
                   maxLength={4000}
                   rows={2}
-                  className="flex-1 px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 hover:bg-white transition-colors resize-none overflow-hidden"
+                  className="flex-1 px-3.5 py-2.5 text-sm border border-[#EBE4D9] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B]/25 bg-[#F8F5F1] hover:bg-white transition-colors resize-none overflow-hidden"
                   style={{ minHeight: '2.5rem' }}
                 />
                 <div className="flex flex-col gap-1.5 flex-shrink-0">
@@ -1210,7 +1292,7 @@ export default function PortalDashboardPage() {
                     onClick={() => fileInputRef.current?.click()}
                     title="Attach file (PNG, JPG, PDF, DOCX — max 4 MB)"
                     aria-label="Attach file"
-                    className="p-2.5 border border-slate-200 text-slate-500 rounded-xl hover:bg-[#FBF8F3] hover:border-[#D4AF7A] hover:text-[#B8935B] disabled:opacity-40 transition-colors"
+                    className="p-2.5 border border-[#EBE4D9] text-slate-400 rounded-xl hover:bg-[#FBF8F3] hover:border-[#D4AF7A] hover:text-[#B8935B] disabled:opacity-40 transition-colors"
                   >
                     {uploading
                       ? <span className="w-4 h-4 border-2 border-[#B8935B] border-t-transparent rounded-full animate-spin inline-block" />
@@ -1240,7 +1322,7 @@ export default function PortalDashboardPage() {
               />
 
               {viewingFile && (
-                <DeliverableViewer 
+                <DeliverableViewer
                   fileUrl={viewingFile.fileUrl}
                   fileId={viewingFile.id}
                   fileName={viewingFile.label}
@@ -1249,10 +1331,10 @@ export default function PortalDashboardPage() {
                     await fetch('/api/career/portal/comments', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ 
+                      body: JSON.stringify({
                         content: `[Pin on ${viewingFile.label}]: ${comment}`,
                         annotationX: x,
-                        annotationY: y 
+                        annotationY: y
                       })
                     });
                     load();
@@ -1265,9 +1347,11 @@ export default function PortalDashboardPage() {
         </div>
 
         {/* ── Footer ── */}
-        <div className="text-center pt-2 pb-6">
-          <p className="text-xs text-slate-300">
-            ClientForge Boost by Catalyst · <a href="mailto:catalyst@theripplenexus.com" className="hover:text-slate-500 transition-colors">catalyst@theripplenexus.com</a>
+        <div className="text-center pt-4 pb-8 space-y-2.5">
+          <div className="w-16 h-px mx-auto" style={{ background: 'linear-gradient(to right, transparent, rgba(184,147,91,0.3), transparent)' }} />
+          <p className="text-[10px] font-bold text-slate-300 tracking-[0.22em] uppercase">ClientForge Boost · by Catalyst</p>
+          <p className="text-[10px] text-slate-300/60">
+            <a href="mailto:catalyst@theripplenexus.com" className="hover:text-[#B8935B] transition-colors">catalyst@theripplenexus.com</a>
           </p>
         </div>
       </main>
@@ -1290,7 +1374,7 @@ function fmtBytes(b: number) {
 function PortalAttachmentChip({ att, onRemove }: { att: Attachment; onRemove?: () => void }) {
   const isImg = att.mimeType.startsWith('image/');
   return (
-    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#FBF8F3] border border-[#E8DFD0] rounded-lg text-xs text-slate-700 max-w-[180px]">
+    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#F8F5F1] border border-[#EBE4D9] rounded-lg text-xs text-slate-700 max-w-[180px]">
       {isImg ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={att.url} alt="preview" className="w-4 h-4 rounded-sm object-cover border border-slate-200 flex-shrink-0" />
@@ -1329,7 +1413,7 @@ function PortalMessageBubble({ c, myName, showHeader = true, onEdit, onDelete }:
       <div className="w-10 flex-shrink-0 flex justify-center">
         {showHeader ? (
           <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold shadow-sm ${
-            isClient ? 'bg-slate-200 text-slate-700' : 'bg-[#B8935B] text-white'
+            isClient ? 'bg-[#F0EAE0] text-[#9A7540]' : 'bg-[#B8935B] text-white'
           }`}>
             {avatarChar}
           </div>
@@ -1350,7 +1434,6 @@ function PortalMessageBubble({ c, myName, showHeader = true, onEdit, onDelete }:
           </div>
         )}
 
-        {/* Bubble Content */}
         {c.isDeleted ? (
           <div className="flex items-center gap-1.5 text-slate-400 italic text-sm">
             <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
@@ -1360,14 +1443,14 @@ function PortalMessageBubble({ c, myName, showHeader = true, onEdit, onDelete }:
           </div>
         ) : c.content && (
           <div className="relative group/msg">
-            <div className="text-body text-slate-700 leading-relaxed whitespace-pre-wrap break-words [word-break:break-word]">
+            <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap break-words [word-break:break-word]">
               {c.content}
             </div>
             {isClient && (onEdit || onDelete) && (
               <div className="absolute -top-1 -right-1 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5">
                 {onEdit && (
                   <button onClick={() => onEdit(c.id, c.content)}
-                    className="p-1 rounded-md bg-white border border-slate-200 text-slate-400 hover:text-slate-700 shadow-sm" title="Edit">
+                    className="p-1 rounded-md bg-white border border-[#EBE4D9] text-slate-400 hover:text-slate-700 shadow-sm" title="Edit">
                     <svg width="11" height="11" fill="none" viewBox="0 0 24 24">
                       <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                     </svg>
@@ -1375,7 +1458,7 @@ function PortalMessageBubble({ c, myName, showHeader = true, onEdit, onDelete }:
                 )}
                 {onDelete && !confirmDelete && (
                   <button onClick={() => setConfirmDelete(true)}
-                    className="p-1 rounded-md bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 shadow-sm" title="Delete">
+                    className="p-1 rounded-md bg-white border border-[#EBE4D9] text-slate-400 hover:text-red-500 hover:border-red-200 shadow-sm" title="Delete">
                     <svg width="11" height="11" fill="none" viewBox="0 0 24 24">
                       <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
                     </svg>
@@ -1402,7 +1485,7 @@ function PortalMessageBubble({ c, myName, showHeader = true, onEdit, onDelete }:
               <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" download={a.name}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={a.url} alt={a.name}
-                  className="max-w-[240px] max-h-[180px] rounded-xl object-cover border border-slate-200 hover:opacity-90 hover:shadow-md transition-all cursor-pointer" />
+                  className="max-w-[240px] max-h-[180px] rounded-xl object-cover border border-[#EBE4D9] hover:opacity-90 hover:shadow-md transition-all cursor-pointer" />
               </a>
             ))}
           </div>
@@ -1424,10 +1507,10 @@ function PortalMessageBubble({ c, myName, showHeader = true, onEdit, onDelete }:
 function QuickLink({ href, icon, title, desc, external = false }: {
   href: string; icon: React.ReactNode; title: string; desc: string; external?: boolean;
 }) {
-  const cls = "group flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl hover:border-[#D4AF7A] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer";
+  const cls = "group flex items-center gap-3 p-4 bg-white border border-[#EBE4D9] rounded-2xl hover:border-[#D4AF7A] hover:shadow-[0_2px_8px_rgba(184,147,91,0.12)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer";
   const inner = (
     <>
-      <div className="w-9 h-9 bg-[#FBF8F3] border border-[#F0EAE0] rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-[#F0EAE0] transition-colors">
+      <div className="w-9 h-9 bg-[#F5F0E8] border border-[#EDE6DA] rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-[#F0EAE0] transition-colors">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
@@ -1448,12 +1531,12 @@ function QuickLink({ href, icon, title, desc, external = false }: {
 function QuickLinkButton({ title, desc, icon, onClick }: { title: string; desc: string; icon: React.ReactNode; onClick: () => void }) {
   return (
     <button onClick={onClick}
-      className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-[#D4AF7A] hover:bg-[#FBF8F3] transition-all group text-left w-full">
-      <div className="w-9 h-9 bg-[#FBF8F3] border border-[#F0EAE0] rounded-xl flex items-center justify-center flex-shrink-0 group-hover:border-[#D4AF7A] transition-colors">
+      className="flex items-center gap-3 p-4 bg-white border border-[#EBE4D9] rounded-2xl hover:shadow-[0_2px_8px_rgba(184,147,91,0.12)] hover:border-[#D4AF7A] hover:-translate-y-0.5 transition-all group text-left w-full">
+      <div className="w-9 h-9 bg-[#F5F0E8] border border-[#EDE6DA] rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-[#F0EAE0] transition-colors">
         {icon}
       </div>
       <div>
-        <p className="text-sm font-semibold text-slate-800">{title}</p>
+        <p className="text-sm font-semibold text-slate-800 group-hover:text-[#9A7540] transition-colors">{title}</p>
         <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
       </div>
     </button>
@@ -1475,19 +1558,22 @@ function ReferralSection({ data }: { data: ReferralStats }) {
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-8 h-8 bg-[#FBF8F3] border border-[#F0EAE0] rounded-xl flex items-center justify-center flex-shrink-0">
+    <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-9 h-9 bg-[#F5F0E8] border border-[#EDE6DA] rounded-xl flex items-center justify-center flex-shrink-0">
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
             <path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
               d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
           </svg>
         </div>
-        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Refer a Friend</h3>
+        <div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Referral Programme</p>
+          <p className="text-base font-bold text-slate-900 mt-0.5">Refer a Friend</p>
+        </div>
       </div>
 
       <p className="text-sm text-slate-500 mb-4 leading-relaxed">
-        Know someone who needs a career boost? Share your unique link and help them get started — and we will acknowledge your contribution.
+        Know someone who needs a career boost? Share your unique link and help them get started — we&apos;ll acknowledge your contribution.
       </p>
 
       {data.referralLink ? (
@@ -1495,17 +1581,17 @@ function ReferralSection({ data }: { data: ReferralStats }) {
           <input
             readOnly
             value={data.referralLink}
-            className="flex-1 px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl bg-slate-50 text-slate-600 font-mono truncate focus:outline-none"
+            className="flex-1 px-3.5 py-2.5 text-xs border border-[#EBE4D9] rounded-xl bg-[#F8F5F1] text-slate-600 font-mono truncate focus:outline-none"
           />
           <button
             onClick={copy}
-            className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
+            className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap tracking-wide ${
               copied
                 ? 'bg-emerald-500 text-white'
                 : 'bg-[#B8935B] text-white hover:bg-[#9A7540]'
             }`}
           >
-            {copied ? 'Copied!' : 'Copy Link'}
+            {copied ? 'Copied ✓' : 'Copy Link'}
           </button>
         </div>
       ) : (
@@ -1513,31 +1599,31 @@ function ReferralSection({ data }: { data: ReferralStats }) {
       )}
 
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-slate-50 rounded-xl p-3 text-center">
+        <div className="bg-[#F8F5F1] border border-[#EBE4D9] rounded-xl p-3 text-center">
           <p className="text-xl font-bold text-slate-900">{data.stats.count}</p>
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">Referred</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.12em] mt-0.5">Referred</p>
         </div>
-        <div className="bg-slate-50 rounded-xl p-3 text-center">
+        <div className="bg-[#F8F5F1] border border-[#EBE4D9] rounded-xl p-3 text-center">
           <p className="text-xl font-bold text-emerald-600">{data.stats.convertedCount}</p>
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">Converted</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.12em] mt-0.5">Converted</p>
         </div>
-        <div className="bg-slate-50 rounded-xl p-3 text-center">
+        <div className="bg-[#F8F5F1] border border-[#EBE4D9] rounded-xl p-3 text-center">
           <p className="text-xl font-bold text-[#B8935B]">
             {data.stats.count > 0 ? Math.round((data.stats.convertedCount / data.stats.count) * 100) : 0}%
           </p>
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">Rate</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.12em] mt-0.5">Rate</p>
         </div>
       </div>
 
       {data.stats.referrals.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-slate-100">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Your Referrals</p>
+        <div className="mt-4 pt-4 border-t border-[#EBE4D9]">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-2.5">Your Referrals</p>
           <div className="space-y-2">
             {data.stats.referrals.slice(0, 5).map((r, i) => (
               <div key={i} className="flex items-center justify-between">
                 <span className="text-sm text-slate-700 font-medium">{r.name}</span>
                 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                  r.isConverted ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                  r.isConverted ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-100 text-slate-500'
                 }`}>
                   {r.isConverted ? 'Client' : 'Lead'}
                 </span>
@@ -1552,30 +1638,31 @@ function ReferralSection({ data }: { data: ReferralStats }) {
 
 function DashboardSkeleton() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#FAFAF8] via-[#F5F2EC]/30 to-[#FAFAF8]">
-      <header className="bg-white/90 border-b border-slate-200 h-14 flex items-center px-4">
+    <div className="min-h-screen" style={{ background: 'linear-gradient(160deg, #F8F5F1 0%, #FAF8F4 60%, #F5F1EB 100%)' }}>
+      <header className="bg-white/90 border-b border-[#EDE6DA] h-14 flex items-center px-4">
         <div className="max-w-3xl mx-auto w-full flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-slate-200 animate-pulse" />
-            <div className="w-24 h-4 bg-slate-200 rounded animate-pulse" />
+            <div className="w-8 h-8 rounded-xl bg-[#EBE4D9] animate-pulse" />
+            <div className="w-24 h-4 bg-[#EBE4D9] rounded animate-pulse" />
           </div>
           <div className="flex items-center gap-3">
-            <div className="w-24 sm:w-32 h-8 rounded-xl bg-slate-200 animate-pulse" />
-            <div className="w-10 sm:w-20 h-8 rounded-xl bg-slate-200 animate-pulse" />
+            <div className="w-24 sm:w-32 h-8 rounded-xl bg-[#EBE4D9] animate-pulse" />
+            <div className="w-10 sm:w-20 h-8 rounded-xl bg-[#EBE4D9] animate-pulse" />
           </div>
         </div>
       </header>
-      <main className="max-w-3xl mx-auto px-4 py-7 space-y-5">
+      <main className="max-w-3xl mx-auto px-4 py-8 space-y-5">
         <div className="space-y-2">
-          <div className="h-8 w-48 bg-slate-200 rounded-lg animate-pulse" />
-          <div className="h-4 w-64 bg-slate-100 rounded animate-pulse" />
+          <div className="h-3 w-20 bg-[#EBE4D9] rounded animate-pulse" />
+          <div className="h-9 w-44 bg-[#E5DDD2] rounded-lg animate-pulse" />
+          <div className="h-4 w-56 bg-[#EBE4D9] rounded animate-pulse" />
         </div>
-        <div className="h-32 bg-slate-200 rounded-2xl animate-pulse" />
+        <div className="h-52 bg-[#E0D8CF] rounded-3xl animate-pulse" />
         <div className="grid grid-cols-2 gap-3">
-          <div className="h-24 bg-slate-200 rounded-2xl animate-pulse" />
-          <div className="h-24 bg-slate-200 rounded-2xl animate-pulse" />
+          <div className="h-24 bg-[#EBE4D9] rounded-2xl animate-pulse" />
+          <div className="h-24 bg-[#EBE4D9] rounded-2xl animate-pulse" />
         </div>
-        <div className="h-64 bg-slate-200 rounded-2xl animate-pulse" />
+        <div className="h-72 bg-[#EBE4D9] rounded-3xl animate-pulse" />
       </main>
     </div>
   );
@@ -1615,10 +1702,10 @@ function PinSetupBanner() {
   );
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+    <div className="bg-white border border-[#EBE4D9] rounded-2xl p-4 shadow-[0_1px_4px_rgba(10,11,13,0.05)]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 bg-[#FBF8F3] rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+          <div className="w-8 h-8 bg-[#F5F0E8] border border-[#EDE6DA] rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
             <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
           </div>
           <div>
@@ -1633,26 +1720,26 @@ function PinSetupBanner() {
       </div>
 
       {open && (
-        <form onSubmit={handleSet} className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+        <form onSubmit={handleSet} className="mt-4 space-y-3 border-t border-[#EBE4D9] pt-4">
           {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">{error}</p>}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">New PIN</label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-[0.15em] mb-1">New PIN</label>
               <input type="password" inputMode="numeric" maxLength={6} required
                 value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="6 digits"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 tracking-[0.3em]" />
+                className="w-full px-3 py-2 text-sm border border-[#EBE4D9] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B]/25 bg-[#F8F5F1] tracking-[0.3em]" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Confirm PIN</label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-[0.15em] mb-1">Confirm PIN</label>
               <input type="password" inputMode="numeric" maxLength={6} required
                 value={confirm} onChange={e => setConfirm(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="6 digits"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 tracking-[0.3em]" />
+                className="w-full px-3 py-2 text-sm border border-[#EBE4D9] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B]/25 bg-[#F8F5F1] tracking-[0.3em]" />
             </div>
           </div>
           <button type="submit" disabled={saving || pin.length !== 6 || confirm.length !== 6}
-            className="w-full py-2 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+            className="w-full py-2 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center justify-center gap-2 tracking-wide">
             {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
             {saving ? 'Saving…' : 'Save PIN'}
           </button>
