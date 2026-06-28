@@ -253,12 +253,15 @@ export default function PortalDashboardPage() {
     upgradeLabel: string;
     currentPlan: string[];
     whatYouGet: string[];
-    differenceInr: number;
+    differenceBase: number;
     taxRate: number;
     taxAmount: number;
     processingFee: number;
     processingFeeRate: number;
     totalPayable: number;
+    gateway: 'RAZORPAY' | 'PAYPAL';
+    currency: string;
+    currencySymbol: string;
     existingPaymentUrl: string | null;
   } | null>(null);
   const [upgradePreviewLoading, setUpgradePreviewLoading] = useState(false);
@@ -497,8 +500,10 @@ export default function PortalDashboardPage() {
                 </div>
                 {upgradePreview && (
                   <div className="mt-4 text-right">
-                    <p className="text-3xl font-bold text-white">₹{upgradePreview.totalPayable.toLocaleString('en-IN')}</p>
-                    <p className="text-xs text-white/50 mt-0.5">incl. GST · all-inclusive</p>
+                    <p className="text-3xl font-bold text-white">{upgradePreview.currencySymbol}{upgradePreview.totalPayable.toLocaleString()}</p>
+                    <p className="text-xs text-white/50 mt-0.5">
+                      {upgradePreview.gateway === 'PAYPAL' ? 'All-inclusive via PayPal' : 'Incl. GST · all-inclusive via Razorpay'}
+                    </p>
                   </div>
                 )}
               </div>
@@ -552,19 +557,25 @@ export default function PortalDashboardPage() {
                     <div className="bg-[#FBF8F3] border border-[#F0EAE0] rounded-xl p-4 mb-5">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-slate-500">Service cost</span>
-                        <span className="font-semibold text-slate-800">₹{upgradePreview.differenceInr.toLocaleString('en-IN')}</span>
+                        <span className="font-semibold text-slate-800">{upgradePreview.currencySymbol}{upgradePreview.differenceBase.toLocaleString()}</span>
                       </div>
+                      {upgradePreview.taxRate > 0 && (
+                        <div className="flex items-center justify-between text-sm mt-1.5">
+                          <span className="text-slate-400 text-xs">GST ({Math.round(upgradePreview.taxRate * 100)}%)</span>
+                          <span className="font-medium text-slate-600">+{upgradePreview.currencySymbol}{upgradePreview.taxAmount.toLocaleString()}</span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between text-sm mt-1.5">
-                        <span className="text-slate-400 text-xs">GST ({Math.round(upgradePreview.taxRate * 100)}%)</span>
-                        <span className="font-medium text-slate-600">+₹{upgradePreview.taxAmount.toLocaleString('en-IN')}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm mt-1.5">
-                        <span className="text-slate-400 text-xs">Razorpay gateway ({(upgradePreview.processingFeeRate * 100).toFixed(2)}%)</span>
-                        <span className="font-medium text-slate-600">+₹{upgradePreview.processingFee.toLocaleString('en-IN')}</span>
+                        <span className="text-slate-400 text-xs">
+                          {upgradePreview.gateway === 'PAYPAL'
+                            ? `PayPal fee (4.4% + $0.30 fixed)`
+                            : `Razorpay gateway (${(upgradePreview.processingFeeRate * 100).toFixed(2)}%)`}
+                        </span>
+                        <span className="font-medium text-slate-600">+{upgradePreview.currencySymbol}{upgradePreview.processingFee.toLocaleString()}</span>
                       </div>
                       <div className="flex items-center justify-between font-bold mt-3 pt-3 border-t border-[#F0EAE0]">
                         <span className="text-slate-900">Total payable</span>
-                        <span className="text-[#B8935B] text-lg">₹{upgradePreview.totalPayable.toLocaleString('en-IN')}</span>
+                        <span className="text-[#B8935B] text-lg">{upgradePreview.currencySymbol}{upgradePreview.totalPayable.toLocaleString()}</span>
                       </div>
                     </div>
                     {upgradePreview?.existingPaymentUrl && (
@@ -581,10 +592,16 @@ export default function PortalDashboardPage() {
                       className="w-full py-3.5 bg-[#B8935B] text-white font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
                       {upgrading
                         ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Processing…</>
-                        : upgradePreview?.existingPaymentUrl ? 'Resume Payment →' : 'Continue to Payment →'
+                        : upgradePreview?.existingPaymentUrl
+                          ? (upgradePreview.gateway === 'PAYPAL' ? 'Resume via PayPal →' : 'Resume Payment →')
+                          : (upgradePreview?.gateway === 'PAYPAL' ? 'Pay via PayPal →' : 'Continue to Payment →')
                       }
                     </button>
-                    <p className="text-center text-[11px] text-slate-400 mt-3">Secure payment via Razorpay · Link valid for 24 hours</p>
+                    <p className="text-center text-[11px] text-slate-400 mt-3">
+                      {upgradePreview?.gateway === 'PAYPAL'
+                        ? 'Secure payment via PayPal · Link valid for 7 days'
+                        : 'Secure payment via Razorpay · Link valid for 7 days'}
+                    </p>
                   </>
                 ) : null}
               </div>

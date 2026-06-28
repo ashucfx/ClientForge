@@ -23,15 +23,15 @@ export const PRICING: PricingConfig = {
       RESUME: {
         FRESHER: 999,
         MID_CAREER: 1999,
-        EXECUTIVE: 5999,
-        EXECUTIVE_PLUS: 8999,
+        EXECUTIVE: 3999,
+        EXECUTIVE_PLUS: 5999,
         AGENCY_CLIENT: 0,
       },
       LINKEDIN: {
         FRESHER: 499,
         MID_CAREER: 999,
-        EXECUTIVE: 2999,
-        EXECUTIVE_PLUS: 4999,
+        EXECUTIVE: 1999,
+        EXECUTIVE_PLUS: 2999,
         AGENCY_CLIENT: 0,
       },
       COVER_LETTER: {
@@ -53,15 +53,15 @@ export const PRICING: PricingConfig = {
       RESUME: {
         FRESHER: 49,
         MID_CAREER: 99,
-        EXECUTIVE: 149,
-        EXECUTIVE_PLUS: 199,
+        EXECUTIVE: 99,
+        EXECUTIVE_PLUS: 149,
         AGENCY_CLIENT: 0,
       },
       LINKEDIN: {
         FRESHER: 29,
         MID_CAREER: 49,
-        EXECUTIVE: 79,
-        EXECUTIVE_PLUS: 129,
+        EXECUTIVE: 59,
+        EXECUTIVE_PLUS: 79,
         AGENCY_CLIENT: 0,
       },
       COVER_LETTER: {

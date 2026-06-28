@@ -6,12 +6,46 @@ import { FEE_RATES, round2 } from '@/lib/pricing';
 import { PRICING } from '@/lib/pricing-v2';
 import { getNextInvoiceNumber } from '@/lib/invoiceUtils';
 import { createRazorpayPaymentLink } from '@/lib/razorpay';
+import { createPaypalInvoice } from '@/lib/paypal';
 import type { CareerServiceSlug } from '@/lib/career/types';
 import { ClientType } from '@prisma/client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// ─── PayPal fee gross-up: (diff + $0.30 fixed) / (1 - 4.4%) ──────────────────
+function calcPaypalTotal(diffUsd: number): { totalPayable: number; processingFee: number } {
+  const PAYPAL_FIXED = 0.30;
+  const PAYPAL_PCT   = 0.044;
+  const raw = (diffUsd + PAYPAL_FIXED) / (1 - PAYPAL_PCT);
+  const totalPayable = Math.ceil(raw * 100) / 100; // round up to 2dp
+  return { totalPayable, processingFee: round2(totalPayable - diffUsd) };
+}
+
+// ─── Razorpay INR gross-up: diff_inr × 1.18 GST / 0.9764 ────────────────────
+function calcRazorpayTotal(diffInr: number): {
+  totalPayable: number; taxAmount: number; taxRate: number; processingFee: number;
+} {
+  const taxRate    = 0.18;
+  const taxAmount  = round2(diffInr * taxRate);
+  const totalPayable = Math.ceil((diffInr + taxAmount) / (1 - FEE_RATES.INR));
+  return { totalPayable, taxAmount, taxRate, processingFee: totalPayable - diffInr - taxAmount };
+}
+
+// ─── Detect client's gateway from original purchase ──────────────────────────
+function detectGateway(currency: string | null, country: string | null) {
+  const cur = (currency ?? 'INR').toUpperCase();
+  const ctry = (country  ?? 'IN' ).toUpperCase();
+  const isIndia = ctry === 'IN' || cur === 'INR';
+  return {
+    isIndia,
+    gateway:        isIndia ? 'RAZORPAY' : 'PAYPAL',
+    currency:       isIndia ? 'INR'      : 'USD',
+    currencySymbol: isIndia ? '₹'        : '$',
+  } as const;
+}
+
+// ─── GET — price preview ─────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const token = cookies().get(PORTAL_COOKIE)?.value ?? '';
   const payload = await verifyPortalToken(token);
@@ -28,7 +62,7 @@ export async function GET(req: NextRequest) {
     include: {
       services: { select: { service: { select: { slug: true } } } },
       invoiceLinks: {
-        include: { invoice: { select: { clientType: true } } },
+        include: { invoice: { select: { clientType: true, currency: true, country: true } } },
         take: 1,
         orderBy: { createdAt: 'desc' }
       }
@@ -37,10 +71,10 @@ export async function GET(req: NextRequest) {
   if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
 
   const existingServices = client.services.map(s => s.service.slug as CareerServiceSlug);
-  const hasFull = existingServices.includes('FULL_PACKAGE');
+  const hasFull      = existingServices.includes('FULL_PACKAGE');
   const hasPortfolio = existingServices.includes('PORTFOLIO');
-  const hasResume = existingServices.includes('RESUME');
-  const hasLinkedIn = existingServices.includes('LINKEDIN');
+  const hasResume    = existingServices.includes('RESUME');
+  const hasLinkedIn  = existingServices.includes('LINKEDIN');
   const hasCoverLetter = existingServices.includes('COVER_LETTER');
 
   if (targetUpgrade === 'FULL_PACKAGE' && hasFull) {
@@ -50,23 +84,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Already have premium plus' }, { status: 400 });
   }
 
-  const clientType = (client.invoiceLinks[0]?.invoice?.clientType as ClientType) || 'MID_CAREER';
-  const baseInr = PRICING.basePrices.INR;
-  if (!baseInr.RESUME[clientType] && clientType !== 'AGENCY_CLIENT') {
-    return NextResponse.json({ error: 'Pricing not configured' }, { status: 400 });
-  }
+  const invoiceData  = client.invoiceLinks[0]?.invoice;
+  const clientType   = (invoiceData?.clientType as ClientType) || 'MID_CAREER';
+  const { isIndia, gateway, currency, currencySymbol } = detectGateway(
+    invoiceData?.currency ?? null,
+    invoiceData?.country  ?? null,
+  );
+
+  const basePrices = isIndia ? PRICING.basePrices.INR : PRICING.basePrices.USD;
 
   // FULL_PACKAGE slug covers resume + linkedin + coverLetter
   const effectivelyHasResume      = hasResume      || hasFull;
   const effectivelyHasLinkedIn    = hasLinkedIn    || hasFull;
   const effectivelyHasCoverLetter = hasCoverLetter || hasFull;
 
-  let targetPrice = 0;
+  let targetPrice  = 0;
   let currentlyPaid = 0;
-  const whatYouGet: string[] = [];      // new items being added
-  const currentPlan: string[] = [];     // items already in the client's plan
+  const whatYouGet: string[] = [];
+  const currentPlan: string[] = [];
 
-  // Build current plan labels for display
   if (hasFull) {
     currentPlan.push('Career Booster Package (Resume, LinkedIn, Cover Letter)');
   } else {
@@ -77,12 +113,12 @@ export async function GET(req: NextRequest) {
   if (hasPortfolio) currentPlan.push('Portfolio Website Development');
 
   if (targetUpgrade === 'FULL_PACKAGE') {
-    targetPrice = baseInr.RESUME[clientType] + baseInr.LINKEDIN[clientType] + baseInr.COVER_LETTER[clientType];
+    targetPrice = basePrices.RESUME[clientType] + basePrices.LINKEDIN[clientType] + basePrices.COVER_LETTER[clientType];
     if (!effectivelyHasResume)      whatYouGet.push('Professional Resume Writing');
     if (!effectivelyHasLinkedIn)    whatYouGet.push('LinkedIn Profile Optimisation');
     if (!effectivelyHasCoverLetter) whatYouGet.push('Cover Letter Writing');
   } else {
-    targetPrice = baseInr.RESUME[clientType] + baseInr.LINKEDIN[clientType] + baseInr.COVER_LETTER[clientType] + baseInr.PORTFOLIO[clientType];
+    targetPrice = basePrices.RESUME[clientType] + basePrices.LINKEDIN[clientType] + basePrices.COVER_LETTER[clientType] + basePrices.PORTFOLIO[clientType];
     if (!effectivelyHasResume)      whatYouGet.push('Professional Resume Writing');
     if (!effectivelyHasLinkedIn)    whatYouGet.push('LinkedIn Profile Optimisation');
     if (!effectivelyHasCoverLetter) whatYouGet.push('Cover Letter Writing');
@@ -90,66 +126,86 @@ export async function GET(req: NextRequest) {
   }
 
   if (hasFull) {
-    currentlyPaid += baseInr.RESUME[clientType] + baseInr.LINKEDIN[clientType] + baseInr.COVER_LETTER[clientType];
+    currentlyPaid += basePrices.RESUME[clientType] + basePrices.LINKEDIN[clientType] + basePrices.COVER_LETTER[clientType];
   } else {
-    if (hasResume)      currentlyPaid += baseInr.RESUME[clientType];
-    if (hasLinkedIn)    currentlyPaid += baseInr.LINKEDIN[clientType];
-    if (hasCoverLetter) currentlyPaid += baseInr.COVER_LETTER[clientType];
+    if (hasResume)      currentlyPaid += basePrices.RESUME[clientType];
+    if (hasLinkedIn)    currentlyPaid += basePrices.LINKEDIN[clientType];
+    if (hasCoverLetter) currentlyPaid += basePrices.COVER_LETTER[clientType];
   }
-  if (hasPortfolio) currentlyPaid += baseInr.PORTFOLIO[clientType];
+  if (hasPortfolio) currentlyPaid += basePrices.PORTFOLIO[clientType];
 
-  const differenceInr = targetPrice - currentlyPaid;
-  if (differenceInr <= 0) {
+  const differenceBase = targetPrice - currentlyPaid;
+  if (differenceBase <= 0) {
     return NextResponse.json({ error: 'No price difference to upgrade' }, { status: 400 });
   }
 
-  // 18% GST on the differential (service delivery subject to GST, same as checkout)
-  const taxRate = 0.18;
-  const taxAmount = round2(differenceInr * taxRate);
-  const costWithTax = differenceInr + taxAmount;
-  // Razorpay domestic gross-up: client pays enough so that after Razorpay's 2.36% cut, we net costWithTax
-  const totalPayable = Math.ceil(costWithTax / (1 - FEE_RATES.INR));
-  const processingFee = totalPayable - costWithTax;
-  const processingFeeRate = FEE_RATES.INR;
+  let totalPayable: number;
+  let taxRate      = 0;
+  let taxAmount    = 0;
+  let processingFee: number;
+  let processingFeeRate: number;
 
-  // Check for an existing unexpired payment link the client can reuse
+  if (isIndia) {
+    const r = calcRazorpayTotal(differenceBase);
+    totalPayable    = r.totalPayable;
+    taxRate         = r.taxRate;
+    taxAmount       = r.taxAmount;
+    processingFee   = r.processingFee;
+    processingFeeRate = FEE_RATES.INR;
+  } else {
+    const r = calcPaypalTotal(differenceBase);
+    totalPayable    = r.totalPayable;
+    processingFee   = r.processingFee;
+    processingFeeRate = 0.044; // PayPal 4.4% (approx, shown in modal)
+  }
+
+  // Check for reusable existing payment link
   const upgradeNoteMarker = `Portal automated upgrade. Target: ${targetUpgrade}`;
   const existingInvoice = await db.invoice.findFirst({
     where: {
       clientEmail: client.email,
-      notes: { contains: upgradeNoteMarker },
-      razorpayLinkUrl: { not: null },
-      dueDate: { gt: new Date() },
+      notes:    { contains: upgradeNoteMarker },
+      dueDate:  { gt: new Date() },
+      ...(isIndia
+        ? { razorpayLinkUrl: { not: null } }
+        : { paypalPaymentUrl: { not: null } }),
     },
-    select: { razorpayLinkUrl: true },
+    select: { razorpayLinkUrl: true, paypalPaymentUrl: true },
     orderBy: { createdAt: 'desc' },
   });
 
+  const existingPaymentUrl = isIndia
+    ? (existingInvoice?.razorpayLinkUrl ?? null)
+    : (existingInvoice?.paypalPaymentUrl ?? null);
+
   return NextResponse.json({
     ok: true,
-    targetService: targetUpgrade,
-    upgradeLabel: targetUpgrade === 'FULL_PACKAGE' ? 'Career Booster Package' : 'Premium Plus Package',
+    targetService:  targetUpgrade,
+    upgradeLabel:   targetUpgrade === 'FULL_PACKAGE' ? 'Career Booster Package' : 'Premium Plus Package',
     currentPlan,
     whatYouGet,
-    differenceInr,
+    differenceBase,
     taxRate,
     taxAmount,
     processingFee,
     processingFeeRate,
     totalPayable,
-    currency: 'INR',
-    existingPaymentUrl: existingInvoice?.razorpayLinkUrl ?? null,
+    gateway,
+    currency,
+    currencySymbol,
+    existingPaymentUrl,
   });
 }
 
+// ─── POST — create invoice + payment link ────────────────────────────────────
 export async function POST(req: NextRequest) {
   const token = cookies().get(PORTAL_COOKIE)?.value ?? '';
   const payload = await verifyPortalToken(token);
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const targetUpgrade = body?.targetService; // 'FULL_PACKAGE' or 'PREMIUM_PLUS'
-  
+  const targetUpgrade = body?.targetService as string | undefined;
+
   if (targetUpgrade !== 'FULL_PACKAGE' && targetUpgrade !== 'PREMIUM_PLUS') {
     return NextResponse.json({ error: 'Invalid upgrade target' }, { status: 400 });
   }
@@ -159,23 +215,21 @@ export async function POST(req: NextRequest) {
     include: {
       services: { select: { service: { select: { slug: true } } } },
       invoiceLinks: {
-        include: { invoice: { select: { clientType: true } } },
+        include: { invoice: { select: { clientType: true, currency: true, country: true } } },
         take: 1,
         orderBy: { createdAt: 'desc' }
       }
     }
   });
-
   if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
 
   const existingServices = client.services.map(s => s.service.slug as CareerServiceSlug);
-  const hasResume = existingServices.includes('RESUME');
-  const hasLinkedIn = existingServices.includes('LINKEDIN');
+  const hasResume      = existingServices.includes('RESUME');
+  const hasLinkedIn    = existingServices.includes('LINKEDIN');
   const hasCoverLetter = existingServices.includes('COVER_LETTER');
-  const hasFull = existingServices.includes('FULL_PACKAGE');
-  const hasPortfolio = existingServices.includes('PORTFOLIO');
+  const hasFull        = existingServices.includes('FULL_PACKAGE');
+  const hasPortfolio   = existingServices.includes('PORTFOLIO');
 
-  // Verify they actually need an upgrade
   if (targetUpgrade === 'FULL_PACKAGE' && hasFull) {
     return NextResponse.json({ error: 'Already have full package' }, { status: 400 });
   }
@@ -183,149 +237,188 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Already have premium plus' }, { status: 400 });
   }
 
-  // Calculate difference based on their original tier using current pricing
-  const clientType = (client.invoiceLinks[0]?.invoice?.clientType as ClientType) || 'MID_CAREER';
-  const baseInr = PRICING.basePrices.INR;
+  const invoiceData = client.invoiceLinks[0]?.invoice;
+  const clientType  = (invoiceData?.clientType as ClientType) || 'MID_CAREER';
+  const { isIndia, gateway, currency, currencySymbol } = detectGateway(
+    invoiceData?.currency ?? null,
+    invoiceData?.country  ?? null,
+  );
 
-  let targetPrice = 0;
+  const basePrices = isIndia ? PRICING.basePrices.INR : PRICING.basePrices.USD;
+
+  let targetPrice  = 0;
   let currentlyPaid = 0;
 
   if (targetUpgrade === 'FULL_PACKAGE') {
-    targetPrice = baseInr.RESUME[clientType] + baseInr.LINKEDIN[clientType] + baseInr.COVER_LETTER[clientType];
+    targetPrice = basePrices.RESUME[clientType] + basePrices.LINKEDIN[clientType] + basePrices.COVER_LETTER[clientType];
   } else {
-    targetPrice = baseInr.RESUME[clientType] + baseInr.LINKEDIN[clientType] + baseInr.COVER_LETTER[clientType] + baseInr.PORTFOLIO[clientType];
+    targetPrice = basePrices.RESUME[clientType] + basePrices.LINKEDIN[clientType] + basePrices.COVER_LETTER[clientType] + basePrices.PORTFOLIO[clientType];
   }
 
   if (hasFull) {
-    currentlyPaid += baseInr.RESUME[clientType] + baseInr.LINKEDIN[clientType] + baseInr.COVER_LETTER[clientType];
+    currentlyPaid += basePrices.RESUME[clientType] + basePrices.LINKEDIN[clientType] + basePrices.COVER_LETTER[clientType];
   } else {
-    if (hasResume)      currentlyPaid += baseInr.RESUME[clientType];
-    if (hasLinkedIn)    currentlyPaid += baseInr.LINKEDIN[clientType];
-    if (hasCoverLetter) currentlyPaid += baseInr.COVER_LETTER[clientType];
+    if (hasResume)      currentlyPaid += basePrices.RESUME[clientType];
+    if (hasLinkedIn)    currentlyPaid += basePrices.LINKEDIN[clientType];
+    if (hasCoverLetter) currentlyPaid += basePrices.COVER_LETTER[clientType];
   }
-  if (hasPortfolio) currentlyPaid += baseInr.PORTFOLIO[clientType];
+  if (hasPortfolio) currentlyPaid += basePrices.PORTFOLIO[clientType];
 
-  const differenceInr = targetPrice - currentlyPaid;
-  if (differenceInr <= 0) {
+  const differenceBase = targetPrice - currentlyPaid;
+  if (differenceBase <= 0) {
     return NextResponse.json({ error: 'No price difference to upgrade' }, { status: 400 });
   }
 
-  // Reuse an existing unexpired upgrade invoice instead of creating duplicates
+  // Reuse existing unexpired invoice
   const upgradeNoteMarker = `Portal automated upgrade. Target: ${targetUpgrade}`;
   const existingInvoice = await db.invoice.findFirst({
     where: {
       clientEmail: client.email,
-      notes: { contains: upgradeNoteMarker },
-      razorpayLinkUrl: { not: null },
+      notes:   { contains: upgradeNoteMarker },
       dueDate: { gt: new Date() },
+      ...(isIndia
+        ? { razorpayLinkUrl: { not: null } }
+        : { paypalPaymentUrl: { not: null } }),
     },
-    select: { razorpayLinkUrl: true },
+    select: { razorpayLinkUrl: true, paypalPaymentUrl: true },
     orderBy: { createdAt: 'desc' },
   });
 
-  if (existingInvoice?.razorpayLinkUrl) {
-    const _tax = round2(differenceInr * 0.18);
-    const _total = Math.ceil((differenceInr + _tax) / (1 - FEE_RATES.INR));
-    return NextResponse.json({
-      ok: true,
-      paymentUrl: existingInvoice.razorpayLinkUrl,
-      difference: differenceInr,
-      totalPayable: _total,
-      reused: true,
-    });
+  if (existingInvoice) {
+    const existingUrl = isIndia ? existingInvoice.razorpayLinkUrl : existingInvoice.paypalPaymentUrl;
+    if (existingUrl) {
+      let total: number;
+      if (isIndia) {
+        const _tax = round2(differenceBase * 0.18);
+        total = Math.ceil((differenceBase + _tax) / (1 - FEE_RATES.INR));
+      } else {
+        total = calcPaypalTotal(differenceBase).totalPayable;
+      }
+      return NextResponse.json({ ok: true, paymentUrl: existingUrl, differenceBase, totalPayable: total, reused: true });
+    }
   }
 
-  // 18% GST + Razorpay gateway gross-up (matching checkout pricing logic)
-  const subtotalConverted = differenceInr;
-  const taxRate = 0.18;
-  const taxAmount = round2(differenceInr * taxRate);
-  const costWithTax = differenceInr + taxAmount;
-  const processingFeeRate = FEE_RATES.INR;
-  const totalPayable = Math.ceil(costWithTax / (1 - processingFeeRate));
-  const processingFeeConverted = totalPayable - costWithTax;
+  // Compute final amounts
+  let totalPayable: number;
+  let taxRate            = 0;
+  let taxAmount          = 0;
+  let processingFeeRate: number;
+  let processingFeeConverted: number;
+
+  if (isIndia) {
+    const r = calcRazorpayTotal(differenceBase);
+    totalPayable         = r.totalPayable;
+    taxRate              = r.taxRate;
+    taxAmount            = r.taxAmount;
+    processingFeeRate    = FEE_RATES.INR;
+    processingFeeConverted = r.processingFee;
+  } else {
+    const r = calcPaypalTotal(differenceBase);
+    totalPayable         = r.totalPayable;
+    processingFeeRate    = 0.044;
+    processingFeeConverted = r.processingFee;
+  }
 
   const invoiceDate = new Date();
-  const dueDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h window — Razorpay expire_by uses this
+  const dueDate     = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7-day window
 
-  let invoice;
-  let createError;
+  const upgradeDescription = targetUpgrade === 'FULL_PACKAGE'
+    ? 'Upgrade to Complete Career Booster (Resume, LinkedIn, Cover Letter)'
+    : 'Upgrade to Premium Plus Package (Career Booster + Portfolio)';
 
+  // Create invoice with retry for invoice-number collision
+  let invoice: Awaited<ReturnType<typeof db.invoice.create>> | null = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const invoiceNumber = await getNextInvoiceNumber();
       invoice = await db.invoice.create({
         data: {
           invoiceNumber,
-          brandId: 'catalyst',
-          clientName: client.name,
+          brandId:     'catalyst',
+          clientName:  client.name,
           clientEmail: client.email,
           clientPhone: client.phone || '+910000000000',
           clientType,
-          country: 'IN',
-          currency: 'INR',
-          currencySymbol: '₹',
-          exchangeRate: 1,
-          lineItems: [
-            {
-              id: 'upgrade_1',
-              description: `Upgrade to ${targetUpgrade === 'FULL_PACKAGE' ? 'Complete Career Booster (Resume, LinkedIn, Cover Letter)' : 'Premium Plus Package (Career Booster + Portfolio)'}`,
-              qty: 1,
-              unitPrice: differenceInr,
-              lineTotal: differenceInr
-            }
-          ],
-          discountRate: 0,
+          country:         isIndia ? 'IN' : (invoiceData?.country ?? 'US'),
+          currency,
+          currencySymbol,
+          exchangeRate:    1,
+          lineItems: [{
+            id:          'upgrade_1',
+            description: upgradeDescription,
+            qty:         1,
+            unitPrice:   differenceBase,
+            lineTotal:   differenceBase,
+          }],
+          discountRate:          0,
+          discountAmount:        0,
           taxRate,
-          discountAmount: 0,
           taxAmount,
-          subtotalConverted,
+          subtotalConverted:     differenceBase,
           processingFeeRate,
           processingFeeConverted,
           totalPayable,
-          notes: `Portal automated upgrade. Target: ${targetUpgrade}`,
+          paymentGateway:        gateway,
+          notes:                 `Portal automated upgrade. Target: ${targetUpgrade}`,
           invoiceDate,
           dueDate,
-          installmentPlan: false,
+          installmentPlan:  false,
           installmentCount: 1,
-          paymentGateway: 'RAZORPAY',
+          status:           'PENDING',
         }
       });
-      break; // Success
+      break;
     } catch (err: any) {
-      if (err.code === 'P2002') {
-        createError = err;
-        if (attempt < 3) {
-          await new Promise(r => setTimeout(r, 100 * attempt));
-          continue;
-        }
+      if (err.code === 'P2002' && attempt < 3) {
+        await new Promise(r => setTimeout(r, 100 * attempt));
+        continue;
       }
       throw err;
     }
   }
 
   if (!invoice) {
-    return NextResponse.json({ error: 'Failed to generate invoice sequence. Please try again.' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to generate invoice. Please try again.' }, { status: 500 });
   }
 
+  // Create payment link
   try {
-    const rzp = await createRazorpayPaymentLink(invoice as any);
-    await db.invoice.update({
-      where: { id: invoice.id },
-      data: {
-        razorpayLinkId: rzp.id,
-        razorpayLinkUrl: rzp.short_url,
-      }
-    });
-
-    return NextResponse.json({ 
-      ok: true, 
-      paymentUrl: rzp.short_url,
-      difference: differenceInr,
-      totalPayable
-    });
+    if (isIndia) {
+      // Razorpay domestic
+      const rzp = await createRazorpayPaymentLink(invoice as any);
+      await db.invoice.update({
+        where: { id: invoice.id },
+        data:  { razorpayLinkId: rzp.id, razorpayLinkUrl: rzp.short_url },
+      });
+      return NextResponse.json({ ok: true, paymentUrl: rzp.short_url, differenceBase, totalPayable });
+    } else {
+      // PayPal — preferred for international
+      const ppRes = await createPaypalInvoice({
+        id:            invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        clientName:    client.name,
+        clientEmail:   client.email,
+        currency:      'USD',
+        dueDate,
+        notes:         `Upgrade to ${targetUpgrade === 'FULL_PACKAGE' ? 'Career Booster Package' : 'Premium Plus Package'} — Catalyst Career Services`,
+        lineItems: [{
+          description: upgradeDescription,
+          qty:         1,
+          unitPrice:   differenceBase,
+        }],
+        taxAmount:          0,
+        discountAmount:     0,
+        processingFeeAmount: processingFeeConverted,
+      });
+      await db.invoice.update({
+        where: { id: invoice.id },
+        data:  { paypalInvoiceId: ppRes.id, paypalPaymentUrl: ppRes.paymentUrl },
+      });
+      return NextResponse.json({ ok: true, paymentUrl: ppRes.paymentUrl, differenceBase, totalPayable });
+    }
   } catch (err: any) {
-    console.error('Upgrade Razorpay Error:', err?.message ?? err);
-    await db.invoice.delete({ where: { id: invoice.id }});
-    return NextResponse.json({ error: 'Payment link creation failed' }, { status: 500 });
+    console.error('[upgrade] Payment link creation failed:', err?.message ?? err);
+    await db.invoice.delete({ where: { id: invoice.id } }).catch(() => null);
+    return NextResponse.json({ error: 'Payment link creation failed. Please try again.' }, { status: 500 });
   }
 }
