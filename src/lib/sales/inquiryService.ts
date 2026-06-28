@@ -152,15 +152,38 @@ export async function createSalesInquiry(input: CreateInquiryInput) {
     return inq;
   });
 
+  const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
+
   // Post-transaction: dispatch emails & notifications (fire-and-forget)
-  Promise.all([
+  void Promise.all([
     sendInquiryConfirmationEmail({
       name: input.name,
       email: input.email,
       displayId: inquiry.displayId,
       requirementType: input.requirementType,
       servicesRequested: input.servicesRequested,
-    }).catch((e) => console.error('Failed to send inquiry confirmation email:', e)),
+    })
+      .then(() => db.sysEmailLog.create({ data: {
+        to: input.email,
+        subject: `Inquiry Received — ${inquiry.displayId}`,
+        trigger: 'INQUIRY_CONFIRMATION',
+        channel: 'resend',
+        status: 'sent',
+        metadata: { inquiryId: inquiry.id, displayId: inquiry.displayId, source: 'inquire' },
+      }}).catch(() => {}))
+      .catch((e: unknown) => {
+        console.error('Failed to send inquiry confirmation email:', e);
+        void db.sysEmailLog.create({ data: {
+          to: input.email,
+          subject: `Inquiry Received — ${inquiry.displayId}`,
+          trigger: 'INQUIRY_CONFIRMATION',
+          channel: 'resend',
+          status: 'failed',
+          error: e instanceof Error ? e.message : String(e),
+          metadata: { inquiryId: inquiry.id, displayId: inquiry.displayId, source: 'inquire' },
+        }}).catch(() => {});
+      }),
+
     notifyAdminNewLead({
       id: inquiry.id,
       displayId: inquiry.displayId,
@@ -169,7 +192,27 @@ export async function createSalesInquiry(input: CreateInquiryInput) {
       requirementType: input.requirementType,
       autoQualScore,
       priority,
-    }).catch((e) => console.error('Failed to notify admin of new lead:', e)),
+    })
+      .then(() => db.sysEmailLog.create({ data: {
+        to: ADMIN_EMAIL,
+        subject: `New Lead — ${inquiry.displayId}`,
+        trigger: 'ADMIN_INQUIRY_ALERT',
+        channel: 'resend',
+        status: 'sent',
+        metadata: { inquiryId: inquiry.id, displayId: inquiry.displayId, score: autoQualScore, priority, source: 'inquire' },
+      }}).catch(() => {}))
+      .catch((e: unknown) => {
+        console.error('Failed to notify admin of new lead:', e);
+        void db.sysEmailLog.create({ data: {
+          to: ADMIN_EMAIL,
+          subject: `New Lead — ${inquiry.displayId}`,
+          trigger: 'ADMIN_INQUIRY_ALERT',
+          channel: 'resend',
+          status: 'failed',
+          error: e instanceof Error ? e.message : String(e),
+          metadata: { inquiryId: inquiry.id, displayId: inquiry.displayId, source: 'inquire' },
+        }}).catch(() => {});
+      }),
   ]);
 
   return inquiry;

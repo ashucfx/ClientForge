@@ -4,6 +4,7 @@ import { createHmac, randomInt } from 'crypto';
 import { Resend } from 'resend';
 import { enforcePublicRateLimit } from '@/lib/publicRateLimit';
 import { BRAND_EMAIL } from '@/lib/config';
+import { prisma as db } from '@/lib/db';
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -162,8 +163,20 @@ export async function POST(req: NextRequest) {
 
     if (sendError) {
       console.error('Resend send error:', sendError);
+      void db.sysEmailLog.create({ data: {
+        to: email, subject: 'Checkout OTP', trigger: 'CHECKOUT_OTP',
+        channel: 'resend', status: 'failed',
+        error: sendError.message ?? 'Resend error',
+        metadata: { source: 'checkout', name },
+      }}).catch(() => {});
       throw new Error(sendError.message ?? 'Email delivery failed');
     }
+
+    void db.sysEmailLog.create({ data: {
+      to: email, subject: 'Checkout OTP', trigger: 'CHECKOUT_OTP',
+      channel: 'resend', status: 'sent',
+      metadata: { source: 'checkout', name },
+    }}).catch(() => {});
 
     return NextResponse.json({ token: `${sig}.${exp}` });
   } catch (error) {

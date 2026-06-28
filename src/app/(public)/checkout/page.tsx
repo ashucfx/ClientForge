@@ -122,7 +122,17 @@ function CheckoutPageInner() {
       const verifyRes = await fetch('/api/public/checkout/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), code: otpCode, token: otpToken }),
+        body: JSON.stringify({
+          email:       email.trim().toLowerCase(),
+          code:        otpCode,
+          token:       otpToken,
+          name:        name.trim(),
+          phone:       phone.trim(),
+          ...(whatsapp.trim() ? { whatsapp: whatsapp.trim() } : {}),
+          tier:        experienceLevel,
+          countryCode,
+          countryName,
+        }),
       });
       if (!verifyRes.ok) {
         const d = await verifyRes.json().catch(() => ({}));
