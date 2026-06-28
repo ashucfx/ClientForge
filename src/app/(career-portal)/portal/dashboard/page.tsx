@@ -254,6 +254,8 @@ export default function PortalDashboardPage() {
     currentPlan: string[];
     whatYouGet: string[];
     differenceInr: number;
+    taxRate: number;
+    taxAmount: number;
     processingFee: number;
     processingFeeRate: number;
     totalPayable: number;
@@ -496,7 +498,7 @@ export default function PortalDashboardPage() {
                 {upgradePreview && (
                   <div className="mt-4 text-right">
                     <p className="text-3xl font-bold text-white">₹{upgradePreview.totalPayable.toLocaleString('en-IN')}</p>
-                    <p className="text-xs text-white/50 mt-0.5">incl. ₹{upgradePreview.processingFee.toLocaleString('en-IN')} processing fee</p>
+                    <p className="text-xs text-white/50 mt-0.5">incl. GST · all-inclusive</p>
                   </div>
                 )}
               </div>
@@ -549,14 +551,16 @@ export default function PortalDashboardPage() {
                     {/* Cost breakdown */}
                     <div className="bg-[#FBF8F3] border border-[#F0EAE0] rounded-xl p-4 mb-5">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-500">Upgrade cost</span>
+                        <span className="text-slate-500">Service cost</span>
                         <span className="font-semibold text-slate-800">₹{upgradePreview.differenceInr.toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm mt-1.5">
-                        <span className="text-slate-400 text-xs">
-                          Razorpay gateway ({(upgradePreview.processingFeeRate * 100).toFixed(2)}% incl. 18% GST)
-                        </span>
-                        <span className="font-medium text-slate-600">₹{upgradePreview.processingFee.toLocaleString('en-IN')}</span>
+                        <span className="text-slate-400 text-xs">GST ({Math.round(upgradePreview.taxRate * 100)}%)</span>
+                        <span className="font-medium text-slate-600">+₹{upgradePreview.taxAmount.toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm mt-1.5">
+                        <span className="text-slate-400 text-xs">Razorpay gateway ({(upgradePreview.processingFeeRate * 100).toFixed(2)}%)</span>
+                        <span className="font-medium text-slate-600">+₹{upgradePreview.processingFee.toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex items-center justify-between font-bold mt-3 pt-3 border-t border-[#F0EAE0]">
                         <span className="text-slate-900">Total payable</span>

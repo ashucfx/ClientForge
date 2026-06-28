@@ -32,6 +32,7 @@ function CheckoutPageInner() {
   const [countryCode, setCountryCode] = useState('IN');
   const [countryName, setCountryName] = useState('India');
   const [preferredGateway, setPreferredGateway] = useState<'RAZORPAY' | 'PAYPAL'>('PAYPAL');
+  const [experienceLevel, setExperienceLevel] = useState<'FRESHER' | 'MID_CAREER' | 'EXECUTIVE' | 'EXECUTIVE_PLUS'>('MID_CAREER');
   const [pricingPreview, setPricingPreview] = useState<{
     currency: string; currencySymbol: string;
     services: { slug: string; price: number }[];
@@ -72,6 +73,7 @@ function CheckoutPageInner() {
           services,
           countryCode,
           countryName,
+          tierHint: experienceLevel,
           preferredGateway: countryCode === 'IN' ? 'RAZORPAY' : preferredGateway,
         }),
       });
@@ -103,7 +105,7 @@ function CheckoutPageInner() {
           phone: `+${phone}`,
           countryCode,
           countryName,
-          experienceLevel: 'MID_CAREER',
+          experienceLevel,
           packageSlug: selectedPackage,
           services: resolveServices(),
           preferredGateway: countryCode === 'IN' ? 'RAZORPAY' : preferredGateway,
@@ -250,6 +252,33 @@ function CheckoutPageInner() {
             </div>
 
             <div className="lg:col-span-5 lg:col-start-8 space-y-6">
+              <div>
+                <h2 className="font-serif text-heading mb-4">Your Experience Level</h2>
+                <p className="text-sm text-brand-obsidian/50 mb-4">Pricing is tailored to your career stage.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { value: 'FRESHER',        label: 'Entry Level', sub: '0–2 years' },
+                    { value: 'MID_CAREER',     label: 'Mid-Career',  sub: '2–8 years' },
+                    { value: 'EXECUTIVE',      label: 'Executive',   sub: '8–15 years' },
+                    { value: 'EXECUTIVE_PLUS', label: 'C-Suite',     sub: '15+ years' },
+                  ] as const).map(({ value, label, sub }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setExperienceLevel(value)}
+                      className={`text-left p-3 border transition-all ${
+                        experienceLevel === value
+                          ? 'border-brand-gold bg-brand-gold/5'
+                          : 'border-brand-parchment hover:border-brand-obsidian/20'
+                      }`}
+                    >
+                      <div className="text-sm font-semibold text-brand-obsidian">{label}</div>
+                      <div className="text-xs text-brand-obsidian/45 mt-0.5">{sub}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <h2 className="font-serif text-heading">Your Details</h2>
               <input
                 placeholder="Full name"
@@ -312,9 +341,17 @@ function CheckoutPageInner() {
           </button>
 
           <p className="text-status text-brand-gold uppercase tracking-widest font-bold mb-3">Order Summary</p>
-          <h1 className="font-serif text-[clamp(1.6rem,4vw,2.4rem)] leading-tight mb-8">
+          <h1 className="font-serif text-[clamp(1.6rem,4vw,2.4rem)] leading-tight mb-4">
             Review before you pay
           </h1>
+          <p className="text-sm text-brand-obsidian/50 mb-8">
+            Pricing for: <span className="font-semibold text-brand-obsidian">
+              {experienceLevel === 'FRESHER' ? 'Entry Level (0–2 yrs)'
+               : experienceLevel === 'MID_CAREER' ? 'Mid-Career (2–8 yrs)'
+               : experienceLevel === 'EXECUTIVE' ? 'Executive (8–15 yrs)'
+               : 'C-Suite / Executive Plus (15+ yrs)'}
+            </span>
+          </p>
 
           {/* Services */}
           <div className="border-t border-brand-parchment">

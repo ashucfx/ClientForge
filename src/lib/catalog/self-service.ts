@@ -7,21 +7,21 @@ export const SELF_SERVICE_PACKAGES: Record<
 > = {
   CAREER_BOOSTER: {
     services: ['RESUME', 'LINKEDIN', 'COVER_LETTER'],
-    tiers: ['FRESHER', 'MID_CAREER'],
+    tiers: ['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS'],
     label: 'Career Booster',
     description: 'Resume + LinkedIn + Cover Letter',
     features: ['ATS-Optimized Resume', 'LinkedIn Profile Makeover', 'Targeted Cover Letter', '1 Revision Round'],
   },
   PREMIUM_PLUS: {
     services: ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'],
-    tiers: ['FRESHER', 'MID_CAREER'],
+    tiers: ['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS'],
     label: 'Premium Plus',
     description: 'All four career services',
     features: ['Everything in Career Booster', 'Custom Personal Portfolio Website', 'Priority Delivery', '2 Revision Rounds'],
   },
   CUSTOM: {
     services: ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'],
-    tiers: ['FRESHER', 'MID_CAREER'],
+    tiers: ['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS'],
     label: 'Build Your Own',
     description: 'Pick individual services',
     features: ['Select only what you need', 'A la carte pricing', 'Standard delivery timeline'],

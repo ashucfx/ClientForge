@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
-import { BASE_PRICING, FEE_RATES, round2 } from '@/lib/pricing';
+import { FEE_RATES, round2 } from '@/lib/pricing';
+import { PRICING } from '@/lib/pricing-v2';
 import { getNextInvoiceNumber } from '@/lib/invoiceUtils';
 import { createRazorpayPaymentLink } from '@/lib/razorpay';
 import type { CareerServiceSlug } from '@/lib/career/types';
-import type { ClientType } from '@/types';
+import { ClientType } from '@prisma/client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -50,8 +51,10 @@ export async function GET(req: NextRequest) {
   }
 
   const clientType = (client.invoiceLinks[0]?.invoice?.clientType as ClientType) || 'MID_CAREER';
-  const base = BASE_PRICING[clientType];
-  if (!base) return NextResponse.json({ error: 'Pricing not configured' }, { status: 400 });
+  const baseInr = PRICING.basePrices.INR;
+  if (!baseInr.RESUME[clientType] && clientType !== 'AGENCY_CLIENT') {
+    return NextResponse.json({ error: 'Pricing not configured' }, { status: 400 });
+  }
 
   // FULL_PACKAGE slug covers resume + linkedin + coverLetter
   const effectivelyHasResume      = hasResume      || hasFull;
@@ -74,35 +77,40 @@ export async function GET(req: NextRequest) {
   if (hasPortfolio) currentPlan.push('Portfolio Website Development');
 
   if (targetUpgrade === 'FULL_PACKAGE') {
-    targetPrice = base.resume + base.linkedin + base.coverLetter;
+    targetPrice = baseInr.RESUME[clientType] + baseInr.LINKEDIN[clientType] + baseInr.COVER_LETTER[clientType];
     if (!effectivelyHasResume)      whatYouGet.push('Professional Resume Writing');
     if (!effectivelyHasLinkedIn)    whatYouGet.push('LinkedIn Profile Optimisation');
-    if (!effectivelyHasCoverLetter && base.coverLetter > 0) whatYouGet.push('Cover Letter Writing');
+    if (!effectivelyHasCoverLetter) whatYouGet.push('Cover Letter Writing');
   } else {
-    targetPrice = base.resume + base.linkedin + base.coverLetter + base.portfolio;
+    targetPrice = baseInr.RESUME[clientType] + baseInr.LINKEDIN[clientType] + baseInr.COVER_LETTER[clientType] + baseInr.PORTFOLIO[clientType];
     if (!effectivelyHasResume)      whatYouGet.push('Professional Resume Writing');
     if (!effectivelyHasLinkedIn)    whatYouGet.push('LinkedIn Profile Optimisation');
-    if (!effectivelyHasCoverLetter && base.coverLetter > 0) whatYouGet.push('Cover Letter Writing');
+    if (!effectivelyHasCoverLetter) whatYouGet.push('Cover Letter Writing');
     if (!hasPortfolio)              whatYouGet.push('Portfolio Website Development');
   }
 
   if (hasFull) {
-    currentlyPaid += base.resume + base.linkedin + base.coverLetter;
+    currentlyPaid += baseInr.RESUME[clientType] + baseInr.LINKEDIN[clientType] + baseInr.COVER_LETTER[clientType];
   } else {
-    if (hasResume)      currentlyPaid += base.resume;
-    if (hasLinkedIn)    currentlyPaid += base.linkedin;
-    if (hasCoverLetter) currentlyPaid += base.coverLetter;
+    if (hasResume)      currentlyPaid += baseInr.RESUME[clientType];
+    if (hasLinkedIn)    currentlyPaid += baseInr.LINKEDIN[clientType];
+    if (hasCoverLetter) currentlyPaid += baseInr.COVER_LETTER[clientType];
   }
-  if (hasPortfolio) currentlyPaid += base.portfolio;
+  if (hasPortfolio) currentlyPaid += baseInr.PORTFOLIO[clientType];
 
   const differenceInr = targetPrice - currentlyPaid;
   if (differenceInr <= 0) {
     return NextResponse.json({ error: 'No price difference to upgrade' }, { status: 400 });
   }
 
+  // 18% GST on the differential (service delivery subject to GST, same as checkout)
+  const taxRate = 0.18;
+  const taxAmount = round2(differenceInr * taxRate);
+  const costWithTax = differenceInr + taxAmount;
+  // Razorpay domestic gross-up: client pays enough so that after Razorpay's 2.36% cut, we net costWithTax
+  const totalPayable = Math.ceil(costWithTax / (1 - FEE_RATES.INR));
+  const processingFee = totalPayable - costWithTax;
   const processingFeeRate = FEE_RATES.INR;
-  const processingFee = round2(differenceInr * processingFeeRate);
-  const totalPayable = round2(differenceInr + processingFee);
 
   // Check for an existing unexpired payment link the client can reuse
   const upgradeNoteMarker = `Portal automated upgrade. Target: ${targetUpgrade}`;
@@ -124,6 +132,8 @@ export async function GET(req: NextRequest) {
     currentPlan,
     whatYouGet,
     differenceInr,
+    taxRate,
+    taxAmount,
     processingFee,
     processingFeeRate,
     totalPayable,
@@ -173,31 +183,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Already have premium plus' }, { status: 400 });
   }
 
-  // Calculate Difference based on their original tier
+  // Calculate difference based on their original tier using current pricing
   const clientType = (client.invoiceLinks[0]?.invoice?.clientType as ClientType) || 'MID_CAREER';
-  const base = BASE_PRICING[clientType];
-  
-  if (!base) return NextResponse.json({ error: 'Pricing not configured for client type' }, { status: 400 });
+  const baseInr = PRICING.basePrices.INR;
 
   let targetPrice = 0;
   let currentlyPaid = 0;
 
   if (targetUpgrade === 'FULL_PACKAGE') {
-     // Target is sum of all three. (If Catalyst uses a bundled discount for full package, we would use that, but for now we sum base prices)
-     targetPrice = base.resume + base.linkedin + base.coverLetter;
-  } else if (targetUpgrade === 'PREMIUM_PLUS') {
-     targetPrice = base.resume + base.linkedin + base.coverLetter + base.portfolio;
+    targetPrice = baseInr.RESUME[clientType] + baseInr.LINKEDIN[clientType] + baseInr.COVER_LETTER[clientType];
+  } else {
+    targetPrice = baseInr.RESUME[clientType] + baseInr.LINKEDIN[clientType] + baseInr.COVER_LETTER[clientType] + baseInr.PORTFOLIO[clientType];
   }
 
-  // Calculate what they conceptually own right now
   if (hasFull) {
-     currentlyPaid += base.resume + base.linkedin + base.coverLetter;
+    currentlyPaid += baseInr.RESUME[clientType] + baseInr.LINKEDIN[clientType] + baseInr.COVER_LETTER[clientType];
   } else {
-     if (hasResume) currentlyPaid += base.resume;
-     if (hasLinkedIn) currentlyPaid += base.linkedin;
-     if (hasCoverLetter) currentlyPaid += base.coverLetter;
+    if (hasResume)      currentlyPaid += baseInr.RESUME[clientType];
+    if (hasLinkedIn)    currentlyPaid += baseInr.LINKEDIN[clientType];
+    if (hasCoverLetter) currentlyPaid += baseInr.COVER_LETTER[clientType];
   }
-  if (hasPortfolio) currentlyPaid += base.portfolio;
+  if (hasPortfolio) currentlyPaid += baseInr.PORTFOLIO[clientType];
 
   const differenceInr = targetPrice - currentlyPaid;
   if (differenceInr <= 0) {
@@ -218,20 +224,25 @@ export async function POST(req: NextRequest) {
   });
 
   if (existingInvoice?.razorpayLinkUrl) {
+    const _tax = round2(differenceInr * 0.18);
+    const _total = Math.ceil((differenceInr + _tax) / (1 - FEE_RATES.INR));
     return NextResponse.json({
       ok: true,
       paymentUrl: existingInvoice.razorpayLinkUrl,
       difference: differenceInr,
-      totalPayable: round2(differenceInr + round2(differenceInr * FEE_RATES.INR)),
+      totalPayable: _total,
       reused: true,
     });
   }
 
-  // Calculate final amounts including fee
-  const subtotalConverted = round2(differenceInr);
+  // 18% GST + Razorpay gateway gross-up (matching checkout pricing logic)
+  const subtotalConverted = differenceInr;
+  const taxRate = 0.18;
+  const taxAmount = round2(differenceInr * taxRate);
+  const costWithTax = differenceInr + taxAmount;
   const processingFeeRate = FEE_RATES.INR;
-  const processingFeeConverted = round2(subtotalConverted * processingFeeRate);
-  const totalPayable = round2(subtotalConverted + processingFeeConverted);
+  const totalPayable = Math.ceil(costWithTax / (1 - processingFeeRate));
+  const processingFeeConverted = totalPayable - costWithTax;
 
   const invoiceDate = new Date();
   const dueDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h window — Razorpay expire_by uses this
@@ -257,16 +268,16 @@ export async function POST(req: NextRequest) {
           lineItems: [
             {
               id: 'upgrade_1',
-              description: `Upgrade to ${targetUpgrade === 'FULL_PACKAGE' ? 'Complete Career Booster' : 'Premium Plus (Portfolio)'}`,
+              description: `Upgrade to ${targetUpgrade === 'FULL_PACKAGE' ? 'Complete Career Booster (Resume, LinkedIn, Cover Letter)' : 'Premium Plus Package (Career Booster + Portfolio)'}`,
               qty: 1,
               unitPrice: differenceInr,
               lineTotal: differenceInr
             }
           ],
           discountRate: 0,
-          taxRate: 0,
+          taxRate,
           discountAmount: 0,
-          taxAmount: 0,
+          taxAmount,
           subtotalConverted,
           processingFeeRate,
           processingFeeConverted,

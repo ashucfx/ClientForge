@@ -2654,6 +2654,7 @@ type UpgradeInvoice = {
   totalPayable: number;
   currency: string;
   currencySymbol: string;
+  clientType: string | null;
   status: string;
   razorpayLinkUrl: string | null;
   razorpayPaymentId: string | null;
@@ -2717,6 +2718,11 @@ function UpgradeInvoicesTab({ clientId }: { clientId: string }) {
                 </div>
                 <p className="text-xs text-slate-500">
                   Upgrade target: <span className="font-medium text-slate-700">{target === 'FULL_PACKAGE' ? 'Career Booster Package' : target === 'PREMIUM_PLUS' ? 'Premium Plus Package' : target}</span>
+                  {inv.clientType && (
+                    <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500">
+                      {inv.clientType === 'FRESHER' ? 'Fresher' : inv.clientType === 'MID_CAREER' ? 'Mid-Career' : inv.clientType === 'EXECUTIVE' ? 'Executive' : inv.clientType === 'EXECUTIVE_PLUS' ? 'Exec+' : inv.clientType}
+                    </span>
+                  )}
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Created {new Date(inv.invoiceDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}

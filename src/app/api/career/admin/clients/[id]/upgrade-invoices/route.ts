@@ -27,6 +27,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       totalPayable: true,
       currency: true,
       currencySymbol: true,
+      clientType: true,
       status: true,
       razorpayLinkUrl: true,
       razorpayLinkId: true,
