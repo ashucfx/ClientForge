@@ -204,23 +204,40 @@ function CheckoutPageInner() {
               ))}
 
               {selectedPackage === 'CUSTOM' && (
-                <div className="grid grid-cols-2 gap-2 pt-2">
-                  {['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'].map((svc) => (
+                <div className="pt-2 space-y-2">
+                  {([
+                    { value: 'RESUME',       label: 'Resume Writing',    sub: 'ATS-optimised, keyword-rich, tailored to your role & industry' },
+                    { value: 'LINKEDIN',     label: 'LinkedIn Profile',  sub: 'Full optimisation · custom Banner · Profile Picture' },
+                    { value: 'COVER_LETTER', label: 'Cover Letter',      sub: 'Compelling narrative, targeted to each application' },
+                    { value: 'PORTFOLIO',    label: 'Portfolio Website', sub: 'Custom personal site to showcase your work online' },
+                  ] as const).map(({ value, label, sub }) => (
                     <button
-                      key={svc}
+                      key={value}
                       type="button"
                       onClick={() =>
                         setCustomServices((prev) =>
-                          prev.includes(svc) ? prev.filter((s) => s !== svc) : [...prev, svc]
+                          prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value]
                         )
                       }
-                      className={`py-2 px-3 border text-metadata uppercase tracking-widest ${
-                        customServices.includes(svc)
-                          ? 'bg-brand-obsidian text-brand-bone border-brand-obsidian'
-                          : 'border-brand-parchment'
+                      className={`w-full text-left px-4 py-3 border transition-all flex items-center gap-3 ${
+                        customServices.includes(value)
+                          ? 'border-brand-gold bg-brand-gold/5'
+                          : 'border-brand-parchment hover:border-brand-obsidian/20'
                       }`}
                     >
-                      {svc.replace('_', ' ')}
+                      <div className={`w-4 h-4 flex-shrink-0 border-2 transition-colors flex items-center justify-center ${
+                        customServices.includes(value) ? 'border-brand-gold bg-brand-gold' : 'border-brand-parchment'
+                      }`}>
+                        {customServices.includes(value) && (
+                          <svg viewBox="0 0 10 10" fill="none" className="w-2.5 h-2.5">
+                            <path stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M1.5 5l2.5 2.5 4.5-5"/>
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-brand-obsidian">{label}</div>
+                        <div className="text-xs text-brand-obsidian/45 mt-0.5">{sub}</div>
+                      </div>
                     </button>
                   ))}
                 </div>

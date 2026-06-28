@@ -91,7 +91,7 @@ export function LoginClient() {
         </div>
         <h2 className="text-xl font-bold text-slate-900 mb-2">Check your inbox</h2>
         <p className="text-slate-500 text-sm leading-relaxed">
-          If <strong className="text-slate-700">{email}</strong> has a ClientForge Boost account,
+          If <strong className="text-slate-700">{email}</strong> has a CareerPilot account,
           a secure login link has been sent.
         </p>
         <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl text-left">
@@ -114,7 +114,7 @@ export function LoginClient() {
     <PortalShell>
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-slate-900">Sign in</h2>
-        <p className="text-slate-500 text-sm mt-1">Access your ClientForge Boost portal</p>
+        <p className="text-slate-500 text-sm mt-1">Access your CareerPilot portal</p>
       </div>
 
       {/* Tabs */}
@@ -208,7 +208,7 @@ function PortalShell({ children }: { children: React.ReactNode }) {
             <div className="text-left">
               <p className="text-xl font-bold text-slate-900 leading-tight tracking-tight group-hover:text-[#9A7540] transition-colors">Catalyst</p>
               <span className="inline-block px-2 py-0.5 bg-[#F0EAE0] text-[#9A7540] text-[10px] font-bold rounded-full tracking-wide mt-0.5">
-                ClientForge Boost
+                CareerPilot
               </span>
             </div>
           </a>

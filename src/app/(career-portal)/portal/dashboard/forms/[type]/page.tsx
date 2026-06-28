@@ -797,7 +797,7 @@ function FormShell({ schema, children }: { schema: FormSchema; children: React.R
             <div className="hidden sm:block">
               <p className="text-sm font-bold text-slate-900 leading-none">Catalyst</p>
               <span className="inline-block px-1.5 py-0.5 bg-[#F0EAE0] text-[#9A7540] text-[9px] font-bold rounded tracking-wide leading-none mt-0.5">
-                ClientForge Boost
+                CareerPilot
               </span>
             </div>
           </div>

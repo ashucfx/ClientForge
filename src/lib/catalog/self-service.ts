@@ -10,21 +10,35 @@ export const SELF_SERVICE_PACKAGES: Record<
     tiers: ['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS'],
     label: 'Career Booster',
     description: 'Resume + LinkedIn + Cover Letter',
-    features: ['ATS-Optimized Resume', 'LinkedIn Profile Makeover', 'Targeted Cover Letter', '1 Revision Round'],
+    features: [
+      'Resume Writing — ATS-optimised, tailored to your role',
+      'LinkedIn Profile Optimisation + Banner + Profile Picture',
+      'Cover Letter Writing — targeted to each application',
+      '2 revisions per service',
+    ],
   },
   PREMIUM_PLUS: {
     services: ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'],
     tiers: ['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS'],
     label: 'Premium Plus',
     description: 'All four career services',
-    features: ['Everything in Career Booster', 'Custom Personal Portfolio Website', 'Priority Delivery', '2 Revision Rounds'],
+    features: [
+      'Everything in Career Booster',
+      'Portfolio Website — custom personal site to showcase your work',
+      'Priority delivery',
+      '2 revisions per service',
+    ],
   },
   CUSTOM: {
     services: ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'],
     tiers: ['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS'],
     label: 'Build Your Own',
     description: 'Pick individual services',
-    features: ['Select only what you need', 'A la carte pricing', 'Standard delivery timeline'],
+    features: [
+      'Pick only the services you need',
+      'Same expert quality, standard timeline',
+      'A la carte pricing — no bundle required',
+    ],
   },
 };
 

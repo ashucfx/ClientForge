@@ -461,7 +461,7 @@ export default function PortalDashboardPage() {
             <div>
               <p className="text-base font-bold text-slate-900 leading-tight tracking-tight">Catalyst</p>
               <span className="inline-block px-1.5 py-0.5 bg-[#F0EAE0] text-[#9A7540] text-[9px] font-bold rounded tracking-wide leading-none">
-                ClientForge Boost
+                CareerPilot
               </span>
             </div>
           </div>
@@ -1349,7 +1349,7 @@ export default function PortalDashboardPage() {
         {/* ── Footer ── */}
         <div className="text-center pt-4 pb-8 space-y-2.5">
           <div className="w-16 h-px mx-auto" style={{ background: 'linear-gradient(to right, transparent, rgba(184,147,91,0.3), transparent)' }} />
-          <p className="text-[10px] font-bold text-slate-300 tracking-[0.22em] uppercase">ClientForge Boost · by Catalyst</p>
+          <p className="text-[10px] font-bold text-slate-300 tracking-[0.22em] uppercase">CareerPilot · by Catalyst</p>
           <p className="text-[10px] text-slate-300/60">
             <a href="mailto:catalyst@theripplenexus.com" className="hover:text-[#B8935B] transition-colors">catalyst@theripplenexus.com</a>
           </p>

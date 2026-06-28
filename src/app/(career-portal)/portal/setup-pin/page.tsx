@@ -167,7 +167,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             <div className="text-left">
               <p className="text-xl font-bold text-slate-900 leading-tight tracking-tight group-hover:text-[#9A7540] transition-colors">Catalyst</p>
               <span className="inline-block px-2 py-0.5 bg-[#F0EAE0] text-[#9A7540] text-[10px] font-bold rounded-full tracking-wide mt-0.5">
-                ClientForge Boost
+                CareerPilot
               </span>
             </div>
           </a>
