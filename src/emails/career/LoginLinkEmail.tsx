@@ -21,7 +21,7 @@ export function LoginLinkEmail({ name, portalUrl }: LoginLinkEmailProps) {
 
       <EmailBody>
         Hi <strong style={{ color: '#0f172a' }}>{firstName}</strong>, you requested access
-        to your <strong style={{ color: '#B8935B' }}>Catalyst Catalyst</strong> portal.
+        to your <strong style={{ color: '#B8935B' }}>CareerPilot</strong> portal.
         Click the button below to log in — this link is valid for <strong>30 minutes</strong> and
         can only be used once.
       </EmailBody>

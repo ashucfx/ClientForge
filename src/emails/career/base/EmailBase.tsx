@@ -20,7 +20,7 @@ export function EmailBase({
   preview,
   children,
   accentColor = '#B8935B',
-  subBrand = 'Catalyst',
+  subBrand = 'CareerPilot',
 }: EmailBaseProps) {
   return (
     <Html lang="en" dir="ltr">
@@ -43,8 +43,14 @@ export function EmailBase({
         />
         <style>{`
           @media only screen and (max-width: 600px) {
-            .email-container { width: 100% !important; }
-            .email-pad { padding: 28px 20px !important; }
+            .email-container  { width: 100% !important; border-radius: 0 !important; }
+            .email-pad        { padding: 24px 18px !important; }
+            .email-header-row { padding: 16px 18px 14px !important; }
+            .email-brand-tag  { display: none !important; }
+            .email-heading    { font-size: 22px !important; }
+            .email-body       { font-size: 14px !important; }
+            .email-cta        { display: block !important; width: 100% !important; text-align: center !important; box-sizing: border-box !important; }
+            .email-footer     { padding: 20px 18px !important; }
           }
           @media (prefers-color-scheme: dark) {
             body { background-color: #0A0B0D !important; }
@@ -65,7 +71,7 @@ export function EmailBase({
           <Section style={header}>
             {/* Gold accent bar */}
             <div style={{ height: '3px', background: 'linear-gradient(90deg, #B8935B 0%, #D4AF7A 60%, #B8935B 100%)' }} />
-            <Row style={{ padding: '20px 28px 18px' }}>
+            <Row className="email-header-row" style={{ padding: '20px 28px 18px' }}>
               {/* Catalyst Logo */}
               <Column style={{ width: '40px', paddingRight: '14px', verticalAlign: 'middle' }}>
                 <EmailLogoMark size={36} />
@@ -75,8 +81,8 @@ export function EmailBase({
                 <Text style={brandPrimary}>CATALYST</Text>
                 <Text style={brandSub}>{subBrand}</Text>
               </Column>
-              {/* Right tag */}
-              <Column style={{ verticalAlign: 'middle', textAlign: 'right' as const }}>
+              {/* Right tag — hidden on mobile via .email-brand-tag */}
+              <Column className="email-brand-tag" style={{ verticalAlign: 'middle', textAlign: 'right' as const }}>
                 <span style={{
                   display: 'inline-block',
                   padding: '3px 10px',
@@ -88,7 +94,7 @@ export function EmailBase({
                   color: '#D4AF7A',
                   letterSpacing: '0.5px',
                 }}>
-                  Catalyst
+                  {subBrand}
                 </span>
               </Column>
             </Row>
@@ -98,14 +104,14 @@ export function EmailBase({
           <div style={{ height: '1px', background: `linear-gradient(90deg, ${accentColor} 0%, transparent 100%)` }} />
 
           {/* Content */}
-          <Section className="email-pad" style={contentPad}>
+          <Section className="email-pad" style={contentPad} role="main">
             {children}
           </Section>
 
           <Hr className="divider" style={divider} />
 
           {/* ── Footer ─────────────────────────────────── */}
-          <Section className="footer-container" style={footer}>
+          <Section className="footer-container email-footer" style={footer}>
             <Row>
               <Column style={{ textAlign: 'center' as const }}>
                 <div style={{ margin: '0 auto 10px', width: '30px' }}>
@@ -192,8 +198,8 @@ function EmailLogoMark({ size }: { size: number }) {
   );
 }
 
-export function EmailHeading({ children }: { children: React.ReactNode }) {
-  return <Text className="text-heading" style={headingStyle}>{children}</Text>;
+export function EmailHeading({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return <Text className="text-heading email-heading" style={{ ...headingStyle, ...style }}>{children}</Text>;
 }
 
 export function EmailSubheading({ children }: { children: React.ReactNode }) {
@@ -207,7 +213,7 @@ export function EmailBody({
   children: React.ReactNode;
   style?: React.CSSProperties;
 }) {
-  return <Text className="text-body" style={{ ...bodyStyle, ...style }}>{children}</Text>;
+  return <Text className="text-body email-body" style={{ ...bodyStyle, ...style }}>{children}</Text>;
 }
 
 export function EmailButton({
@@ -223,6 +229,7 @@ export function EmailButton({
     <Section style={{ textAlign: 'center' as const, margin: '32px 0' }}>
       <Button
         href={href}
+        className="email-cta"
         style={{ ...ctaBtn, backgroundColor: color }}
       >
         {children}

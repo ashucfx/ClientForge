@@ -43,7 +43,7 @@ export function UpsellPitchEmail({ name, portalLink, targetUpgrade }: UpsellPitc
             letterSpacing: '1.5px',
           }}
         >
-          {isPremiumPlus ? 'Executive Digital Presence' : 'Complete Career Booster'}
+          {isPremiumPlus ? 'Executive Digital Presence' : 'CareerPilot'}
         </Text>
         <Text
           style={{
@@ -68,7 +68,7 @@ export function UpsellPitchEmail({ name, portalLink, targetUpgrade }: UpsellPitc
       <EmailBody>
         {isPremiumPlus 
           ? 'Many leaders and executives at your stage choose to translate this momentum into a permanent Executive Digital Presence. A dedicated Professional Brand Identity Platform (Portfolio Website) dramatically accelerates recruiter trust, premium positioning, and professional visibility.'
-          : 'To fully leverage your new profile, many professionals complete their branding transformation by upgrading to the Complete Career Booster package, ensuring absolute consistency across every touchpoint.'
+          : 'To fully leverage your new profile, many professionals complete their branding transformation by upgrading to the CareerPilot package, ensuring absolute consistency across every touchpoint.'
         }
       </EmailBody>
 

@@ -185,9 +185,9 @@ export function LoginClient() {
       <div className="mt-6 pt-5 border-t border-slate-100 text-center">
         <p className="text-xs text-slate-400">
           No account?{' '}
-          <a href="https://catalyst.theripplenexus.com" target="_blank" rel="noopener noreferrer"
+          <a href="/checkout"
             className="text-[#B8935B] hover:underline font-medium">
-            Get a Career Booster package
+            Get started with CareerPilot
           </a>
         </p>
       </div>
