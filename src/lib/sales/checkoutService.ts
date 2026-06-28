@@ -119,6 +119,10 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
           dealValue: pricing.finalPayable,
           leadStatus: inquiryStatusToLeadStatus('NEW'),
           lifecycleStage: inquiryStatusToLifecycleStage('NEW'),
+          // Record referral for existing contacts too if not already set
+          ...(referrer && !contact.flywheelProfile.referredById
+            ? { referredById: referrer.id }
+            : {}),
         },
       });
     }

@@ -32,7 +32,13 @@ function CheckoutPageInner() {
   const [countryCode, setCountryCode] = useState('IN');
   const [countryName, setCountryName] = useState('India');
   const [preferredGateway, setPreferredGateway] = useState<'RAZORPAY' | 'PAYPAL'>('PAYPAL');
-  const [pricingDraft, setPricingDraft] = useState<Record<string, unknown> | null>(null);
+  const [pricingPreview, setPricingPreview] = useState<{
+    currency: string; currencySymbol: string;
+    services: { slug: string; price: number }[];
+    subtotal: number; discountRate: number; discountAmount: number;
+    subtotalAfterDiscount: number; taxRate: number; taxAmount: number;
+    finalPayable: number; isIndia: boolean; gateway: string;
+  } | null>(null);
   const [website] = useState('');
   const [startedAt] = useState(() => Date.now());
   const submitting = useRef(false);
@@ -47,11 +53,10 @@ function CheckoutPageInner() {
     return customServices;
   };
 
-  const handleCheckout = async () => {
+  const handleReviewOrder = async () => {
     if (submitting.current) return;
     if (!name.trim()) return alert('Please enter your full name.');
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return alert('Please enter a valid email address.');
-    // Require at least 7 digits beyond the leading +
     if (!phone || phone.replace(/\D/g, '').length < 7) return alert('Please enter a valid phone number including country code.');
     const services = resolveServices();
     if (services.length === 0) return alert('Select at least one service.');
@@ -59,8 +64,37 @@ function CheckoutPageInner() {
     submitting.current = true;
     setLoading(true);
     try {
-      const endpoint = '/api/public/checkout/draft';
-      const res = await fetch(endpoint, {
+      const res = await fetch('/api/public/checkout/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          packageSlug: selectedPackage,
+          services,
+          countryCode,
+          countryName,
+          preferredGateway: countryCode === 'IN' ? 'RAZORPAY' : preferredGateway,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Could not load pricing. Please try again.');
+      }
+      setPricingPreview(await res.json());
+      setStep(2);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Failed to load pricing');
+    } finally {
+      setLoading(false);
+      submitting.current = false;
+    }
+  };
+
+  const handleConfirmPayment = async () => {
+    if (submitting.current) return;
+    submitting.current = true;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/public/checkout/draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -71,44 +105,33 @@ function CheckoutPageInner() {
           countryName,
           experienceLevel: 'MID_CAREER',
           packageSlug: selectedPackage,
-          services,
+          services: resolveServices(),
           preferredGateway: countryCode === 'IN' ? 'RAZORPAY' : preferredGateway,
           website,
           startedAt,
           ...(referralCode ? { ref: referralCode } : {}),
         }),
       });
-
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Checkout failed');
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Checkout failed');
       }
-
       const data = await res.json();
       if (data.checkoutSessionId) {
         window.location.href = `/checkout/session/${data.checkoutSessionId}`;
         return;
       }
-      
-      // Fallback just in case
       if (data.paymentUrl) {
         window.location.href = data.paymentUrl as string;
         return;
       }
-      setPricingDraft(data);
-      setStep(2);
+      throw new Error('Payment link unavailable. Please try again.');
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Checkout failed');
     } finally {
       setLoading(false);
       submitting.current = false;
     }
-  };
-
-  const payNow = () => {
-    const url = pricingDraft?.paymentUrl as string | undefined;
-    if (url) window.location.href = url;
-    else alert('Payment link unavailable. Check your email or contact support.');
   };
 
   return (
@@ -258,7 +281,7 @@ function CheckoutPageInner() {
               </div>
 
               <button
-                onClick={handleCheckout}
+                onClick={handleReviewOrder}
                 disabled={loading}
                 className="w-full inline-flex items-center justify-center gap-2 bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest hover:bg-brand-graphite disabled:opacity-50 mt-4"
               >
@@ -266,34 +289,108 @@ function CheckoutPageInner() {
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <>
-                    <Lock className="w-4 h-4" />
-                    Continue to Payment
+                    Review Order & Price
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
               <p className="text-metadata text-brand-obsidian/35 text-center">
-                Secure payment · Portal access after checkout · No forms before payment
+                See full price breakdown before paying · No card details needed here
               </p>
             </div>
           </div>
         </main>
       )}
 
-      {step === 2 && pricingDraft && (
-        <main className="px-8 md:px-16 lg:px-24 py-24 max-w-lg mx-auto text-center">
-          <Check className="w-10 h-10 text-brand-gold mx-auto mb-6" />
-          <h1 className="font-serif text-heading mb-4">Ready to Pay</h1>
-          <p className="text-body text-brand-obsidian/50 mb-8">
-            Total: {String(pricingDraft.currencySymbol)}
-            {Number(pricingDraft.finalPayable).toLocaleString()}
-          </p>
+      {step === 2 && pricingPreview && (
+        <main className="px-8 md:px-16 lg:px-24 pb-24 pt-12 max-w-xl mx-auto">
           <button
-            onClick={payNow}
-            className="w-full bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest"
+            onClick={() => setStep(1)}
+            className="flex items-center gap-2 text-brand-obsidian/40 hover:text-brand-obsidian text-sm uppercase tracking-widest mb-10 transition-colors"
           >
-            Pay Now
+            ← Back
           </button>
+
+          <p className="text-status text-brand-gold uppercase tracking-widest font-bold mb-3">Order Summary</p>
+          <h1 className="font-serif text-[clamp(1.6rem,4vw,2.4rem)] leading-tight mb-8">
+            Review before you pay
+          </h1>
+
+          {/* Services */}
+          <div className="border-t border-brand-parchment">
+            {pricingPreview.services.map((s) => (
+              <div key={s.slug} className="flex items-center justify-between py-4 border-b border-brand-parchment">
+                <span className="text-body text-brand-obsidian/80">
+                  {s.slug === 'RESUME' ? 'Professional Resume Writing'
+                   : s.slug === 'LINKEDIN' ? 'LinkedIn Profile Optimisation'
+                   : s.slug === 'COVER_LETTER' ? 'Cover Letter Writing'
+                   : 'Portfolio Website Development'}
+                </span>
+                <span className="font-semibold text-brand-obsidian">
+                  {pricingPreview.currencySymbol}{s.price.toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Breakdown */}
+          <div className="pt-4 space-y-3">
+            <div className="flex justify-between text-sm text-brand-obsidian/60">
+              <span>Subtotal</span>
+              <span>{pricingPreview.currencySymbol}{pricingPreview.subtotal.toLocaleString()}</span>
+            </div>
+            {pricingPreview.discountRate > 0 && (
+              <div className="flex justify-between text-sm text-emerald-700">
+                <span>Package discount ({Math.round(pricingPreview.discountRate * 100)}% off)</span>
+                <span>−{pricingPreview.currencySymbol}{pricingPreview.discountAmount.toLocaleString()}</span>
+              </div>
+            )}
+            {pricingPreview.taxRate > 0 && (
+              <div className="flex justify-between text-sm text-brand-obsidian/60">
+                <span>GST ({Math.round(pricingPreview.taxRate * 100)}%)</span>
+                <span>+{pricingPreview.currencySymbol}{pricingPreview.taxAmount.toLocaleString()}</span>
+              </div>
+            )}
+            <div className="border-t border-brand-parchment pt-4 flex justify-between items-baseline">
+              <span className="font-serif text-subheading">Total Payable</span>
+              <span className="font-serif text-display text-brand-gold">
+                {pricingPreview.currencySymbol}{pricingPreview.finalPayable.toLocaleString()}
+              </span>
+            </div>
+            <p className="text-metadata text-brand-obsidian/35">
+              {pricingPreview.gateway === 'RAZORPAY'
+                ? 'All-inclusive · payment processing covered · no hidden charges'
+                : 'All-inclusive · PayPal fees covered · no hidden charges'}
+            </p>
+          </div>
+
+          {/* Referral notice */}
+          {referralCode && (
+            <div className="mt-6 flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-100 rounded-lg">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <p className="text-sm text-emerald-700">Referral code <strong>{referralCode}</strong> applied</p>
+            </div>
+          )}
+
+          {/* Confirm button */}
+          <button
+            onClick={handleConfirmPayment}
+            disabled={loading}
+            className="w-full mt-8 inline-flex items-center justify-center gap-2 bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest hover:bg-brand-graphite disabled:opacity-50 transition-colors"
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <Lock className="w-4 h-4" />
+                Confirm & Pay {pricingPreview.currencySymbol}{pricingPreview.finalPayable.toLocaleString()}
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+          <p className="text-metadata text-brand-obsidian/35 text-center mt-3">
+            Secure payment via {pricingPreview.gateway === 'RAZORPAY' ? 'Razorpay' : 'PayPal'} · Portal access granted immediately after payment
+          </p>
         </main>
       )}
       <style jsx global>{`
