@@ -23,13 +23,16 @@ export function derivePackageLabel(lineItems: LineItem[]): string {
   const hasResume      = descs.some(d => /resume|cv\b/i.test(d));
   const hasLinkedin    = descs.some(d => /linkedin/i.test(d));
   const hasCoverLetter = descs.some(d => /cover.?letter/i.test(d));
+  const hasPortfolio   = descs.some(d => /portfolio/i.test(d));
 
-  if (hasResume && hasLinkedin && hasCoverLetter) return 'Career Booster Package';
+  if (hasResume && hasLinkedin && hasCoverLetter && hasPortfolio) return 'Premium Plus Package';
+  if (hasResume && hasLinkedin && hasCoverLetter)                 return 'Career Booster Package';
 
   const parts: string[] = [];
-  if (hasResume)      parts.push('Resume Rewrite');
+  if (hasResume)      parts.push('Resume Writing');
   if (hasLinkedin)    parts.push('LinkedIn Profile Optimisation');
   if (hasCoverLetter) parts.push('Cover Letter');
+  if (hasPortfolio)   parts.push('Portfolio Website');
   return parts.length > 0 ? parts.join(' + ') : 'Career Services';
 }
 
@@ -41,10 +44,10 @@ export async function sendInvoiceEmail(
   pdfBase64?: string
 ): Promise<void> {
   const brand = getBrand(invoice.brandId);
+  const subjectPkgLabel = derivePackageLabel(parseInvoiceLineItems(invoice.lineItems));
 
   // Catchy, spam-safe subject
-  const subject =
-    `Invoice ${invoice.invoiceNumber}: Your ${brand.id === 'catalyst' ? 'Career Booster Package' : 'Service'} — ${brand.name}`;
+  const subject = `Invoice ${invoice.invoiceNumber}: Your ${subjectPkgLabel} — ${brand.name}`;
 
   const html = await render(React.createElement(InvoiceEmail, { invoice }))
     .catch(() => buildInvoiceEmailHTML(invoice));
@@ -269,7 +272,7 @@ function buildInvoiceEmailText(invoice: InvoiceData): string {
   return `
 Hi ${invoice.clientName.split(' ')[0]},
 
-Your ${brand.id === 'catalyst' ? 'Career Booster Package ' : ''}invoice is ready.
+Your ${packageLabel} invoice is ready.
 
 Invoice Number : ${invoice.invoiceNumber}
 Client         : ${invoice.clientName}
@@ -315,7 +318,7 @@ Amount    : ${fmt(invoice.totalPayable)} ${invoice.currency}
 Package   : ${packageLabel}
 Paid On   : ${invoice.paidAt ? new Date(invoice.paidAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Today'}
 
-Our team will begin your ${brand.id === 'catalyst' ? 'Career Booster Package' : 'project'} within 24 hours.
+Our team will begin your ${packageLabel} within 24 hours.
 Expected delivery: 2-4 business days.
 
 Questions? Write to ${brand.replyTo}
@@ -859,7 +862,7 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
 
 <!-- Preheader -->
 <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:${brand.id === 'catalyst' ? '#F0EDE6' : brand.emailBg};line-height:1px;max-width:0;">
-  Payment received! Your ${brand.id === 'catalyst' ? 'Career Booster Package' : 'Project'} is now active. Work begins within 24 hours.&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
+  Payment received! Your ${packageLabel} is now active. Work begins within 24 hours.&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
 </div>
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${brand.id === 'catalyst' ? '#F0EDE6' : brand.emailBg}">
@@ -881,7 +884,7 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
           Payment Confirmed!
         </h1>
         <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:15px;color:rgba(255,255,255,0.88);line-height:1.6;">
-          Thank you, <strong>${firstName}</strong>. Your ${brand.id === 'catalyst' ? 'Career Booster Package' : 'Project'} is now active<br/>and our team is ready to get to work.
+          Thank you, <strong>${firstName}</strong>. Your ${packageLabel} is now active<br/>and our team is ready to get to work.
         </p>
       </td>
     </tr>
