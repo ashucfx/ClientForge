@@ -25,15 +25,18 @@ export async function POST(req: NextRequest) {
     });
     if (limited) return limited;
 
-    const code = String(randomInt(100000, 999999));
+    const secret = process.env.CAREER_PORTAL_SECRET;
+    if (!secret) throw new Error('CAREER_PORTAL_SECRET is not configured');
+
+    const code = String(randomInt(100000, 1000000)).padStart(6, '0');
     const exp  = Date.now() + 10 * 60 * 1000;
-    const sig  = createHmac('sha256', process.env.NEXTAUTH_SECRET!)
+    const sig  = createHmac('sha256', secret)
       .update(`${email}:${code}:${exp}`)
       .digest('hex');
 
     const firstName = name.split(' ')[0] || 'there';
 
-    await resend.emails.send({
+    const { error: sendError } = await resend.emails.send({
       from: `Catalyst <${process.env.FROM_EMAIL ?? BRAND_EMAIL}>`,
       to: email,
       subject: `${code} — your Catalyst verification code`,
@@ -51,6 +54,11 @@ export async function POST(req: NextRequest) {
         </div>
       `,
     });
+
+    if (sendError) {
+      console.error('Resend send error:', sendError);
+      throw new Error(sendError.message ?? 'Email delivery failed');
+    }
 
     return NextResponse.json({ token: `${sig}.${exp}` });
   } catch (error) {

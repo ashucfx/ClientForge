@@ -26,7 +26,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Code expired. Please request a new one.' }, { status: 400 });
     }
 
-    const expected = createHmac('sha256', process.env.NEXTAUTH_SECRET!)
+    const secret = process.env.CAREER_PORTAL_SECRET;
+    if (!secret) throw new Error('CAREER_PORTAL_SECRET is not configured');
+
+    const expected = createHmac('sha256', secret)
       .update(`${email}:${code}:${exp}`)
       .digest('hex');
 
