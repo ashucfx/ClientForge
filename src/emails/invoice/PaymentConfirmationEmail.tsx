@@ -29,7 +29,7 @@ export function PaymentConfirmationEmail({ invoice }: PaymentConfirmationEmailPr
 
   return (
     <EmailShell
-      preview={`Payment received! Your ${brand.id === 'catalyst' ? 'CareerPilot Package' : 'Project'} is now active. Work begins within 24 hours.`}
+      preview={`Payment received! Your ${brand.id === 'catalyst' ? 'Career Booster Package' : 'Project'} is now active. Work begins within 24 hours.`}
       brand={brand}
     >
       {/* Hero success heading */}
@@ -47,7 +47,7 @@ export function PaymentConfirmationEmail({ invoice }: PaymentConfirmationEmailPr
         </EmailHeading>
         <Text style={{ margin: 0, fontSize: '15px', color: '#166534', lineHeight: '1.6', textAlign: 'center' as const }}>
           Thank you, <strong>{firstName}</strong>.{' '}
-          Your {brand.id === 'catalyst' ? 'CareerPilot Package' : 'Project'} is now active
+          Your {brand.id === 'catalyst' ? 'Career Booster Package' : 'Project'} is now active
           and our team is ready to get to work.
         </Text>
       </Section>
