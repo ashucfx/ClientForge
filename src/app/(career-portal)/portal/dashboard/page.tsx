@@ -250,8 +250,13 @@ export default function PortalDashboardPage() {
   const [upgrading,       setUpgrading]       = useState(false);
   const [upgradeTarget,   setUpgradeTarget]   = useState<string | null>(null);
   const [upgradePreview,  setUpgradePreview]  = useState<{
-    upgradeLabel: string; whatYouGet: string[];
-    differenceInr: number; processingFee: number; totalPayable: number;
+    upgradeLabel: string;
+    currentPlan: string[];
+    whatYouGet: string[];
+    differenceInr: number;
+    processingFee: number;
+    processingFeeRate: number;
+    totalPayable: number;
     existingPaymentUrl: string | null;
   } | null>(null);
   const [upgradePreviewLoading, setUpgradePreviewLoading] = useState(false);
@@ -505,26 +510,52 @@ export default function PortalDashboardPage() {
                   </div>
                 ) : upgradePreview ? (
                   <>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">What you will get</p>
-                    <div className="space-y-2.5 mb-6">
+                    {/* Already in their plan */}
+                    {upgradePreview.currentPlan.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Already in your plan</p>
+                        <div className="space-y-1.5">
+                          {upgradePreview.currentPlan.map((item, i) => (
+                            <div key={i} className="flex items-center gap-2.5">
+                              <div className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0">
+                                <svg width="10" height="10" fill="none" viewBox="0 0 24 24">
+                                  <path stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/>
+                                </svg>
+                              </div>
+                              <span className="text-xs text-slate-500">{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Being added */}
+                    <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-2">
+                      {upgradePreview.currentPlan.length > 0 ? 'Not in your current package — being added' : 'What you will get'}
+                    </p>
+                    <div className="space-y-2 mb-5">
                       {upgradePreview.whatYouGet.map((item, i) => (
                         <div key={i} className="flex items-center gap-3">
-                          <div className="w-6 h-6 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center flex-shrink-0">
+                          <div className="w-6 h-6 rounded-full bg-[#B8935B]/10 border border-[#B8935B]/20 flex items-center justify-center flex-shrink-0">
                             <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
-                              <path stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/>
+                              <path stroke="#B8935B" strokeWidth="2.5" strokeLinecap="round" d="M12 5v14M5 12h14"/>
                             </svg>
                           </div>
-                          <span className="text-sm font-medium text-slate-800">{item}</span>
+                          <span className="text-sm font-semibold text-slate-800">{item}</span>
                         </div>
                       ))}
                     </div>
+
+                    {/* Cost breakdown */}
                     <div className="bg-[#FBF8F3] border border-[#F0EAE0] rounded-xl p-4 mb-5">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-slate-500">Upgrade cost</span>
                         <span className="font-semibold text-slate-800">₹{upgradePreview.differenceInr.toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm mt-1.5">
-                        <span className="text-slate-500">Processing fee</span>
+                        <span className="text-slate-400 text-xs">
+                          Razorpay gateway ({(upgradePreview.processingFeeRate * 100).toFixed(2)}% incl. 18% GST)
+                        </span>
                         <span className="font-medium text-slate-600">₹{upgradePreview.processingFee.toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex items-center justify-between font-bold mt-3 pt-3 border-t border-[#F0EAE0]">

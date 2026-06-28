@@ -111,8 +111,8 @@ export const SERVICE_DESCRIPTIONS: Record<ClientType, {
 // FEE RATES
 // ─────────────────────────────────────────────
 export const FEE_RATES = {
-  INR:           0.02,   // 2% domestic
-  INTERNATIONAL: 0.035,  // 3.5% international
+  INR:           0.0236,  // Razorpay domestic: 2% fee + 18% GST on fee (2% × 1.18)
+  INTERNATIONAL: 0.0354,  // Razorpay international cards: 3% fee + 18% GST on fee (3% × 1.18)
 };
 
 // ─────────────────────────────────────────────

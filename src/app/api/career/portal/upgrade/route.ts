@@ -53,28 +53,44 @@ export async function GET(req: NextRequest) {
   const base = BASE_PRICING[clientType];
   if (!base) return NextResponse.json({ error: 'Pricing not configured' }, { status: 400 });
 
+  // FULL_PACKAGE slug covers resume + linkedin + coverLetter
+  const effectivelyHasResume      = hasResume      || hasFull;
+  const effectivelyHasLinkedIn    = hasLinkedIn    || hasFull;
+  const effectivelyHasCoverLetter = hasCoverLetter || hasFull;
+
   let targetPrice = 0;
   let currentlyPaid = 0;
-  const whatYouGet: string[] = [];
+  const whatYouGet: string[] = [];      // new items being added
+  const currentPlan: string[] = [];     // items already in the client's plan
+
+  // Build current plan labels for display
+  if (hasFull) {
+    currentPlan.push('Career Booster Package (Resume, LinkedIn, Cover Letter)');
+  } else {
+    if (hasResume)      currentPlan.push('Professional Resume Writing');
+    if (hasLinkedIn)    currentPlan.push('LinkedIn Profile Optimisation');
+    if (hasCoverLetter) currentPlan.push('Cover Letter Writing');
+  }
+  if (hasPortfolio) currentPlan.push('Portfolio Website Development');
 
   if (targetUpgrade === 'FULL_PACKAGE') {
     targetPrice = base.resume + base.linkedin + base.coverLetter;
-    if (!hasResume) whatYouGet.push('Professional Resume Writing');
-    if (!hasLinkedIn) whatYouGet.push('LinkedIn Profile Optimisation');
-    if (!hasCoverLetter) whatYouGet.push('Cover Letter Writing');
+    if (!effectivelyHasResume)      whatYouGet.push('Professional Resume Writing');
+    if (!effectivelyHasLinkedIn)    whatYouGet.push('LinkedIn Profile Optimisation');
+    if (!effectivelyHasCoverLetter && base.coverLetter > 0) whatYouGet.push('Cover Letter Writing');
   } else {
     targetPrice = base.resume + base.linkedin + base.coverLetter + base.portfolio;
-    if (!hasResume) whatYouGet.push('Professional Resume Writing');
-    if (!hasLinkedIn) whatYouGet.push('LinkedIn Profile Optimisation');
-    if (!hasCoverLetter) whatYouGet.push('Cover Letter Writing');
-    if (!hasPortfolio) whatYouGet.push('Portfolio Website Development');
+    if (!effectivelyHasResume)      whatYouGet.push('Professional Resume Writing');
+    if (!effectivelyHasLinkedIn)    whatYouGet.push('LinkedIn Profile Optimisation');
+    if (!effectivelyHasCoverLetter && base.coverLetter > 0) whatYouGet.push('Cover Letter Writing');
+    if (!hasPortfolio)              whatYouGet.push('Portfolio Website Development');
   }
 
   if (hasFull) {
     currentlyPaid += base.resume + base.linkedin + base.coverLetter;
   } else {
-    if (hasResume) currentlyPaid += base.resume;
-    if (hasLinkedIn) currentlyPaid += base.linkedin;
+    if (hasResume)      currentlyPaid += base.resume;
+    if (hasLinkedIn)    currentlyPaid += base.linkedin;
     if (hasCoverLetter) currentlyPaid += base.coverLetter;
   }
   if (hasPortfolio) currentlyPaid += base.portfolio;
@@ -105,9 +121,11 @@ export async function GET(req: NextRequest) {
     ok: true,
     targetService: targetUpgrade,
     upgradeLabel: targetUpgrade === 'FULL_PACKAGE' ? 'Career Booster Package' : 'Premium Plus Package',
+    currentPlan,
     whatYouGet,
     differenceInr,
     processingFee,
+    processingFeeRate,
     totalPayable,
     currency: 'INR',
     existingPaymentUrl: existingInvoice?.razorpayLinkUrl ?? null,
