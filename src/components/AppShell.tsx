@@ -45,6 +45,19 @@ function IconKanban({ size = 16 }: { size?: number }) {
     </svg>
   );
 }
+function IconCalendar({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
+      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <path d="M16 2v4M8 2v4M3 10h18" />
+        <circle cx="8" cy="15" r="1" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="15" r="1" fill="currentColor" stroke="none" />
+        <circle cx="16" cy="15" r="1" fill="currentColor" stroke="none" />
+      </g>
+    </svg>
+  );
+}
 function IconPipeline({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
@@ -89,7 +102,7 @@ function isActive(href: string, pathname: string) {
   if (href === '/') return pathname === '/';
   if (href === '/invoices/new') return pathname === '/invoices/new';
   if (href === '/invoices') return pathname.startsWith('/invoices') && pathname !== '/invoices/new';
-  if (href === '/career') return pathname === '/career' || (pathname.startsWith('/career/') && !pathname.startsWith('/career/kanban'));
+  if (href === '/career') return pathname === '/career' || (pathname.startsWith('/career/') && !pathname.startsWith('/career/kanban') && !pathname.startsWith('/career/email-logs') && !pathname.startsWith('/career/calendar'));
   if (href === '/flywheel') return pathname === '/flywheel';
   if (href === '/sales/inquiries') return pathname.startsWith('/sales');
   return pathname.startsWith(href);
@@ -302,6 +315,8 @@ function SidebarContent({
               active={isActive('/career/kanban', pathname)} accent="#B8935B" onClick={onNavigate} />
             <NavLink href="/career/email-logs" icon={<IconMail size={16} />} label="Email Logs"
               active={isActive('/career/email-logs', pathname)} accent="#B8935B" onClick={onNavigate} />
+            <NavLink href="/career/calendar" icon={<IconCalendar size={16} />} label="Holiday Calendar"
+              active={isActive('/career/calendar', pathname)} accent="#B8935B" onClick={onNavigate} />
           </NavSection>
         )}
 

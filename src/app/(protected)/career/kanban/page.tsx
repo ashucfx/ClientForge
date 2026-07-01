@@ -30,13 +30,27 @@ const COL_META: Record<Column, { title: string; color: string; waitingOn: string
   OTHER:   { title: 'Other Active',      color: '#64748b', waitingOn: null },
 };
 
+function countBizDays(start: Date, end: Date): number {
+  const d = new Date(start);
+  let n = 0;
+  while (d < end) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) n++;
+  }
+  return n;
+}
+
 function slaInfo(deadline: string | null): { color: string; label: string } | null {
   if (!deadline) return null;
-  const diff = (new Date(deadline).getTime() - Date.now()) / (1000 * 3600 * 24);
-  if (diff < 0)  return { color: '#ef4444', label: 'SLA Breached' };
-  if (diff <= 1) return { color: '#ef4444', label: 'SLA < 1d' };
-  if (diff <= 3) return { color: '#f59e0b', label: `SLA ${Math.ceil(diff)}d` };
-  return { color: '#10b981', label: `SLA ${Math.ceil(diff)}d` };
+  const now = new Date();
+  const end = new Date(deadline);
+  if (end <= now) return { color: '#ef4444', label: 'SLA Breached' };
+  const bd = countBizDays(now, end);
+  if (bd === 0) return { color: '#ef4444', label: 'SLA today' };
+  if (bd === 1) return { color: '#ef4444', label: 'SLA 1bd' };
+  if (bd <= 2)  return { color: '#f59e0b', label: `SLA ${bd}bd` };
+  return { color: '#10b981', label: `SLA ${bd}bd` };
 }
 
 function clientColumn(c: KanbanClient): Column {

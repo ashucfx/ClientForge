@@ -36,7 +36,7 @@ interface ClientDetail {
   lifecycleStatus: string;
   amountPaid: number; currency: string; notes: string | null;
   createdAt: string; lastLoginAt: string | null; invoiceId: string | null;
-  slaDeadline: string | null; slaStatus: string | null;
+  slaDeadline: string | null; slaStatus: string | null; expectedDeliveryAt: string | null;
   forms: FormSubmission[];
   deliverables: Deliverable[];
   emailLogs: EmailLog[];
@@ -120,6 +120,73 @@ function relativeTime(dateStr: string): string {
   const d = Math.floor(h / 24);
   if (d < 30) return `${d}d ago`;
   return fmt(dateStr);
+}
+
+// ── SLA Deadline inline editor ────────────────────────────────────────────────
+
+function SlaDeadlineCell({ client, onUpdated }: {
+  client: ClientDetail;
+  onUpdated: (newDeadline: string | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [saving,  setSaving]  = useState(false);
+  const [val, setVal] = useState('');
+
+  const startEdit = () => {
+    const current = client.slaDeadline ?? client.expectedDeliveryAt;
+    setVal(current ? new Date(current).toISOString().slice(0, 10) : '');
+    setEditing(true);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/career/admin/clients/${client.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expectedDeliveryAt: val || null }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      onUpdated(val ? new Date(val).toISOString() : null);
+      setEditing(false);
+    } catch { alert('Could not save deadline. Try again.'); }
+    finally { setSaving(false); }
+  };
+
+  const deadline = client.slaDeadline ?? client.expectedDeliveryAt;
+
+  return (
+    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+      <div className="flex items-center justify-between mb-0.5">
+        <p className="text-xs text-slate-400 font-medium">SLA Deadline</p>
+        {client.status !== 'COMPLETED' && !editing && (
+          <button onClick={startEdit} className="text-[10px] text-[#B8935B] hover:underline font-semibold leading-none">Edit</button>
+        )}
+      </div>
+      {editing ? (
+        <div className="flex items-center gap-1 mt-1">
+          <input
+            type="date"
+            value={val}
+            onChange={e => setVal(e.target.value)}
+            className="text-xs border border-slate-200 rounded px-1.5 py-0.5 bg-white w-32 outline-none focus:border-[#B8935B]"
+          />
+          <button onClick={save} disabled={saving} className="text-[10px] bg-[#B8935B] text-white px-2 py-1 rounded font-semibold disabled:opacity-50">
+            {saving ? '…' : 'Save'}
+          </button>
+          <button onClick={() => setEditing(false)} className="text-[10px] text-slate-400 px-1 py-1">✕</button>
+        </div>
+      ) : (
+        <p className="text-sm font-bold text-slate-800">
+          {client.status === 'COMPLETED'
+            ? 'Fulfilled'
+            : deadline
+              ? new Date(deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+              : 'Not set'}
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
@@ -267,17 +334,18 @@ export default function CareerClientDetailPage() {
           {/* Stats row */}
           <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
-              { label: 'Amount Paid',  value: `${client.currency} ${client.amountPaid.toLocaleString()}` },
-              { label: 'SLA Deadline', value: client.status === 'COMPLETED' ? 'Fulfilled' : client.slaDeadline ? new Date(client.slaDeadline).toLocaleDateString() : 'None' },
-              { label: 'Forms',        value: `${client.forms.length} submitted` },
-              { label: 'Files',        value: `${client.deliverables.length} / 10 uploaded` },
-              { label: 'Last Login',   value: client.lastLoginAt ? fmt(client.lastLoginAt, true) : 'Never' },
+              { label: 'Amount Paid', value: `${client.currency} ${client.amountPaid.toLocaleString()}` },
+              { label: 'Forms',       value: `${client.forms.length} submitted` },
+              { label: 'Files',       value: `${client.deliverables.length} / 10 uploaded` },
+              { label: 'Last Login',  value: client.lastLoginAt ? fmt(client.lastLoginAt, true) : 'Never' },
             ].map(({ label, value }) => (
               <div key={label} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
                 <p className="text-xs text-slate-400 font-medium mb-0.5">{label}</p>
                 <p className="text-sm font-bold text-slate-800">{value}</p>
               </div>
             ))}
+            {/* Editable SLA Deadline */}
+            <SlaDeadlineCell client={client} onUpdated={(d) => setClient(prev => prev ? { ...prev, slaDeadline: d, expectedDeliveryAt: d } : prev)} />
           </div>
 
           {client.notes && (

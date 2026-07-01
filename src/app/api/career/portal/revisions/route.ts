@@ -10,6 +10,7 @@ import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
 import { notifyAllAdmins } from '@/lib/notifications';
 import { waitUntil } from '@vercel/functions';
+import { addWorkingDays, getHolidaySet } from '@/lib/workingDays';
 
 
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
@@ -132,13 +133,29 @@ export async function POST(req: NextRequest) {
 
   const isFree = true; // Hard limit ensures all successful requests here are free
 
+  // Extend SLA by 3 working days from now to cover revised draft delivery
+  const REVISION_SLA_DAYS = 3;
+  const holidays = await getHolidaySet(db);
+  const revisedDeadline = addWorkingDays(new Date(), REVISION_SLA_DAYS, holidays);
+  await db.careerClient.update({
+    where: { id: client.id },
+    data: {
+      slaDeadline:        revisedDeadline,
+      expectedDeliveryAt: revisedDeadline,
+    },
+  });
+
   // Log activity
   await db.careerActivityLog.create({
     data: {
       clientId: client.id,
       action: 'revision_requested',
       performedBy: 'client',
-      metadata: { note: note.slice(0, 100), fileLabel, serviceSlug, chargeStatus: 'FREE' },
+      metadata: {
+        note: note.slice(0, 100), fileLabel, serviceSlug, chargeStatus: 'FREE',
+        slaExtendedTo: revisedDeadline.toISOString(),
+        slaExtensionDays: REVISION_SLA_DAYS,
+      },
     },
   });
 

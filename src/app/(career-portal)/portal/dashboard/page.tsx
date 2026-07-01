@@ -814,7 +814,11 @@ export default function PortalDashboardPage() {
                     day: 'numeric', month: 'short', year: 'numeric',
                   })}
                 </p>
-                <p className="text-xs text-slate-400 mt-1.5">5 business days from submission</p>
+                <p className="text-xs text-slate-400 mt-1.5">
+                  {me.status === 'REVISION_REQUESTED'
+                    ? '3 business days from revision request'
+                    : 'Business days from brief submission · excludes weekends & public holidays'}
+                </p>
               </>
             ) : (
               <>

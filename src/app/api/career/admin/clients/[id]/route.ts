@@ -57,7 +57,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json({
     client: {
       ...rest,
-      slaDeadline: rest.expectedDeliveryAt,
+      // Prefer slaDeadline; fall back to expectedDeliveryAt for older clients where only that was set
+      slaDeadline: rest.slaDeadline ?? rest.expectedDeliveryAt,
+      expectedDeliveryAt: rest.expectedDeliveryAt ?? rest.slaDeadline,
       forms: optimizedForms,
       services: services.map((s: any) => ({ slug: s.service.slug, name: s.service.name })),
       invoice: linkedInvoice,
@@ -96,6 +98,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
   if (body.amountPaid  !== undefined) data.amountPaid  = Number(body.amountPaid);
   if (body.currency    !== undefined) data.currency    = String(body.currency).trim().toUpperCase();
+  if (body.expectedDeliveryAt !== undefined) {
+    const parsed = body.expectedDeliveryAt ? new Date(body.expectedDeliveryAt) : null;
+    data.expectedDeliveryAt = parsed;
+    data.slaDeadline        = parsed; // always keep in sync
+  }
   if (body.lifecycleStatus !== undefined) {
     data.lifecycleStatus = String(body.lifecycleStatus).trim();
     if (data.lifecycleStatus === 'ACTIVE' && clientCurrentState.lifecycleStatus === 'ARCHIVED') {

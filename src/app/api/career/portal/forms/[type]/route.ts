@@ -10,7 +10,7 @@ import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
 import { getFormsForServices, PACKAGE_FORMS, normalizeFormType, legacyAliasesFor } from '@/lib/career/types';
 import type { FormType, CareerServiceSlug } from '@/lib/career/types';
-import { addWorkingDays, slaForSlugs } from '@/lib/workingDays';
+import { addWorkingDays, slaForSlugs, getHolidaySet } from '@/lib/workingDays';
 import { waitUntil } from '@vercel/functions';
 
 const VALID_FORM_TYPES: FormType[] = ['career_profile', 'linkedin_profile', 'portfolio_website'];
@@ -119,7 +119,8 @@ export async function POST(req: NextRequest, { params }: { params: { type: strin
   // forward from the new submission date, since the work clock restarts on revised inputs).
   const slugs = client.services.map(s => s.service.slug);
   const slaDays = slaForSlugs(slugs);
-  const newDeadline = addWorkingDays(new Date(), slaDays);
+  const holidays = await getHolidaySet(db);
+  const newDeadline = addWorkingDays(new Date(), slaDays, holidays);
   const isFirstSubmission = !client.expectedDeliveryAt;
 
   await db.careerClient.updateMany({
