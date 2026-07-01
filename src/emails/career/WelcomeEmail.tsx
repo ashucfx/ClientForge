@@ -63,6 +63,26 @@ export function WelcomeEmail({ name, packageLabel, portalUrl }: WelcomeEmailProp
         ))}
       </Section>
 
+      {/* Working hours & SLA policy */}
+      <EmailSubheading>Working hours &amp; delivery timelines</EmailSubheading>
+      <Section style={policyCard}>
+        {[
+          ['Mon – Fri', 'Active working days. Our team is fully operational and you can expect responses within a few hours.'],
+          ['Sat & Sun', 'Weekends are rest days — response times may be longer, but active project work continues and deliverables can still arrive.'],
+          ['Public holidays', 'Our team observes Indian national holidays. You\'ll be notified in advance of any upcoming holiday closures.'],
+          ['Your SLA deadline', 'Your expected delivery date is calculated in working days — weekends and public holidays are automatically excluded from the count.'],
+        ].map(([label, text]) => (
+          <Row key={label} style={{ marginBottom: '14px' }}>
+            <Column style={{ width: '110px', verticalAlign: 'top' }}>
+              <Text style={policyLabel}>{label}</Text>
+            </Column>
+            <Column style={{ verticalAlign: 'top', paddingLeft: '12px', borderLeft: '2px solid #e2e8f0' }}>
+              <Text style={policyText}>{text}</Text>
+            </Column>
+          </Row>
+        ))}
+      </Section>
+
       <EmailBody style={{ fontSize: '14px' }}>
         Questions at any stage? Simply reply to this email or reach us at{' '}
         <a href="mailto:catalyst@theripplenexus.com" style={{ color: '#B8935B', textDecoration: 'none', fontWeight: 600 }}>
@@ -135,6 +155,31 @@ const stepText: React.CSSProperties = {
   fontSize: '14px',
   color: '#475569',
   lineHeight: '1.5',
+};
+
+const policyCard: React.CSSProperties = {
+  backgroundColor: '#f8fafc',
+  border: '1px solid #e2e8f0',
+  borderRadius: '10px',
+  padding: '20px 24px',
+  margin: '8px 0 20px',
+};
+
+const policyLabel: React.CSSProperties = {
+  margin: '2px 0 0',
+  fontSize: '11px',
+  fontWeight: 700,
+  color: '#B8935B',
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.5px',
+  lineHeight: '1.5',
+};
+
+const policyText: React.CSSProperties = {
+  margin: '2px 0 0',
+  fontSize: '13px',
+  color: '#475569',
+  lineHeight: '1.55',
 };
 
 const securityNote: React.CSSProperties = {
