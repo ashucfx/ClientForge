@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, Suspense } from 'react';
+import React, { useState, useRef, Suspense, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Check, ArrowRight, Loader2, Lock, Star } from 'lucide-react';
@@ -61,6 +61,17 @@ export default function CatalystCheckoutPage() {
   );
 }
 
+function detectCountry(): { code: string; name: string; phone: string } {
+  if (typeof window === 'undefined') return { code: 'IN', name: 'India', phone: 'in' };
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz === 'Asia/Calcutta' || tz === 'Asia/Kolkata') return { code: 'IN', name: 'India', phone: 'in' };
+  } catch {}
+  return { code: 'US', name: 'United States', phone: 'us' };
+}
+
+const INITIAL_COUNTRY = detectCountry();
+
 function CheckoutPageInner() {
   const searchParams = useSearchParams();
   const referralCode = searchParams.get('ref') ?? undefined;
@@ -71,8 +82,8 @@ function CheckoutPageInner() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [countryCode, setCountryCode] = useState('IN');
-  const [countryName, setCountryName] = useState('India');
+  const [countryCode, setCountryCode] = useState(INITIAL_COUNTRY.code);
+  const [countryName, setCountryName] = useState(INITIAL_COUNTRY.name);
   const [preferredGateway, setPreferredGateway] = useState<'RAZORPAY' | 'PAYPAL'>('PAYPAL');
   const [experienceLevel, setExperienceLevel] = useState<'FRESHER' | 'MID_CAREER' | 'EXECUTIVE' | 'EXECUTIVE_PLUS'>('MID_CAREER');
   const [pricingPreview, setPricingPreview] = useState<{
@@ -95,6 +106,17 @@ function CheckoutPageInner() {
   const [otpError,     setOtpError]     = useState('');
   const [otpResending, setOtpResending] = useState(false);
   const [showTierConfirm, setShowTierConfirm] = useState(false);
+  const [localRate, setLocalRate] = useState<{ rate: number; code: string; symbol: string } | null>(null);
+
+  useEffect(() => {
+    if (countryCode === 'IN') { setLocalRate(null); return; }
+    let cancelled = false;
+    fetch(`/api/public/exchange-rate?country=${encodeURIComponent(countryName)}`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled && d.rate && d.code !== 'USD') setLocalRate(d); else if (!cancelled) setLocalRate(null); })
+      .catch(() => { if (!cancelled) setLocalRate(null); });
+    return () => { cancelled = true; };
+  }, [countryCode, countryName]);
 
   const resolveServices = (): string[] => {
     if (selectedPackage === 'PREMIUM_PLUS') {
@@ -522,7 +544,12 @@ function CheckoutPageInner() {
                               <span className="font-medium text-emerald-700 tabular-nums line-through text-xs text-brand-obsidian/35">{live.sym}{(PRICING.basePrices[countryCode === 'IN' ? 'INR' : 'USD'][s.slug as ServiceSlug]?.[experienceLevel] ?? 0).toLocaleString()}</span>
                             </span>
                           ) : (
-                            <span className="font-medium text-brand-obsidian tabular-nums">{live.sym}{s.price.toLocaleString()}</span>
+                            <span className="text-right">
+                              <span className="font-medium text-brand-obsidian tabular-nums">{live.sym}{s.price.toLocaleString()}</span>
+                              {localRate && s.price > 0 && (
+                                <span className="block text-[10px] text-brand-obsidian/35 tabular-nums">≈ {localRate.symbol}{Math.round(s.price * localRate.rate).toLocaleString()}</span>
+                              )}
+                            </span>
                           )}
                         </div>
                       ))}
@@ -543,7 +570,12 @@ function CheckoutPageInner() {
                       <span className="font-serif text-subheading">
                         {live.discount > 0 ? 'Total' : 'Subtotal'}
                       </span>
-                      <span className="font-bold text-xl text-brand-gold tabular-nums">{live.sym}{live.total.toLocaleString()}</span>
+                      <span className="text-right">
+                        <span className="font-bold text-xl text-brand-gold tabular-nums">{live.sym}{live.total.toLocaleString()}</span>
+                        {localRate && live.total > 0 && (
+                          <span className="block text-xs text-brand-obsidian/40 tabular-nums">≈ {localRate.symbol}{Math.round(live.total * localRate.rate).toLocaleString()} {localRate.code}</span>
+                        )}
+                      </span>
                     </div>
                     <p className="text-[10px] text-brand-obsidian/30 mt-2">
                       + gateway fee &amp; applicable taxes shown at checkout · no card details needed here
@@ -557,6 +589,9 @@ function CheckoutPageInner() {
                 <summary className="cursor-pointer text-xs text-brand-obsidian/40 hover:text-brand-gold uppercase tracking-widest font-semibold list-none flex items-center gap-2 select-none">
                   <svg className="w-3 h-3 transition-transform group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
                   View full pricing table (all services &amp; experience levels)
+                  <span className="ml-auto text-[10px] font-bold text-brand-gold/70 normal-case tracking-normal">
+                    {countryCode === 'IN' ? '₹ INR' : '$ USD'}
+                  </span>
                 </summary>
                 <div className="mt-4 overflow-x-auto">
                   <table className="w-full text-xs border-collapse">
@@ -613,7 +648,7 @@ function CheckoutPageInner() {
               />
               <div className="w-full relative react-phone-container">
                 <PhoneInput
-                  country={'in'}
+                  country={INITIAL_COUNTRY.phone}
                   value={phone}
                   onChange={(value, country, e, formattedValue) => {
                     setPhone(value);
