@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Check, ArrowRight, Loader2, Lock, Star } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { SELF_SERVICE_PACKAGES } from '@/lib/catalog/self-service';
-import { PRICING } from '@/lib/pricing-v2';
+import { PRICING, PACKAGE_COMPLEMENTARY } from '@/lib/pricing-v2';
 import type { ServiceSlug, PackageSlug as PkgSlug } from '@/lib/pricing-v2';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
@@ -40,7 +40,13 @@ function computePrice(
       ? (customSlugs as ServiceSlug[]).filter(s => s in prices)
       : PKG_SERVICES[pkg] ?? [];
 
-  const services = slugs.map(slug => ({ slug, label: SERVICE_LABELS[slug], price: prices[slug]?.[tier] ?? 0 }));
+  const complementarySet = new Set(PACKAGE_COMPLEMENTARY[pkg as PkgSlug] ?? []);
+  const services = slugs.map(slug => ({
+    slug,
+    label: SERVICE_LABELS[slug],
+    price: complementarySet.has(slug) ? 0 : (prices[slug]?.[tier] ?? 0),
+    complimentary: complementarySet.has(slug),
+  }));
   const subtotal  = services.reduce((s, x) => s + x.price, 0);
   const rate      = PRICING.packageDiscounts[pkg as PkgSlug] ?? 0;
   const discount  = Math.round(subtotal * rate);
@@ -71,7 +77,8 @@ function CheckoutPageInner() {
   const [experienceLevel, setExperienceLevel] = useState<'FRESHER' | 'MID_CAREER' | 'EXECUTIVE' | 'EXECUTIVE_PLUS'>('MID_CAREER');
   const [pricingPreview, setPricingPreview] = useState<{
     currency: string; currencySymbol: string;
-    services: { slug: string; price: number }[];
+    services: { slug: string; price: number; complimentary?: boolean }[];
+    complementaryServices: string[];
     subtotal: number; discountRate: number; discountAmount: number;
     subtotalAfterDiscount: number; taxRate: number; taxAmount: number;
     finalPayable: number; isIndia: boolean; gateway: string;
@@ -505,7 +512,14 @@ function CheckoutPageInner() {
                       {live.services.map(s => (
                         <div key={s.slug} className="flex items-center justify-between text-sm">
                           <span className="text-brand-obsidian/70">{s.label}</span>
-                          <span className="font-medium text-brand-obsidian tabular-nums">{live.sym}{s.price.toLocaleString()}</span>
+                          {s.complimentary ? (
+                            <span className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full leading-none">FREE</span>
+                              <span className="font-medium text-emerald-700 tabular-nums line-through text-xs text-brand-obsidian/35">{live.sym}{(PRICING.basePrices[countryCode === 'IN' ? 'INR' : 'USD'][s.slug as ServiceSlug]?.[experienceLevel] ?? 0).toLocaleString()}</span>
+                            </span>
+                          ) : (
+                            <span className="font-medium text-brand-obsidian tabular-nums">{live.sym}{s.price.toLocaleString()}</span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -673,9 +687,16 @@ function CheckoutPageInner() {
                    : s.slug === 'COVER_LETTER' ? 'Cover Letter Writing'
                    : 'Portfolio Website Development'}
                 </span>
-                <span className="font-semibold text-brand-obsidian">
-                  {pricingPreview.currencySymbol}{s.price.toLocaleString()}
-                </span>
+                {s.complimentary ? (
+                  <span className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full leading-none">FREE</span>
+                    <span className="font-semibold text-emerald-700">Complimentary</span>
+                  </span>
+                ) : (
+                  <span className="font-semibold text-brand-obsidian">
+                    {pricingPreview.currencySymbol}{s.price.toLocaleString()}
+                  </span>
+                )}
               </div>
             ))}
           </div>

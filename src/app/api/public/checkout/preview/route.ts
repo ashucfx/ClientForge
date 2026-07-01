@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
     currency: pricing.currency,
     currencySymbol: pricing.currencySymbol,
     services: pricing.services,
+    complementaryServices: pricing.complementaryServices,
     subtotal: pricing.subtotal,
     discountRate: pricing.discountRate,
     discountAmount: pricing.discountAmount,

@@ -13,7 +13,7 @@ export const SELF_SERVICE_PACKAGES: Record<
     features: [
       'Resume Writing — ATS-optimised, tailored to your role',
       'LinkedIn Profile Optimisation + Banner + Profile Picture',
-      'Cover Letter Writing — targeted to each application',
+      'Cover Letter — Complimentary (included free with package)',
       '2 revisions per service',
     ],
   },

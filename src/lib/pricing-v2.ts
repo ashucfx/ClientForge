@@ -23,15 +23,15 @@ export const PRICING: PricingConfig = {
       RESUME: {
         FRESHER: 999,
         MID_CAREER: 1999,
-        EXECUTIVE: 3999,
-        EXECUTIVE_PLUS: 5999,
+        EXECUTIVE: 3499,
+        EXECUTIVE_PLUS: 4499,
         AGENCY_CLIENT: 0,
       },
       LINKEDIN: {
         FRESHER: 499,
         MID_CAREER: 999,
-        EXECUTIVE: 1999,
-        EXECUTIVE_PLUS: 2999,
+        EXECUTIVE: 1499,
+        EXECUTIVE_PLUS: 1999,
         AGENCY_CLIENT: 0,
       },
       COVER_LETTER: {
@@ -53,15 +53,15 @@ export const PRICING: PricingConfig = {
       RESUME: {
         FRESHER: 49,
         MID_CAREER: 99,
-        EXECUTIVE: 99,
-        EXECUTIVE_PLUS: 149,
+        EXECUTIVE: 79,
+        EXECUTIVE_PLUS: 99,
         AGENCY_CLIENT: 0,
       },
       LINKEDIN: {
         FRESHER: 29,
         MID_CAREER: 49,
-        EXECUTIVE: 59,
-        EXECUTIVE_PLUS: 79,
+        EXECUTIVE: 49,
+        EXECUTIVE_PLUS: 59,
         AGENCY_CLIENT: 0,
       },
       COVER_LETTER: {
@@ -81,16 +81,27 @@ export const PRICING: PricingConfig = {
     }
   },
   packageDiscounts: {
-    CAREER_BOOSTER: 0.15, // 15% discount for Resume + LinkedIn + Cover Letter
-    PREMIUM_PLUS: 0.20,   // 20% discount for all 4 services
+    CAREER_BOOSTER: 0.15, // 15% discount on Resume + LinkedIn (Cover Letter is complimentary)
+    PREMIUM_PLUS: 0.20,   // 20% discount on Resume + LinkedIn + Portfolio (Cover Letter is complimentary)
     CUSTOM: 0.0,          // No package discount
   }
+};
+
+/**
+ * Services that are included at no extra charge when purchased as part of a package.
+ * These appear in the breakdown at ₹0/$0 with a "Complimentary" label.
+ * When the same service is added standalone via CUSTOM, it is charged at the normal rate.
+ */
+export const PACKAGE_COMPLEMENTARY: Partial<Record<PackageSlug, ServiceSlug[]>> = {
+  CAREER_BOOSTER: ['COVER_LETTER'],
+  PREMIUM_PLUS:   ['COVER_LETTER'],
 };
 
 export interface PricingBreakdown {
   currency: CurrencyCode;
   currencySymbol: string;
-  services: { slug: ServiceSlug; price: number }[];
+  services: { slug: ServiceSlug; price: number; complimentary?: boolean }[];
+  complementaryServices: ServiceSlug[];   // services zeroed out as part of package deal
   subtotal: number;
   discountRate: number;
   discountAmount: number;
@@ -150,12 +161,14 @@ export async function calculatePricing({
   }
 
   let subtotal = 0;
-  const serviceDetails: { slug: ServiceSlug; price: number }[] = [];
+  const complementarySet = new Set(PACKAGE_COMPLEMENTARY[packageSlug] ?? []);
+  const serviceDetails: { slug: ServiceSlug; price: number; complimentary?: boolean }[] = [];
 
   for (const slug of services) {
-    const price = PRICING.basePrices[baseCurrency][slug][experienceLevel] || 0;
+    const isComplimentary = complementarySet.has(slug);
+    const price = isComplimentary ? 0 : (PRICING.basePrices[baseCurrency][slug][experienceLevel] || 0);
     subtotal += price;
-    serviceDetails.push({ slug, price: price * exchangeRate });
+    serviceDetails.push({ slug, price: price * exchangeRate, ...(isComplimentary ? { complimentary: true } : {}) });
   }
 
   // Convert subtotal to local currency
@@ -211,6 +224,7 @@ export async function calculatePricing({
     currency,
     currencySymbol,
     services: serviceDetails,
+    complementaryServices: Array.from(complementarySet) as ServiceSlug[],
     subtotal: isZeroDecimal ? Math.round(subtotal) : Number(subtotal.toFixed(2)),
     discountRate,
     discountAmount: isZeroDecimal ? Math.round(discountAmount) : Number(discountAmount.toFixed(2)),
