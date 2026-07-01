@@ -125,13 +125,82 @@ const STATUS_STEPS: { key: CareerStatus | 'REVISION_IN_PROGRESS'; label: string 
 ];
 
 const QUOTES = [
+  // Mindset & ambition
   { text: "Your career is your business. It's time to manage it like one.", author: "Dorit Sher" },
   { text: "Success is where preparation and opportunity meet.", author: "Bobby Unser" },
   { text: "The best investment you can ever make is in yourself.", author: "Warren Buffett" },
   { text: "Opportunities don't happen. You create them.", author: "Chris Grosser" },
-  { text: "Your resume is your first impression — make it unforgettable.", author: "Catalyst" },
   { text: "Great things never come from comfort zones.", author: "" },
   { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
+  { text: "It always seems impossible until it's done.", author: "Nelson Mandela" },
+  { text: "Don't watch the clock; do what it does — keep going.", author: "Sam Levenson" },
+  { text: "The future depends on what you do today.", author: "Mahatma Gandhi" },
+  { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
+  { text: "Your limitation — it's only your imagination.", author: "" },
+  { text: "Push yourself, because no one else is going to do it for you.", author: "" },
+  { text: "Sometimes later becomes never. Do it now.", author: "" },
+  { text: "Dream it. Wish it. Do it.", author: "" },
+  { text: "Success doesn't just find you. You have to go out and get it.", author: "" },
+  // Career growth
+  { text: "Your resume is your first impression — make it unforgettable.", author: "Catalyst" },
+  { text: "Choose a job you love and you will never have to work a day in your life.", author: "Confucius" },
+  { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
+  { text: "Don't be afraid to give up the good to go for the great.", author: "John D. Rockefeller" },
+  { text: "I find that the harder I work, the more luck I seem to have.", author: "Thomas Jefferson" },
+  { text: "Success is not final, failure is not fatal — it is the courage to continue that counts.", author: "Winston Churchill" },
+  { text: "Hard work beats talent when talent doesn't work hard.", author: "Tim Notke" },
+  { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
+  { text: "Success usually comes to those who are too busy to be looking for it.", author: "Henry David Thoreau" },
+  { text: "Formal education will make you a living; self-education will make you a fortune.", author: "Jim Rohn" },
+  // Job search & interviews
+  { text: "Your skills are your currency. Keep investing in them.", author: "" },
+  { text: "Every expert was once a beginner. Every pro was once an amateur.", author: "" },
+  { text: "A rejection is nothing more than a necessary step in the pursuit of success.", author: "Bo Bennett" },
+  { text: "The road to success and the road to failure are almost exactly the same.", author: "Colin R. Davis" },
+  { text: "What seems to us as bitter trials are often blessings in disguise.", author: "Oscar Wilde" },
+  { text: "Every accomplishment starts with the decision to try.", author: "John F. Kennedy" },
+  { text: "The difference between who you are and who you want to be is what you do.", author: "" },
+  { text: "Don't limit your challenges. Challenge your limits.", author: "" },
+  { text: "Go the extra mile — it's never crowded.", author: "" },
+  { text: "An investment in knowledge pays the best interest.", author: "Benjamin Franklin" },
+  // LinkedIn & personal brand
+  { text: "Your personal brand is what people say about you when you're not in the room.", author: "Jeff Bezos" },
+  { text: "Build your reputation by helping other people build theirs.", author: "" },
+  { text: "Networking is not about just connecting people. It's about connecting people with people, people with ideas, and people with opportunities.", author: "Michele Jennae" },
+  { text: "Your network is your net worth.", author: "Porter Gale" },
+  { text: "You are the average of the five people you spend the most time with.", author: "Jim Rohn" },
+  { text: "Be so good they can't ignore you.", author: "Steve Martin" },
+  { text: "Opportunities multiply as they are seized.", author: "Sun Tzu" },
+  { text: "In the middle of every difficulty lies opportunity.", author: "Albert Einstein" },
+  // Resilience & perseverance
+  { text: "Our greatest glory is not in never falling, but in rising every time we fall.", author: "Confucius" },
+  { text: "The only place where success comes before work is in the dictionary.", author: "Vidal Sassoon" },
+  { text: "I never dreamed about success. I worked for it.", author: "Estée Lauder" },
+  { text: "Talent wins games, but teamwork and intelligence win championships.", author: "Michael Jordan" },
+  { text: "You miss 100% of the shots you don't take.", author: "Wayne Gretzky" },
+  { text: "Whether you think you can or you think you can't, you're right.", author: "Henry Ford" },
+  { text: "Done is better than perfect.", author: "Sheryl Sandberg" },
+  { text: "Work hard in silence. Let success make the noise.", author: "" },
+  { text: "The only person you should try to be better than is the person you were yesterday.", author: "" },
+  // Execution & discipline
+  { text: "Discipline is the bridge between goals and accomplishment.", author: "Jim Rohn" },
+  { text: "Focus on being productive instead of busy.", author: "Tim Ferriss" },
+  { text: "Great execution beats a great idea every single time.", author: "" },
+  { text: "The way to get started is to quit talking and begin doing.", author: "Walt Disney" },
+  { text: "If you are not willing to risk the usual, you will have to settle for the ordinary.", author: "Jim Rohn" },
+  { text: "Success is the sum of small efforts, repeated day in and day out.", author: "Robert Collier" },
+  { text: "Motivation gets you going. Discipline keeps you growing.", author: "John C. Maxwell" },
+  { text: "A goal without a plan is just a wish.", author: "Antoine de Saint-Exupéry" },
+  { text: "Don't count the days; make the days count.", author: "Muhammad Ali" },
+  // Career change & courage
+  { text: "The biggest risk is not taking any risk.", author: "Mark Zuckerberg" },
+  { text: "Twenty years from now you will be more disappointed by the things you didn't do than by the ones you did.", author: "Mark Twain" },
+  { text: "It's not about having time. It's about making time.", author: "" },
+  { text: "If not now, when?", author: "" },
+  { text: "Your career is a journey, not a destination. Enjoy every milestone.", author: "Catalyst" },
+  { text: "The best view comes after the hardest climb.", author: "" },
+  { text: "Stay hungry, stay foolish.", author: "Steve Jobs" },
+  { text: "Be the change you wish to see in the world — starting with your career.", author: "" },
 ];
 
 // ── Portal service helpers ─────────────────────────────────────────────────────
@@ -431,13 +500,11 @@ export default function PortalDashboardPage() {
     return me.availableForms.every(f => me.submittedForms.includes(f));
   }, [me]);
 
-  // Deterministic quote per client (stable across sessions)
+  // Rotate quote daily — same quote for all clients on a given calendar day, changes at midnight
   const quoteIdx = useMemo(() => {
-    if (!me) return 0;
-    let h = 0;
-    for (let i = 0; i < me.id.length; i++) h = (h * 31 + me.id.charCodeAt(i)) >>> 0;
-    return h % QUOTES.length;
-  }, [me]);
+    const daysSinceEpoch = Math.floor(Date.now() / 86400000);
+    return daysSinceEpoch % QUOTES.length;
+  }, []);
 
   const greeting = useMemo(() => {
     const h = new Date().getHours();
