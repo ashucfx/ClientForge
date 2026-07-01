@@ -469,25 +469,51 @@ function CheckoutPageInner() {
               )}
 
               {countryCode !== 'IN' && (
-                <div className="pt-4">
-                  <p className="text-status uppercase tracking-widest text-brand-obsidian/40 mb-3">
-                    Payment Method
-                  </p>
-                  <div className="flex gap-3">
-                    {(['PAYPAL', 'RAZORPAY'] as const).map((g) => (
-                      <button
-                        key={g}
-                        type="button"
-                        onClick={() => setPreferredGateway(g)}
-                        className={`px-4 py-2 border text-metadata uppercase ${
-                          preferredGateway === g
-                            ? 'border-brand-obsidian bg-brand-obsidian text-brand-bone'
-                            : 'border-brand-parchment'
-                        }`}
-                      >
-                        {g}
-                      </button>
-                    ))}
+                <div className="pt-4 space-y-4">
+                  <div>
+                    <p className="text-status uppercase tracking-widest text-brand-obsidian/40 mb-3">
+                      Payment Method
+                    </p>
+                    <div className="flex gap-3">
+                      {(['PAYPAL', 'RAZORPAY'] as const).map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setPreferredGateway(g)}
+                          className={`px-4 py-2 border text-metadata uppercase ${
+                            preferredGateway === g
+                              ? 'border-brand-obsidian bg-brand-obsidian text-brand-bone'
+                              : 'border-brand-parchment'
+                          }`}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* International payment explainer */}
+                  <div className="flex gap-3 p-4 bg-[#FDFAF6] border border-brand-parchment">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" className="flex-shrink-0 mt-0.5 text-brand-gold">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5"/>
+                      <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" d="M12 8v4M12 16h.01"/>
+                    </svg>
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-semibold text-brand-obsidian">Paying from outside India?</p>
+                      {preferredGateway === 'PAYPAL' ? (
+                        <p className="text-xs text-brand-obsidian/60 leading-relaxed">
+                          Your PayPal account or card will be charged in <strong className="text-brand-obsidian">USD ($)</strong>. PayPal automatically converts this to your local currency (AED, GBP, EUR, etc.) at the rate your bank or PayPal applies. The approximate local amount shown above is for reference only — the final conversion happens at your end.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-brand-obsidian/60 leading-relaxed">
+                          With Razorpay, your card will be charged in your <strong className="text-brand-obsidian">local currency</strong> — no USD conversion needed on your end. The exact local amount is calculated at the prevailing exchange rate and shown at the next step before you pay.
+                        </p>
+                      )}
+                      <p className="text-xs text-brand-obsidian/40">
+                        Questions about payment? Write to us at{' '}
+                        <a href="mailto:catalyst@theripplenexus.com" className="text-brand-gold hover:underline">catalyst@theripplenexus.com</a>
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
