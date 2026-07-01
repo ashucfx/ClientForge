@@ -56,6 +56,15 @@ function IconCheckout({ size = 16 }: { size?: number }) {
     </svg>
   );
 }
+function IconInquire({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
+      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+      </g>
+    </svg>
+  );
+}
 function IconCalendar({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
@@ -355,6 +364,8 @@ function SidebarContent({
             active={isActive('/flywheel', pathname)} accent="#10B981" onClick={onNavigate} />
           <NavLink href="/sales/inquiries" icon={<IconInbox size={16} />} label="Sales Leads"
             active={isActive('/sales/inquiries', pathname)} accent="#10B981" onClick={onNavigate} />
+          <NavLink href="/inquire" icon={<IconInquire size={16} />} label="Inquiry Form"
+            active={false} accent="#10B981" external onClick={onNavigate} />
           <NavLink href="/flywheel/pipeline" icon={<IconPipeline size={16} />} label="Pipeline"
             active={isActive('/flywheel/pipeline', pathname)} accent="#10B981" onClick={onNavigate} />
           <NavLink href="/flywheel/leads" icon={<IconUser size={16} />} label="Audience"
