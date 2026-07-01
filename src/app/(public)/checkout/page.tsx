@@ -94,6 +94,7 @@ function CheckoutPageInner() {
   const [otpCode,      setOtpCode]      = useState('');
   const [otpError,     setOtpError]     = useState('');
   const [otpResending, setOtpResending] = useState(false);
+  const [showTierConfirm, setShowTierConfirm] = useState(false);
 
   const resolveServices = (): string[] => {
     if (selectedPackage === 'PREMIUM_PLUS') {
@@ -105,14 +106,7 @@ function CheckoutPageInner() {
     return customServices;
   };
 
-  const handleReviewOrder = async () => {
-    if (submitting.current) return;
-    if (!name.trim()) return alert('Please enter your full name.');
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return alert('Please enter a valid email address.');
-    if (!phone || phone.replace(/\D/g, '').length < 7) return alert('Please enter a valid phone number including country code.');
-    const services = resolveServices();
-    if (services.length === 0) return alert('Select at least one service.');
-
+  const dispatchOtp = async () => {
     submitting.current = true;
     setLoading(true);
     try {
@@ -136,6 +130,16 @@ function CheckoutPageInner() {
       setLoading(false);
       submitting.current = false;
     }
+  };
+
+  const handleReviewOrder = () => {
+    if (submitting.current) return;
+    if (!name.trim()) return alert('Please enter your full name.');
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return alert('Please enter a valid email address.');
+    if (!phone || phone.replace(/\D/g, '').length < 7) return alert('Please enter a valid phone number including country code.');
+    const services = resolveServices();
+    if (services.length === 0) return alert('Select at least one service.');
+    setShowTierConfirm(true);
   };
 
   const handleResendOtp = async () => {
@@ -761,6 +765,50 @@ function CheckoutPageInner() {
           </p>
         </main>
       )}
+      {/* ── Experience level confirmation modal ─────────────────── */}
+      {showTierConfirm && (() => {
+        const TIER_INFO: Record<ExperienceKey, { label: string; years: string; note: string }> = {
+          FRESHER:        { label: 'Early Career',        years: '0–2 years',  note: 'This tier is designed for graduates, interns, and professionals just entering the workforce.' },
+          MID_CAREER:     { label: 'Mid Career',          years: '3–8 years',  note: 'This tier is designed for professionals with a solid track record in their field.' },
+          EXECUTIVE:      { label: 'Senior / Manager',    years: '9–15 years', note: 'This tier is designed for senior specialists, managers, and team leads with deep domain expertise.' },
+          EXECUTIVE_PLUS: { label: 'Director / Executive', years: '15+ years', note: 'This tier is designed for directors, VPs, and C-suite leaders operating at the highest career level.' },
+        };
+        const info = TIER_INFO[experienceLevel];
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-obsidian/60 backdrop-blur-sm px-6">
+            <div className="bg-white w-full max-w-md p-8 shadow-2xl">
+              <p className="text-status text-brand-gold uppercase tracking-widest font-bold mb-1 text-[10px]">Confirm Experience Level</p>
+              <h2 className="font-serif text-[1.4rem] leading-tight mb-1">{info.label}</h2>
+              <p className="text-sm text-brand-obsidian/40 font-medium mb-5">{info.years}</p>
+              <div className="bg-[#FDFAF6] border border-brand-parchment p-4 mb-6">
+                <p className="text-sm text-brand-obsidian/70 leading-relaxed">{info.note}</p>
+                <p className="text-sm text-brand-obsidian/70 leading-relaxed mt-3">
+                  Our team calibrates the depth, research, and positioning of your documents to this career stage. Selecting a lower level than your actual experience will result in materials that underrepresent your profile.
+                </p>
+              </div>
+              <p className="text-xs text-brand-obsidian/40 mb-6">
+                If this doesn&apos;t match your career stage, please change it before continuing. You won&apos;t be able to switch after payment.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => { setShowTierConfirm(false); void dispatchOtp(); }}
+                  className="w-full inline-flex items-center justify-center gap-2 bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest hover:bg-brand-graphite transition-colors"
+                >
+                  Yes, {info.years} is correct — Continue
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setShowTierConfirm(false)}
+                  className="w-full py-3 text-sm text-brand-obsidian/50 hover:text-brand-obsidian uppercase tracking-widest transition-colors border border-brand-parchment"
+                >
+                  Change Experience Level
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       <style jsx global>{`
         .react-phone-container .flag-dropdown {
           background: transparent !important;
