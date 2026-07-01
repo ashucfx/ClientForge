@@ -53,15 +53,15 @@ export const PRICING: PricingConfig = {
       RESUME: {
         FRESHER: 49,
         MID_CAREER: 99,
-        EXECUTIVE: 79,
-        EXECUTIVE_PLUS: 99,
+        EXECUTIVE: 149,
+        EXECUTIVE_PLUS: 199,
         AGENCY_CLIENT: 0,
       },
       LINKEDIN: {
         FRESHER: 29,
         MID_CAREER: 49,
-        EXECUTIVE: 49,
-        EXECUTIVE_PLUS: 59,
+        EXECUTIVE: 79,
+        EXECUTIVE_PLUS: 109,
         AGENCY_CLIENT: 0,
       },
       COVER_LETTER: {
