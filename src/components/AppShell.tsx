@@ -45,6 +45,17 @@ function IconKanban({ size = 16 }: { size?: number }) {
     </svg>
   );
 }
+function IconCheckout({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
+      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+        <path d="M3 6h18" />
+        <path d="M16 10a4 4 0 01-8 0" />
+      </g>
+    </svg>
+  );
+}
 function IconCalendar({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
@@ -235,21 +246,36 @@ function NavSection({
 
 // ── Nav link ─────────────────────────────────────────────────────
 function NavLink({
-  href, icon, label, active, accent, badge = 0, onClick,
+  href, icon, label, active, accent, badge = 0, onClick, external,
 }: {
   href: string; icon: React.ReactNode; label: string;
-  active: boolean; accent?: string; badge?: number; onClick?: () => void;
+  active: boolean; accent?: string; badge?: number; onClick?: () => void; external?: boolean;
 }) {
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className={`nav-item${active ? ' active' : ''}`}
-      style={accent && !active ? { color: accent } : undefined}
-    >
-      <span className="nav-icon" style={accent && !active ? { color: accent } : undefined}>{icon}</span>
+  const style = accent && !active ? { color: accent } : undefined;
+  const inner = (
+    <>
+      <span className="nav-icon" style={style}>{icon}</span>
       {label}
+      {external && (
+        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" className="ml-auto opacity-40" aria-hidden>
+          <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
+        </svg>
+      )}
       <Badge count={badge} />
+    </>
+  );
+  if (external) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer"
+        className={`nav-item${active ? ' active' : ''}`} style={style}>
+        {inner}
+      </a>
+    );
+  }
+  return (
+    <Link href={href} onClick={onClick}
+      className={`nav-item${active ? ' active' : ''}`} style={style}>
+      {inner}
     </Link>
   );
 }
@@ -317,6 +343,8 @@ function SidebarContent({
               active={isActive('/career/email-logs', pathname)} accent="#B8935B" onClick={onNavigate} />
             <NavLink href="/career/calendar" icon={<IconCalendar size={16} />} label="Holiday Calendar"
               active={isActive('/career/calendar', pathname)} accent="#B8935B" onClick={onNavigate} />
+            <NavLink href="/checkout" icon={<IconCheckout size={16} />} label="Self-Service Checkout"
+              active={false} accent="#B8935B" external onClick={onNavigate} />
           </NavSection>
         )}
 
