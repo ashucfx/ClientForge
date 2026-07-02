@@ -50,6 +50,8 @@ export function EmailShell({ preview, children, brand, headerBadge }: EmailShell
             .tl-step { display: inline-block !important; width: 30% !important; }
             .total-amount { font-size: 24px !important; }
             .btn-pay { display: block !important; text-align: center !important; }
+            .li-row td { vertical-align: top !important; padding: 10px 12px !important; }
+            .li-amount { width: 72px !important; font-size: 13px !important; }
           }
         `}</style>
       </Head>

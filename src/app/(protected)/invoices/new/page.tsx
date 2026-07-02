@@ -171,37 +171,26 @@ function InvoicePreview({
       </div>
 
       {/* Line items */}
-      <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: 'left', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>Description</th>
-              <th style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', paddingBottom: 8, borderBottom: '1px solid var(--border)', width: 36 }}>Qty</th>
-              <th style={{ textAlign: 'right', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', paddingBottom: 8, borderBottom: '1px solid var(--border)', width: 70 }}>Price</th>
-              <th style={{ textAlign: 'right', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', paddingBottom: 8, borderBottom: '1px solid var(--border)', width: 70 }}>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lineItems.map((item, i) => {
-              const lt = round2(item.qty * item.unitPrice);
-              const isFree = lt === 0;
-              return (
-                <tr key={item.id || i}>
-                  <td style={{ padding: '7px 0', color: 'var(--text)', fontSize: 12, borderBottom: i < lineItems.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                    {item.description || <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>No description</span>}
-                  </td>
-                  <td style={{ textAlign: 'center', padding: '7px 0', color: 'var(--muted)', fontSize: 12, borderBottom: i < lineItems.length - 1 ? '1px solid #f1f5f9' : 'none' }}>{item.qty}</td>
-                  <td style={{ textAlign: 'right', padding: '7px 0', color: 'var(--muted)', fontSize: 12, borderBottom: i < lineItems.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                    {isFree ? <span style={{ color: '#16a34a', fontWeight: 700, fontSize: 11 }}>FREE</span> : fmt(item.unitPrice, sym)}
-                  </td>
-                  <td style={{ textAlign: 'right', padding: '7px 0', fontWeight: 700, fontSize: 12, color: isFree ? '#16a34a' : 'var(--text)', borderBottom: i < lineItems.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                    {isFree ? 'FREE' : fmt(lt, sym)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, marginBottom: 2, borderBottom: '1px solid var(--border)' }}>
+          <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: 1, color: 'var(--muted)' }}>Service</span>
+          <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: 1, color: 'var(--muted)' }}>Amount ({code})</span>
+        </div>
+        {lineItems.map((item, i) => {
+          const lt = round2(item.qty * item.unitPrice);
+          const isFree = lt === 0;
+          return (
+            <div key={item.id || i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '6px 0', borderBottom: i < lineItems.length - 1 ? '1px solid #f1f5f9' : 'none', gap: 8 }}>
+              <span style={{ fontSize: 12, color: 'var(--text)', flex: 1, lineHeight: 1.4, wordBreak: 'break-word' as const }}>
+                {item.description || <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>No description</span>}
+                {item.qty !== 1 && <span style={{ fontSize: 10, color: 'var(--muted)', display: 'block' }}>× {item.qty}</span>}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: isFree ? '#16a34a' : 'var(--text)', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
+                {isFree ? 'FREE' : fmt(lt, sym)}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Totals */}

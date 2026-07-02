@@ -281,6 +281,12 @@ export async function POST(request: NextRequest) {
               processingFeeConverted: ppConvert(invoice.processingFeeConverted),
               discountAmount: ppConvert(invoice.discountAmount),
               taxAmount: ppConvert(invoice.taxAmount),
+              // Convert each line item to USD so email shows correct per-service USD prices
+              lineItems: safeItems.map(i => ({
+                ...i,
+                unitPrice: ppConvert(i.unitPrice),
+                lineTotal: ppConvert(i.lineTotal),
+              })),
               localCurrencyCode: currencyCode,
               localEquivalentAmount: totalPayable,
             }),
@@ -336,6 +342,11 @@ export async function POST(request: NextRequest) {
             processingFeeConverted: ppConvert(invoice.processingFeeConverted),
             discountAmount: ppConvert(invoice.discountAmount),
             taxAmount: ppConvert(invoice.taxAmount),
+            lineItems: safeItems.map(i => ({
+              ...i,
+              unitPrice: ppConvert(i.unitPrice),
+              lineTotal: ppConvert(i.lineTotal),
+            })),
             localCurrencyCode: currencyCode,
             localEquivalentAmount: totalPayable,
           }),

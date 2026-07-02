@@ -54,46 +54,43 @@ export function LineItemTable({
         return (
           <Row
             key={item.id}
+            className="li-row"
             style={{
               padding: '12px 16px',
               borderBottom: isLast ? 'none' : '1px solid #EDE9DF',
             }}
           >
-            <Column style={{ verticalAlign: 'middle' as const }}>
-              <table cellPadding={0} cellSpacing={0} role="presentation">
-                <tbody>
-                  <tr>
-                    <td style={{ width: '28px', verticalAlign: 'middle' as const }}>
-                      <div style={{
-                        width: '24px',
-                        height: '24px',
-                        background: isFree ? '#f0fdf4' : brand.primaryLight,
-                        borderRadius: '50%',
-                        textAlign: 'center' as const,
-                        lineHeight: '24px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        color: isFree ? '#16a34a' : brand.primaryColor,
-                        fontFamily: 'Helvetica, Arial, sans-serif',
-                      }}>
-                        {idx + 1}
-                      </div>
-                    </td>
-                    <td style={{ paddingLeft: '10px', verticalAlign: 'middle' as const }}>
-                      <Text style={{ margin: 0, fontSize: '14px', color: '#0f172a', fontWeight: 600, lineHeight: '1.3' }}>
-                        {item.description}
-                      </Text>
-                      {item.qty !== 1 && (
-                        <Text style={{ margin: '2px 0 0', fontSize: '11px', color: '#94a3b8' }}>
-                          Qty: {item.qty} × {fmt(item.unitPrice)}
-                        </Text>
-                      )}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <Column style={{ verticalAlign: 'top' as const }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  minWidth: '24px',
+                  background: isFree ? '#f0fdf4' : brand.primaryLight,
+                  borderRadius: '50%',
+                  textAlign: 'center' as const,
+                  lineHeight: '24px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: isFree ? '#16a34a' : brand.primaryColor,
+                  fontFamily: 'Helvetica, Arial, sans-serif',
+                  flexShrink: 0,
+                }}>
+                  {idx + 1}
+                </div>
+                <div>
+                  <Text style={{ margin: 0, fontSize: '14px', color: '#0f172a', fontWeight: 600, lineHeight: '1.4', wordBreak: 'break-word' as const }}>
+                    {item.description}
+                  </Text>
+                  <Text style={{ margin: '3px 0 0', fontSize: '11px', color: '#94a3b8' }}>
+                    {item.qty !== 1
+                      ? `Qty: ${item.qty} × ${fmt(item.unitPrice)} = ${fmt(lt)}`
+                      : fmt(item.unitPrice)}
+                  </Text>
+                </div>
+              </div>
             </Column>
-            <Column style={{ textAlign: 'right' as const, verticalAlign: 'middle' as const, width: '90px' }}>
+            <Column className="li-amount" style={{ textAlign: 'right' as const, verticalAlign: 'top' as const, width: '90px' }}>
               {isFree ? (
                 <span style={{
                   fontSize: '11px',
@@ -103,11 +100,12 @@ export function LineItemTable({
                   padding: '3px 10px',
                   borderRadius: '20px',
                   border: '1px solid #bbf7d0',
+                  whiteSpace: 'nowrap' as const,
                 }}>
                   FREE
                 </span>
               ) : (
-                <Text style={{ margin: 0, fontSize: '15px', color: '#0f172a', fontWeight: 700 }}>
+                <Text style={{ margin: 0, fontSize: '15px', color: '#0f172a', fontWeight: 700, whiteSpace: 'nowrap' as const }}>
                   {fmt(lt)}
                 </Text>
               )}
