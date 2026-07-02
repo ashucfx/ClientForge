@@ -96,6 +96,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       data.invoiceId = inv.id;
     }
   }
+  if (body.waitingOn   !== undefined) data.waitingOn   = body.waitingOn ? String(body.waitingOn).trim() : null;
   if (body.amountPaid  !== undefined) data.amountPaid  = Number(body.amountPaid);
   if (body.currency    !== undefined) data.currency    = String(body.currency).trim().toUpperCase();
   if (body.expectedDeliveryAt !== undefined) {

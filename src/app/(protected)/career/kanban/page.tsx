@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import AppShell from '@/components/AppShell';
 
@@ -25,7 +25,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const COL_META: Record<Column, { title: string; color: string; waitingOn: string | null }> = {
-  AGENCY:  { title: 'My Queue',         color: '#ef4444', waitingOn: 'AGENCY' },
+  AGENCY:  { title: 'My Queue',          color: '#ef4444', waitingOn: 'AGENCY' },
   CLIENT:  { title: 'Waiting on Client', color: '#eab308', waitingOn: 'CLIENT' },
   OTHER:   { title: 'Other Active',      color: '#64748b', waitingOn: null },
 };
@@ -59,57 +59,39 @@ function clientColumn(c: KanbanClient): Column {
   return 'OTHER';
 }
 
-// ── Drag state singleton (avoids prop drilling) ───────────────────
+// ── Drag state — module-level singleton (one drag at a time) ──────
 let dragId: string | null = null;
 
+// ── Card ─────────────────────────────────────────────────────────
 function KanbanCard({
   client,
   onMove,
-  onRefresh,
 }: {
   client: KanbanClient;
   onMove: (id: string, col: Column) => void;
-  onRefresh: () => void;
 }) {
   const sla = slaInfo(client.slaDeadline);
   const statusColor = STATUS_COLORS[client.status] || '#64748b';
-  const [saving, setSaving] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
 
-  const moveTo = async (newWaitingOn: string) => {
-    if (saving) return;
-    setSaving(true);
-    try {
-      await fetch(`/api/career/admin/clients/${client.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ waitingOn: newWaitingOn }),
-      });
-      onRefresh();
-    } finally { setSaving(false); }
-  };
-
-  // HTML5 drag
-  const handleDragStart = (e: React.DragEvent) => {
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     dragId = client.id;
     e.dataTransfer.effectAllowed = 'move';
-    if (cardRef.current) cardRef.current.style.opacity = '0.5';
+    e.currentTarget.style.opacity = '0.5';
   };
-  const handleDragEnd = () => {
+  const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
     dragId = null;
-    if (cardRef.current) cardRef.current.style.opacity = '';
+    e.currentTarget.style.opacity = '';
   };
 
   return (
     <div
-      ref={cardRef}
       draggable
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       style={{
         background: '#fff',
         borderRadius: 10,
-        border: `1px solid var(--border)`,
+        border: '1px solid var(--border)',
         padding: '12px 14px',
         cursor: 'grab',
         transition: 'box-shadow 0.15s',
@@ -144,18 +126,18 @@ function KanbanCard({
         )}
       </div>
 
-      {/* Quick move + open */}
+      {/* Quick-move buttons — unified with drag via onMove */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {client.waitingOn !== 'CLIENT' && (
-          <button onClick={() => moveTo('CLIENT')} disabled={saving}
+          <button onClick={() => onMove(client.id, 'CLIENT')}
             style={{ fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 6, border: '1px solid #eab30840', background: '#eab30810', color: '#ca9a00', cursor: 'pointer' }}>
-            {saving ? '…' : '→ Client'}
+            → Client
           </button>
         )}
         {client.waitingOn !== 'AGENCY' && (
-          <button onClick={() => moveTo('AGENCY')} disabled={saving}
+          <button onClick={() => onMove(client.id, 'AGENCY')}
             style={{ fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 6, border: '1px solid #ef444440', background: '#ef444410', color: '#ef4444', cursor: 'pointer' }}>
-            {saving ? '…' : '→ My Queue'}
+            → My Queue
           </button>
         )}
         <Link href={`/career/${client.id}`}
@@ -167,21 +149,32 @@ function KanbanCard({
   );
 }
 
+// ── Column ────────────────────────────────────────────────────────
 function KanbanCol({
-  col, clients, onMove, onRefresh,
+  col, clients, filter, onMove,
 }: {
-  col: Column; clients: KanbanClient[]; onMove: (id: string, col: Column) => void; onRefresh: () => void;
+  col: Column; clients: KanbanClient[]; filter: string; onMove: (id: string, col: Column) => void;
 }) {
   const meta = COL_META[col];
   const [over, setOver] = useState(false);
 
-  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setOver(true); };
-  const handleDragLeave = () => setOver(false);
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setOver(true);
+  };
+  // Only clear highlight when cursor actually leaves the column (not just moves to a child card)
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setOver(false);
+  };
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setOver(false);
     if (dragId) onMove(dragId, col);
   };
+
+  const isEmpty = clients.length === 0;
 
   return (
     <div
@@ -196,7 +189,7 @@ function KanbanCol({
         borderRadius: 12,
         padding: 16,
         border: `2px dashed ${over ? meta.color : 'transparent'}`,
-        outline: `1px solid rgba(0,0,0,0.06)`,
+        outline: '1px solid rgba(0,0,0,0.06)',
         transition: 'border-color 0.15s, background 0.15s',
       }}
     >
@@ -211,15 +204,15 @@ function KanbanCol({
         </span>
       </div>
 
-      {/* Cards or empty state */}
-      {clients.length === 0 ? (
+      {/* Cards / empty state */}
+      {isEmpty ? (
         <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-tertiary)', fontSize: 12, border: '1px dashed var(--border)', borderRadius: 8 }}>
-          {over ? 'Drop here' : 'All clear'}
+          {over ? 'Drop here' : filter ? `No results in ${meta.title}` : 'All clear'}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {clients.map(c => (
-            <KanbanCard key={c.id} client={c} onMove={onMove} onRefresh={onRefresh} />
+            <KanbanCard key={c.id} client={c} onMove={onMove} />
           ))}
         </div>
       )}
@@ -227,38 +220,54 @@ function KanbanCol({
   );
 }
 
+// ── Page ──────────────────────────────────────────────────────────
 export default function WorkloadKanbanPage() {
   const [clients, setClients] = useState<KanbanClient[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/career/admin/clients?kanban=true&pageSize=200&lifecycleStatus=ALL');
-      if (res.ok) {
-        const data = await res.json();
-        const all: KanbanClient[] = (data.clients || []).filter(
-          (c: KanbanClient) => c.status !== 'NOT_STARTED' && c.status !== 'COMPLETED'
-        );
-        setClients(all);
+      if (!res.ok) {
+        setError(`Failed to load clients (${res.status}). Please refresh.`);
+        return;
       }
-    } finally { setLoading(false); }
+      const data = await res.json();
+      const all: KanbanClient[] = (data.clients || []).filter(
+        (c: KanbanClient) => c.status !== 'NOT_STARTED' && c.status !== 'COMPLETED'
+      );
+      setClients(all);
+    } catch {
+      setError('Network error — could not load clients.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  // Optimistic move (UI updates immediately, API call follows)
+  // Optimistic move — both drag-drop and quick buttons go through here
   const handleMove = useCallback(async (id: string, toCol: Column) => {
-    const newWaitingOn = COL_META[toCol].waitingOn ?? 'AGENCY';
+    const newWaitingOn = COL_META[toCol].waitingOn; // null for OTHER
     setClients(prev => prev.map(c => c.id === id ? { ...c, waitingOn: newWaitingOn } : c));
     try {
-      await fetch(`/api/career/admin/clients/${id}`, {
+      const res = await fetch(`/api/career/admin/clients/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ waitingOn: newWaitingOn }),
       });
-    } catch { load(); } // rollback on error
+      if (!res.ok) {
+        load(); // rollback by reloading server state
+        setError('Move failed — card reverted. Please try again.');
+      }
+    } catch {
+      load();
+      setError('Network error — card reverted.');
+    }
   }, [load]);
 
   const filtered = filter
@@ -269,7 +278,9 @@ export default function WorkloadKanbanPage() {
     : clients;
 
   const byCol = (col: Column) => filtered.filter(c => clientColumn(c) === col);
-  const slaBreached = clients.filter(c => c.slaDeadline && new Date(c.slaDeadline) < new Date()).length;
+
+  // SLA breach count consistent with what's visible (filtered)
+  const slaBreached = filtered.filter(c => c.slaDeadline && new Date(c.slaDeadline) < new Date()).length;
 
   return (
     <AppShell>
@@ -286,23 +297,47 @@ export default function WorkloadKanbanPage() {
                 ⚠ {slaBreached} SLA breached
               </span>
             )}
-            <input
-              value={filter}
-              onChange={e => setFilter(e.target.value)}
-              placeholder="Filter…"
-              style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, width: 180, outline: 'none' }}
-            />
+            {/* Filter with clear button */}
+            <div style={{ position: 'relative' }}>
+              <label htmlFor="kanban-filter" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>
+                Filter clients
+              </label>
+              <input
+                id="kanban-filter"
+                value={filter}
+                onChange={e => setFilter(e.target.value)}
+                placeholder="Filter by name or service…"
+                style={{ padding: '7px 32px 7px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, width: 210, outline: 'none' }}
+              />
+              {filter && (
+                <button
+                  onClick={() => setFilter('')}
+                  title="Clear filter"
+                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 14, lineHeight: 1, padding: 0 }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
             <button onClick={load} className="btn btn-ghost btn-sm">Refresh</button>
           </div>
         </div>
 
+        {/* Error banner */}
+        {error && (
+          <div style={{ marginBottom: 16, padding: '10px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, fontSize: 13, color: '#dc2626', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {error}
+            <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 700, fontSize: 16, lineHeight: 1 }}>×</button>
+          </div>
+        )}
+
         {/* Summary strip */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
           {([
-            { label: 'My Queue',        count: byCol('AGENCY').length,  color: '#ef4444' },
-            { label: 'Waiting Client',  count: byCol('CLIENT').length,  color: '#eab308' },
-            { label: 'Other Active',    count: byCol('OTHER').length,   color: '#64748b' },
-            { label: 'Total Active',    count: filtered.length,         color: '#B8935B' },
+            { label: 'My Queue',       count: byCol('AGENCY').length, color: '#ef4444' },
+            { label: 'Waiting Client', count: byCol('CLIENT').length, color: '#eab308' },
+            { label: 'Other Active',   count: byCol('OTHER').length,  color: '#64748b' },
+            { label: 'Total Active',   count: filtered.length,        color: '#B8935B' },
           ] as const).map(({ label, count, color }) => (
             <div key={label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 18px', minWidth: 100 }}>
               <div style={{ fontSize: 20, fontWeight: 800, color }}>{count}</div>
@@ -314,13 +349,11 @@ export default function WorkloadKanbanPage() {
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-tertiary)' }}>Loading…</div>
         ) : (
-          /* Columns — horizontal scroll on mobile */
+          /* Columns */
           <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 24, alignItems: 'flex-start', WebkitOverflowScrolling: 'touch' }}>
-            <KanbanCol col="AGENCY" clients={byCol('AGENCY')} onMove={handleMove} onRefresh={load} />
-            <KanbanCol col="CLIENT" clients={byCol('CLIENT')} onMove={handleMove} onRefresh={load} />
-            {byCol('OTHER').length > 0 && (
-              <KanbanCol col="OTHER" clients={byCol('OTHER')} onMove={handleMove} onRefresh={load} />
-            )}
+            <KanbanCol col="AGENCY" clients={byCol('AGENCY')} filter={filter} onMove={handleMove} />
+            <KanbanCol col="CLIENT" clients={byCol('CLIENT')} filter={filter} onMove={handleMove} />
+            <KanbanCol col="OTHER"  clients={byCol('OTHER')}  filter={filter} onMove={handleMove} />
           </div>
         )}
       </div>

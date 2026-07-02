@@ -5,7 +5,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { COUNTRIES } from '@/lib/currency';
-import { CLIENT_TYPE_LABELS, BASE_PRICING, FEE_RATES, round2 } from '@/lib/pricing';
+import { CLIENT_TYPE_LABELS, FEE_RATES, round2 } from '@/lib/pricing';
+import { PRICING, PACKAGE_COMPLEMENTARY } from '@/lib/pricing-v2';
+import type { ServiceSlug, PackageSlug } from '@/lib/pricing-v2';
 import { getCallingCodeForCountryName, normalizePhoneE164 } from '@/lib/phone';
 import type { ClientType, LineItem, CurrencyInfo } from '@/types';
 import { Logo } from '@/components/Logo';
@@ -38,14 +40,39 @@ function makeItem(description = '', qty = 1, unitPrice = 0): LineItem {
   return { id: uid(), description, qty, unitPrice, lineTotal: round2(qty * unitPrice) };
 }
 
-function defaultItemsForType(clientType: ClientType, exchangeRate: number): LineItem[] {
-  const base = BASE_PRICING[clientType];
-  const toConverted = (inr: number) => round2(inr / exchangeRate);
-  return [
-    makeItem('Professional Resume Writing',   1, toConverted(base.resume)),
-    makeItem('LinkedIn Profile Optimization', 1, toConverted(base.linkedin)),
-    makeItem('Cover Letter Template',         1, 0),
-  ];
+const PKG_SERVICES: Record<Exclude<PackageSlug, 'CUSTOM'>, ServiceSlug[]> = {
+  CAREER_BOOSTER: ['RESUME', 'LINKEDIN', 'COVER_LETTER'],
+  PREMIUM_PLUS:   ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'],
+};
+
+const SERVICE_LABELS: Record<ServiceSlug, string> = {
+  RESUME:       'Professional Resume Writing',
+  LINKEDIN:     'LinkedIn Profile Optimisation',
+  COVER_LETTER: 'Cover Letter Writing',
+  PORTFOLIO:    'Portfolio Website Development',
+};
+
+const PKG_META: Record<PackageSlug, { label: string; sub: string; color: string }> = {
+  CAREER_BOOSTER: { label: 'Career Booster',  sub: 'Resume + LinkedIn + Cover Letter (15% off)', color: '#B8935B' },
+  PREMIUM_PLUS:   { label: 'Premium Plus',     sub: 'All four services (20% off)',                color: '#8b5cf6' },
+  CUSTOM:         { label: 'Custom',           sub: 'Build your own line items manually',         color: '#64748b' },
+};
+
+function defaultItemsForPackage(
+  packageSlug: PackageSlug,
+  clientType: ClientType,
+  currencyCode: string,
+  exchangeRate: number,
+): LineItem[] {
+  if (packageSlug === 'CUSTOM') return [makeItem()];
+  const baseCurrency: 'INR' | 'USD' = currencyCode === 'INR' ? 'INR' : 'USD';
+  const complementarySet = new Set(PACKAGE_COMPLEMENTARY[packageSlug] ?? []);
+  return PKG_SERVICES[packageSlug].map(slug => {
+    const isComplimentary = complementarySet.has(slug);
+    const basePrice = isComplimentary ? 0 : (PRICING.basePrices[baseCurrency][slug][clientType] ?? 0);
+    const finalPrice = baseCurrency === 'INR' ? basePrice : round2(basePrice * exchangeRate);
+    return makeItem(SERVICE_LABELS[slug] + (isComplimentary ? ' (Complimentary)' : ''), 1, finalPrice);
+  });
 }
 
 // ─── Sub-components ────────────────────────────
@@ -226,7 +253,8 @@ export default function NewInvoicePage() {
   const [clientPhone, setClientPhone] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [country,     setCountry]     = useState('India');
-  const [clientType,  setClientType]  = useState<ClientType>('FRESHER');
+  const [clientType,   setClientType]   = useState<ClientType>('FRESHER');
+  const [packageSlug,  setPackageSlug]  = useState<PackageSlug>('CAREER_BOOSTER');
   const [currencyOverride, setCurrencyOverride] = useState('');
 
   // Invoice settings
@@ -296,7 +324,8 @@ export default function NewInvoicePage() {
       setLineItems([makeItem('B2B Service / Retainer', 1, 0)]);
     } else {
       setClientType('FRESHER');
-      setLineItems(defaultItemsForType('FRESHER', exchangeRate));
+      setPackageSlug('CAREER_BOOSTER');
+      setLineItems(defaultItemsForPackage('CAREER_BOOSTER', 'FRESHER', currencyInfo?.code ?? 'INR', exchangeRate));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brandId]);
@@ -317,15 +346,18 @@ export default function NewInvoicePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRnServiceId, brandId, rnServices]);
 
-  // Re-populate default items when client type or exchange rate changes
+  // Re-populate default items when client type, package, or exchange rate changes
   const initialized = useRef(false);
   useEffect(() => {
     if (!initialized.current) {
       initialized.current = true;
     }
-    setLineItems(defaultItemsForType(clientType, exchangeRate));
+    if (brandId !== 'catalyst') return;
+    if (packageSlug === 'CUSTOM') return; // user is building manually
+    setLineItems(defaultItemsForPackage(packageSlug, clientType, currencyInfo?.code ?? 'INR', exchangeRate));
+    setDiscountRate(PRICING.packageDiscounts[packageSlug] ?? 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientType, exchangeRate]);
+  }, [clientType, packageSlug, exchangeRate]);
 
   // ── Line item helpers ──
   const updateItem = (id: string, field: keyof LineItem, value: string | number) => {
@@ -561,12 +593,15 @@ export default function NewInvoicePage() {
                   {CLIENT_TYPES.map(t => {
                     const meta = CLIENT_META[t];
                     const sel  = clientType === t;
-                    const base = BASE_PRICING[t];
-                    const baseInr = base.resume + base.linkedin;
-                    const converted = round2(baseInr / exchangeRate);
-                    const fromLabel = (currencyInfo?.code ?? 'INR') === 'INR'
-                      ? `from ${sym}${baseInr.toLocaleString('en-IN')}`
-                      : `from ${fmt(converted, sym)}${currencyInfo?.code ? ` ${currencyInfo.code}` : ''}`;
+                    const isInr = (currencyInfo?.code ?? 'INR') === 'INR';
+                    const baseCur = isInr ? 'INR' : 'USD';
+                    const resumeBase = PRICING.basePrices[baseCur].RESUME[t] ?? 0;
+                    const linkedinBase = PRICING.basePrices[baseCur].LINKEDIN[t] ?? 0;
+                    const baseSum = resumeBase + linkedinBase;
+                    const displayPrice = isInr ? baseSum : round2(baseSum * exchangeRate);
+                    const fromLabel = isInr
+                      ? `from ${sym}${displayPrice.toLocaleString('en-IN')}`
+                      : `from ${fmt(displayPrice, sym)}${currencyInfo?.code ? ` ${currencyInfo.code}` : ''}`;
                     return (
                       <button
                         key={t}
@@ -598,7 +633,50 @@ export default function NewInvoicePage() {
               </SectionCard>
             )}
 
-            {/* 2b. B2B Service (Ripple Nexus Only) */}
+            {/* 2b. Package Selector (Catalyst Only) */}
+            {brandId === 'catalyst' && (
+              <SectionCard title="Package" icon={<IconList />}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                  {(Object.keys(PKG_META) as PackageSlug[]).map(pkg => {
+                    const meta = PKG_META[pkg];
+                    const sel  = packageSlug === pkg;
+                    return (
+                      <button
+                        key={pkg}
+                        type="button"
+                        onClick={() => setPackageSlug(pkg)}
+                        style={{
+                          border: `2px solid ${sel ? meta.color : 'var(--border)'}`,
+                          background: sel ? `${meta.color}10` : '#fff',
+                          borderRadius: 12, padding: '12px 14px', cursor: 'pointer',
+                          textAlign: 'left', transition: 'all .15s',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: sel ? meta.color : 'var(--text)' }}>
+                            {meta.label}
+                          </span>
+                          {sel && <div style={{ width: 7, height: 7, borderRadius: '50%', background: meta.color, flexShrink: 0 }} />}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.4 }}>{meta.sub}</div>
+                        {pkg !== 'CUSTOM' && (
+                          <div style={{ fontSize: 10, fontWeight: 600, color: meta.color, marginTop: 6 }}>
+                            {(PRICING.packageDiscounts[pkg] ?? 0) * 100}% off
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {packageSlug === 'CUSTOM' && (
+                  <div style={{ marginTop: 10, fontSize: 12, color: 'var(--muted)', padding: '8px 12px', background: '#f8fafc', borderRadius: 8, borderLeft: '3px solid #64748b' }}>
+                    Custom mode — add or edit line items freely below.
+                  </div>
+                )}
+              </SectionCard>
+            )}
+
+            {/* 2c. B2B Service (Ripple Nexus Only) */}
             {brandId === 'ripple_nexus' && (
               <SectionCard title="B2B Service" icon={<IconTarget />}>
                 <FieldLabel label="Select Service Module" required />
