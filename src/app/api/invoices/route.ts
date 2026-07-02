@@ -184,8 +184,7 @@ export async function POST(request: NextRequest) {
     const invoiceDate    = new Date();
     const dueDate        = addDays(invoiceDate, dueDays);
     const isSplit        = installmentCount > 1;
-    const gateway: 'RAZORPAY' | 'PAYPAL' =
-      currencyCode === 'INR' ? 'RAZORPAY' : (requestedGateway ?? 'PAYPAL');
+    const gateway: 'RAZORPAY' | 'PAYPAL' = requestedGateway ?? 'RAZORPAY';
 
     // ── Create invoice record (draft) ──
     let invoice;

@@ -266,7 +266,7 @@ export default function NewInvoicePage() {
   const [taxRate,         setTaxRate]         = useState(0);
   const [notes,           setNotes]           = useState('');
   const [dueDays,         setDueDays]         = useState(7);
-  const [paymentGateway,  setPaymentGateway]  = useState<'RAZORPAY' | 'PAYPAL'>('PAYPAL');
+  const [paymentGateway,  setPaymentGateway]  = useState<'RAZORPAY' | 'PAYPAL'>('RAZORPAY');
   const [installmentCount, setInstallmentCount] = useState<1 | 2 | 3>(1);
 
   // Currency state
@@ -313,10 +313,9 @@ export default function NewInvoicePage() {
     return () => clearTimeout(t);
   }, [fetchRate]);
 
-  // Auto-switch gateway when currency changes
+  // Lock to Razorpay when country is India (INR enforced server-side too)
   useEffect(() => {
-    const code = currencyInfo?.code ?? 'INR';
-    setPaymentGateway(code === 'INR' ? 'RAZORPAY' : 'PAYPAL');
+    if ((currencyInfo?.code ?? 'INR') === 'INR') setPaymentGateway('RAZORPAY');
   }, [currencyInfo?.code]);
 
   useEffect(() => {
