@@ -62,15 +62,18 @@ function defaultItemsForPackage(
   packageSlug: PackageSlug,
   clientType: ClientType,
   currencyCode: string,
-  exchangeRate: number,
+  inrToLocalRate: number,  // INR → local (used when currencyCode === 'INR')
+  usdToLocalRate: number,  // USD → local (used for all other currencies)
 ): LineItem[] {
   if (packageSlug === 'CUSTOM') return [makeItem()];
-  const baseCurrency: 'INR' | 'USD' = currencyCode === 'INR' ? 'INR' : 'USD';
+  const isInr = currencyCode === 'INR';
+  const baseCurrency: 'INR' | 'USD' = isInr ? 'INR' : 'USD';
+  const convRate = isInr ? inrToLocalRate : usdToLocalRate;
   const complementarySet = new Set(PACKAGE_COMPLEMENTARY[packageSlug] ?? []);
   return PKG_SERVICES[packageSlug].map(slug => {
     const isComplimentary = complementarySet.has(slug);
     const basePrice = isComplimentary ? 0 : (PRICING.basePrices[baseCurrency][slug][clientType] ?? 0);
-    const finalPrice = baseCurrency === 'INR' ? basePrice : round2(basePrice * exchangeRate);
+    const finalPrice = isInr ? basePrice : round2(basePrice * convRate);
     return makeItem(SERVICE_LABELS[slug] + (isComplimentary ? ' (Complimentary)' : ''), 1, finalPrice);
   });
 }
@@ -267,9 +270,10 @@ export default function NewInvoicePage() {
   const [installmentCount, setInstallmentCount] = useState<1 | 2 | 3>(1);
 
   // Currency state
-  const [currencyInfo,  setCurrencyInfo]  = useState<CurrencyInfo | null>({ code: 'INR', symbol: '₹', name: 'Indian Rupee' });
-  const [exchangeRate,  setExchangeRate]  = useState(1);
-  const [rateLoading,   setRateLoading]   = useState(false);
+  const [currencyInfo,    setCurrencyInfo]    = useState<CurrencyInfo | null>({ code: 'INR', symbol: '₹', name: 'Indian Rupee' });
+  const [exchangeRate,    setExchangeRate]    = useState(1);   // INR → local
+  const [usdExchangeRate, setUsdExchangeRate] = useState(83.5); // USD → local (≈ INR/USD fallback for IN)
+  const [rateLoading,     setRateLoading]     = useState(false);
 
   // Ripple Nexus Services
   const [rnServices, setRnServices] = useState<{ id: string; name: string; slug: string; workflowStages: string[] }[]>([]);
@@ -299,6 +303,7 @@ export default function NewInvoicePage() {
       const data = await res.json();
       if (data.currency)     setCurrencyInfo(data.currency);
       if (data.exchangeRate) setExchangeRate(data.exchangeRate);
+      if (data.usdRate)      setUsdExchangeRate(data.usdRate);
     } catch { /* silent */ }
     finally { setRateLoading(false); }
   }, [country, currencyOverride]);
@@ -325,7 +330,7 @@ export default function NewInvoicePage() {
     } else {
       setClientType('FRESHER');
       setPackageSlug('CAREER_BOOSTER');
-      setLineItems(defaultItemsForPackage('CAREER_BOOSTER', 'FRESHER', currencyInfo?.code ?? 'INR', exchangeRate));
+      setLineItems(defaultItemsForPackage('CAREER_BOOSTER', 'FRESHER', currencyInfo?.code ?? 'INR', exchangeRate, usdExchangeRate));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brandId]);
@@ -354,7 +359,7 @@ export default function NewInvoicePage() {
     }
     if (brandId !== 'catalyst') return;
     if (packageSlug === 'CUSTOM') return; // user is building manually
-    setLineItems(defaultItemsForPackage(packageSlug, clientType, currencyInfo?.code ?? 'INR', exchangeRate));
+    setLineItems(defaultItemsForPackage(packageSlug, clientType, currencyInfo?.code ?? 'INR', exchangeRate, usdExchangeRate));
     setDiscountRate(PRICING.packageDiscounts[packageSlug] ?? 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientType, packageSlug, exchangeRate]);
@@ -598,7 +603,7 @@ export default function NewInvoicePage() {
                     const resumeBase = PRICING.basePrices[baseCur].RESUME[t] ?? 0;
                     const linkedinBase = PRICING.basePrices[baseCur].LINKEDIN[t] ?? 0;
                     const baseSum = resumeBase + linkedinBase;
-                    const displayPrice = isInr ? baseSum : round2(baseSum * exchangeRate);
+                    const displayPrice = isInr ? baseSum : round2(baseSum * usdExchangeRate);
                     const fromLabel = isInr
                       ? `from ${sym}${displayPrice.toLocaleString('en-IN')}`
                       : `from ${fmt(displayPrice, sym)}${currencyInfo?.code ? ` ${currencyInfo.code}` : ''}`;

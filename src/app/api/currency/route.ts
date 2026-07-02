@@ -26,11 +26,14 @@ export async function GET(request: NextRequest) {
     : getCurrencyForCountry(country ?? '');
 
   const exchangeRate = await getExchangeRate('INR', currencyInfo.code);
+  // usdRate is needed by the invoice page to convert USD base prices to local currency
+  const usdRate = currencyInfo.code === 'INR' ? (1 / (await getExchangeRate('INR', 'USD'))) : await getExchangeRate('USD', currencyInfo.code);
 
   if (!clientType) {
     return NextResponse.json({
       currency: currencyInfo,
       exchangeRate,
+      usdRate,
     });
   }
 
@@ -45,6 +48,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     currency: currencyInfo,
     exchangeRate,
+    usdRate,
     pricing,
   });
 }
