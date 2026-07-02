@@ -8,12 +8,8 @@ export const PAYPAL_API =
     ? 'https://api-m.sandbox.paypal.com'
     : 'https://api-m.paypal.com';
 
-// PayPal only supports these currency codes — everything else must be converted to USD
-export const PAYPAL_SUPPORTED_CURRENCIES = new Set([
-  'AUD','BRL','CAD','CNY','CZK','DKK','EUR','GBP','HKD','HUF',
-  'ILS','JPY','MYR','MXN','NOK','NZD','PHP','PLN','RUB','SGD',
-  'SEK','CHF','TWD','THB','USD',
-]);
+export { PAYPAL_SUPPORTED_CURRENCIES } from './paypal-currencies';
+import { PAYPAL_SUPPORTED_CURRENCIES } from './paypal-currencies';
 
 export function paypalCurrency(code: string): string {
   return PAYPAL_SUPPORTED_CURRENCIES.has(code) ? code : 'USD';

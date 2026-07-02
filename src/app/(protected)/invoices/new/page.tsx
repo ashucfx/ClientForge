@@ -16,7 +16,7 @@ import AppShell from '@/components/AppShell';
 import { format, addDays } from 'date-fns';
 import { isRnModuleEnabledClient } from '@/lib/brand/flags';
 import type { BrandId } from '@/lib/brand/types';
-import { PAYPAL_SUPPORTED_CURRENCIES } from '@/lib/paypal';
+import { PAYPAL_SUPPORTED_CURRENCIES } from '@/lib/paypal-currencies';
 import { useAdmin } from '@/components/AdminProvider';
 import { useBrand } from '@/components/BrandProvider';
 
@@ -99,6 +99,108 @@ function SectionCard({ title, icon, children, noPad }: { title: string; icon: Re
         <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{title}</h2>
       </div>
       <div style={noPad ? {} : { padding: '20px' }}>{children}</div>
+    </div>
+  );
+}
+
+// ─── Email Preview Pane ────────────────────────
+function EmailPreviewPane({
+  clientName, clientEmail, clientType, country, companyName,
+  lineItems, discountRate, taxRate, notes, dueDays,
+  currencyInfo, exchangeRate, usdExchangeRate, brandId,
+  paymentGateway, paypalWillConvertToUsd,
+}: {
+  clientName: string; clientEmail: string; clientType: ClientType;
+  country: string; companyName: string;
+  lineItems: LineItem[]; discountRate: number; taxRate: number;
+  notes: string; dueDays: number;
+  currencyInfo: CurrencyInfo | null; exchangeRate: number; usdExchangeRate: number;
+  brandId: BrandId; paymentGateway: 'RAZORPAY' | 'PAYPAL'; paypalWillConvertToUsd: boolean;
+}) {
+  const [html, setHtml] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const fetchPreview = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/invoices/email-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientName, clientEmail, clientType, country, companyName,
+          lineItems, discountRate, taxRate, notes, dueDays,
+          currency:       currencyInfo?.code   ?? 'INR',
+          currencySymbol: currencyInfo?.symbol ?? '₹',
+          exchangeRate, usdExchangeRate, brandId,
+          paymentGateway, paypalWillConvertToUsd,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Preview failed');
+      setHtml(data.html ?? '');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Preview error');
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    clientName, clientEmail, clientType, country, companyName,
+    lineItems, discountRate, taxRate, notes, dueDays,
+    currencyInfo, exchangeRate, usdExchangeRate, brandId,
+    paymentGateway, paypalWillConvertToUsd,
+  ]);
+
+  // Fetch on first mount (key-based remount handles tab switching)
+  useEffect(() => { fetchPreview(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div style={{ borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden', background: '#fff', boxShadow: 'var(--shadow-lg)' }}>
+      {/* Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--border)', background: '#f8fafc' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: loading ? '#f59e0b' : '#22c55e', display: 'inline-block' }} />
+          {loading ? 'Rendering…' : 'Email Preview'}
+        </div>
+        <button
+          type="button"
+          onClick={fetchPreview}
+          disabled={loading}
+          className="btn btn-ghost"
+          style={{ fontSize: 11, padding: '4px 10px', opacity: loading ? 0.5 : 1 }}
+        >
+          ↻ Refresh
+        </button>
+      </div>
+
+      {/* Content */}
+      <div style={{ position: 'relative', minHeight: 320 }}>
+        {loading && !html && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: 13, gap: 8 }}>
+            <span style={{ display: 'inline-flex', animation: 'spin 0.9s linear infinite' }}><IconSpinner /></span>
+            Rendering email…
+          </div>
+        )}
+        {error && (
+          <div style={{ padding: 16, color: '#b91c1c', fontSize: 12, background: '#fef2f2' }}>
+            ⚠ {error}
+          </div>
+        )}
+        {html && (
+          <iframe
+            srcDoc={html}
+            title="Email Preview"
+            sandbox="allow-same-origin"
+            style={{ width: '100%', height: 680, border: 'none', display: 'block' }}
+          />
+        )}
+      </div>
+
+      {/* Footer note */}
+      <div style={{ padding: '8px 14px', borderTop: '1px solid var(--border)', background: '#f8fafc', fontSize: 10, color: 'var(--muted)' }}>
+        This is the exact HTML sent to the client via Resend. Pay Now link points to <code>#preview-pay</code>.
+      </div>
     </div>
   );
 }
@@ -283,9 +385,11 @@ export default function NewInvoicePage() {
   const [selectedRnServiceId, setSelectedRnServiceId] = useState<string>('');
 
   // UI state
-  const [submitting, setSubmitting] = useState(false);
-  const [error,      setError]      = useState('');
-  const [toast,      setToast]      = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const [submitting,       setSubmitting]       = useState(false);
+  const [error,            setError]            = useState('');
+  const [toast,            setToast]            = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const [previewTab,       setPreviewTab]       = useState<'invoice' | 'email'>('invoice');
+  const [emailPreviewKey,  setEmailPreviewKey]  = useState(0);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorRef   = useRef<HTMLDivElement | null>(null);
 
@@ -1071,29 +1175,74 @@ export default function NewInvoicePage() {
               </div>
             </div>
 
-            {/* Live preview */}
+            {/* Preview — tab bar + content */}
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 10, paddingLeft: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-                Live Preview
+              {/* Tab bar */}
+              <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: '#f1f5f9', borderRadius: 10, padding: 3 }}>
+                {([
+                  { key: 'invoice', label: '📄 Invoice Preview' },
+                  { key: 'email',   label: '✉️ Email Preview' },
+                ] as const).map(tab => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => {
+                      setPreviewTab(tab.key);
+                      if (tab.key === 'email') setEmailPreviewKey(k => k + 1);
+                    }}
+                    style={{
+                      flex: 1, padding: '7px 10px', border: 'none', borderRadius: 8, cursor: 'pointer',
+                      fontSize: 12, fontWeight: previewTab === tab.key ? 700 : 500,
+                      color: previewTab === tab.key ? 'var(--text)' : 'var(--muted)',
+                      background: previewTab === tab.key ? '#fff' : 'transparent',
+                      boxShadow: previewTab === tab.key ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                      transition: 'all .15s',
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
-              <InvoicePreview
-                clientName={clientName}
-                clientEmail={clientEmail}
-                clientType={clientType}
-                country={country}
-                companyName={companyName}
-                lineItems={lineItems}
-                discountRate={discountRate}
-                taxRate={taxRate}
-                notes={notes}
-                dueDays={dueDays}
-                currencyInfo={currencyInfo}
-                exchangeRate={exchangeRate}
-                brandId={brandId}
-                paypalWillConvertToUsd={paypalWillConvertToUsd}
-                usdExchangeRate={usdExchangeRate}
-              />
+
+              {previewTab === 'invoice' ? (
+                <InvoicePreview
+                  clientName={clientName}
+                  clientEmail={clientEmail}
+                  clientType={clientType}
+                  country={country}
+                  companyName={companyName}
+                  lineItems={lineItems}
+                  discountRate={discountRate}
+                  taxRate={taxRate}
+                  notes={notes}
+                  dueDays={dueDays}
+                  currencyInfo={currencyInfo}
+                  exchangeRate={exchangeRate}
+                  brandId={brandId}
+                  paypalWillConvertToUsd={paypalWillConvertToUsd}
+                  usdExchangeRate={usdExchangeRate}
+                />
+              ) : (
+                <EmailPreviewPane
+                  key={emailPreviewKey}
+                  clientName={clientName}
+                  clientEmail={clientEmail}
+                  clientType={clientType}
+                  country={country}
+                  companyName={companyName}
+                  lineItems={lineItems}
+                  discountRate={discountRate}
+                  taxRate={taxRate}
+                  notes={notes}
+                  dueDays={dueDays}
+                  currencyInfo={currencyInfo}
+                  exchangeRate={exchangeRate}
+                  usdExchangeRate={usdExchangeRate}
+                  brandId={brandId}
+                  paymentGateway={paymentGateway}
+                  paypalWillConvertToUsd={paypalWillConvertToUsd}
+                />
+              )}
             </div>
           </div>
         </div>
