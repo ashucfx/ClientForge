@@ -840,25 +840,25 @@ export default function NewInvoicePage() {
             {(currencyInfo?.code ?? 'INR') !== 'INR' && (
               <SectionCard title="Payment Gateway" icon={<IconCreditCard />}>
                 <div style={{ marginBottom: 10, fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
-                  Indian clients (INR) always use <strong>Razorpay</strong>. For international clients you can choose.
-                  PayPal is recommended — lower conversion losses and familiar to international buyers.
+                  Razorpay supports multi-currency — invoice is created in the client&apos;s local currency.
+                  PayPal is also available if the client prefers it.
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   {([
                     {
-                      value: 'PAYPAL' as const,
-                      label: 'PayPal',
-                      sub: 'Recommended for international',
-                      fee: '3.49% + fixed fee',
-                      color: '#003087',
-                      badge: 'Recommended',
-                    },
-                    {
                       value: 'RAZORPAY' as const,
                       label: 'Razorpay',
-                      sub: 'Works internationally too',
-                      fee: '3% + GST (may vary)',
+                      sub: 'Charges in local currency',
+                      fee: '3% international fee',
                       color: '#B8935B',
+                      badge: 'Default',
+                    },
+                    {
+                      value: 'PAYPAL' as const,
+                      label: 'PayPal',
+                      sub: 'USD or supported currencies',
+                      fee: '3.49% + fixed fee',
+                      color: '#003087',
                       badge: null,
                     },
                   ] as const).map(opt => {
