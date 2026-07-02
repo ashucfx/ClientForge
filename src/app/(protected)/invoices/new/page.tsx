@@ -388,7 +388,7 @@ export default function NewInvoicePage() {
   const [submitting,       setSubmitting]       = useState(false);
   const [error,            setError]            = useState('');
   const [toast,            setToast]            = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
-  const [previewTab,       setPreviewTab]       = useState<'invoice' | 'email'>('invoice');
+  const [activeTab,        setActiveTab]        = useState<'form' | 'invoice' | 'email'>('form');
   const [emailPreviewKey,  setEmailPreviewKey]  = useState(0);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorRef   = useRef<HTMLDivElement | null>(null);
@@ -580,11 +580,40 @@ export default function NewInvoicePage() {
           </p>
         </div>
 
-        {/* Split layout — stacks on mobile */}
-        <div className="invoice-form-grid">
+        {/* ── Page tab navigation ── */}
+        <div style={{ display: 'flex', gap: 3, marginBottom: 28, background: '#f1f5f9', borderRadius: 14, padding: 4 }}>
+          {([
+            { key: 'form'    as const, label: 'Details & Items', icon: '📝' },
+            { key: 'invoice' as const, label: 'Invoice Preview',  icon: '📄' },
+            { key: 'email'   as const, label: 'Email Preview',    icon: '✉️' },
+          ]).map(tab => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => {
+                setActiveTab(tab.key);
+                if (tab.key === 'email') setEmailPreviewKey(k => k + 1);
+              }}
+              style={{
+                flex: 1, padding: '10px 12px', border: 'none', borderRadius: 10, cursor: 'pointer',
+                fontSize: 13, fontWeight: activeTab === tab.key ? 700 : 500,
+                color: activeTab === tab.key ? 'var(--text)' : 'var(--muted)',
+                background: activeTab === tab.key ? '#fff' : 'transparent',
+                boxShadow: activeTab === tab.key ? '0 1px 6px rgba(0,0,0,0.1)' : 'none',
+                transition: 'all .15s',
+                whiteSpace: 'nowrap' as const,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+            >
+              <span style={{ fontSize: 14 }}>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
 
-          {/* ── Left: Form ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* ── Form tab ── */}
+        {activeTab === 'form' && (
+          <div style={{ maxWidth: 800, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
           
             {rnEnabled && (hasCatalystAccess && hasRnAccess) && (
               <SectionCard title="Brand & Operational Unit" icon={<IconBuilding />}>
@@ -1151,101 +1180,82 @@ export default function NewInvoicePage() {
               )}
             </button>
           </div>
+        )}
 
-          {/* ── Right: Sticky preview ── */}
-          <div className="invoice-preview-col">
-            {/* What happens next */}
-            <div className="card" style={{ padding: '16px 18px' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 12 }}>What Happens Next</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {([
-                  [<IconList key="inv" />, 'Unique invoice number generated'],
-                  [<IconLink key="link" />, `${(currencyInfo?.code ?? 'INR') === 'INR' ? 'Razorpay' : paymentGateway === 'PAYPAL' ? 'PayPal' : 'Razorpay'} payment link created`],
-                  [<IconMail key="mail" />, 'Branded email sent instantly'],
-                  [<IconCreditCard key="pay" />, 'Client pays via secure link'],
-                  [<IconCheck key="ok" style={{ color: '#3FBD8B' }} />, 'Status auto-updates on payment'],
-                ] as const).map(([icon, text], i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <span style={{ width: 18, height: 18, flexShrink: 0, color: 'var(--brand)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
-                      {icon}
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{text}</span>
-                  </div>
-                ))}
+        {/* ── Invoice Preview tab ── */}
+        {activeTab === 'invoice' && (
+          <div style={{ maxWidth: 580, margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: 1, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+                Live Preview — {clientName || 'Client Name'}
               </div>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setActiveTab('form')}
+                style={{ fontSize: 12, padding: '5px 12px' }}
+              >
+                ← Back to Form
+              </button>
             </div>
-
-            {/* Preview — tab bar + content */}
-            <div>
-              {/* Tab bar */}
-              <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: '#f1f5f9', borderRadius: 10, padding: 3 }}>
-                {([
-                  { key: 'invoice', label: '📄 Invoice Preview' },
-                  { key: 'email',   label: '✉️ Email Preview' },
-                ] as const).map(tab => (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => {
-                      setPreviewTab(tab.key);
-                      if (tab.key === 'email') setEmailPreviewKey(k => k + 1);
-                    }}
-                    style={{
-                      flex: 1, padding: '7px 10px', border: 'none', borderRadius: 8, cursor: 'pointer',
-                      fontSize: 12, fontWeight: previewTab === tab.key ? 700 : 500,
-                      color: previewTab === tab.key ? 'var(--text)' : 'var(--muted)',
-                      background: previewTab === tab.key ? '#fff' : 'transparent',
-                      boxShadow: previewTab === tab.key ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
-                      transition: 'all .15s',
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              {previewTab === 'invoice' ? (
-                <InvoicePreview
-                  clientName={clientName}
-                  clientEmail={clientEmail}
-                  clientType={clientType}
-                  country={country}
-                  companyName={companyName}
-                  lineItems={lineItems}
-                  discountRate={discountRate}
-                  taxRate={taxRate}
-                  notes={notes}
-                  dueDays={dueDays}
-                  currencyInfo={currencyInfo}
-                  exchangeRate={exchangeRate}
-                  brandId={brandId}
-                  paypalWillConvertToUsd={paypalWillConvertToUsd}
-                  usdExchangeRate={usdExchangeRate}
-                />
-              ) : (
-                <EmailPreviewPane
-                  key={emailPreviewKey}
-                  clientName={clientName}
-                  clientEmail={clientEmail}
-                  clientType={clientType}
-                  country={country}
-                  companyName={companyName}
-                  lineItems={lineItems}
-                  discountRate={discountRate}
-                  taxRate={taxRate}
-                  notes={notes}
-                  dueDays={dueDays}
-                  currencyInfo={currencyInfo}
-                  exchangeRate={exchangeRate}
-                  usdExchangeRate={usdExchangeRate}
-                  brandId={brandId}
-                  paymentGateway={paymentGateway}
-                  paypalWillConvertToUsd={paypalWillConvertToUsd}
-                />
-              )}
-            </div>
+            <InvoicePreview
+              clientName={clientName}
+              clientEmail={clientEmail}
+              clientType={clientType}
+              country={country}
+              companyName={companyName}
+              lineItems={lineItems}
+              discountRate={discountRate}
+              taxRate={taxRate}
+              notes={notes}
+              dueDays={dueDays}
+              currencyInfo={currencyInfo}
+              exchangeRate={exchangeRate}
+              brandId={brandId}
+              paypalWillConvertToUsd={paypalWillConvertToUsd}
+              usdExchangeRate={usdExchangeRate}
+            />
           </div>
-        </div>
+        )}
+
+        {/* ── Email Preview tab ── */}
+        {activeTab === 'email' && (
+          <div style={{ maxWidth: 700, margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: 1, color: 'var(--muted)' }}>
+                Email Preview — exact HTML sent to client
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setActiveTab('form')}
+                style={{ fontSize: 12, padding: '5px 12px' }}
+              >
+                ← Back to Form
+              </button>
+            </div>
+            <EmailPreviewPane
+              key={emailPreviewKey}
+              clientName={clientName}
+              clientEmail={clientEmail}
+              clientType={clientType}
+              country={country}
+              companyName={companyName}
+              lineItems={lineItems}
+              discountRate={discountRate}
+              taxRate={taxRate}
+              notes={notes}
+              dueDays={dueDays}
+              currencyInfo={currencyInfo}
+              exchangeRate={exchangeRate}
+              usdExchangeRate={usdExchangeRate}
+              brandId={brandId}
+              paymentGateway={paymentGateway}
+              paypalWillConvertToUsd={paypalWillConvertToUsd}
+            />
+          </div>
+        )}
       </main>
 
       {toast && (

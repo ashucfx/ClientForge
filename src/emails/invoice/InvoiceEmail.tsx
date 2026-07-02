@@ -29,6 +29,13 @@ export function InvoiceEmail({ invoice }: InvoiceEmailProps) {
   const payUrl     = invoice.razorpayLinkUrl || invoice.paypalPaymentUrl || '';
   const isPayPal   = !invoice.razorpayLinkUrl && !!invoice.paypalPaymentUrl;
 
+  // When PayPal converts an unsupported currency to USD, derive the USD→local rate
+  // from the stored totals so each line item can show a local currency equivalent.
+  const usdToLocalRate =
+    isPayPal && invoice.localCurrencyCode && invoice.localEquivalentAmount != null && invoice.totalPayable > 0
+      ? invoice.localEquivalentAmount / invoice.totalPayable
+      : undefined;
+
   const invoiceDateStr = new Date(invoice.invoiceDate).toLocaleDateString('en-GB', {
     day: '2-digit', month: 'short', year: 'numeric',
   });
@@ -77,6 +84,8 @@ export function InvoiceEmail({ invoice }: InvoiceEmailProps) {
         sym={sym}
         brand={brand}
         fmt={fmt}
+        localCurrencyCode={invoice.localCurrencyCode ?? undefined}
+        usdToLocalRate={usdToLocalRate}
       />
 
       {/* Total */}
@@ -122,19 +131,15 @@ export function InvoiceEmail({ invoice }: InvoiceEmailProps) {
           </Text>
           {/* Local currency note — shown when PayPal fell back from unsupported currency to USD */}
           {isPayPal && invoice.localCurrencyCode && invoice.localEquivalentAmount != null && (
-            <Text style={{
-              margin: '4px 0 8px',
-              fontSize: '12px',
-              color: '#64748b',
-              textAlign: 'center' as const,
-              background: '#f8fafc',
-              padding: '8px 16px',
-              borderRadius: '6px',
-            }}>
-              Your invoice is in <strong>USD</strong> — the equivalent in your local currency is approximately{' '}
-              <strong>{invoice.localCurrencyCode} {invoice.localEquivalentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>{' '}
-              at the time of invoicing. PayPal will charge you in USD.
-            </Text>
+            <Section style={{ background: '#fffbeb', border: '1px solid #fbbf2460', borderRadius: '8px', padding: '10px 16px', margin: '6px 0 8px' }}>
+              <Text style={{ margin: 0, fontSize: '12px', color: '#92400e', textAlign: 'center' as const, lineHeight: '1.7' }}>
+                💱 PayPal charges in <strong>USD</strong> — your local equivalent is approximately{' '}
+                <strong style={{ color: '#78350f' }}>
+                  {invoice.localCurrencyCode} {invoice.localEquivalentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </strong>.
+                {' '}Individual breakdowns in {invoice.localCurrencyCode} are shown next to each item above.
+              </Text>
+            </Section>
           )}
           <Text style={{
             margin: '0 0 28px',

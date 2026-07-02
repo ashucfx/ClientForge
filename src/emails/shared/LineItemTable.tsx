@@ -18,6 +18,10 @@ interface LineItemTableProps {
   sym: string;
   brand: BrandToken;
   fmt: (n: number) => string;
+  /** When PayPal converts an unsupported currency to USD, pass the original currency code
+   *  and rate (1 USD = X local) so clients see both USD and local amounts. */
+  localCurrencyCode?: string;
+  usdToLocalRate?: number;
 }
 
 export function LineItemTable({
@@ -32,7 +36,13 @@ export function LineItemTable({
   sym,
   brand,
   fmt,
+  localCurrencyCode,
+  usdToLocalRate,
 }: LineItemTableProps) {
+  const showLocal = !!(localCurrencyCode && usdToLocalRate && usdToLocalRate > 0);
+  const localFmt = (usd: number) =>
+    `≈ ${localCurrencyCode} ${(usd * usdToLocalRate!).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   return (
     <Section style={{ margin: '20px 0 0', borderRadius: '10px', border: '1px solid #EDE9DF', overflow: 'hidden' }}>
       {/* Header row */}
@@ -90,7 +100,7 @@ export function LineItemTable({
                 </div>
               </div>
             </Column>
-            <Column className="li-amount" style={{ textAlign: 'right' as const, verticalAlign: 'top' as const, width: '90px' }}>
+            <Column className="li-amount" style={{ textAlign: 'right' as const, verticalAlign: 'top' as const, width: '110px' }}>
               {isFree ? (
                 <span style={{
                   fontSize: '11px',
@@ -105,9 +115,16 @@ export function LineItemTable({
                   FREE
                 </span>
               ) : (
-                <Text style={{ margin: 0, fontSize: '15px', color: '#0f172a', fontWeight: 700, whiteSpace: 'nowrap' as const }}>
-                  {fmt(lt)}
-                </Text>
+                <>
+                  <Text style={{ margin: 0, fontSize: '15px', color: '#0f172a', fontWeight: 700, whiteSpace: 'nowrap' as const }}>
+                    {fmt(lt)}
+                  </Text>
+                  {showLocal && (
+                    <Text style={{ margin: '3px 0 0', fontSize: '10px', color: '#94a3b8', whiteSpace: 'nowrap' as const }}>
+                      {localFmt(lt)}
+                    </Text>
+                  )}
+                </>
               )}
             </Column>
           </Row>
@@ -117,27 +134,39 @@ export function LineItemTable({
       {/* Subtotal / adjustments */}
       <Row style={{ background: '#FAFAF8', padding: '8px 16px 2px', borderTop: '1px solid #EDE9DF' }}>
         <Column><Text style={summaryLabel}>Subtotal</Text></Column>
-        <Column style={{ textAlign: 'right' as const }}><Text style={summaryValue}>{fmt(subtotal)}</Text></Column>
+        <Column style={{ textAlign: 'right' as const }}>
+          <Text style={summaryValue}>{fmt(subtotal)}</Text>
+          {showLocal && <Text style={localNote}>{localFmt(subtotal)}</Text>}
+        </Column>
       </Row>
 
       {discountRate > 0 && discountAmount > 0 && (
         <Row style={{ background: '#FAFAF8', padding: '2px 16px' }}>
           <Column><Text style={{ ...summaryLabel, color: '#16a34a' }}>Discount ({discountRate}%)</Text></Column>
-          <Column style={{ textAlign: 'right' as const }}><Text style={{ ...summaryValue, color: '#16a34a' }}>−{fmt(discountAmount)}</Text></Column>
+          <Column style={{ textAlign: 'right' as const }}>
+            <Text style={{ ...summaryValue, color: '#16a34a' }}>−{fmt(discountAmount)}</Text>
+            {showLocal && <Text style={localNote}>{localFmt(discountAmount)}</Text>}
+          </Column>
         </Row>
       )}
 
       {taxRate > 0 && taxAmount > 0 && (
         <Row style={{ background: '#FAFAF8', padding: '2px 16px' }}>
           <Column><Text style={summaryLabel}>Tax ({taxRate}%)</Text></Column>
-          <Column style={{ textAlign: 'right' as const }}><Text style={summaryValue}>+{fmt(taxAmount)}</Text></Column>
+          <Column style={{ textAlign: 'right' as const }}>
+            <Text style={summaryValue}>+{fmt(taxAmount)}</Text>
+            {showLocal && <Text style={localNote}>{localFmt(taxAmount)}</Text>}
+          </Column>
         </Row>
       )}
 
       {processingFeeRate > 0 && processingFeeConverted > 0 && (
         <Row style={{ background: '#FAFAF8', padding: '2px 16px 8px' }}>
           <Column><Text style={summaryLabel}>Processing Fee ({(processingFeeRate * 100).toFixed(1)}%)</Text></Column>
-          <Column style={{ textAlign: 'right' as const }}><Text style={summaryValue}>+{fmt(processingFeeConverted)}</Text></Column>
+          <Column style={{ textAlign: 'right' as const }}>
+            <Text style={summaryValue}>+{fmt(processingFeeConverted)}</Text>
+            {showLocal && <Text style={localNote}>{localFmt(processingFeeConverted)}</Text>}
+          </Column>
         </Row>
       )}
     </Section>
@@ -164,4 +193,10 @@ const summaryValue: React.CSSProperties = {
   fontSize: '13px',
   color: '#1e293b',
   fontWeight: 500,
+};
+
+const localNote: React.CSSProperties = {
+  margin: '1px 0 0',
+  fontSize: '10px',
+  color: '#94a3b8',
 };
