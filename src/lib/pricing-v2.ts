@@ -160,79 +160,85 @@ export async function calculatePricing({
     exchangeRate = await getExchangeRate('USD', currency);
   }
 
+  // Rounding for clean numbers.
+  // For zero-decimal currencies like JPY or INR, round to whole numbers.
+  const zeroDecimalCurrencies = ['INR', 'JPY', 'KRW', 'VND', 'IDR'];
+  const isZeroDecimal = zeroDecimalCurrencies.includes(currency);
+  const roundMoney = (v: number) => (isZeroDecimal ? Math.round(v) : Math.round(v * 100) / 100);
+
+  // Each service price is rounded in the target currency FIRST, and the subtotal
+  // is the sum of those rounded prices — so line items always add up exactly to
+  // the subtotal shown on invoices and emails (no floating-point drift).
   let subtotal = 0;
   const complementarySet = new Set(PACKAGE_COMPLEMENTARY[packageSlug] ?? []);
   const serviceDetails: { slug: ServiceSlug; price: number; complimentary?: boolean }[] = [];
 
   for (const slug of services) {
     const isComplimentary = complementarySet.has(slug);
-    const price = isComplimentary ? 0 : (PRICING.basePrices[baseCurrency][slug][experienceLevel] || 0);
+    const basePrice = isComplimentary ? 0 : (PRICING.basePrices[baseCurrency][slug][experienceLevel] || 0);
+    const price = roundMoney(basePrice * exchangeRate);
     subtotal += price;
-    serviceDetails.push({ slug, price: price * exchangeRate, ...(isComplimentary ? { complimentary: true } : {}) });
+    serviceDetails.push({ slug, price, ...(isComplimentary ? { complimentary: true } : {}) });
   }
-
-  // Convert subtotal to local currency
-  subtotal = subtotal * exchangeRate;
+  subtotal = roundMoney(subtotal);
 
   const discountRate = PRICING.packageDiscounts[packageSlug] || 0;
-  const discountAmount = subtotal * discountRate;
-  const subtotalAfterDiscount = subtotal - discountAmount;
+  const discountAmount = roundMoney(subtotal * discountRate);
+  const subtotalAfterDiscount = roundMoney(subtotal - discountAmount);
 
   // For INR (Razorpay), assume 18% GST. For PayPal (Export of Services), assume 0% GST.
   const taxRate = isIndia ? 0.18 : 0.0;
-  const taxAmount = subtotalAfterDiscount * taxRate;
+  const taxAmount = roundMoney(subtotalAfterDiscount * taxRate);
 
-  const costWithTax = subtotalAfterDiscount + taxAmount;
+  const costWithTax = roundMoney(subtotalAfterDiscount + taxAmount);
 
   // GATEWAY RECOVERY MATH
   // Formula: Desired Net = Final * (1 - fee%) - fixedFee
   // Therefore: Final = (Desired Net + fixedFee) / (1 - fee%)
+  //
+  // Rates recover the FULL cost of getting paid, not just the headline fee:
+  //  - Razorpay domestic:      2% fee + 18% GST charged on the fee  = 2.36%
+  //  - Razorpay international: 3% fee + 18% GST on the fee (3.54%)
+  //    + ~2% currency-conversion spread Razorpay applies when settling
+  //    foreign currency to INR                                       = 5.54%
+  //  - PayPal: 4.4% + $0.30 fixed, + ~3% conversion spread PayPal
+  //    applies when settling USD to an INR merchant account          = 7.4% + $0.30
+  const RAZORPAY_DOMESTIC_FEE = 0.02 * 1.18;          // 2.36%
+  const RAZORPAY_INTL_FEE     = 0.03 * 1.18 + 0.02;   // 5.54% incl. FX spread
+  const PAYPAL_FEE            = 0.044 + 0.03;          // 7.4% incl. FX spread
+  const PAYPAL_FIXED_FEE      = 0.30;                  // USD
+
   let finalPayable = costWithTax;
   let internalGatewayFee = 0;
 
   if (paymentGateway === 'RAZORPAY') {
-    // Razorpay standard: ~2% + 18% GST on the fee = 2.36% total
-    // Note: International cards on Razorpay might be 3%, but we'll stick to a blended 2.36% or 3%. 
-    // Let's use 3% for international razorpay to be safe, 2.36% for domestic.
-    const feePercent = isIndia ? 0.0236 : 0.03; 
+    const feePercent = isIndia ? RAZORPAY_DOMESTIC_FEE : RAZORPAY_INTL_FEE;
     finalPayable = costWithTax / (1 - feePercent);
-    internalGatewayFee = finalPayable - costWithTax;
   } else if (paymentGateway === 'PAYPAL') {
-    // PayPal international standard: ~4.4% + $0.30 fixed (USD)
-    // If we're using PayPal, the currency is guaranteed to be USD here.
-    const feePercent = 0.044;
-    const fixedFee = 0.30; 
-    finalPayable = (costWithTax + fixedFee) / (1 - feePercent);
-    internalGatewayFee = finalPayable - costWithTax;
+    finalPayable = (costWithTax + PAYPAL_FIXED_FEE) / (1 - PAYPAL_FEE);
   }
 
-  // Rounding for clean numbers.
-  // For zero-decimal currencies like JPY or INR, round to whole numbers.
-  const zeroDecimalCurrencies = ['INR', 'JPY', 'KRW', 'VND', 'IDR'];
-  const isZeroDecimal = zeroDecimalCurrencies.includes(currency);
-
+  // Always round the customer-facing total UP so recovery never falls short.
   if (isZeroDecimal) {
     finalPayable = Math.ceil(finalPayable);
-    internalGatewayFee = finalPayable - costWithTax;
   } else {
-    // For SAR, USD, GBP etc., round to 2 decimal places.
     finalPayable = Math.ceil(finalPayable * 100) / 100;
-    internalGatewayFee = Math.round((finalPayable - costWithTax) * 100) / 100;
   }
+  internalGatewayFee = roundMoney(finalPayable - costWithTax);
 
   return {
     currency,
     currencySymbol,
     services: serviceDetails,
     complementaryServices: Array.from(complementarySet) as ServiceSlug[],
-    subtotal: isZeroDecimal ? Math.round(subtotal) : Number(subtotal.toFixed(2)),
+    subtotal,
     discountRate,
-    discountAmount: isZeroDecimal ? Math.round(discountAmount) : Number(discountAmount.toFixed(2)),
-    subtotalAfterDiscount: isZeroDecimal ? Math.round(subtotalAfterDiscount) : Number(subtotalAfterDiscount.toFixed(2)),
+    discountAmount,
+    subtotalAfterDiscount,
     taxRate,
-    taxAmount: isZeroDecimal ? Math.round(taxAmount) : Number(taxAmount.toFixed(2)),
+    taxAmount,
     finalPayable,
     internalGatewayFee,
-    netRevenue: isZeroDecimal ? Math.round(costWithTax) : Number(costWithTax.toFixed(2))
+    netRevenue: costWithTax,
   };
 }

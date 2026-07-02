@@ -49,7 +49,10 @@ function computePrice(
   }));
   const subtotal  = services.reduce((s, x) => s + x.price, 0);
   const rate      = PRICING.packageDiscounts[pkg as PkgSlug] ?? 0;
-  const discount  = Math.round(subtotal * rate);
+  // Match server rounding: whole units for INR, cents for USD
+  const discount  = cur === 'INR'
+    ? Math.round(subtotal * rate)
+    : Math.round(subtotal * rate * 100) / 100;
   return { sym, services, subtotal, discount, total: subtotal - discount, rate };
 }
 
@@ -106,6 +109,7 @@ function CheckoutPageInner() {
   const [otpError,     setOtpError]     = useState('');
   const [otpResending, setOtpResending] = useState(false);
   const [showTierConfirm, setShowTierConfirm] = useState(false);
+  const [gatewaySwitching, setGatewaySwitching] = useState(false);
   const [localRate, setLocalRate] = useState<{ rate: number; code: string; symbol: string } | null>(null);
 
   useEffect(() => {
@@ -183,6 +187,43 @@ function CheckoutPageInner() {
     }
   };
 
+  const fetchPreview = async (gateway: 'RAZORPAY' | 'PAYPAL') => {
+    const previewRes = await fetch('/api/public/checkout/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        packageSlug: selectedPackage,
+        services: resolveServices(),
+        countryCode,
+        countryName,
+        tierHint: experienceLevel,
+        preferredGateway: countryCode === 'IN' ? 'RAZORPAY' : gateway,
+      }),
+    });
+    if (!previewRes.ok) {
+      const d = await previewRes.json().catch(() => ({}));
+      throw new Error(d.error || 'Could not load pricing. Please try again.');
+    }
+    return previewRes.json();
+  };
+
+  // Switching payment method on the review step re-prices the order
+  // (gateway fees differ), so totals always match what will be charged.
+  const handleGatewayChange = async (gateway: 'RAZORPAY' | 'PAYPAL') => {
+    if (gateway === preferredGateway || gatewaySwitching) return;
+    const previous = preferredGateway;
+    setPreferredGateway(gateway);
+    setGatewaySwitching(true);
+    try {
+      setPricingPreview(await fetchPreview(gateway));
+    } catch {
+      setPreferredGateway(previous);
+      alert('Could not update pricing for that payment method. Please try again.');
+    } finally {
+      setGatewaySwitching(false);
+    }
+  };
+
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
     setLoading(true);
@@ -208,24 +249,7 @@ function CheckoutPageInner() {
         setOtpError(d.error ?? 'Incorrect code. Please try again.');
         return;
       }
-      const services = resolveServices();
-      const previewRes = await fetch('/api/public/checkout/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          packageSlug: selectedPackage,
-          services,
-          countryCode,
-          countryName,
-          tierHint: experienceLevel,
-          preferredGateway: countryCode === 'IN' ? 'RAZORPAY' : preferredGateway,
-        }),
-      });
-      if (!previewRes.ok) {
-        const d = await previewRes.json().catch(() => ({}));
-        throw new Error(d.error || 'Could not load pricing. Please try again.');
-      }
-      setPricingPreview(await previewRes.json());
+      setPricingPreview(await fetchPreview(preferredGateway));
       setOtpStep(false);
       setStep(2);
     } catch (e: unknown) {
@@ -468,55 +492,6 @@ function CheckoutPageInner() {
                 </div>
               )}
 
-              {countryCode !== 'IN' && (
-                <div className="pt-4 space-y-4">
-                  <div>
-                    <p className="text-status uppercase tracking-widest text-brand-obsidian/40 mb-3">
-                      Payment Method
-                    </p>
-                    <div className="flex gap-3">
-                      {(['PAYPAL', 'RAZORPAY'] as const).map((g) => (
-                        <button
-                          key={g}
-                          type="button"
-                          onClick={() => setPreferredGateway(g)}
-                          className={`px-4 py-2 border text-metadata uppercase ${
-                            preferredGateway === g
-                              ? 'border-brand-obsidian bg-brand-obsidian text-brand-bone'
-                              : 'border-brand-parchment'
-                          }`}
-                        >
-                          {g}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* International payment explainer */}
-                  <div className="flex gap-3 p-4 bg-[#FDFAF6] border border-brand-parchment">
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" className="flex-shrink-0 mt-0.5 text-brand-gold">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5"/>
-                      <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" d="M12 8v4M12 16h.01"/>
-                    </svg>
-                    <div className="space-y-1.5">
-                      <p className="text-xs font-semibold text-brand-obsidian">Paying from outside India?</p>
-                      {preferredGateway === 'PAYPAL' ? (
-                        <p className="text-xs text-brand-obsidian/60 leading-relaxed">
-                          Your PayPal account or card will be charged in <strong className="text-brand-obsidian">USD ($)</strong>. PayPal automatically converts this to your local currency (AED, GBP, EUR, etc.) at the rate your bank or PayPal applies. The approximate local amount shown above is for reference only — the final conversion happens at your end.
-                        </p>
-                      ) : (
-                        <p className="text-xs text-brand-obsidian/60 leading-relaxed">
-                          With Razorpay, your card will be charged in your <strong className="text-brand-obsidian">local currency</strong> — no USD conversion needed on your end. The exact local amount is calculated at the prevailing exchange rate and shown at the next step before you pay.
-                        </p>
-                      )}
-                      <p className="text-xs text-brand-obsidian/40">
-                        Questions about payment? Write to us at{' '}
-                        <a href="mailto:catalyst@theripplenexus.com" className="text-brand-gold hover:underline">catalyst@theripplenexus.com</a>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="lg:col-span-5 lg:col-start-8 space-y-6">
@@ -743,7 +718,7 @@ function CheckoutPageInner() {
           </p>
 
           {/* Services */}
-          <div className="border-t border-brand-parchment">
+          <div className={`border-t border-brand-parchment transition-opacity ${gatewaySwitching ? 'opacity-40' : ''}`}>
             {pricingPreview.services.map((s) => (
               <div key={s.slug} className="flex items-center justify-between py-4 border-b border-brand-parchment">
                 <span className="text-body text-brand-obsidian/80">
@@ -766,8 +741,61 @@ function CheckoutPageInner() {
             ))}
           </div>
 
+          {/* Payment method — international clients choose here, next to the totals it affects */}
+          {countryCode !== 'IN' && (
+            <div className="pt-6 pb-2">
+              <p className="text-status uppercase tracking-widest text-brand-obsidian/40 mb-3">
+                Payment Method
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {([
+                  {
+                    value: 'PAYPAL' as const,
+                    label: 'PayPal',
+                    sub: 'Charged in USD ($) · card or PayPal balance · PayPal converts to your currency',
+                  },
+                  {
+                    value: 'RAZORPAY' as const,
+                    label: 'Card (Local Currency)',
+                    sub: 'Charged directly in your local currency — no conversion on your end',
+                  },
+                ]).map(({ value, label, sub }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => void handleGatewayChange(value)}
+                    disabled={gatewaySwitching}
+                    aria-pressed={preferredGateway === value}
+                    className={`text-left p-4 border transition-all disabled:opacity-60 ${
+                      preferredGateway === value
+                        ? 'border-brand-gold bg-brand-gold/5'
+                        : 'border-brand-parchment hover:border-brand-obsidian/20'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                        preferredGateway === value ? 'border-brand-gold' : 'border-brand-parchment'
+                      }`}>
+                        {preferredGateway === value && <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />}
+                      </div>
+                      <span className="text-sm font-semibold text-brand-obsidian">{label}</span>
+                    </div>
+                    <p className="text-xs text-brand-obsidian/50 leading-relaxed pl-[22px]">{sub}</p>
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-brand-obsidian/40 mt-3">
+                {preferredGateway === 'PAYPAL'
+                  ? 'PayPal converts USD to your local currency at the rate your bank or PayPal applies.'
+                  : 'The exact local amount below is calculated at the prevailing exchange rate — what you see is what you pay.'}
+                {' '}Questions?{' '}
+                <a href="mailto:catalyst@theripplenexus.com" className="text-brand-gold hover:underline">catalyst@theripplenexus.com</a>
+              </p>
+            </div>
+          )}
+
           {/* Breakdown */}
-          <div className="pt-4 space-y-3">
+          <div className={`pt-4 space-y-3 transition-opacity ${gatewaySwitching ? 'opacity-40 pointer-events-none' : ''}`}>
             <div className="flex justify-between text-sm text-brand-obsidian/60">
               <span>Subtotal</span>
               <span>{pricingPreview.currencySymbol}{pricingPreview.subtotal.toLocaleString()}</span>
@@ -808,10 +836,10 @@ function CheckoutPageInner() {
           {/* Confirm button */}
           <button
             onClick={handleConfirmPayment}
-            disabled={loading}
+            disabled={loading || gatewaySwitching}
             className="w-full mt-8 inline-flex items-center justify-center gap-2 bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest hover:bg-brand-graphite disabled:opacity-50 transition-colors"
           >
-            {loading ? (
+            {loading || gatewaySwitching ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <>

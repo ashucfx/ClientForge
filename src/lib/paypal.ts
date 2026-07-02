@@ -125,12 +125,14 @@ export async function createPaypalInvoice(
           term_type: 'DUE_ON_DATE_SPECIFIED',
           due_date:  dueDateStr,
         },
-        ...(invoice.notes ? { note: invoice.notes } : (() => {
-          // Append free items as a note so client sees them even though PayPal excludes $0 lines
+        ...((() => {
+          // Free items as a note so the client sees them even though PayPal excludes $0 lines
           const freeItems = invoice.lineItems.filter(i => i.unitPrice === 0 && i.qty > 0);
-          return freeItems.length > 0
-            ? { note: `Included free: ${freeItems.map(i => i.description).join(', ')}` }
-            : {};
+          const note = [
+            invoice.notes,
+            freeItems.length > 0 ? `Included free: ${freeItems.map(i => i.description).join(', ')}` : null,
+          ].filter(Boolean).join(' — ');
+          return note ? { note } : {};
         })()),
         memo: invoice.memo ?? `Invoice ${invoice.invoiceNumber}`,
       },

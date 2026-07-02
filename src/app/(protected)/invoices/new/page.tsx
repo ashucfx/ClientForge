@@ -289,7 +289,7 @@ function InvoicePreview({
 
       {/* Client info */}
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', background: '#f8fafc' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 12 }}>
           <div>
             <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 4 }}>Bill To</div>
             <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 13 }}>{clientName || '—'}</div>
@@ -671,6 +671,7 @@ export default function NewInvoicePage() {
           background: 'var(--surface-2)',
           borderRadius: 14, padding: 4,
           border: '1px solid rgba(184,147,91,.18)',
+          overflowX: 'auto' as const,
         }}>
           {([
             { key: 'form'    as const, label: 'Details & Items', Icon: IconList     },
@@ -712,7 +713,7 @@ export default function NewInvoicePage() {
           
             {rnEnabled && (hasCatalystAccess && hasRnAccess) && (
               <SectionCard title="Brand & Operational Unit" icon={<IconBuilding />}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
                   <button
                     type="button"
                     onClick={() => setBrandId('catalyst')}
@@ -756,7 +757,7 @@ export default function NewInvoicePage() {
 
             {/* 1. Client Info */}
             <SectionCard title="Client Information" icon={<IconUser />}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 16 }}>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <FieldLabel label="Full Name" required />
                   <input className="input" type="text" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="e.g. Priya Sharma" />
@@ -834,7 +835,7 @@ export default function NewInvoicePage() {
             {/* 2. Career Level (Catalyst Only) */}
             {brandId === 'catalyst' && (
               <SectionCard title="Career Level" icon={<IconTarget />}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
                   {CLIENT_TYPES.map(t => {
                     const meta = CLIENT_META[t];
                     const sel  = clientType === t;
@@ -881,7 +882,7 @@ export default function NewInvoicePage() {
             {/* 2b. Package Selector (Catalyst Only) */}
             {brandId === 'catalyst' && (
               <SectionCard title="Package" icon={<IconList />}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: 12 }}>
                   {(Object.keys(PKG_META) as PackageSlug[]).map(pkg => {
                     const meta = PKG_META[pkg];
                     const sel  = packageSlug === pkg;
@@ -1026,7 +1027,7 @@ export default function NewInvoicePage() {
 
             {/* 4. Adjustments */}
             <SectionCard title="Invoice Settings" icon={<IconSettings />}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 16, marginBottom: 16 }}>
                 <div>
                   <FieldLabel label="Discount %" />
                   <input
@@ -1078,13 +1079,13 @@ export default function NewInvoicePage() {
                   Razorpay supports multi-currency — invoice is created in the client&apos;s local currency.
                   PayPal is also available if the client prefers it.
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
                   {([
                     {
                       value: 'RAZORPAY' as const,
                       label: 'Razorpay',
                       sub: 'Charges in local currency',
-                      fee: '3% international fee',
+                      fee: '3.54% intl fee (incl. GST on fee)',
                       color: '#B8935B',
                       badge: 'Default',
                     },
@@ -1163,7 +1164,7 @@ export default function NewInvoicePage() {
               <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.6 }}>
                 Split the total into equal instalments. Each part gets its own payment link sent to the client.
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 10 }}>
                 {([
                   { value: 1 as const, label: 'Full Payment',       sub: 'Single link',           badge: null },
                   { value: 2 as const, label: 'Split in 2 Parts',   sub: '50% + 50%',             badge: 'Popular' },

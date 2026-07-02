@@ -167,13 +167,15 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
         currencySymbol: pricing.currencySymbol,
         exchangeRate: 1,
         lineItems: lineItems as unknown as Prisma.InputJsonValue,
-        discountRate: pricing.discountRate,
+        // Invoice convention: discountRate is a whole percent (15 = 15%),
+        // processingFeeRate is a fraction (0.0236 = 2.36%) — see FEE_RATES in pricing.ts.
+        discountRate: pricing.discountRate * 100,
         discountAmount: pricing.discountAmount,
-        taxRate: pricing.taxRate,
+        taxRate: pricing.taxRate * 100,
         taxAmount: pricing.taxAmount,
         subtotalConverted: pricing.subtotal,
-        processingFeeRate: pricing.subtotal > 0
-          ? Math.round((pricing.internalGatewayFee / pricing.subtotal) * 10000) / 100
+        processingFeeRate: pricing.netRevenue > 0
+          ? Math.round((pricing.internalGatewayFee / pricing.netRevenue) * 10000) / 10000
           : 0,
         processingFeeConverted: pricing.internalGatewayFee,
         totalPayable: pricing.finalPayable,
@@ -276,10 +278,13 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
   // Send invoice email using the already-committed invoice data — no extra DB round-trip
   if (result.invoice.clientEmail && paymentUrl) {
     try {
+      // Only set the URL for the gateway actually used — the email template
+      // derives its "via Razorpay/PayPal" copy from which field is present.
       await sendInvoiceEmail({
         ...result.invoice,
-        paypalPaymentUrl: paymentUrl,
-        razorpayLinkUrl: paymentUrl,
+        ...(paymentGateway === 'PAYPAL'
+          ? { paypalPaymentUrl: paymentUrl }
+          : { razorpayLinkUrl: paymentUrl }),
       } as unknown as Parameters<typeof sendInvoiceEmail>[0]);
       db.sysEmailLog.create({ data: {
         to: result.invoice.clientEmail,

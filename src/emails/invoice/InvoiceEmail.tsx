@@ -27,11 +27,11 @@ function tierIntroNode(
     case 'FRESHER':
       return <>Your {pkg} invoice is ready. Every expert was once a beginner — this is your launchpad to a professional presence that opens real doors.</>;
     case 'MID_CAREER':
-      return <>Your {pkg} invoice is ready. We're set to sharpen your narrative, quantify your impact, and position you for the roles your experience truly commands.</>;
+      return <>Your {pkg} invoice is ready. We&rsquo;re set to sharpen your narrative, quantify your impact, and position you for the roles your experience truly commands.</>;
     case 'EXECUTIVE':
       return <>Your {pkg} invoice is ready. This marks the beginning of an executive-grade personal brand built to command search firm attention, open senior doors, and reflect the calibre of leadership you bring.</>;
     case 'EXECUTIVE_PLUS':
-      return <>Your <strong style={{ color: brandColor }}>Premium Plus</strong> engagement is confirmed. This is a bespoke, white-glove collaboration reserved for leaders at the pinnacle of their career — crafted to speak to boards, investors, and the world's most discerning executive search firms.</>;
+      return <>Your <strong style={{ color: brandColor }}>Premium Plus</strong> engagement is confirmed. This is a bespoke, white-glove collaboration reserved for leaders at the pinnacle of their career — crafted to speak to boards, investors, and the world&rsquo;s most discerning executive search firms.</>;
     default:
       return <>Your {pkg} invoice is ready. Review the details below and complete your payment to get started.</>;
   }
