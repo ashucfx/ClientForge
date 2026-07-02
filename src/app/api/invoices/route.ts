@@ -240,13 +240,16 @@ export async function POST(request: NextRequest) {
     // ── Create payment link(s) ───────────────────────────────────
     let gatewayUpdate: Record<string, unknown> = { paymentGateway: gateway };
 
-    // PayPal only supports ~25 currencies. For unsupported ones (e.g. ZAR), convert to USD.
+    // PayPal only supports ~25 currencies. For unsupported ones (e.g. AED, SAR), convert to USD.
+    // When falling back, we rewrite the invoice currency to USD and store the local equivalent.
     let ppCurrencyCode = currencyCode;
     let ppConvertFactor = 1;
+    let paypalFellBackToUsd = false;
     if (gateway === 'PAYPAL' && !PAYPAL_SUPPORTED_CURRENCIES.has(currencyCode)) {
       const usdRate = await getExchangeRate(currencyCode, 'USD');
       ppCurrencyCode = 'USD';
       ppConvertFactor = usdRate;
+      paypalFellBackToUsd = true;
     }
     const ppConvert = (amount: number) => round2(amount * ppConvertFactor);
 
@@ -266,7 +269,23 @@ export async function POST(request: NextRequest) {
             discountAmount: invoice.discountAmount ? ppConvert(invoice.discountAmount) : undefined,
             processingFeeAmount: invoice.processingFeeConverted ? ppConvert(invoice.processingFeeConverted) : undefined,
           });
-          gatewayUpdate = { paymentGateway: 'PAYPAL', paypalInvoiceId: pp.id, paypalPaymentUrl: pp.paymentUrl };
+          gatewayUpdate = {
+            paymentGateway: 'PAYPAL',
+            paypalInvoiceId: pp.id,
+            paypalPaymentUrl: pp.paymentUrl,
+            // When PayPal falls back to USD, rewrite invoice currency so email/display is consistent
+            ...(paypalFellBackToUsd && {
+              currency: 'USD',
+              currencySymbol: '$',
+              totalPayable: ppConvert(totalPayable),
+              subtotalConverted: ppConvert(invoice.subtotalConverted),
+              processingFeeConverted: ppConvert(invoice.processingFeeConverted),
+              discountAmount: ppConvert(invoice.discountAmount),
+              taxAmount: ppConvert(invoice.taxAmount),
+              localCurrencyCode: currencyCode,
+              localEquivalentAmount: totalPayable,
+            }),
+          };
         }
       } else {
         // ── Split payment — create N links ──
@@ -309,6 +328,18 @@ export async function POST(request: NextRequest) {
         gatewayUpdate = {
           paymentGateway: gateway,
           installments: installs as object[],
+          // When PayPal falls back to USD for split payments, rewrite invoice currency too
+          ...(paypalFellBackToUsd && {
+            currency: 'USD',
+            currencySymbol: '$',
+            totalPayable: ppConvert(totalPayable),
+            subtotalConverted: ppConvert(invoice.subtotalConverted),
+            processingFeeConverted: ppConvert(invoice.processingFeeConverted),
+            discountAmount: ppConvert(invoice.discountAmount),
+            taxAmount: ppConvert(invoice.taxAmount),
+            localCurrencyCode: currencyCode,
+            localEquivalentAmount: totalPayable,
+          }),
           invoiceInstallments: {
             create: installs.map(i => ({
               seq:            i.seq,

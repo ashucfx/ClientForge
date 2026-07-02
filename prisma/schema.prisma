@@ -112,6 +112,11 @@ model Invoice {
   paypalInvoiceId  String?
   paypalPaymentUrl String?
 
+  // Local currency reference (set when PayPal falls back to USD for unsupported currencies)
+  // The invoice currency/totalPayable will be USD; these store the original local equivalent
+  localCurrencyCode     String?  // e.g. "AED", "SAR"
+  localEquivalentAmount Float?   // total in local currency at time of invoice creation
+
   // Split / installment payment
   installmentPlan  Boolean @default(false)
   installmentCount Int     @default(1) // 1 = single, 2 = two parts, 3 = three parts

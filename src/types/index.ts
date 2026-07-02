@@ -122,6 +122,8 @@ export interface InvoiceData {
   paymentGateway:  string;           // "RAZORPAY" | "PAYPAL"
   paypalInvoiceId:  string | null;
   paypalPaymentUrl: string | null;
+  localCurrencyCode:     string | null;
+  localEquivalentAmount: number | null;
 
   // Split payment
   installmentPlan:  boolean;

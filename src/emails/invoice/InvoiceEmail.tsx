@@ -116,8 +116,26 @@ export function InvoiceEmail({ invoice }: InvoiceEmailProps) {
           }}>
             {isPayPal
               ? 'Secure payment via PayPal — Cards · PayPal Balance · Bank Transfer'
-              : 'Secure payment via Razorpay — UPI · Cards · Net Banking · Wallets'}
+              : invoice.currency !== 'INR'
+                ? `Secure payment via Razorpay — Cards · Bank Transfer · Wallets · charged in ${invoice.currency}`
+                : 'Secure payment via Razorpay — UPI · Cards · Net Banking · Wallets'}
           </Text>
+          {/* Local currency note — shown when PayPal fell back from unsupported currency to USD */}
+          {isPayPal && invoice.localCurrencyCode && invoice.localEquivalentAmount != null && (
+            <Text style={{
+              margin: '4px 0 8px',
+              fontSize: '12px',
+              color: '#64748b',
+              textAlign: 'center' as const,
+              background: '#f8fafc',
+              padding: '8px 16px',
+              borderRadius: '6px',
+            }}>
+              Your invoice is in <strong>USD</strong> — the equivalent in your local currency is approximately{' '}
+              <strong>{invoice.localCurrencyCode} {invoice.localEquivalentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>{' '}
+              at the time of invoicing. PayPal will charge you in USD.
+            </Text>
+          )}
           <Text style={{
             margin: '0 0 28px',
             fontSize: '11px',

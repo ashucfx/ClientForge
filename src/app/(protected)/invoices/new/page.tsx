@@ -313,6 +313,12 @@ export default function NewInvoicePage() {
     return () => clearTimeout(t);
   }, [fetchRate]);
 
+  // Auto-switch gateway when currency changes
+  useEffect(() => {
+    const code = currencyInfo?.code ?? 'INR';
+    setPaymentGateway(code === 'INR' ? 'RAZORPAY' : 'PAYPAL');
+  }, [currencyInfo?.code]);
+
   useEffect(() => {
     setRnEnabled(isRnModuleEnabledClient());
     if (isRnModuleEnabledClient()) {
