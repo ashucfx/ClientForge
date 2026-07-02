@@ -11,7 +11,7 @@ import type { ServiceSlug, PackageSlug } from '@/lib/pricing-v2';
 import { getCallingCodeForCountryName, normalizePhoneE164 } from '@/lib/phone';
 import type { ClientType, LineItem, CurrencyInfo } from '@/types';
 import { Logo } from '@/components/Logo';
-import { IconAlert, IconCheck, IconCreditCard, IconLink, IconList, IconMail, IconSettings, IconSpinner, IconTarget, IconUser, IconBuilding } from '@/components/Icons';
+import { IconAlert, IconCheck, IconChevronRight, IconCreditCard, IconDocument, IconLink, IconList, IconMail, IconRefresh, IconSettings, IconSpinner, IconTarget, IconUser, IconBuilding } from '@/components/Icons';
 import AppShell from '@/components/AppShell';
 import { format, addDays } from 'date-fns';
 import { isRnModuleEnabledClient } from '@/lib/brand/flags';
@@ -92,11 +92,19 @@ function FieldLabel({ label, required }: { label: string; required?: boolean }) 
 function SectionCard({ title, icon, children, noPad }: { title: string; icon: React.ReactNode; children: React.ReactNode; noPad?: boolean }) {
   return (
     <div className="card" style={{ overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-        <span style={{ width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)' }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '13px 20px', borderBottom: '1px solid var(--border)',
+        background: 'var(--surface-2)',
+      }}>
+        <span style={{
+          width: 28, height: 28, flexShrink: 0,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          background: 'var(--brand-light)', borderRadius: 8, color: 'var(--brand)',
+        }}>
           {icon}
         </span>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{title}</h2>
+        <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.1px' }}>{title}</h2>
       </div>
       <div style={noPad ? {} : { padding: '20px' }}>{children}</div>
     </div>
@@ -158,33 +166,55 @@ function EmailPreviewPane({
   return (
     <div style={{ borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden', background: '#fff', boxShadow: 'var(--shadow-lg)' }}>
       {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--border)', background: '#f8fafc' }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.8px', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: loading ? '#f59e0b' : '#22c55e', display: 'inline-block' }} />
-          {loading ? 'Rendering…' : 'Email Preview'}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '11px 16px', borderBottom: '1px solid var(--border)',
+        background: 'var(--surface-2)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            width: 24, height: 24,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--brand-light)', borderRadius: 6, color: 'var(--brand)',
+          }}>
+            <IconMail size={13} />
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>Email Preview</span>
+          <span style={{
+            fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 20,
+            background: loading ? '#fffbeb' : '#f0fdf4',
+            color: loading ? '#92400e' : '#15803d',
+            border: `1px solid ${loading ? '#fbbf2460' : '#bbf7d0'}`,
+          }}>
+            {loading ? 'Rendering…' : 'Ready'}
+          </span>
         </div>
         <button
           type="button"
           onClick={fetchPreview}
           disabled={loading}
           className="btn btn-ghost"
-          style={{ fontSize: 11, padding: '4px 10px', opacity: loading ? 0.5 : 1 }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '5px 10px', opacity: loading ? 0.4 : 1 }}
         >
-          ↻ Refresh
+          <IconRefresh size={13} />
+          Refresh
         </button>
       </div>
 
       {/* Content */}
-      <div style={{ position: 'relative', minHeight: 320 }}>
+      <div style={{ position: 'relative', minHeight: 360 }}>
         {loading && !html && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: 13, gap: 8 }}>
-            <span style={{ display: 'inline-flex', animation: 'spin 0.9s linear infinite' }}><IconSpinner /></span>
-            Rendering email…
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--muted)' }}>
+            <span style={{ display: 'inline-flex', animation: 'spin 0.9s linear infinite', color: 'var(--brand)' }}>
+              <IconSpinner size={22} />
+            </span>
+            <span style={{ fontSize: 13 }}>Rendering email template…</span>
           </div>
         )}
         {error && (
-          <div style={{ padding: 16, color: '#b91c1c', fontSize: 12, background: '#fef2f2' }}>
-            ⚠ {error}
+          <div style={{ padding: '16px 20px', display: 'flex', gap: 10, alignItems: 'flex-start', background: '#fef2f2', borderBottom: '1px solid #fca5a5' }}>
+            <IconAlert size={16} style={{ color: '#b91c1c', flexShrink: 0, marginTop: 1 }} />
+            <span style={{ fontSize: 12, color: '#b91c1c' }}>{error}</span>
           </div>
         )}
         {html && (
@@ -192,14 +222,22 @@ function EmailPreviewPane({
             srcDoc={html}
             title="Email Preview"
             sandbox="allow-same-origin"
-            style={{ width: '100%', height: 680, border: 'none', display: 'block' }}
+            style={{ width: '100%', height: 700, border: 'none', display: 'block' }}
           />
+        )}
+        {!html && !loading && !error && (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+            Click <strong>Refresh</strong> to render the email preview.
+          </div>
         )}
       </div>
 
-      {/* Footer note */}
-      <div style={{ padding: '8px 14px', borderTop: '1px solid var(--border)', background: '#f8fafc', fontSize: 10, color: 'var(--muted)' }}>
-        This is the exact HTML sent to the client via Resend. Pay Now link points to <code>#preview-pay</code>.
+      {/* Footer */}
+      <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--brand)', display: 'inline-block' }} />
+        <span style={{ fontSize: 10, color: 'var(--muted)' }}>
+          Exact HTML sent via Resend · Pay Now button links to <code style={{ fontSize: 9 }}>#preview-pay</code>
+        </span>
       </div>
     </div>
   );
@@ -565,50 +603,107 @@ export default function NewInvoicePage() {
   return (
     <AppShell>
       <main className="page-body">
-        {/* Breadcrumb + header */}
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 12, color: 'var(--muted)' }}>
-            <Link href="/" style={{ color: 'var(--muted)', textDecoration: 'none' }}>Dashboard</Link>
-            <span>/</span>
+        {/* Header */}
+        <div style={{ marginBottom: 24 }}>
+          {/* Breadcrumb */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 14, fontSize: 12, color: 'var(--muted)' }}>
+            <Link href="/" style={{ color: 'var(--muted)', textDecoration: 'none', transition: 'color .15s' }}>Dashboard</Link>
+            <IconChevronRight size={12} style={{ opacity: 0.5 }} />
             <span style={{ color: 'var(--text)', fontWeight: 600 }}>New Invoice</span>
           </div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.5px' }}>
-            Create Invoice
-          </h1>
-          <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--muted)' }}>
-            Add client details, line items, and send a branded payment link.
-          </p>
+
+          {/* Title + live status chips */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' as const }}>
+            <div>
+              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.5px' }}>
+                Create Invoice
+              </h1>
+              <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>
+                Fill details · preview · send the payment link
+              </p>
+            </div>
+
+            {/* Live chips — update as admin fills the form */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' as const, paddingTop: 2 }}>
+              {/* Brand */}
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '4px 10px', borderRadius: 20,
+                background: 'var(--brand-light)', border: '1px solid rgba(184,147,91,.28)',
+                fontSize: 11, fontWeight: 700, color: 'var(--brand)',
+              }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--brand)', flexShrink: 0 }} />
+                {brandId === 'catalyst' ? 'Catalyst' : 'Ripple Nexus'}
+              </span>
+
+              {/* Currency */}
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '4px 10px', borderRadius: 20,
+                background: '#f0f9ff', border: '1px solid #bae6fd',
+                fontSize: 11, fontWeight: 700, color: '#0369a1',
+              }}>
+                {rateLoading
+                  ? <><IconSpinner size={10} style={{ animation: 'spin .9s linear infinite' }} /> Fetching…</>
+                  : <>{currencyInfo?.symbol ?? '₹'} {localCode}</>}
+              </span>
+
+              {/* Gateway */}
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '4px 10px', borderRadius: 20,
+                background: paypalWillConvertToUsd ? '#fffbeb' : '#f0fdf4',
+                border: `1px solid ${paypalWillConvertToUsd ? 'rgba(251,191,36,.5)' : '#bbf7d0'}`,
+                fontSize: 11, fontWeight: 700,
+                color: paypalWillConvertToUsd ? '#92400e' : '#15803d',
+              }}>
+                <IconCreditCard size={10} />
+                {localCode === 'INR' || paymentGateway === 'RAZORPAY' ? 'Razorpay' : 'PayPal'}
+                {paypalWillConvertToUsd && <span style={{ marginLeft: 2 }}>→ USD</span>}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* ── Page tab navigation ── */}
-        <div style={{ display: 'flex', gap: 3, marginBottom: 28, background: '#f1f5f9', borderRadius: 14, padding: 4 }}>
+        <div style={{
+          display: 'flex', gap: 2, marginBottom: 28,
+          background: 'var(--surface-2)',
+          borderRadius: 14, padding: 4,
+          border: '1px solid rgba(184,147,91,.18)',
+        }}>
           {([
-            { key: 'form'    as const, label: 'Details & Items', icon: '📝' },
-            { key: 'invoice' as const, label: 'Invoice Preview',  icon: '📄' },
-            { key: 'email'   as const, label: 'Email Preview',    icon: '✉️' },
-          ]).map(tab => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => {
-                setActiveTab(tab.key);
-                if (tab.key === 'email') setEmailPreviewKey(k => k + 1);
-              }}
-              style={{
-                flex: 1, padding: '10px 12px', border: 'none', borderRadius: 10, cursor: 'pointer',
-                fontSize: 13, fontWeight: activeTab === tab.key ? 700 : 500,
-                color: activeTab === tab.key ? 'var(--text)' : 'var(--muted)',
-                background: activeTab === tab.key ? '#fff' : 'transparent',
-                boxShadow: activeTab === tab.key ? '0 1px 6px rgba(0,0,0,0.1)' : 'none',
-                transition: 'all .15s',
-                whiteSpace: 'nowrap' as const,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              }}
-            >
-              <span style={{ fontSize: 14 }}>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
+            { key: 'form'    as const, label: 'Details & Items', Icon: IconList     },
+            { key: 'invoice' as const, label: 'Invoice Preview',  Icon: IconDocument },
+            { key: 'email'   as const, label: 'Email Preview',    Icon: IconMail     },
+          ] as const).map(tab => {
+            const active = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => {
+                  setActiveTab(tab.key);
+                  if (tab.key === 'email') setEmailPreviewKey(k => k + 1);
+                }}
+                style={{
+                  flex: 1, padding: '10px 14px', border: 'none', borderRadius: 10, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                  transition: 'all .15s',
+                  background: active ? '#fff' : 'transparent',
+                  color: active ? 'var(--brand)' : 'var(--text-tertiary)',
+                  fontWeight: active ? 700 : 500,
+                  fontSize: 13,
+                  boxShadow: active ? '0 1px 6px rgba(184,147,91,.2), 0 1px 2px rgba(0,0,0,.06)' : 'none',
+                  borderBottom: active ? '2px solid var(--brand)' : '2px solid transparent',
+                  whiteSpace: 'nowrap' as const,
+                }}
+              >
+                <tab.Icon size={15} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* ── Form tab ── */}
@@ -1162,41 +1257,72 @@ export default function NewInvoicePage() {
             )}
 
             {/* Submit */}
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="btn btn-primary"
-              style={{ width: '100%', justifyContent: 'center', padding: '15px', fontSize: 15, fontWeight: 700 }}
-            >
-              {submitting ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ display: 'inline-flex', animation: 'spin 0.9s linear infinite' }}>
-                    <IconSpinner />
+            <div>
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="btn btn-primary"
+                style={{ width: '100%', justifyContent: 'center', padding: '15px 20px', fontSize: 15, fontWeight: 700, borderRadius: 12, gap: 10 }}
+              >
+                {submitting ? (
+                  <>
+                    <span style={{ display: 'inline-flex', animation: 'spin 0.9s linear infinite' }}>
+                      <IconSpinner size={17} />
+                    </span>
+                    Creating invoice…
+                  </>
+                ) : (
+                  <>
+                    <IconMail size={17} />
+                    Create Invoice &amp; Send Email
+                  </>
+                )}
+              </button>
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, flexWrap: 'wrap' as const }}>
+                {([
+                  [<IconCheck key="a" size={11} />, 'Secure payment link'],
+                  [<IconMail  key="b" size={11} />, 'Branded email sent'],
+                  [<IconLink  key="c" size={11} />, 'Auto-tracks payment'],
+                ] as const).map(([icon, label], i) => (
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted)' }}>
+                    <span style={{ color: 'var(--brand)' }}>{icon}</span>
+                    {label}
                   </span>
-                  Creating invoice...
-                </span>
-              ) : (
-                'Create Invoice & Send Email'
-              )}
-            </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
         {/* ── Invoice Preview tab ── */}
         {activeTab === 'invoice' && (
           <div style={{ maxWidth: 580, margin: '0 auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: 1, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-                Live Preview — {clientName || 'Client Name'}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  width: 30, height: 30,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'var(--brand-light)', borderRadius: 8, color: 'var(--brand)',
+                }}>
+                  <IconDocument size={15} />
+                </span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                    {clientName || 'Invoice Preview'}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                    Live — updates as you fill the form
+                  </div>
+                </div>
               </div>
               <button
                 type="button"
                 className="btn btn-ghost"
                 onClick={() => setActiveTab('form')}
-                style={{ fontSize: 12, padding: '5px 12px' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '6px 12px', flexShrink: 0 }}
               >
-                ← Back to Form
+                <IconChevronRight size={13} style={{ transform: 'rotate(180deg)' }} />
+                Back to Form
               </button>
             </div>
             <InvoicePreview
@@ -1222,17 +1348,30 @@ export default function NewInvoicePage() {
         {/* ── Email Preview tab ── */}
         {activeTab === 'email' && (
           <div style={{ maxWidth: 700, margin: '0 auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: 1, color: 'var(--muted)' }}>
-                Email Preview — exact HTML sent to client
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  width: 30, height: 30,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'var(--brand-light)', borderRadius: 8, color: 'var(--brand)',
+                }}>
+                  <IconMail size={15} />
+                </span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Email Preview</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                    Exact HTML sent to {clientEmail || 'client'} via Resend
+                  </div>
+                </div>
               </div>
               <button
                 type="button"
                 className="btn btn-ghost"
                 onClick={() => setActiveTab('form')}
-                style={{ fontSize: 12, padding: '5px 12px' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '6px 12px', flexShrink: 0 }}
               >
-                ← Back to Form
+                <IconChevronRight size={13} style={{ transform: 'rotate(180deg)' }} />
+                Back to Form
               </button>
             </div>
             <EmailPreviewPane
