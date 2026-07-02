@@ -16,6 +16,7 @@ import AppShell from '@/components/AppShell';
 import { format, addDays } from 'date-fns';
 import { isRnModuleEnabledClient } from '@/lib/brand/flags';
 import type { BrandId } from '@/lib/brand/types';
+import { PAYPAL_SUPPORTED_CURRENCIES } from '@/lib/paypal';
 import { useAdmin } from '@/components/AdminProvider';
 import { useBrand } from '@/components/BrandProvider';
 
@@ -107,12 +108,14 @@ function InvoicePreview({
   clientName, clientEmail, clientType, country, companyName,
   lineItems, discountRate, taxRate, notes, dueDays,
   currencyInfo, exchangeRate, brandId,
+  paypalWillConvertToUsd, usdExchangeRate,
 }: {
   clientName: string; clientEmail: string; clientType: ClientType;
   country: string; companyName: string;
   lineItems: LineItem[]; discountRate: number; taxRate: number;
   notes: string; dueDays: number;
   currencyInfo: CurrencyInfo | null; exchangeRate: number; brandId: BrandId;
+  paypalWillConvertToUsd?: boolean; usdExchangeRate?: number;
 }) {
   const sym  = currencyInfo?.symbol ?? '₹';
   const code = currencyInfo?.code   ?? 'INR';
@@ -228,6 +231,17 @@ function InvoicePreview({
         {exchangeRate !== 1 && (
           <div style={{ fontSize: 10, color: 'var(--muted)', textAlign: 'center', marginTop: 7 }}>
             Exchange rate: 1 INR = {exchangeRate.toFixed(5)} {code}
+          </div>
+        )}
+        {paypalWillConvertToUsd && usdExchangeRate && (
+          <div style={{ marginTop: 8, padding: '8px 12px', background: '#fffbeb', borderRadius: 8, border: '1px solid #fbbf2460' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#92400e', marginBottom: 2 }}>PayPal will charge in USD</div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: '#78350f' }}>
+              ≈ ${round2(total / usdExchangeRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+            </div>
+            <div style={{ fontSize: 10, color: '#92400e', marginTop: 2 }}>
+              {code} is not supported by PayPal — converted at today&apos;s rate
+            </div>
           </div>
         )}
         {notes && (
@@ -450,6 +464,10 @@ export default function NewInvoicePage() {
   const sym = currencyInfo?.symbol ?? '₹';
   const callingCode = getCallingCodeForCountryName(country);
   const phonePreview = clientPhone.trim() ? normalizePhoneE164(clientPhone, country) : null;
+
+  // PayPal converts unsupported currencies to USD — warn admin before they submit
+  const localCode = currencyInfo?.code ?? 'INR';
+  const paypalWillConvertToUsd = paymentGateway === 'PAYPAL' && localCode !== 'USD' && !PAYPAL_SUPPORTED_CURRENCIES.has(localCode);
 
   return (
     <AppShell>
@@ -903,6 +921,26 @@ export default function NewInvoicePage() {
               </SectionCard>
             )}
 
+            {/* PayPal unsupported currency warning */}
+            {paypalWillConvertToUsd && (
+              <div style={{ padding: '12px 16px', background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 10, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <span style={{ fontSize: 18, flexShrink: 0, lineHeight: 1 }}>⚠️</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>
+                    PayPal doesn&apos;t support {localCode} natively
+                  </div>
+                  <div style={{ fontSize: 12, color: '#78350f', lineHeight: 1.6 }}>
+                    The invoice will be <strong>created and charged in USD</strong> via PayPal.
+                    The client email will show the USD amount with an approximate {localCode} reference below it.
+                    The preview on the right shows your entered {localCode} prices — after creation, the admin dashboard and email will reflect the converted USD amount.
+                  </div>
+                  <div style={{ fontSize: 12, color: '#78350f', marginTop: 6 }}>
+                    If you want to charge in {localCode} directly, <strong>switch to Razorpay</strong> — it supports multi-currency natively.
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 6. Split Payment */}
             <SectionCard title="Payment Structure" icon={<IconCreditCard />}>
               <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.6 }}>
@@ -1064,6 +1102,8 @@ export default function NewInvoicePage() {
                 currencyInfo={currencyInfo}
                 exchangeRate={exchangeRate}
                 brandId={brandId}
+                paypalWillConvertToUsd={paypalWillConvertToUsd}
+                usdExchangeRate={usdExchangeRate}
               />
             </div>
           </div>
