@@ -50,7 +50,7 @@ export function InvoiceEmail({ invoice }: InvoiceEmailProps) {
       headerBadge={{ label: 'Invoice', value: invoice.invoiceNumber, sub: invoiceDateStr }}
     >
       {/* Greeting */}
-      <EmailHeading>Hello, {firstName},</EmailHeading>
+      <EmailHeading>Hello, {firstName}</EmailHeading>
       <EmailBody>
         Your <strong style={{ color: brand.primaryColor }}>{pkgLabel}</strong> invoice is ready.
         Review the details below and click <strong>Pay Now</strong>.
@@ -161,7 +161,7 @@ export function InvoiceEmail({ invoice }: InvoiceEmailProps) {
         steps={[
           { icon: '💳', title: 'Payment', desc: 'Instant confirmation via Razorpay or PayPal' },
           { icon: '✍️', title: 'Kickoff', desc: 'We review & begin your project within 24 hrs' },
-          { icon: '🚀', title: 'Delivery', desc: 'Documents delivered in 2–4 business days' },
+          { icon: '🚀', title: 'Delivery', desc: 'Initial draft in 2–4 business days — revisions included' },
         ]}
       />
 
