@@ -5,7 +5,7 @@ import { ClientType } from '@prisma/client';
 import { createCheckoutSession } from '@/lib/sales/checkoutService';
 import { enforcePublicRateLimit } from '@/lib/publicRateLimit';
 import { validatePublicFormMeta } from '@/lib/publicForms';
-import { acquireLock, releaseLock } from '@/lib/idempotency';
+import { acquireLockDurable, releaseLockDurable } from '@/lib/idempotency';
 import { z } from 'zod';
 
 const VALID_SERVICE_SLUGS = ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'] as const;
@@ -52,7 +52,9 @@ export async function POST(req: NextRequest) {
     if (limited) return limited;
 
     const lockKey = `checkout_${parseResult.data.email.toLowerCase()}`;
-    if (!acquireLock(lockKey, 10000)) {
+    // Durable across serverless instances when Upstash Redis is configured,
+    // so a double-submit cannot create two invoices / two payment links.
+    if (!(await acquireLockDurable(lockKey, 15000))) {
       return NextResponse.json({ error: 'Checkout already processing. Please wait a moment.' }, { status: 409 });
     }
 
@@ -72,10 +74,10 @@ export async function POST(req: NextRequest) {
         preferredGateway: data.preferredGateway,
         referralCode: data.ref,
       });
-      releaseLock(lockKey);
+      await releaseLockDurable(lockKey);
       return NextResponse.json({ success: true, checkoutSessionId: result.checkoutSessionId });
     } catch (innerError) {
-      releaseLock(lockKey);
+      await releaseLockDurable(lockKey);
       throw innerError;
     }
 

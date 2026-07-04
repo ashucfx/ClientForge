@@ -1,7 +1,13 @@
 // src/lib/ratelimit.ts
-// DB-backed rate limiter using CareerActivityLog.
-// Works across all serverless instances — no Redis required.
-// For high-traffic production, replace with Upstash Redis.
+// Rate limiter with two backends:
+//   1. Upstash Redis (durable, shared across all serverless instances) — used
+//      when UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN are set.
+//   2. In-memory Map fallback — PER-INSTANCE ONLY. On serverless (Vercel) each
+//      instance has its own Map, so limits are effectively multiplied by the
+//      number of live instances. This is acceptable for local dev but MUST NOT
+//      be relied on in production — configure Upstash Redis there.
+// Security-sensitive limits (OTP verify/send, PIN lockout, magic link) depend
+// on backend #1 to be meaningful. See audit finding #3.
 
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
@@ -31,6 +37,19 @@ interface FallbackHit {
 }
 const fallbackCache = new Map<string, FallbackHit>();
 
+// Warn once (not per-request) if we fall back to per-instance memory in prod.
+let warnedMemoryFallback = false;
+function warnMemoryFallbackOnce() {
+  if (!warnedMemoryFallback && process.env.NODE_ENV === 'production') {
+    warnedMemoryFallback = true;
+    console.error(
+      '[rate-limit] SECURITY: Upstash Redis is not configured — rate limits are ' +
+      'per-instance only and are NOT enforced across serverless instances. ' +
+      'Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.'
+    );
+  }
+}
+
 /**
  * Check and record an attempt keyed by `key`.
  * Uses Upstash Redis if configured, otherwise falls back to DB-backed CareerActivityLog.
@@ -57,7 +76,8 @@ export async function rateLimit(
     }
   }
 
-  // --- In-Memory Fallback (Local Dev) ---
+  // --- In-Memory Fallback (per-instance; local dev, or prod without Redis) ---
+  warnMemoryFallbackOnce();
   const now = Date.now();
   const cacheKey = `rl:${action}:${key}`;
   

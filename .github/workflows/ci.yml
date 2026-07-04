@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master, main ]
   pull_request:
-    branches: [ main ]
+    branches: [ master, main ]
 
 jobs:
   build:
@@ -30,7 +30,10 @@ jobs:
       
     - name: Run ESLint
       run: npm run lint || npx eslint .
-      
+
+    - name: Run tests
+      run: npm test
+
     - name: Build Next.js
       run: npm run build
       env:
