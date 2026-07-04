@@ -9,6 +9,13 @@ Everything else from the audit (auth bypass, CI branch, rate-limiter, durable
 checkout lock, dependency upgrades, money-math tests) has already been applied —
 none of those touched data.
 
+**Ready-to-apply SQL + operator runbook:** see
+[`prepared-migrations/RUNBOOK.md`](prepared-migrations/RUNBOOK.md). The SQL files
+there are generated/hand-written but **not yet run against any database**;
+`schema.prisma` and app code are unchanged, so the current deploy is unaffected.
+Recommended order: #6 (baseline) → #9 (onboardedAt) → #7 deferred in favour of a
+read-only reconciliation check.
+
 ---
 
 ## #6 — Adopt Prisma migrations (currently `prisma db push`)
