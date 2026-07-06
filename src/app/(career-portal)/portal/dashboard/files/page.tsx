@@ -45,6 +45,21 @@ const STATUS_STYLE: Record<string, string> = {
   DENIED:   'bg-red-50 text-red-700 border-red-200',
 };
 
+// Clear, client-friendly framing of each revision state — what it means and what happens next.
+const STATUS_MEANING: Record<string, { label: string; next: string; dot: string }> = {
+  PENDING:  { label: 'Received',      next: 'Our team will review your request shortly.',            dot: 'bg-amber-400' },
+  APPROVED: { label: 'In Progress',   next: 'Accepted — we are working on your revised draft now.',  dot: 'bg-emerald-500' },
+  DENIED:   { label: 'Not Accepted',  next: 'Please see the team note below for details.',            dot: 'bg-red-400' },
+};
+
+// The revision lifecycle, shown as a mini stepper so clients always know where things stand.
+const REV_STEPS = ['Requested', 'Reviewed', 'Revised Draft'];
+function revStepIndex(status: string): number {
+  if (status === 'APPROVED') return 2; // being worked into a revised draft
+  if (status === 'DENIED')   return 1; // reviewed, closed
+  return 0;                            // pending / requested
+}
+
 interface RevisionSummaryItem {
   slug: string; name: string; freeLimit: number; freeUsed: number; revisionsLeft: number;
 }
@@ -362,29 +377,61 @@ export default function FilesPage() {
               <p className="text-sm text-slate-400 text-center py-4">No revision requests yet.</p>
             ) : (
               <div className="space-y-3">
-                {revisions.map(r => (
-                  <div key={r.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/50">
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <div className="flex-1 min-w-0">
-                        {r.fileLabel && (
-                          <p className="text-xs font-semibold text-slate-500 mb-0.5">Re: {r.fileLabel}</p>
+                {revisions.map(r => {
+                  const meaning = STATUS_MEANING[r.status] ?? STATUS_MEANING.PENDING;
+                  const stepIdx = revStepIndex(r.status);
+                  const denied = r.status === 'DENIED';
+                  return (
+                    <div key={r.id} className="border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                      {/* Status header */}
+                      <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${meaning.dot}`} />
+                          <span className="text-sm font-bold text-slate-700">{meaning.label}</span>
+                          {r.fileLabel && <span className="text-xs text-slate-400 truncate">· {r.fileLabel}</span>}
+                        </div>
+                        <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${STATUS_STYLE[r.status] ?? STATUS_STYLE.PENDING}`}>
+                          {r.status}
+                        </span>
+                      </div>
+
+                      <div className="p-4">
+                        {/* Lifecycle stepper (hidden for denied — that path ends at review) */}
+                        {!denied && (
+                          <div className="flex items-center gap-1 mb-3">
+                            {REV_STEPS.map((step, i) => (
+                              <React.Fragment key={step}>
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${
+                                    i <= stepIdx ? 'bg-[#B8935B] text-white' : 'bg-slate-200 text-slate-400'
+                                  }`}>
+                                    {i < stepIdx ? '✓' : i + 1}
+                                  </span>
+                                  <span className={`text-[10px] font-semibold ${i <= stepIdx ? 'text-slate-600' : 'text-slate-300'}`}>{step}</span>
+                                </div>
+                                {i < REV_STEPS.length - 1 && (
+                                  <div className={`flex-1 h-px ${i < stepIdx ? 'bg-[#B8935B]' : 'bg-slate-200'}`} />
+                                )}
+                              </React.Fragment>
+                            ))}
+                          </div>
                         )}
-                        <p className="text-sm text-slate-800 leading-relaxed">{r.note}</p>
+
+                        <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">{r.note}</p>
+                        <p className="text-xs text-slate-500 mt-2">{meaning.next}</p>
+
+                        {r.adminNote && (
+                          <div className="mt-2.5 px-3 py-2 bg-[#FBF8F3] border border-[#F0EAE0] rounded-lg">
+                            <p className="text-xs text-[#9A7540]"><strong>Team note:</strong> {r.adminNote}</p>
+                          </div>
+                        )}
+                        <p className="text-[11px] text-slate-400 mt-2">
+                          {r.requestedBy === 'admin' ? 'Created by Catalyst Team' : 'Requested by you'} · {new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
                       </div>
-                      <span className={`flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[r.status] ?? STATUS_STYLE.PENDING}`}>
-                        {r.status}
-                      </span>
                     </div>
-                    {r.adminNote && (
-                      <div className="mt-2 px-3 py-2 bg-[#FBF8F3] border border-[#F0EAE0] rounded-lg">
-                        <p className="text-xs text-[#9A7540]"><strong>Team note:</strong> {r.adminNote}</p>
-                      </div>
-                    )}
-                    <p className="text-xs text-slate-400 mt-1.5">
-                      {r.requestedBy === 'admin' ? 'Created by Catalyst Team' : 'Requested by you'} · {new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
