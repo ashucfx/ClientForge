@@ -1563,6 +1563,17 @@ function FormsTab({ forms, packageType, clientId, services, emailLogs, onSendWel
                 </div>
               </div>
               <div className="flex items-center gap-3">
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); window.location.href = `/api/career/admin/clients/${clientId}/brief-export?formType=${encodeURIComponent(type)}`; }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); window.location.href = `/api/career/admin/clients/${clientId}/brief-export?formType=${encodeURIComponent(type)}`; } }}
+                  title="Download this brief as a Word (.docx) document"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 border border-[#E8DDD0] text-[#9A7540] hover:bg-[#FBF8F3] text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                >
+                  <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                  DOCX
+                </span>
                 <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
                   Latest: v{latest.version}
                 </span>
