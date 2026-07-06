@@ -93,7 +93,8 @@ export async function GET(req: NextRequest) {
           lead.currentStep.subject,
           lead.currentStep.contentHtml,
           lead.campaign.brandId,
-          lead.id
+          lead.id,
+          lead.contact.name
         );
 
         // Brief pause between sends to stay within SMTP provider rate limits

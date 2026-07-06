@@ -14,15 +14,46 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+/**
+ * Replace {{merge tags}} in campaign copy. Unmatched/empty tags fall back to
+ * sensible defaults (e.g. {{firstName}} -> "there") so a client NEVER sees a raw
+ * "{{...}}" token. Backward compatible: content without tags is returned as-is.
+ */
+export function personalize(
+  text: string,
+  vars: { firstName?: string | null; name?: string | null; brandName?: string },
+): string {
+  const first = (vars.firstName || (vars.name ? vars.name.split(' ')[0] : '') || '').trim();
+  const full = (vars.name || '').trim();
+  const map: Record<string, string> = {
+    firstname: first || 'there',
+    first_name: first || 'there',
+    name: full || first || 'there',
+    fullname: full || first || 'there',
+    brand: vars.brandName || 'Catalyst',
+    brandname: vars.brandName || 'Catalyst',
+  };
+  return text.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_m, key: string) => {
+    const norm = key.toLowerCase().replace(/[.\s]/g, '');
+    return map[norm] ?? '';
+  });
+}
+
 export async function sendMarketingEmail(
   to: string,
   subject: string,
   htmlContent: string,
   brandId: string,
-  campaignLeadId: string
+  campaignLeadId: string,
+  contactName?: string | null,
 ): Promise<void> {
   const brand = getBrand(brandId);
   const portalUrl = brand.portalUrl;
+
+  // Personalize subject + body (safe no-op when there are no merge tags)
+  const pvars = { name: contactName, brandName: brand.name };
+  subject = personalize(subject, pvars);
+  htmlContent = personalize(htmlContent, pvars);
 
   // Unsubscribe and tracking URLs
   const unsubscribeUrl = `${portalUrl}/api/public/unsubscribe?lead=${campaignLeadId}`;
@@ -45,8 +76,50 @@ export async function sendMarketingEmail(
     <img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none;"/>
   `;
 
-  // Build the premium HTML wrapper
-  const html = `<!DOCTYPE html>
+  // Build the premium HTML wrapper (shared with the preview endpoint)
+  const html = renderMarketingShell(contentWithPixel, subject, brandId, unsubscribeUrl);
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"${brand.name}" <${process.env.SMTP_USER}>`,
+      to,
+      subject,
+      html,
+      headers: {
+        'List-Unsubscribe': `<${unsubscribeUrl}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
+    });
+    console.log('[MarketingMailer] Sent: %s', info.messageId);
+    db.sysEmailLog.create({
+      data: { to, subject, trigger: 'CAMPAIGN', channel: 'smtp', status: 'sent', metadata: { campaignLeadId } as any },
+    }).catch(() => null);
+  } catch (err) {
+    console.error('[MarketingMailer] Failed to send to', to, err);
+    db.sysEmailLog.create({
+      data: {
+        to, subject, trigger: 'CAMPAIGN', channel: 'smtp', status: 'failed',
+        error: err instanceof Error ? err.message : String(err),
+        metadata: { campaignLeadId } as any,
+      },
+    }).catch(() => null);
+    throw err;
+  }
+}
+
+/**
+ * Wrap inner body HTML in the premium branded email shell (logo header, accent
+ * bar, footer + unsubscribe). Shared by sendMarketingEmail() and the template
+ * preview endpoint so what the admin previews is exactly what gets sent.
+ */
+export function renderMarketingShell(
+  innerHtml: string,
+  subject: string,
+  brandId: string,
+  unsubscribeUrl = '#',
+): string {
+  const brand = getBrand(brandId);
+  return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="UTF-8"/>
@@ -69,7 +142,7 @@ export async function sendMarketingEmail(
   <!-- Email Card -->
   <table role="presentation" class="email-container" width="620" cellpadding="0" cellspacing="0"
          style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(10,11,13,0.12);">
-    
+
     <!-- Header -->
     <tr>
       <td style="background:${brand.gradient};padding:28px 36px 24px;">
@@ -105,7 +178,7 @@ export async function sendMarketingEmail(
     <!-- Body Content -->
     <tr>
       <td class="mobile-pad" style="padding:32px 36px 32px;font-family:Helvetica,Arial,sans-serif;font-size:16px;color:#4a5568;line-height:1.75;">
-        ${contentWithPixel}
+        ${innerHtml}
       </td>
     </tr>
 
@@ -117,7 +190,7 @@ export async function sendMarketingEmail(
             <td valign="middle">
               <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#c4c9d8;line-height:1.6;text-align:center;">
                 You are receiving this email because you opted in at ${brand.name}.<br/>
-                If you no longer wish to receive these emails, you can 
+                If you no longer wish to receive these emails, you can
                 <a href="${unsubscribeUrl}" style="color:#c4c9d8;text-decoration:underline;">unsubscribe here</a>.
               </div>
             </td>
@@ -131,31 +204,4 @@ export async function sendMarketingEmail(
 </table>
 </body>
 </html>`;
-
-  try {
-    const info = await transporter.sendMail({
-      from: `"${brand.name}" <${process.env.SMTP_USER}>`,
-      to,
-      subject,
-      html,
-      headers: {
-        'List-Unsubscribe': `<${unsubscribeUrl}>`,
-        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-      },
-    });
-    console.log('[MarketingMailer] Sent: %s', info.messageId);
-    db.sysEmailLog.create({
-      data: { to, subject, trigger: 'CAMPAIGN', channel: 'smtp', status: 'sent', metadata: { campaignLeadId } as any },
-    }).catch(() => null);
-  } catch (err) {
-    console.error('[MarketingMailer] Failed to send to', to, err);
-    db.sysEmailLog.create({
-      data: {
-        to, subject, trigger: 'CAMPAIGN', channel: 'smtp', status: 'failed',
-        error: err instanceof Error ? err.message : String(err),
-        metadata: { campaignLeadId } as any,
-      },
-    }).catch(() => null);
-    throw err;
-  }
 }

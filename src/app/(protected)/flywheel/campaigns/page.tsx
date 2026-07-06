@@ -9,6 +9,9 @@ import {
   IconMail, IconSend, IconPlus, IconEye, IconX, IconRefresh,
   IconPlay, IconPause, IconUser, IconChevronRight, IconTrendUp, IconSearch
 } from '@/components/Icons';
+import {
+  MARKETING_TEMPLATES, TEMPLATE_CATEGORY_LABELS, type TemplateCategory,
+} from '@/lib/marketing/templates';
 
 const STATUS_META: Record<string, { label: string; bg: string; color: string }> = {
   DRAFT:     { label: 'Draft',     bg: '#f1f5f9', color: '#64748b' },
@@ -46,6 +49,11 @@ export default function FlywheelCampaigns() {
     { id: '1', type: 'heading', content: '' },
     { id: '2', type: 'paragraph', content: '' },
   ]);
+  // When a prebuilt template is chosen, its HTML overrides the block editor.
+  const [templateHtml, setTemplateHtml] = useState<string | null>(null);
+  const [templateName, setTemplateName] = useState<string>('');
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryCat, setGalleryCat] = useState<TemplateCategory | 'ALL'>('ALL');
   const [audienceFilter, setAudienceFilter] = useState('ALL');
   const [audienceCount, setAudienceCount] = useState(0);
   const [pickedLeads, setPickedLeads] = useState<LeadOption[]>([]);
@@ -145,7 +153,7 @@ export default function FlywheelCampaigns() {
   }).join('\n');
 
   const buildEmailPreview = () => {
-    const bodyHtml = blocksToHtml();
+    const bodyHtml = templateHtml ?? blocksToHtml();
     const isCatalyst = brand.id === 'catalyst';
     const logoHtml = brand.logoEmailHtml(44);
     const nameColor = isCatalyst ? '#F4F1EB' : '#F4F5FA';
@@ -216,7 +224,7 @@ export default function FlywheelCampaigns() {
         metadata: audienceFilter === 'PICK'
           ? { audienceFilter: 'PICK', contactIds: pickedLeads.map(l => l.id) }
           : { audienceFilter },
-        steps: [{ subject, contentHtml: blocksToHtml(), delayHours: 0 }],
+        steps: [{ subject, contentHtml: templateHtml ?? blocksToHtml(), delayHours: 0 }],
       };
       const res = await fetch('/api/admin/flywheel/campaigns', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -236,11 +244,22 @@ export default function FlywheelCampaigns() {
     setWizardStep(1); setCampaignName(''); setCampaignType('ONE_OFF');
     setSubject(''); setAudienceFilter('ALL');
     setPickedLeads([]); setLeadSearch(''); setLeadSearchResults([]);
+    setTemplateHtml(null); setTemplateName(''); setGalleryOpen(false); setGalleryCat('ALL');
     setBlocks([
       { id: '1', type: 'heading', content: '' },
       { id: '2', type: 'paragraph', content: '' },
     ]);
   };
+
+  // Load a prebuilt template into the wizard
+  const applyTemplate = (tpl: typeof MARKETING_TEMPLATES[number]) => {
+    setTemplateHtml(tpl.bodyHtml);
+    setTemplateName(tpl.name);
+    setSubject(tpl.subject);
+    if (!campaignName.trim()) setCampaignName(tpl.name);
+    setGalleryOpen(false);
+  };
+  const clearTemplate = () => { setTemplateHtml(null); setTemplateName(''); };
 
   // Dispatch campaign — resolve audience contactIds first, then send
   const handleDispatch = async (campaignId: string) => {
@@ -592,8 +611,33 @@ export default function FlywheelCampaigns() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-3">Email Content</label>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-sm font-semibold text-slate-700">Email Content</label>
+                      <button type="button" onClick={() => setGalleryOpen(true)}
+                        className="text-xs font-bold text-white px-3 py-1.5 rounded-lg transition-colors"
+                        style={{ background: brand.primaryColor }}>
+                        ✨ {templateHtml ? 'Change template' : 'Start from a template'}
+                      </button>
+                    </div>
 
+                    {templateHtml ? (
+                      <div className="border border-[#E8DDD0] bg-[#FBF8F3] rounded-xl p-4">
+                        <div className="flex items-center justify-between gap-3 mb-2">
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-bold text-[#9A7540] uppercase tracking-wide">Using template</p>
+                            <p className="text-sm font-bold text-slate-800 truncate">{templateName}</p>
+                          </div>
+                          <button type="button" onClick={clearTemplate}
+                            className="flex-shrink-0 text-xs font-semibold text-red-500 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors">
+                            Clear
+                          </button>
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          This ready-made template will be sent as-is, with each client&apos;s first name filled in automatically. See it on the Review step, or clear it to build from scratch.
+                        </p>
+                      </div>
+                    ) : (
+                    <>
                     {/* Block Editor */}
                     <div className="space-y-3 mb-4">
                       {blocks.map((block, idx) => (
@@ -634,6 +678,8 @@ export default function FlywheelCampaigns() {
                         </button>
                       ))}
                     </div>
+                    </>
+                    )}
                   </div>
                 </div>
               )}
@@ -655,7 +701,7 @@ export default function FlywheelCampaigns() {
                       ['Type', campaignType === 'ONE_OFF' ? 'One-Off Blast' : 'Drip Sequence'],
                       ['Audience', audienceFilter === 'PICK' ? `Hand-picked: ${pickedLeads.map(l => l.name).join(', ')}` : audienceFilter === 'ALL' ? `All contacts (${audienceCount})` : `${audienceFilter} (${audienceCount})`],
                       ['Subject', subject],
-                      ['Content Blocks', `${blocks.length} blocks`],
+                      ['Content', templateHtml ? `Template: ${templateName}` : `${blocks.length} blocks`],
                     ].map(([label, value]) => (
                       <div key={label as string} className="flex justify-between items-center">
                         <span className="text-sm text-slate-500">{label}</span>
@@ -793,6 +839,75 @@ export default function FlywheelCampaigns() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
+      {/* ── Template Gallery ── */}
+      {galleryOpen && (() => {
+        const brandId = activeBrand === 'all' ? 'catalyst' : activeBrand;
+        const cats: (TemplateCategory | 'ALL')[] = ['ALL', 'WIN_BACK', 'CONVERT_NEW', 'GROW_EXISTING', 'SEASONAL'];
+        const list = galleryCat === 'ALL' ? MARKETING_TEMPLATES : MARKETING_TEMPLATES.filter(t => t.category === galleryCat);
+        return (
+          <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" onClick={() => setGalleryOpen(false)}>
+            <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[88vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Template Gallery</h3>
+                  <p className="text-xs text-slate-400">{MARKETING_TEMPLATES.length} conversion-ready templates · click to preview, then use</p>
+                </div>
+                <button onClick={() => setGalleryOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100">
+                  <IconX size={18} />
+                </button>
+              </div>
+
+              {/* Category tabs */}
+              <div className="px-6 pt-3 flex gap-2 flex-wrap border-b border-slate-100 pb-3">
+                {cats.map(c => (
+                  <button key={c} onClick={() => setGalleryCat(c)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                      galleryCat === c ? 'text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                    style={galleryCat === c ? { background: brand.primaryColor } : undefined}>
+                    {c === 'ALL' ? 'All' : TEMPLATE_CATEGORY_LABELS[c]}
+                  </button>
+                ))}
+              </div>
+
+              {/* Grid */}
+              <div className="overflow-y-auto p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {list.map(tpl => (
+                  <div key={tpl.id} className="border border-slate-200 rounded-xl overflow-hidden flex flex-col hover:border-[#B8935B] hover:shadow-md transition-all">
+                    {/* Live preview (scaled iframe) */}
+                    <div className="h-44 bg-slate-50 border-b border-slate-100 overflow-hidden relative">
+                      <iframe
+                        src={`/api/admin/marketing/templates/preview?id=${tpl.id}&brandId=${brandId}`}
+                        title={tpl.name}
+                        style={{ width: '200%', height: '200%', border: 'none', transform: 'scale(0.5)', transformOrigin: 'top left', pointerEvents: 'none' }}
+                        sandbox="allow-same-origin"
+                      />
+                    </div>
+                    <div className="p-4 flex flex-col flex-1">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-[#B8935B] mb-1">{TEMPLATE_CATEGORY_LABELS[tpl.category]}</span>
+                      <p className="text-sm font-bold text-slate-900">{tpl.name}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 flex-1">{tpl.description}</p>
+                      <div className="flex gap-2 mt-3">
+                        <a href={`/api/admin/marketing/templates/preview?id=${tpl.id}&brandId=${brandId}`} target="_blank" rel="noopener noreferrer"
+                          className="flex-1 text-center text-xs font-semibold text-slate-600 border border-slate-200 py-2 rounded-lg hover:bg-slate-50 transition-colors">
+                          Full preview
+                        </a>
+                        <button onClick={() => applyTemplate(tpl)}
+                          className="flex-1 text-xs font-bold text-white py-2 rounded-lg transition-colors"
+                          style={{ background: brand.primaryColor }}>
+                          Use this
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </AppShell>
   );
 }
