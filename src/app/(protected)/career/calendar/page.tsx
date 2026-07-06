@@ -12,6 +12,14 @@ interface Holiday {
   notifiedAt: string | null;
 }
 
+interface Recipient {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  packageType: string | null;
+}
+
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
@@ -27,6 +35,11 @@ export default function HolidayCalendarPage() {
   const [adding,     setAdding]     = useState(false);
   const [notifying,  setNotifying]  = useState<string | null>(null); // holiday id being notified
   const [notifyMsg,  setNotifyMsg]  = useState('');
+  const [recipients,   setRecipients]   = useState<Recipient[]>([]);
+  const [recipLoading, setRecipLoading] = useState(false);
+  const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set());
+  const [recipSearch,  setRecipSearch]  = useState('');
+  const [sending,      setSending]      = useState(false);
   const [form, setForm] = useState({ date: '', name: '', description: '' });
   const [saving, setSaving]   = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -81,17 +94,56 @@ export default function HolidayCalendarPage() {
     await load();
   };
 
+  // Open the notify modal and load the list of clients this notice can go to,
+  // pre-selecting everyone (admin can then deselect / pick a subset).
+  const openNotify = useCallback(async (h: Holiday) => {
+    setNotifying(h.id);
+    setNotifyMsg('');
+    setRecipSearch('');
+    setRecipLoading(true);
+    setRecipients([]);
+    setSelectedIds(new Set());
+    try {
+      const res = await fetch('/api/admin/holidays/notify');
+      if (res.ok) {
+        const d = await res.json();
+        const list: Recipient[] = d.clients ?? [];
+        setRecipients(list);
+        setSelectedIds(new Set(list.map(c => c.id)));
+      }
+    } finally {
+      setRecipLoading(false);
+    }
+  }, []);
+
+  const closeNotify = () => { setNotifying(null); setNotifyMsg(''); setRecipients([]); setSelectedIds(new Set()); setRecipSearch(''); };
+
+  const toggleRecipient = (id: string) =>
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
   const sendNotification = async (h: Holiday) => {
+    if (selectedIds.size === 0) { setFeedback('Select at least one client to notify.'); setTimeout(() => setFeedback(''), 4000); return; }
+    setSending(true);
     const res = await fetch('/api/admin/holidays/notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ holidayId: h.isStatic ? undefined : h.id, date: h.date, name: h.name, message: notifyMsg }),
+      body: JSON.stringify({
+        holidayId: h.isStatic ? undefined : h.id,
+        date: h.date,
+        name: h.name,
+        message: notifyMsg,
+        clientIds: Array.from(selectedIds),
+      }),
     });
     const d = await res.json();
-    setNotifying(null);
-    setNotifyMsg('');
+    setSending(false);
+    closeNotify();
     if (res.ok) {
-      setFeedback(`Notified ${d.sent} clients (${d.failed} failed).`);
+      setFeedback(`Notified ${d.sent} client${d.sent === 1 ? '' : 's'}${d.failed ? ` (${d.failed} failed)` : ''}.`);
       await load();
     } else {
       setFeedback(d.error ?? 'Notification failed.');
@@ -269,7 +321,7 @@ export default function HolidayCalendarPage() {
                       </div>
                       <div className="flex flex-col gap-1 flex-shrink-0">
                         <button
-                          onClick={() => { setNotifying(h.id); setNotifyMsg(''); }}
+                          onClick={() => openNotify(h)}
                           className="text-[10px] bg-slate-800 text-white px-2 py-1 rounded-lg font-semibold hover:bg-slate-700 whitespace-nowrap"
                         >
                           Notify clients
@@ -284,34 +336,6 @@ export default function HolidayCalendarPage() {
                         )}
                       </div>
                     </div>
-
-                    {/* Notify modal inline */}
-                    {notifying === h.id && (
-                      <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
-                        <p className="text-[10px] font-bold text-slate-600">Custom message (optional)</p>
-                        <textarea
-                          rows={3}
-                          placeholder="Add any additional context for clients…"
-                          value={notifyMsg}
-                          onChange={e => setNotifyMsg(e.target.value)}
-                          className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-[#B8935B] resize-none"
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => sendNotification(h)}
-                            className="text-[10px] bg-[#B8935B] text-white px-3 py-1.5 rounded-lg font-bold hover:bg-[#9A7540] transition-colors"
-                          >
-                            Send to all active clients
-                          </button>
-                          <button
-                            onClick={() => { setNotifying(null); setNotifyMsg(''); }}
-                            className="text-[10px] text-slate-400 hover:text-slate-700 px-2 py-1.5"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -362,7 +386,7 @@ export default function HolidayCalendarPage() {
                       </td>
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => { setNotifying(h.id); setNotifyMsg(''); }}
+                          onClick={() => openNotify(h)}
                           className="text-[10px] text-slate-500 hover:text-[#B8935B] font-semibold"
                         >
                           Notify
@@ -381,30 +405,113 @@ export default function HolidayCalendarPage() {
           </div>
         </div>
 
-        {/* Notify modal for table row */}
-        {notifying && !upcomingHolidays.some(h => h.id === notifying) && (() => {
+        {/* Unified notify modal — message + recipient selection */}
+        {notifying && (() => {
           const h = holidays.find(hh => hh.id === notifying);
           if (!h) return null;
+          const q = recipSearch.trim().toLowerCase();
+          const filtered = q
+            ? recipients.filter(r => r.name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q))
+            : recipients;
+          const allFilteredSelected = filtered.length > 0 && filtered.every(r => selectedIds.has(r.id));
+          const toggleAllFiltered = () =>
+            setSelectedIds(prev => {
+              const next = new Set(prev);
+              if (allFilteredSelected) filtered.forEach(r => next.delete(r.id));
+              else filtered.forEach(r => next.add(r.id));
+              return next;
+            });
           return (
-            <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" onClick={() => { setNotifying(null); setNotifyMsg(''); }}>
-              <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
-                <p className="font-bold text-slate-800 mb-1">Notify clients — {h.name}</p>
-                <p className="text-xs text-slate-400 mb-4">{new Date(h.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                <textarea
-                  rows={4}
-                  placeholder="Optional: add a custom message for clients…"
-                  value={notifyMsg}
-                  onChange={e => setNotifyMsg(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#B8935B] resize-none mb-4"
-                />
-                <div className="flex gap-3">
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={closeNotify}>
+              <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[88vh]" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div className="p-6 pb-4 border-b border-slate-100">
+                  <p className="font-bold text-slate-800 mb-0.5">Notify clients — {h.name}</p>
+                  <p className="text-xs text-slate-400">{new Date(h.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                </div>
+
+                {/* Body (scrolls) */}
+                <div className="p-6 py-4 overflow-y-auto space-y-4">
+                  <div>
+                    <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1.5">Custom message (optional)</p>
+                    <textarea
+                      rows={3}
+                      placeholder="Add any additional context for clients…"
+                      value={notifyMsg}
+                      onChange={e => setNotifyMsg(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#B8935B] resize-none"
+                    />
+                  </div>
+
+                  {/* Recipients */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">
+                        Recipients
+                        {!recipLoading && (
+                          <span className="ml-2 text-[#B8935B] font-bold">{selectedIds.size} of {recipients.length} selected</span>
+                        )}
+                      </p>
+                      {recipients.length > 0 && (
+                        <button onClick={toggleAllFiltered} className="text-[11px] font-semibold text-slate-500 hover:text-[#B8935B]">
+                          {allFilteredSelected ? 'Deselect all' : 'Select all'}
+                        </button>
+                      )}
+                    </div>
+
+                    {recipients.length > 3 && (
+                      <input
+                        type="text"
+                        placeholder="Search name or email…"
+                        value={recipSearch}
+                        onChange={e => setRecipSearch(e.target.value)}
+                        className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-[#B8935B] mb-2"
+                      />
+                    )}
+
+                    <div className="border border-slate-100 rounded-xl divide-y divide-slate-50 max-h-56 overflow-y-auto">
+                      {recipLoading ? (
+                        <p className="text-xs text-slate-400 px-3 py-6 text-center">Loading recipients…</p>
+                      ) : recipients.length === 0 ? (
+                        <p className="text-xs text-slate-400 px-3 py-6 text-center">No active clients to notify.</p>
+                      ) : filtered.length === 0 ? (
+                        <p className="text-xs text-slate-400 px-3 py-6 text-center">No clients match “{recipSearch}”.</p>
+                      ) : (
+                        filtered.map(r => {
+                          const checked = selectedIds.has(r.id);
+                          return (
+                            <label key={r.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50/60">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleRecipient(r.id)}
+                                className="w-4 h-4 accent-[#B8935B] flex-shrink-0"
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-medium text-slate-800 truncate">{r.name}</span>
+                                <span className="block text-[11px] text-slate-400 truncate">{r.email}</span>
+                              </span>
+                              {r.packageType && (
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide flex-shrink-0">{r.packageType}</span>
+                              )}
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="p-6 pt-4 border-t border-slate-100 flex gap-3">
                   <button
                     onClick={() => sendNotification(h)}
-                    className="flex-1 bg-[#B8935B] text-white text-sm font-bold py-2.5 rounded-xl hover:bg-[#9A7540] transition-colors"
+                    disabled={sending || recipLoading || selectedIds.size === 0}
+                    className="flex-1 bg-[#B8935B] text-white text-sm font-bold py-2.5 rounded-xl hover:bg-[#9A7540] disabled:opacity-40 transition-colors"
                   >
-                    Send to all active clients
+                    {sending ? 'Sending…' : `Send to ${selectedIds.size} client${selectedIds.size === 1 ? '' : 's'}`}
                   </button>
-                  <button onClick={() => { setNotifying(null); setNotifyMsg(''); }} className="px-4 py-2.5 text-sm text-slate-400 hover:text-slate-700 rounded-xl border border-slate-200">
+                  <button onClick={closeNotify} className="px-4 py-2.5 text-sm text-slate-400 hover:text-slate-700 rounded-xl border border-slate-200">
                     Cancel
                   </button>
                 </div>
