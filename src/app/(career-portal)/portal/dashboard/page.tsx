@@ -339,16 +339,20 @@ export default function PortalDashboardPage() {
     gateway: 'RAZORPAY' | 'PAYPAL';
     currency: string;
     currencySymbol: string;
+    isIndia?: boolean;
+    gatewayOptions?: { gateway: 'RAZORPAY' | 'PAYPAL'; currency: string; currencySymbol: string; totalPayable: number; recommended: boolean }[] | null;
     existingPaymentUrl: string | null;
   } | null>(null);
   const [upgradePreviewLoading, setUpgradePreviewLoading] = useState(false);
+  const [upgradeGateway, setUpgradeGateway] = useState<'RAZORPAY' | 'PAYPAL'>('RAZORPAY');
 
-  const handleUpgrade = async (targetService: string) => {
+  const handleUpgrade = async (targetService: string, gateway: 'RAZORPAY' | 'PAYPAL' = 'RAZORPAY') => {
     setUpgradeTarget(targetService);
+    setUpgradeGateway(gateway);
     setUpgradePreviewLoading(true);
     setUpgradePreview(null);
     try {
-      const res = await fetch(`/api/career/portal/upgrade?target=${targetService}`);
+      const res = await fetch(`/api/career/portal/upgrade?target=${targetService}&gateway=${gateway}`);
       if (res.ok) {
         const data = await res.json();
         setUpgradePreview(data);
@@ -363,6 +367,19 @@ export default function PortalDashboardPage() {
     setUpgradePreviewLoading(false);
   };
 
+  // Switch gateway on the upgrade modal (international only) — re-prices in the
+  // selected currency (Razorpay = local, PayPal = USD).
+  const switchUpgradeGateway = async (gateway: 'RAZORPAY' | 'PAYPAL') => {
+    if (!upgradeTarget || gateway === upgradeGateway) return;
+    setUpgradeGateway(gateway);
+    setUpgradePreviewLoading(true);
+    try {
+      const res = await fetch(`/api/career/portal/upgrade?target=${upgradeTarget}&gateway=${gateway}`);
+      if (res.ok) setUpgradePreview(await res.json());
+    } catch { /* keep previous preview */ }
+    setUpgradePreviewLoading(false);
+  };
+
   const confirmUpgrade = async () => {
     if (!upgradeTarget) return;
     if (upgradePreview?.existingPaymentUrl) {
@@ -374,7 +391,7 @@ export default function PortalDashboardPage() {
       const res = await fetch('/api/career/portal/upgrade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetService: upgradeTarget }),
+        body: JSON.stringify({ targetService: upgradeTarget, gateway: upgradeGateway }),
       });
       const data = await res.json();
       if (data.ok && data.paymentUrl) {
@@ -594,7 +611,11 @@ export default function PortalDashboardPage() {
                   <div className="mt-4 text-right">
                     <p className="text-3xl font-bold text-white tracking-tight">{upgradePreview.currencySymbol}{upgradePreview.totalPayable.toLocaleString()}</p>
                     <p className="text-xs text-white/40 mt-0.5">
-                      {upgradePreview.gateway === 'PAYPAL' ? 'All-inclusive via PayPal' : 'Incl. GST · all-inclusive via Razorpay'}
+                      {upgradePreview.gateway === 'PAYPAL'
+                        ? 'All-inclusive via PayPal (USD)'
+                        : upgradePreview.taxRate > 0
+                          ? 'Incl. GST · all-inclusive via card'
+                          : `All-inclusive via card (${upgradePreview.currency})`}
                     </p>
                   </div>
                 )}
@@ -643,6 +664,35 @@ export default function PortalDashboardPage() {
                       ))}
                     </div>
 
+                    {/* Payment method — international clients choose (Razorpay recommended = local currency) */}
+                    {upgradePreview.isIndia === false && upgradePreview.gatewayOptions && upgradePreview.gatewayOptions.length > 0 && (
+                      <div className="mb-5">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-2">Payment method</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {upgradePreview.gatewayOptions.map(opt => {
+                            const active = upgradeGateway === opt.gateway;
+                            return (
+                              <button key={opt.gateway} type="button"
+                                onClick={() => switchUpgradeGateway(opt.gateway)}
+                                disabled={upgradePreviewLoading}
+                                className={`text-left p-3 rounded-xl border transition-all disabled:opacity-60 ${active ? 'border-[#B8935B] bg-[#FBF8F3]' : 'border-slate-200 hover:border-slate-300'}`}>
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="text-sm font-semibold text-slate-800">
+                                    {opt.gateway === 'RAZORPAY' ? 'Card' : 'PayPal'}
+                                  </span>
+                                  {opt.recommended && <span className="text-[8px] font-bold text-[#B8935B] bg-[#B8935B]/10 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Best</span>}
+                                </div>
+                                <p className="text-[11px] text-slate-500 mt-0.5">
+                                  {opt.gateway === 'RAZORPAY' ? `Local currency (${opt.currency})` : 'Charged in USD'}
+                                </p>
+                                <p className="text-xs font-bold text-slate-700 mt-1">{opt.currencySymbol}{opt.totalPayable.toLocaleString()}</p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="bg-[#FBF8F3] border border-[#EDE6DA] rounded-2xl p-4 mb-5">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-slate-500">Service cost</span>
@@ -657,8 +707,8 @@ export default function PortalDashboardPage() {
                       <div className="flex items-center justify-between text-sm mt-1.5">
                         <span className="text-slate-400 text-xs">
                           {upgradePreview.gateway === 'PAYPAL'
-                            ? `PayPal fee (4.4% + $0.30 fixed)`
-                            : `Razorpay gateway (${(upgradePreview.processingFeeRate * 100).toFixed(2)}%)`}
+                            ? `PayPal fee (${(upgradePreview.processingFeeRate * 100).toFixed(1)}% + fixed)`
+                            : `Gateway fee (${(upgradePreview.processingFeeRate * 100).toFixed(2)}%)`}
                         </span>
                         <span className="font-medium text-slate-600">+{upgradePreview.currencySymbol}{upgradePreview.processingFee.toLocaleString()}</span>
                       </div>

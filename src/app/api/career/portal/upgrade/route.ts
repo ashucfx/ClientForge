@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
-import { FEE_RATES, round2 } from '@/lib/pricing';
+import { round2 } from '@/lib/pricing';
 import { PRICING } from '@/lib/pricing-v2';
+import { getCurrencyForCountry, getExchangeRate, countryNameFromIso } from '@/lib/currency';
 import { getNextInvoiceNumber } from '@/lib/invoiceUtils';
 import { createRazorpayPaymentLink } from '@/lib/razorpay';
 import { createPaypalInvoice } from '@/lib/paypal';
@@ -13,36 +14,80 @@ import { ClientType } from '@prisma/client';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// ─── PayPal fee gross-up: (diff + $0.30 fixed) / (1 - 4.4%) ──────────────────
-function calcPaypalTotal(diffUsd: number): { totalPayable: number; processingFee: number } {
-  const PAYPAL_FIXED = 0.30;
-  const PAYPAL_PCT   = 0.044;
-  const raw = (diffUsd + PAYPAL_FIXED) / (1 - PAYPAL_PCT);
-  const totalPayable = Math.ceil(raw * 100) / 100; // round up to 2dp
-  return { totalPayable, processingFee: round2(totalPayable - diffUsd) };
-}
+type UpgradeGateway = 'RAZORPAY' | 'PAYPAL';
 
-// ─── Razorpay INR gross-up: diff_inr × 1.18 GST / 0.9764 ────────────────────
-function calcRazorpayTotal(diffInr: number): {
-  totalPayable: number; taxAmount: number; taxRate: number; processingFee: number;
-} {
-  const taxRate    = 0.18;
-  const taxAmount  = round2(diffInr * taxRate);
-  const totalPayable = Math.ceil((diffInr + taxAmount) / (1 - FEE_RATES.INR));
-  return { totalPayable, taxAmount, taxRate, processingFee: totalPayable - diffInr - taxAmount };
-}
+// Fee-recovery rates kept in sync with the main checkout (pricing-v2):
+//  - Razorpay domestic:     2% + 18% GST on the fee                     = 2.36%
+//  - Razorpay international: 3% + 18% GST on the fee + ~2% FX spread     = 5.54%
+//  - PayPal:                4.4% + ~3% FX spread + $0.30 fixed          = 7.4% + $0.30
+const RAZORPAY_DOMESTIC_FEE = 0.02 * 1.18;
+const RAZORPAY_INTL_FEE     = 0.03 * 1.18 + 0.02;
+const PAYPAL_FEE            = 0.044 + 0.03;
+const PAYPAL_FIXED          = 0.30;
+const ZERO_DECIMAL = ['INR', 'JPY', 'KRW', 'VND', 'IDR'];
 
-// ─── Detect client's gateway from original purchase ──────────────────────────
-function detectGateway(currency: string | null, country: string | null) {
-  const cur = (currency ?? 'INR').toUpperCase();
+const roundMoney = (v: number, cur: string) => (ZERO_DECIMAL.includes(cur) ? Math.round(v) : Math.round(v * 100) / 100);
+const ceilMoney  = (v: number, cur: string) => (ZERO_DECIMAL.includes(cur) ? Math.ceil(v)  : Math.ceil(v * 100) / 100);
+
+function detectIsIndia(currency: string | null, country: string | null): boolean {
+  const cur  = (currency ?? 'INR').toUpperCase();
   const ctry = (country  ?? 'IN' ).toUpperCase();
-  const isIndia = ctry === 'IN' || cur === 'INR';
+  return ctry === 'IN' || cur === 'INR';
+}
+
+interface UpgradePricing {
+  gateway: UpgradeGateway;
+  currency: string; currencySymbol: string; exchangeRate: number;
+  subtotal: number; taxRate: number; taxAmount: number;
+  processingFeeRate: number; processingFee: number; totalPayable: number;
+}
+
+/**
+ * Price a portal upgrade for the chosen gateway.
+ *  - India → Razorpay, INR, 18% GST.
+ *  - International + Razorpay → charged in the client's LOCAL currency (USD base
+ *    × live rate), 0% GST (export of services).
+ *  - International + PayPal → charged in USD.
+ * `differenceBase` is in the base currency (INR for India, USD otherwise).
+ */
+async function computeUpgradePricing(
+  differenceBase: number,
+  isIndia: boolean,
+  gateway: UpgradeGateway,
+  rawCountry: string | null,
+): Promise<UpgradePricing> {
+  if (isIndia) {
+    const taxRate    = 0.18;
+    const taxAmount  = roundMoney(differenceBase * taxRate, 'INR');
+    const cost       = differenceBase + taxAmount;
+    const totalPayable = ceilMoney(cost / (1 - RAZORPAY_DOMESTIC_FEE), 'INR');
+    return {
+      gateway: 'RAZORPAY', currency: 'INR', currencySymbol: '₹', exchangeRate: 1,
+      subtotal: differenceBase, taxRate, taxAmount,
+      processingFeeRate: RAZORPAY_DOMESTIC_FEE, processingFee: roundMoney(totalPayable - cost, 'INR'), totalPayable,
+    };
+  }
+
+  if (gateway === 'RAZORPAY') {
+    const name   = countryNameFromIso(rawCountry ?? '') ?? (rawCountry ?? '');
+    const local  = getCurrencyForCountry(name);          // USD fallback if unknown
+    const rate   = await getExchangeRate('USD', local.code);
+    const subtotal     = roundMoney(differenceBase * rate, local.code);
+    const totalPayable = ceilMoney(subtotal / (1 - RAZORPAY_INTL_FEE), local.code);
+    return {
+      gateway: 'RAZORPAY', currency: local.code, currencySymbol: local.symbol, exchangeRate: rate,
+      subtotal, taxRate: 0, taxAmount: 0,
+      processingFeeRate: RAZORPAY_INTL_FEE, processingFee: roundMoney(totalPayable - subtotal, local.code), totalPayable,
+    };
+  }
+
+  // International PayPal — USD
+  const totalPayable = ceilMoney((differenceBase + PAYPAL_FIXED) / (1 - PAYPAL_FEE), 'USD');
   return {
-    isIndia,
-    gateway:        isIndia ? 'RAZORPAY' : 'PAYPAL',
-    currency:       isIndia ? 'INR'      : 'USD',
-    currencySymbol: isIndia ? '₹'        : '$',
-  } as const;
+    gateway: 'PAYPAL', currency: 'USD', currencySymbol: '$', exchangeRate: 1,
+    subtotal: differenceBase, taxRate: 0, taxAmount: 0,
+    processingFeeRate: PAYPAL_FEE, processingFee: round2(totalPayable - differenceBase), totalPayable,
+  };
 }
 
 // ─── GET — price preview ─────────────────────────────────────────────────────
@@ -86,10 +131,12 @@ export async function GET(req: NextRequest) {
 
   const invoiceData  = client.invoiceLinks[0]?.invoice;
   const clientType   = (invoiceData?.clientType as ClientType) || 'MID_CAREER';
-  const { isIndia, gateway, currency, currencySymbol } = detectGateway(
-    invoiceData?.currency ?? null,
-    invoiceData?.country  ?? null,
-  );
+  const isIndia    = detectIsIndia(invoiceData?.currency ?? null, invoiceData?.country ?? null);
+  const rawCountry = invoiceData?.country ?? null;
+  // International clients choose a gateway (Razorpay recommended); India is always Razorpay.
+  const chosenGateway: UpgradeGateway = isIndia
+    ? 'RAZORPAY'
+    : (searchParams.get('gateway') === 'PAYPAL' ? 'PAYPAL' : 'RAZORPAY');
 
   const basePrices = isIndia ? PRICING.basePrices.INR : PRICING.basePrices.USD;
 
@@ -139,34 +186,29 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'No price difference to upgrade' }, { status: 400 });
   }
 
-  let totalPayable: number;
-  let taxRate      = 0;
-  let taxAmount    = 0;
-  let processingFee: number;
-  let processingFeeRate: number;
+  const pricing = await computeUpgradePricing(differenceBase, isIndia, chosenGateway, rawCountry);
+  const { currency, currencySymbol, taxRate, taxAmount, processingFee, processingFeeRate, totalPayable } = pricing;
 
-  if (isIndia) {
-    const r = calcRazorpayTotal(differenceBase);
-    totalPayable    = r.totalPayable;
-    taxRate         = r.taxRate;
-    taxAmount       = r.taxAmount;
-    processingFee   = r.processingFee;
-    processingFeeRate = FEE_RATES.INR;
-  } else {
-    const r = calcPaypalTotal(differenceBase);
-    totalPayable    = r.totalPayable;
-    processingFee   = r.processingFee;
-    processingFeeRate = 0.044; // PayPal 4.4% (approx, shown in modal)
-  }
+  // For international clients, also price the alternative gateway so the modal
+  // can show both options (Razorpay recommended) without another round-trip.
+  const gatewayOptions = isIndia ? null : await Promise.all(
+    (['RAZORPAY', 'PAYPAL'] as UpgradeGateway[]).map(async (g) => {
+      const p = await computeUpgradePricing(differenceBase, false, g, rawCountry);
+      return {
+        gateway: g, currency: p.currency, currencySymbol: p.currencySymbol,
+        totalPayable: p.totalPayable, recommended: g === 'RAZORPAY',
+      };
+    })
+  );
 
-  // Check for reusable existing payment link
+  // Check for a reusable existing payment link for the CHOSEN gateway
   const upgradeNoteMarker = `Portal automated upgrade. Target: ${targetUpgrade}`;
   const existingInvoice = await db.invoice.findFirst({
     where: {
       clientEmail: client.email,
       notes:    { contains: upgradeNoteMarker },
       dueDate:  { gt: new Date() },
-      ...(isIndia
+      ...(chosenGateway === 'RAZORPAY'
         ? { razorpayLinkUrl: { not: null } }
         : { paypalPaymentUrl: { not: null } }),
     },
@@ -174,7 +216,7 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: 'desc' },
   });
 
-  const existingPaymentUrl = isIndia
+  const existingPaymentUrl = chosenGateway === 'RAZORPAY'
     ? (existingInvoice?.razorpayLinkUrl ?? null)
     : (existingInvoice?.paypalPaymentUrl ?? null);
 
@@ -190,9 +232,11 @@ export async function GET(req: NextRequest) {
     processingFee,
     processingFeeRate,
     totalPayable,
-    gateway,
+    gateway: chosenGateway,
     currency,
     currencySymbol,
+    isIndia,
+    gatewayOptions,
     existingPaymentUrl,
   });
 }
@@ -239,10 +283,11 @@ export async function POST(req: NextRequest) {
 
   const invoiceData = client.invoiceLinks[0]?.invoice;
   const clientType  = (invoiceData?.clientType as ClientType) || 'MID_CAREER';
-  const { isIndia, gateway, currency, currencySymbol } = detectGateway(
-    invoiceData?.currency ?? null,
-    invoiceData?.country  ?? null,
-  );
+  const isIndia    = detectIsIndia(invoiceData?.currency ?? null, invoiceData?.country ?? null);
+  const rawCountry = invoiceData?.country ?? null;
+  const chosenGateway: UpgradeGateway = isIndia
+    ? 'RAZORPAY'
+    : (body?.gateway === 'PAYPAL' ? 'PAYPAL' : 'RAZORPAY');
 
   const basePrices = isIndia ? PRICING.basePrices.INR : PRICING.basePrices.USD;
 
@@ -276,7 +321,7 @@ export async function POST(req: NextRequest) {
       clientEmail: client.email,
       notes:   { contains: upgradeNoteMarker },
       dueDate: { gt: new Date() },
-      ...(isIndia
+      ...(chosenGateway === 'RAZORPAY'
         ? { razorpayLinkUrl: { not: null } }
         : { paypalPaymentUrl: { not: null } }),
     },
@@ -284,39 +329,14 @@ export async function POST(req: NextRequest) {
     orderBy: { createdAt: 'desc' },
   });
 
+  const pricing = await computeUpgradePricing(differenceBase, isIndia, chosenGateway, rawCountry);
+  const { currency, currencySymbol, taxRate, taxAmount, processingFee: processingFeeConverted, processingFeeRate, totalPayable } = pricing;
+
   if (existingInvoice) {
-    const existingUrl = isIndia ? existingInvoice.razorpayLinkUrl : existingInvoice.paypalPaymentUrl;
+    const existingUrl = chosenGateway === 'RAZORPAY' ? existingInvoice.razorpayLinkUrl : existingInvoice.paypalPaymentUrl;
     if (existingUrl) {
-      let total: number;
-      if (isIndia) {
-        const _tax = round2(differenceBase * 0.18);
-        total = Math.ceil((differenceBase + _tax) / (1 - FEE_RATES.INR));
-      } else {
-        total = calcPaypalTotal(differenceBase).totalPayable;
-      }
-      return NextResponse.json({ ok: true, paymentUrl: existingUrl, differenceBase, totalPayable: total, reused: true });
+      return NextResponse.json({ ok: true, paymentUrl: existingUrl, differenceBase, totalPayable, reused: true });
     }
-  }
-
-  // Compute final amounts
-  let totalPayable: number;
-  let taxRate            = 0;
-  let taxAmount          = 0;
-  let processingFeeRate: number;
-  let processingFeeConverted: number;
-
-  if (isIndia) {
-    const r = calcRazorpayTotal(differenceBase);
-    totalPayable         = r.totalPayable;
-    taxRate              = r.taxRate;
-    taxAmount            = r.taxAmount;
-    processingFeeRate    = FEE_RATES.INR;
-    processingFeeConverted = r.processingFee;
-  } else {
-    const r = calcPaypalTotal(differenceBase);
-    totalPayable         = r.totalPayable;
-    processingFeeRate    = 0.044;
-    processingFeeConverted = r.processingFee;
   }
 
   const invoiceDate = new Date();
@@ -353,26 +373,23 @@ export async function POST(req: NextRequest) {
           clientEmail: client.email,
           clientPhone: client.phone || '+910000000000',
           clientType,
-          country:         isIndia ? 'IN' : (invoiceData?.country ?? 'US'),
+          country:         isIndia ? 'IN' : (rawCountry ?? 'US'),
           currency,
           currencySymbol,
-          exchangeRate:    1,
-          lineItems: upgradeItems.map((it, i) => ({
-            id:          `upgrade_${i + 1}`,
-            description: it.description,
-            qty:         1,
-            unitPrice:   it.unitPrice,
-            lineTotal:   it.unitPrice,
-          })),
+          exchangeRate:    pricing.exchangeRate,
+          lineItems: upgradeItems.map((it, i) => {
+            const unit = roundMoney(it.unitPrice * pricing.exchangeRate, currency);
+            return { id: `upgrade_${i + 1}`, description: it.description, qty: 1, unitPrice: unit, lineTotal: unit };
+          }),
           discountRate:          0,
           discountAmount:        0,
           taxRate,
           taxAmount,
-          subtotalConverted:     differenceBase,
+          subtotalConverted:     pricing.subtotal,
           processingFeeRate,
           processingFeeConverted,
           totalPayable,
-          paymentGateway:        gateway,
+          paymentGateway:        chosenGateway,
           notes:                 `Portal automated upgrade. Target: ${targetUpgrade}`,
           invoiceDate,
           dueDate,
@@ -397,8 +414,8 @@ export async function POST(req: NextRequest) {
 
   // Create payment link
   try {
-    if (isIndia) {
-      // Razorpay domestic
+    if (chosenGateway === 'RAZORPAY') {
+      // Razorpay — domestic (INR) or international (client's local currency)
       const rzp = await createRazorpayPaymentLink(invoice as any);
       await db.invoice.update({
         where: { id: invoice.id },
