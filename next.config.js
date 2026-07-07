@@ -51,7 +51,7 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://res.cloudinary.com",
               "connect-src 'self' https://api.razorpay.com https://lumberjack-cx.razorpay.com https://api-m.paypal.com https://api-m.sandbox.paypal.com",
-              "frame-src https://api.razorpay.com https://checkout.razorpay.com",
+              "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
               "object-src 'none'",
               "base-uri 'self'",
             ].join('; '),

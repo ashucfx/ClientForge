@@ -54,6 +54,7 @@ export default function FlywheelCampaigns() {
   const [templateName, setTemplateName] = useState<string>('');
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryCat, setGalleryCat] = useState<TemplateCategory | 'ALL'>('ALL');
+  const [galleryPreviewId, setGalleryPreviewId] = useState<string | null>(null);
   const [audienceFilter, setAudienceFilter] = useState('ALL');
   const [audienceCount, setAudienceCount] = useState(0);
   const [pickedLeads, setPickedLeads] = useState<LeadOption[]>([]);
@@ -845,14 +846,16 @@ export default function FlywheelCampaigns() {
         const brandId = activeBrand === 'all' ? 'catalyst' : activeBrand;
         const cats: (TemplateCategory | 'ALL')[] = ['ALL', 'WIN_BACK', 'CONVERT_NEW', 'GROW_EXISTING', 'SEASONAL'];
         const list = galleryCat === 'ALL' ? MARKETING_TEMPLATES : MARKETING_TEMPLATES.filter(t => t.category === galleryCat);
+        const previewId = (galleryPreviewId && list.some(t => t.id === galleryPreviewId)) ? galleryPreviewId : list[0]?.id;
+        const previewTpl = MARKETING_TEMPLATES.find(t => t.id === previewId);
         return (
           <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" onClick={() => setGalleryOpen(false)}>
-            <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[88vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-2xl w-full max-w-5xl h-[88vh] flex flex-col shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
               {/* Header */}
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">Template Gallery</h3>
-                  <p className="text-xs text-slate-400">{MARKETING_TEMPLATES.length} conversion-ready templates · click to preview, then use</p>
+                  <p className="text-xs text-slate-400">{MARKETING_TEMPLATES.length} conversion-ready templates · select one to preview, then use it</p>
                 </div>
                 <button onClick={() => setGalleryOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100">
                   <IconX size={18} />
@@ -860,9 +863,9 @@ export default function FlywheelCampaigns() {
               </div>
 
               {/* Category tabs */}
-              <div className="px-6 pt-3 flex gap-2 flex-wrap border-b border-slate-100 pb-3">
+              <div className="px-6 pt-3 flex gap-2 flex-wrap border-b border-slate-100 pb-3 flex-shrink-0">
                 {cats.map(c => (
-                  <button key={c} onClick={() => setGalleryCat(c)}
+                  <button key={c} onClick={() => { setGalleryCat(c); setGalleryPreviewId(null); }}
                     className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
                       galleryCat === c ? 'text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
@@ -872,37 +875,58 @@ export default function FlywheelCampaigns() {
                 ))}
               </div>
 
-              {/* Grid */}
-              <div className="overflow-y-auto p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {list.map(tpl => (
-                  <div key={tpl.id} className="border border-slate-200 rounded-xl overflow-hidden flex flex-col hover:border-[#B8935B] hover:shadow-md transition-all">
-                    {/* Live preview (scaled iframe) */}
-                    <div className="h-44 bg-slate-50 border-b border-slate-100 overflow-hidden relative">
+              {/* Two-pane: list + single preview */}
+              <div className="flex flex-1 min-h-0">
+                {/* Left — list */}
+                <div className="w-2/5 max-w-xs border-r border-slate-100 overflow-y-auto p-3 space-y-1.5">
+                  {list.map(tpl => {
+                    const selected = tpl.id === previewId;
+                    return (
+                      <button key={tpl.id} onClick={() => setGalleryPreviewId(tpl.id)}
+                        className={`w-full text-left p-3 rounded-xl border transition-all ${
+                          selected ? 'border-[#B8935B] bg-[#FBF8F3]' : 'border-transparent hover:bg-slate-50'
+                        }`}>
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-[#B8935B]">{TEMPLATE_CATEGORY_LABELS[tpl.category]}</span>
+                        <p className="text-sm font-bold text-slate-900 leading-tight mt-0.5">{tpl.name}</p>
+                        <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{tpl.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Right — preview */}
+                <div className="flex-1 flex flex-col min-w-0 bg-slate-100">
+                  <div className="flex-1 overflow-hidden">
+                    {previewId ? (
                       <iframe
-                        src={`/api/admin/marketing/templates/preview?id=${tpl.id}&brandId=${brandId}`}
-                        title={tpl.name}
-                        style={{ width: '200%', height: '200%', border: 'none', transform: 'scale(0.5)', transformOrigin: 'top left', pointerEvents: 'none' }}
+                        key={previewId}
+                        src={`/api/admin/marketing/templates/preview?id=${previewId}&brandId=${brandId}`}
+                        title={previewTpl?.name ?? 'preview'}
+                        className="w-full h-full border-0"
                         sandbox="allow-same-origin"
                       />
-                    </div>
-                    <div className="p-4 flex flex-col flex-1">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-[#B8935B] mb-1">{TEMPLATE_CATEGORY_LABELS[tpl.category]}</span>
-                      <p className="text-sm font-bold text-slate-900">{tpl.name}</p>
-                      <p className="text-xs text-slate-500 mt-0.5 flex-1">{tpl.description}</p>
-                      <div className="flex gap-2 mt-3">
-                        <a href={`/api/admin/marketing/templates/preview?id=${tpl.id}&brandId=${brandId}`} target="_blank" rel="noopener noreferrer"
-                          className="flex-1 text-center text-xs font-semibold text-slate-600 border border-slate-200 py-2 rounded-lg hover:bg-slate-50 transition-colors">
-                          Full preview
-                        </a>
-                        <button onClick={() => applyTemplate(tpl)}
-                          className="flex-1 text-xs font-bold text-white py-2 rounded-lg transition-colors"
-                          style={{ background: brand.primaryColor }}>
-                          Use this
-                        </button>
-                      </div>
-                    </div>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-sm text-slate-400">No templates in this category.</div>
+                    )}
                   </div>
-                ))}
+                  {previewTpl && (
+                    <div className="p-4 border-t border-slate-200 bg-white flex items-center gap-3 flex-shrink-0">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-slate-800 truncate">{previewTpl.name}</p>
+                        <p className="text-xs text-slate-400 truncate">Subject: {previewTpl.subject}</p>
+                      </div>
+                      <a href={`/api/admin/marketing/templates/preview?id=${previewTpl.id}&brandId=${brandId}`} target="_blank" rel="noopener noreferrer"
+                        className="flex-shrink-0 text-xs font-semibold text-slate-600 border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors">
+                        Open in new tab
+                      </a>
+                      <button onClick={() => applyTemplate(previewTpl)}
+                        className="flex-shrink-0 text-xs font-bold text-white px-4 py-2 rounded-lg transition-colors"
+                        style={{ background: brand.primaryColor }}>
+                        Use this template
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
