@@ -108,7 +108,10 @@ export default function FlywheelLeadsPage() {
         setIsCreateModalOpen(false);
         setFormData({});
         fetchContacts();
-      } else { alert('Failed to create lead'); }
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || 'Failed to create lead');
+      }
     } finally { setSaving(false); }
   };
 
@@ -423,7 +426,7 @@ export default function FlywheelLeadsPage() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   Array.from({ length: 8 }).map((_, i) => (
-                    <tr key={i}><td colSpan={8} className="px-4 py-4"><div className="skeleton h-4 rounded" style={{ width: `${60 + Math.random() * 30}%` }} /></td></tr>
+                    <tr key={i}><td colSpan={8} className="px-4 py-4"><div className="skeleton h-4 rounded" style={{ width: `${[72, 61, 84, 68, 90, 76, 65][i % 7]}%` }} /></td></tr>
                   ))
                 ) : contacts.length === 0 ? (
                   <tr>

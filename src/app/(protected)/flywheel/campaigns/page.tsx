@@ -501,7 +501,7 @@ export default function FlywheelCampaigns() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i}><td colSpan={9} className="px-5 py-4"><div className="skeleton h-4 rounded" style={{ width: `${50 + Math.random() * 40}%` }} /></td></tr>
+                    <tr key={i}><td colSpan={9} className="px-5 py-4"><div className="skeleton h-4 rounded" style={{ width: `${[68, 82, 55, 90, 74][i % 5]}%` }} /></td></tr>
                   ))
                 ) : campaigns.map(c => {
                   const meta = STATUS_META[c.status] || STATUS_META.DRAFT;
@@ -535,7 +535,7 @@ export default function FlywheelCampaigns() {
       </div>
 
       {/* ── CAMPAIGN WIZARD (Multi-step) ── */}
-      <Dialog.Root open={wizardOpen} onOpenChange={setWizardOpen}>
+      <Dialog.Root open={wizardOpen} onOpenChange={setWizardOpen} modal={false}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40" />
           <Dialog.Content
