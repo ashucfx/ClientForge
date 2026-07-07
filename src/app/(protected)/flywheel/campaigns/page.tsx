@@ -908,7 +908,7 @@ export default function FlywheelCampaigns() {
       {/* ── Template Gallery ── */}
       {galleryOpen && (() => {
         const brandId = activeBrand === 'all' ? 'catalyst' : activeBrand;
-        const cats: (TemplateCategory | 'ALL')[] = ['ALL', 'WIN_BACK', 'CONVERT_NEW', 'GROW_EXISTING', 'SEASONAL'];
+        const cats: (TemplateCategory | 'ALL')[] = ['ALL', 'EXECUTIVE', 'MID_CAREER', 'CONVERT_NEW', 'WIN_BACK', 'GROW_EXISTING', 'SEASONAL'];
         const list = galleryCat === 'ALL' ? MARKETING_TEMPLATES : MARKETING_TEMPLATES.filter(t => t.category === galleryCat);
         const previewId = (galleryPreviewId && list.some(t => t.id === galleryPreviewId)) ? galleryPreviewId : list[0]?.id;
         const previewTpl = MARKETING_TEMPLATES.find(t => t.id === previewId);
