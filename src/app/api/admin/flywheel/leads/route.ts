@@ -100,8 +100,26 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { name, email, phone, companyName, industry, jobTitle, linkedinUrl, city, contactSource } = body;
 
-    if (!name) {
+    if (!name || !String(name).trim()) {
       return NextResponse.json({ success: false, error: 'Name is required' }, { status: 400 });
+    }
+
+    // Normalise email: blank → null. Email is a UNIQUE column, and an empty
+    // string is a real value — so a second email-less lead would collide on ''.
+    // NULLs are distinct in a unique index, so multiple email-less leads are fine.
+    const cleanEmail = typeof email === 'string' && email.trim()
+      ? email.trim().toLowerCase()
+      : null;
+
+    // Reject a duplicate real email up front with a clear message
+    if (cleanEmail) {
+      const existing = await db.contact.findUnique({ where: { email: cleanEmail }, select: { id: true } });
+      if (existing) {
+        return NextResponse.json(
+          { success: false, error: 'A contact with this email already exists.' },
+          { status: 409 },
+        );
+      }
     }
 
     // Safe displayId generation — retry on P2002 collision (collision-safe)
@@ -112,14 +130,14 @@ export async function POST(req: NextRequest) {
         (displayId) => tx.contact.create({
           data: {
             displayId,
-            name,
-            email,
-            phone,
-            companyName,
-            industry,
-            jobTitle,
-            linkedinUrl,
-            city,
+            name: String(name).trim(),
+            email: cleanEmail,
+            phone: phone || null,
+            companyName: companyName || null,
+            industry: industry || null,
+            jobTitle: jobTitle || null,
+            linkedinUrl: linkedinUrl || null,
+            city: city || null,
             contactSource: contactSource || 'MANUAL',
             flywheelProfile: {
               create: { leadStatus: 'NEW', lifecycleStage: 'LEAD', optInSource: 'MANUAL_ENTRY' }
@@ -131,8 +149,14 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true, data: contact });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'P2002') {
+      return NextResponse.json(
+        { success: false, error: 'A contact with this email already exists.' },
+        { status: 409 },
+      );
+    }
     console.error('[FlywheelLeads] POST Error:', error);
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Could not create lead. Please try again.' }, { status: 500 });
   }
 }

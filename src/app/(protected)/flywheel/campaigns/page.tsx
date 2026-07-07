@@ -538,7 +538,12 @@ export default function FlywheelCampaigns() {
       <Dialog.Root open={wizardOpen} onOpenChange={setWizardOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl w-[95vw] max-w-2xl z-50 max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95">
+          <Dialog.Content
+            onInteractOutside={(e) => { if (galleryOpen) e.preventDefault(); }}
+            onPointerDownOutside={(e) => { if (galleryOpen) e.preventDefault(); }}
+            onEscapeKeyDown={(e) => { if (galleryOpen) e.preventDefault(); }}
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl w-[95vw] max-w-2xl z-50 max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95"
+          >
 
             {/* Wizard Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
