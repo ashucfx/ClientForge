@@ -79,8 +79,9 @@ function CheckoutPageInner() {
   const searchParams = useSearchParams();
   const referralCode = searchParams.get('ref') ?? undefined;
   const [step, setStep] = useState(1);
-  // Guided sub-steps within step 1: 1 = experience, 2 = package + price, 3 = details
+  // Guided sub-steps: 1 = package, 2 = experience, 3 = goal, 4 = pricing, 5 = details
   const [formStep, setFormStep] = useState(1);
+  const [goal, setGoal] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PackageSlug>('CAREER_BOOSTER');
   const [customServices, setCustomServices] = useState<string[]>([]);
@@ -169,7 +170,7 @@ function CheckoutPageInner() {
     if (formStep === 1 && resolveServices().length === 0) {
       return alert('Please choose a package or at least one service.');
     }
-    goToFormStep(Math.min(3, formStep + 1));
+    goToFormStep(Math.min(5, formStep + 1));
   };
 
   const handleReviewOrder = () => {
@@ -394,25 +395,40 @@ function CheckoutPageInner() {
 
       {step === 1 && !otpStep && (
         <main className="px-6 sm:px-10 lg:px-16 pb-24 pt-8 max-w-2xl mx-auto">
+          {/* Warm intro — only on the first step so landing here feels welcoming, not abrupt */}
+          {formStep === 1 && (
+            <div className="mb-8 text-center">
+              <p className="text-status text-brand-gold uppercase tracking-widest font-bold mb-3">Catalyst · Self-Service</p>
+              <h1 className="font-serif text-[clamp(1.9rem,5vw,2.8rem)] leading-tight mb-3">Let&rsquo;s build your career story</h1>
+              <p className="text-subheading text-brand-obsidian/55 max-w-lg mx-auto">
+                A few quick questions so we can tailor everything to you. It takes about a minute — no card details needed yet.
+              </p>
+            </div>
+          )}
+
           {/* Wizard progress header */}
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
-              {[1, 2, 3].map((n) => (
+              {[1, 2, 3, 4, 5].map((n) => (
                 <div key={n} className="flex-1 h-1 rounded-full transition-colors" style={{ background: n <= formStep ? '#B8935B' : '#E8E4DC' }} />
               ))}
             </div>
             <p className="text-status text-brand-gold uppercase tracking-widest font-bold mb-2">
-              Step {formStep} of 3
+              Step {formStep} of 5
             </p>
-            <h1 className="font-serif text-[clamp(1.7rem,4vw,2.4rem)] leading-tight">
-              {formStep === 1 ? 'Choose your package' : formStep === 2 ? 'Your experience level' : 'Your details'}
+            <h1 className="font-serif text-[clamp(1.5rem,4vw,2.2rem)] leading-tight">
+              {formStep === 1 ? 'Choose your package'
+                : formStep === 2 ? 'Your experience level'
+                : formStep === 3 ? 'Your career goal'
+                : formStep === 4 ? 'Your investment'
+                : 'Your details'}
             </h1>
             <p className="text-sm text-brand-obsidian/50 mt-2">
-              {formStep === 1
-                ? 'Pick what fits your goals — pricing is tailored to your experience in the next step.'
-                : formStep === 2
-                ? 'Pricing reflects the depth of work your career stage needs.'
-                : 'Enter your details, then review the full price before paying.'}
+              {formStep === 1 ? 'Pick the package that fits where you want to go.'
+                : formStep === 2 ? 'This helps us calibrate the depth and positioning of your documents.'
+                : formStep === 3 ? 'Where are you headed? We tailor everything to your target.'
+                : formStep === 4 ? 'A one-time investment in your next opportunity.'
+                : 'Almost done — enter your details to continue.'}
             </p>
           </div>
 
@@ -537,117 +553,9 @@ function CheckoutPageInner() {
                   ))}
                 </div>
                 <p className="text-xs text-brand-obsidian/40 leading-relaxed mt-3">
-                  Pricing reflects the complexity of your career journey — senior and executive profiles involve deeper research, more nuanced positioning, and significantly more iterative work than early-career documents.
+                  Senior and executive profiles involve deeper research, sharper positioning, and more iterative work — we calibrate every document to your level.
                 </p>
               </div>
-
-              {/* ── Live price estimate ─────────────────────────────── */}
-              {(() => {
-                const cur  = countryCode === 'IN' ? 'INR' : 'USD';
-                const live = computePrice(selectedPackage, experienceLevel, cur, customServices);
-                if (live.services.length === 0) return null;
-                return (
-                  <div className="border border-brand-parchment p-5 bg-white/60">
-                    <p className="text-status text-brand-gold uppercase tracking-widest font-bold mb-4 text-[10px]">
-                      Estimated Price · {experienceLevel === 'FRESHER' ? '0–2 yrs' : experienceLevel === 'MID_CAREER' ? '3–8 yrs' : experienceLevel === 'EXECUTIVE' ? '9–15 yrs' : '15+ yrs'}
-                    </p>
-                    <div className="space-y-2.5 mb-4">
-                      {live.services.map(s => (
-                        <div key={s.slug} className="flex items-center justify-between text-sm">
-                          <span className="text-brand-obsidian/70">{s.label}</span>
-                          {s.complimentary ? (
-                            <span className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full leading-none">FREE</span>
-                              <span className="font-medium text-emerald-700 tabular-nums line-through text-xs text-brand-obsidian/35">{live.sym}{(PRICING.basePrices[countryCode === 'IN' ? 'INR' : 'USD'][s.slug as ServiceSlug]?.[experienceLevel] ?? 0).toLocaleString()}</span>
-                            </span>
-                          ) : (
-                            <span className="text-right">
-                              <span className="font-medium text-brand-obsidian tabular-nums">{live.sym}{s.price.toLocaleString()}</span>
-                              {localRate && s.price > 0 && (
-                                <span className="block text-[10px] text-brand-obsidian/35 tabular-nums">≈ {localRate.symbol}{Math.round(s.price * localRate.rate).toLocaleString()}</span>
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    {live.discount > 0 && (
-                      <div className="flex items-center justify-between text-sm border-t border-brand-parchment pt-3 mb-2">
-                        <span className="text-brand-obsidian/50">Subtotal</span>
-                        <span className="text-brand-obsidian/50 tabular-nums">{live.sym}{live.subtotal.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {live.discount > 0 && (
-                      <div className="flex items-center justify-between text-sm mb-3">
-                        <span className="text-emerald-700 font-semibold">Package discount ({Math.round(live.rate * 100)}%)</span>
-                        <span className="text-emerald-700 font-semibold tabular-nums">−{live.sym}{live.discount.toLocaleString()}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between border-t border-brand-parchment pt-3">
-                      <span className="font-serif text-subheading">
-                        {live.discount > 0 ? 'Total' : 'Subtotal'}
-                      </span>
-                      <span className="text-right">
-                        <span className="font-bold text-xl text-brand-gold tabular-nums">{live.sym}{live.total.toLocaleString()}</span>
-                        {localRate && live.total > 0 && (
-                          <span className="block text-xs text-brand-obsidian/40 tabular-nums">≈ {localRate.symbol}{Math.round(live.total * localRate.rate).toLocaleString()} {localRate.code}</span>
-                        )}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-brand-obsidian/30 mt-2">
-                      + gateway fee &amp; applicable taxes shown at checkout · no card details needed here
-                    </p>
-                  </div>
-                );
-              })()}
-
-              {/* ── Full pricing table ──────────────────────────────── */}
-              <details className="group">
-                <summary className="cursor-pointer text-xs text-brand-obsidian/40 hover:text-brand-gold uppercase tracking-widest font-semibold list-none flex items-center gap-2 select-none">
-                  <svg className="w-3 h-3 transition-transform group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
-                  View full pricing table (all services &amp; experience levels)
-                  <span className="ml-auto text-[10px] font-bold text-brand-gold/70 normal-case tracking-normal">
-                    {countryCode === 'IN' ? '₹ INR' : '$ USD'}
-                  </span>
-                </summary>
-                <div className="mt-4 overflow-x-auto">
-                  <table className="w-full text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-brand-parchment">
-                        <th className="text-left py-2 pr-3 font-semibold text-brand-obsidian/50 uppercase tracking-wide">Service</th>
-                        {(['FRESHER','MID_CAREER','EXECUTIVE','EXECUTIVE_PLUS'] as ExperienceKey[]).map(t => (
-                          <th key={t} className={`text-right py-2 px-2 font-semibold uppercase tracking-wide whitespace-nowrap ${experienceLevel === t ? 'text-brand-gold' : 'text-brand-obsidian/40'}`}>
-                            {t === 'FRESHER' ? '0–2 yrs' : t === 'MID_CAREER' ? '3–8 yrs' : t === 'EXECUTIVE' ? '9–15 yrs' : '15+ yrs'}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(['RESUME','LINKEDIN','COVER_LETTER','PORTFOLIO'] as ServiceSlug[]).map(slug => {
-                        const cur = countryCode === 'IN' ? 'INR' : 'USD';
-                        const sym = cur === 'INR' ? '₹' : '$';
-                        return (
-                          <tr key={slug} className="border-b border-brand-parchment/60">
-                            <td className="py-2.5 pr-3 text-brand-obsidian/70 font-medium">{SERVICE_LABELS[slug]}</td>
-                            {(['FRESHER','MID_CAREER','EXECUTIVE','EXECUTIVE_PLUS'] as ExperienceKey[]).map(t => (
-                              <td key={t} className={`text-right py-2.5 px-2 tabular-nums font-medium ${experienceLevel === t ? 'text-brand-obsidian font-bold' : 'text-brand-obsidian/40'}`}>
-                                {sym}{PRICING.basePrices[cur][slug][t].toLocaleString()}
-                              </td>
-                            ))}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr>
-                        <td colSpan={5} className="pt-3 text-brand-obsidian/30 text-[10px]">
-                          Career Booster (Resume + LinkedIn + Cover Letter) = 15% off · Premium Plus (all 4) = 20% off · Custom = no discount
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </details>
 
               {/* Nav */}
               <div className="flex gap-3 pt-2">
@@ -667,8 +575,131 @@ function CheckoutPageInner() {
             </div>
           )}
 
-          {/* ── Step 3: Details ── */}
+          {/* ── Step 3: Goal (distraction between experience and pricing) ── */}
           {formStep === 3 && (
+            <div className="space-y-6">
+              <div>
+                <p className="text-sm text-brand-obsidian/45 mb-4">What are you working towards? Our writers position everything around your target outcome.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {([
+                    { value: 'NEW_JOB',    label: 'Land a new job',          sub: 'Actively applying, or about to' },
+                    { value: 'PROMOTION',  label: 'Get promoted or a raise', sub: 'Grow within my field' },
+                    { value: 'SWITCH',     label: 'Switch role or industry', sub: 'Pivot to something new' },
+                    { value: 'LEADERSHIP', label: 'Executive / leadership',  sub: 'Senior or C-level move' },
+                  ] as const).map(({ value, label, sub }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setGoal(value)}
+                      className={`text-left p-4 border transition-all ${
+                        goal === value
+                          ? 'border-brand-gold bg-brand-gold/5'
+                          : 'border-brand-parchment hover:border-brand-obsidian/20'
+                      }`}
+                    >
+                      <div className="text-sm font-semibold text-brand-obsidian">{label}</div>
+                      <div className="text-xs text-brand-obsidian/45 mt-0.5">{sub}</div>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-brand-obsidian/40 leading-relaxed mt-4">
+                  The same background can be positioned very differently depending on where you are headed — this keeps your documents sharp and focused.
+                </p>
+              </div>
+
+              {/* Nav */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => goToFormStep(2)}
+                  className="px-6 py-4 border border-brand-parchment text-brand-obsidian/60 font-semibold uppercase tracking-widest text-sm hover:border-brand-obsidian/30 transition-colors"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={handleFormNext}
+                  className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest hover:bg-brand-graphite transition-colors"
+                >
+                  Continue <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 4: Pricing (local currency, no pricing matrix) ── */}
+          {formStep === 4 && (
+            <div className="space-y-6">
+              {(() => {
+                const cur  = countryCode === 'IN' ? 'INR' : 'USD';
+                const live = computePrice(selectedPackage, experienceLevel, cur, customServices);
+                if (live.services.length === 0) return null;
+                // International clients see their local currency as the headline; USD is the reference.
+                const showLocal = !!(localRate && countryCode !== 'IN');
+                const toLocal = (n: number) => (showLocal ? Math.round(n * localRate!.rate) : n);
+                const priSym  = showLocal ? localRate!.symbol : live.sym;
+                const priCode = showLocal ? localRate!.code : (cur === 'INR' ? 'INR' : 'USD');
+                return (
+                  <div className="border border-brand-parchment p-6 bg-white/60">
+                    <p className="text-status text-brand-gold uppercase tracking-widest font-bold mb-5 text-[10px]">Your Investment</p>
+                    <div className="space-y-3 mb-5">
+                      {live.services.map(s => (
+                        <div key={s.slug} className="flex items-center justify-between text-sm">
+                          <span className="text-brand-obsidian/70">{s.label}</span>
+                          {s.complimentary ? (
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full leading-none">INCLUDED FREE</span>
+                          ) : (
+                            <span className="font-medium text-brand-obsidian tabular-nums">{priSym}{toLocal(s.price).toLocaleString()}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {live.discount > 0 && (
+                      <div className="flex items-center justify-between text-sm border-t border-brand-parchment pt-3 mb-2">
+                        <span className="text-brand-obsidian/50">Subtotal</span>
+                        <span className="text-brand-obsidian/50 tabular-nums">{priSym}{toLocal(live.subtotal).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {live.discount > 0 && (
+                      <div className="flex items-center justify-between text-sm mb-3">
+                        <span className="text-emerald-700 font-semibold">Package saving ({Math.round(live.rate * 100)}%)</span>
+                        <span className="text-emerald-700 font-semibold tabular-nums">−{priSym}{toLocal(live.discount).toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between border-t border-brand-parchment pt-4">
+                      <span className="font-serif text-subheading">Total</span>
+                      <span className="text-right">
+                        <span className="font-bold text-2xl text-brand-gold tabular-nums">{priSym}{toLocal(live.total).toLocaleString()}</span>
+                        <span className="block text-[10px] text-brand-obsidian/40 tabular-nums mt-0.5">
+                          {priCode}{showLocal ? ` · approx · from $${live.total.toLocaleString()} USD` : ''}
+                        </span>
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-brand-obsidian/30 mt-3">
+                      One-time · includes revisions · final total incl. taxes and fees is confirmed on the next step before you pay.
+                    </p>
+                  </div>
+                );
+              })()}
+
+              {/* Nav */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => goToFormStep(3)}
+                  className="px-6 py-4 border border-brand-parchment text-brand-obsidian/60 font-semibold uppercase tracking-widest text-sm hover:border-brand-obsidian/30 transition-colors"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={handleFormNext}
+                  className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest hover:bg-brand-graphite transition-colors"
+                >
+                  Continue <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 5: Details ── */}
+          {formStep === 5 && (
             <div className="space-y-5">
               <input
                 placeholder="Full name"
@@ -711,7 +742,7 @@ function CheckoutPageInner() {
 
               <div className="flex gap-3 pt-2">
                 <button
-                  onClick={() => goToFormStep(2)}
+                  onClick={() => goToFormStep(4)}
                   className="px-6 py-4 border border-brand-parchment text-brand-obsidian/60 font-semibold uppercase tracking-widest text-sm hover:border-brand-obsidian/30 transition-colors"
                 >
                   ← Back
