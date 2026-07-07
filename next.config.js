@@ -37,8 +37,9 @@ const nextConfig = {
       {
         source: '/(.*)',
         headers: [
-          // Prevent embedding in iframes (clickjacking)
-          { key: 'X-Frame-Options',        value: 'DENY' },
+          // Block cross-origin framing (clickjacking) but allow same-origin
+          // framing so the app can preview its own pages (e.g. email templates).
+          { key: 'X-Frame-Options',        value: 'SAMEORIGIN' },
           // Prevent MIME-type sniffing
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           // Content Security Policy — prevent XSS and data exfiltration
