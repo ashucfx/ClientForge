@@ -27,13 +27,18 @@ function detectSlugsFromLineItems(lineItems: LineItem[]): CareerServiceSlug[] {
 
   for (const item of lineItems) {
     const d = item.description.toLowerCase();
-    if (/full.?career|career.?booster|full.?package/i.test(d)) {
+    // Portfolio is an add-on that is NEVER part of the base Career Booster, so it
+    // must be detected independently. Otherwise an upgrade line like "Premium Plus
+    // (Career Booster + Portfolio)" matches "career booster" and the portfolio the
+    // client just paid for is silently dropped.
+    if (/portfolio/i.test(d)) slugs.add('PORTFOLIO');
+
+    if (/full.?career|career.?booster|full.?package|premium.?plus/i.test(d)) {
       slugs.add('FULL_PACKAGE');
     } else {
       if (/linkedin/i.test(d))       slugs.add('LINKEDIN');
       if (/cover.?letter/i.test(d))  slugs.add('COVER_LETTER');
       if (/resume|cv\b/i.test(d))    slugs.add('RESUME');
-      if (/portfolio/i.test(d))      slugs.add('PORTFOLIO');
     }
   }
 

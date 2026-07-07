@@ -326,6 +326,20 @@ export async function POST(req: NextRequest) {
     ? 'Upgrade to Complete Career Booster (Resume, LinkedIn, Cover Letter)'
     : 'Upgrade to Premium Plus Package (Career Booster + Portfolio)';
 
+  // Build one line item per NEW service being added, so onboarding grants exactly
+  // what was paid for. (A single combined "Career Booster + Portfolio" line was
+  // matched as FULL_PACKAGE and silently dropped the portfolio.) Item prices sum
+  // to differenceBase.
+  const effectivelyHasResume      = hasResume      || hasFull;
+  const effectivelyHasLinkedIn    = hasLinkedIn    || hasFull;
+  const effectivelyHasCoverLetter = hasCoverLetter || hasFull;
+  const upgradeItems: { description: string; unitPrice: number }[] = [];
+  if (!effectivelyHasResume)      upgradeItems.push({ description: 'Professional Resume Writing',   unitPrice: basePrices.RESUME[clientType] });
+  if (!effectivelyHasLinkedIn)    upgradeItems.push({ description: 'LinkedIn Profile Optimisation', unitPrice: basePrices.LINKEDIN[clientType] });
+  if (!effectivelyHasCoverLetter) upgradeItems.push({ description: 'Cover Letter Writing',          unitPrice: basePrices.COVER_LETTER[clientType] });
+  if (targetUpgrade === 'PREMIUM_PLUS' && !hasPortfolio) upgradeItems.push({ description: 'Portfolio Website Development', unitPrice: basePrices.PORTFOLIO[clientType] });
+  if (upgradeItems.length === 0) upgradeItems.push({ description: upgradeDescription, unitPrice: differenceBase });
+
   // Create invoice with retry for invoice-number collision
   let invoice: Awaited<ReturnType<typeof db.invoice.create>> | null = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -343,13 +357,13 @@ export async function POST(req: NextRequest) {
           currency,
           currencySymbol,
           exchangeRate:    1,
-          lineItems: [{
-            id:          'upgrade_1',
-            description: upgradeDescription,
+          lineItems: upgradeItems.map((it, i) => ({
+            id:          `upgrade_${i + 1}`,
+            description: it.description,
             qty:         1,
-            unitPrice:   differenceBase,
-            lineTotal:   differenceBase,
-          }],
+            unitPrice:   it.unitPrice,
+            lineTotal:   it.unitPrice,
+          })),
           discountRate:          0,
           discountAmount:        0,
           taxRate,
@@ -401,11 +415,11 @@ export async function POST(req: NextRequest) {
         currency:      'USD',
         dueDate,
         notes:         `Upgrade to ${targetUpgrade === 'FULL_PACKAGE' ? 'Career Booster Package' : 'Premium Plus Package'} — Catalyst Career Services`,
-        lineItems: [{
-          description: upgradeDescription,
+        lineItems: upgradeItems.map(it => ({
+          description: it.description,
           qty:         1,
-          unitPrice:   differenceBase,
-        }],
+          unitPrice:   it.unitPrice,
+        })),
         taxAmount:          0,
         discountAmount:     0,
         processingFeeAmount: processingFeeConverted,
