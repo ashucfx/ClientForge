@@ -19,10 +19,14 @@ export async function GET(req: NextRequest) {
   const tpl = id ? getTemplateById(id) : null;
   if (!tpl) return NextResponse.json({ error: 'Template not found' }, { status: 404 });
 
-  // Preview with a sample first name so merge tags render like a real send.
+  // Preview renders merge tags exactly as a real send would. By default we show
+  // the generic fallback ("Hi there,") — what a recipient with no first name on
+  // file receives. Real sends substitute each contact's actual first name.
+  // Pass ?name=Priya to preview against a specific name.
   const brandName = brandId === 'ripple_nexus' ? 'Ripple Nexus' : 'Catalyst';
-  const body = personalize(tpl.bodyHtml, { name: 'Alex', brandName });
-  const subject = personalize(tpl.subject, { name: 'Alex', brandName });
+  const sampleName = req.nextUrl.searchParams.get('name') || '';
+  const body = personalize(tpl.bodyHtml, { name: sampleName, brandName });
+  const subject = personalize(tpl.subject, { name: sampleName, brandName });
   const html = renderMarketingShell(body, subject, brandId, '#');
 
   return new NextResponse(html, {
