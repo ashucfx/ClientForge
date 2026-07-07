@@ -24,7 +24,7 @@ export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
 };
 
 // ── Base URLs for CTAs (Catalyst-facing marketing) ───────────────────────────
-const URL = 'https://catalyst.theripplenexus.com';
+const URL = 'https://clientforge.theripplenexus.com';
 const LINK = {
   checkout:  `${URL}/checkout`,
   inquire:   `${URL}/inquire`,
