@@ -52,6 +52,33 @@ export const COUNTRY_CURRENCY_MAP: Record<string, CurrencyInfo> = {
 // All supported countries list
 export const COUNTRIES = Object.keys(COUNTRY_CURRENCY_MAP).sort();
 
+// ─────────────────────────────────────────────
+// ISO-2 COUNTRY CODE → COUNTRY NAME (for geo-IP → currency resolution)
+// Covers every country in COUNTRY_CURRENCY_MAP so a geo-detected visitor
+// resolves to the right currency.
+// ─────────────────────────────────────────────
+export const ISO2_TO_COUNTRY: Record<string, string> = {
+  IN: 'India',            US: 'United States',        GB: 'United Kingdom',
+  CA: 'Canada',           AU: 'Australia',            AE: 'United Arab Emirates',
+  SA: 'Saudi Arabia',     SG: 'Singapore',            DE: 'Germany',
+  FR: 'France',           IT: 'Italy',                ES: 'Spain',
+  NL: 'Netherlands',      BE: 'Belgium',              NZ: 'New Zealand',
+  JP: 'Japan',            KR: 'South Korea',          MY: 'Malaysia',
+  HK: 'Hong Kong',        ZA: 'South Africa',         NG: 'Nigeria',
+  KE: 'Kenya',            BD: 'Bangladesh',           PK: 'Pakistan',
+  LK: 'Sri Lanka',        NP: 'Nepal',                CH: 'Switzerland',
+  SE: 'Sweden',           NO: 'Norway',               DK: 'Denmark',
+  QA: 'Qatar',            KW: 'Kuwait',               BH: 'Bahrain',
+  OM: 'Oman',             CN: 'China',                TH: 'Thailand',
+  PH: 'Philippines',      ID: 'Indonesia',            VN: 'Vietnam',
+  BR: 'Brazil',           MX: 'Mexico',
+};
+
+/** Resolve an ISO-2 code (e.g. "AE") to a supported country name, or null. */
+export function countryNameFromIso(iso: string): string | null {
+  return ISO2_TO_COUNTRY[iso.toUpperCase()] ?? null;
+}
+
 // All unique currencies
 export const SUPPORTED_CURRENCIES: CurrencyInfo[] = Array.from(
   new Map(

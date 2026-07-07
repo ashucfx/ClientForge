@@ -115,6 +115,23 @@ function CheckoutPageInner() {
   const [gatewaySwitching, setGatewaySwitching] = useState(false);
   const [localRate, setLocalRate] = useState<{ rate: number; code: string; symbol: string } | null>(null);
 
+  // Real location detection via the CDN edge (server-side geo-IP). This overrides
+  // the initial timezone guess — e.g. a visitor in the UAE resolves to AE / AED,
+  // not the "everyone-but-India = US" default. The exchange-rate effect below then
+  // reacts to the country change and loads the right local currency.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/public/geo')
+      .then(r => r.json())
+      .then((d: { countryCode?: string | null; countryName?: string | null }) => {
+        if (cancelled || !d.countryCode) return;
+        setCountryCode(d.countryCode);
+        if (d.countryName) setCountryName(d.countryName);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     if (countryCode === 'IN') { setLocalRate(null); return; }
     let cancelled = false;
@@ -716,7 +733,7 @@ function CheckoutPageInner() {
               />
               <div className="w-full relative react-phone-container">
                 <PhoneInput
-                  country={INITIAL_COUNTRY.phone}
+                  country={(countryCode || INITIAL_COUNTRY.code).toLowerCase()}
                   value={phone}
                   onChange={(value, country, e, formattedValue) => {
                     setPhone(value);
