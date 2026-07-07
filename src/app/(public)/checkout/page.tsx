@@ -79,6 +79,8 @@ function CheckoutPageInner() {
   const searchParams = useSearchParams();
   const referralCode = searchParams.get('ref') ?? undefined;
   const [step, setStep] = useState(1);
+  // Guided sub-steps within step 1: 1 = experience, 2 = package + price, 3 = details
+  const [formStep, setFormStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PackageSlug>('CAREER_BOOSTER');
   const [customServices, setCustomServices] = useState<string[]>([]);
@@ -156,6 +158,18 @@ function CheckoutPageInner() {
       setLoading(false);
       submitting.current = false;
     }
+  };
+
+  const scrollTop = () => { if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); };
+
+  const goToFormStep = (n: number) => { setFormStep(n); scrollTop(); };
+
+  const handleFormNext = () => {
+    // Leaving the package step requires at least one service selected
+    if (formStep === 1 && resolveServices().length === 0) {
+      return alert('Please choose a package or at least one service.');
+    }
+    goToFormStep(Math.min(3, formStep + 1));
   };
 
   const handleReviewOrder = () => {
@@ -379,26 +393,33 @@ function CheckoutPageInner() {
       )}
 
       {step === 1 && !otpStep && (
-        <main className="px-8 md:px-16 lg:px-24 pb-24">
-          <section className="mb-16 max-w-3xl">
-            <p className="text-status text-brand-gold uppercase tracking-widest font-bold mb-4">
-              Self-Service
+        <main className="px-6 sm:px-10 lg:px-16 pb-24 pt-8 max-w-2xl mx-auto">
+          {/* Wizard progress header */}
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="flex-1 h-1 rounded-full transition-colors" style={{ background: n <= formStep ? '#B8935B' : '#E8E4DC' }} />
+              ))}
+            </div>
+            <p className="text-status text-brand-gold uppercase tracking-widest font-bold mb-2">
+              Step {formStep} of 3
             </p>
-            <h1 className="font-serif text-[clamp(2rem,5vw,3rem)] leading-tight mb-6">
-              Get Started Today
+            <h1 className="font-serif text-[clamp(1.7rem,4vw,2.4rem)] leading-tight">
+              {formStep === 1 ? 'Choose your package' : formStep === 2 ? 'Your experience level' : 'Your details'}
             </h1>
-            <p className="text-subheading text-brand-obsidian/55">
-              Choose your package, pay securely, and access your portal immediately. No approval
-              wait. Intake forms happen after payment.
+            <p className="text-sm text-brand-obsidian/50 mt-2">
+              {formStep === 1
+                ? 'Pick what fits your goals — pricing is tailored to your experience in the next step.'
+                : formStep === 2
+                ? 'Pricing reflects the depth of work your career stage needs.'
+                : 'Enter your details, then review the full price before paying.'}
             </p>
-          </section>
+          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-            <div className="lg:col-span-6 space-y-6">
-              <h2 className="font-serif text-heading mb-2">Choose Package</h2>
+          {/* ── Step 1: Package ── */}
+          {formStep === 1 && (
+            <div className="space-y-5">
               {(['PREMIUM_PLUS', 'CAREER_BOOSTER', 'CUSTOM'] as PackageSlug[]).map((pkg) => {
-                const cur  = countryCode === 'IN' ? 'INR' : 'USD';
-                const live = computePrice(pkg, experienceLevel, cur, customServices);
                 return (
                   <button
                     key={pkg}
@@ -419,25 +440,11 @@ function CheckoutPageInner() {
                           <Star className="w-4 h-4 text-brand-gold fill-brand-gold flex-shrink-0" />
                         )}
                       </div>
-                      {/* Live price badge */}
-                      {live.total > 0 ? (
-                        <div className="text-right flex-shrink-0">
-                          {live.discount > 0 && (
-                            <p className="text-[10px] text-brand-obsidian/35 line-through leading-none mb-0.5">
-                              {live.sym}{live.subtotal.toLocaleString()}
-                            </p>
-                          )}
-                          <p className="text-base font-bold text-brand-gold leading-none">
-                            {live.sym}{live.total.toLocaleString()}
-                          </p>
-                          {live.discount > 0 && (
-                            <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
-                              {Math.round(live.rate * 100)}% off
-                            </p>
-                          )}
-                        </div>
-                      ) : pkg === 'CUSTOM' ? (
+                      {/* Price is revealed in the next step, after experience is chosen */}
+                      {pkg === 'CUSTOM' ? (
                         <p className="text-xs text-brand-obsidian/40 flex-shrink-0">Select services →</p>
+                      ) : selectedPackage === pkg ? (
+                        <span className="text-xs font-bold text-brand-gold flex-shrink-0">Selected ✓</span>
                       ) : null}
                     </div>
                     <p className="text-body text-brand-obsidian/60 mb-3 font-medium">
@@ -492,11 +499,20 @@ function CheckoutPageInner() {
                 </div>
               )}
 
+              {/* Continue to experience */}
+              <button
+                onClick={handleFormNext}
+                className="w-full inline-flex items-center justify-center gap-2 bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest hover:bg-brand-graphite transition-colors mt-2"
+              >
+                Continue <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
+          )}
 
-            <div className="lg:col-span-5 lg:col-start-8 space-y-6">
+          {/* ── Step 2: Experience + price ── */}
+          {formStep === 2 && (
+            <div className="space-y-6">
               <div>
-                <h2 className="font-serif text-heading mb-1.5">Years of Experience</h2>
                 <p className="text-sm text-brand-obsidian/45 mb-4">How many years have you been working professionally?</p>
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   {([
@@ -633,7 +649,27 @@ function CheckoutPageInner() {
                 </div>
               </details>
 
-              <h2 className="font-serif text-heading">Your Details</h2>
+              {/* Nav */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => goToFormStep(1)}
+                  className="px-6 py-4 border border-brand-parchment text-brand-obsidian/60 font-semibold uppercase tracking-widest text-sm hover:border-brand-obsidian/30 transition-colors"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={handleFormNext}
+                  className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest hover:bg-brand-graphite transition-colors"
+                >
+                  Continue <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 3: Details ── */}
+          {formStep === 3 && (
+            <div className="space-y-5">
               <input
                 placeholder="Full name"
                 value={name}
@@ -673,25 +709,33 @@ function CheckoutPageInner() {
                 <p className="text-xs text-brand-obsidian/30 mt-1">Include country code · e.g. +91 98765 43210</p>
               </div>
 
-              <button
-                onClick={handleReviewOrder}
-                disabled={loading}
-                className="w-full inline-flex items-center justify-center gap-2 bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest hover:bg-brand-graphite disabled:opacity-50 mt-4"
-              >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    Review Order & Price
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => goToFormStep(2)}
+                  className="px-6 py-4 border border-brand-parchment text-brand-obsidian/60 font-semibold uppercase tracking-widest text-sm hover:border-brand-obsidian/30 transition-colors"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={handleReviewOrder}
+                  disabled={loading}
+                  className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest hover:bg-brand-graphite disabled:opacity-50"
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      Review Order & Price
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </div>
               <p className="text-metadata text-brand-obsidian/35 text-center">
                 See full price breakdown before paying · No card details needed here
               </p>
             </div>
-          </div>
+          )}
         </main>
       )}
 
