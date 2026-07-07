@@ -294,7 +294,7 @@ export default function FlywheelCampaigns() {
       });
       const data = await res.json();
       if (data.success) {
-        setDispatchResult(`Campaign dispatched to ${contactIds.length} contacts.`);
+        setDispatchResult(data.message || `Enrolled ${data.enrolled ?? contactIds.length} new leads.`);
         fetchCampaigns();
       } else { setDispatchResult(`Error: ${data.error || 'Failed to dispatch'}`); }
     } catch { setDispatchResult('An error occurred.'); }
@@ -358,6 +358,13 @@ export default function FlywheelCampaigns() {
           className="px-3 py-1.5 rounded-md text-xs font-semibold text-white transition-opacity flex items-center gap-1"
           style={{ background: brand.primaryColor }}>
           <IconPlay size={12} /> Resume
+        </button>
+      )}
+      {c.status !== 'DRAFT' && (
+        <button onClick={() => handleDispatch(c.id)} disabled={dispatching}
+          className="px-3 py-1.5 rounded-md text-xs font-semibold border border-[#B8935B]/40 text-[#9A7540] bg-[#FBF8F3] hover:bg-[#F5EFE6] transition-colors flex items-center gap-1 disabled:opacity-60"
+          title="Enrol newly-added leads in this campaign — anyone already in it is skipped (never re-sent)">
+          <IconSend size={12} /> Add new leads
         </button>
       )}
       <button onClick={() => setSelectedCampaign(c)}
@@ -434,6 +441,18 @@ export default function FlywheelCampaigns() {
                 : `Found ${processResult.totalFound} queued · ${processResult.processedCount} sent · ${processResult.failedCount} failed`}
             </span>
             <button onClick={() => setProcessResult(null)} className="ml-4 opacity-50 hover:opacity-100">
+              <IconX size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Dispatch / add-leads result (shown in list; the detail modal shows its own) */}
+        {dispatchResult && !selectedCampaign && (
+          <div className={`mb-6 px-5 py-3.5 rounded-xl border text-sm font-medium flex items-center justify-between ${
+            dispatchResult.startsWith('Error') ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+          }`}>
+            <span>{dispatchResult}</span>
+            <button onClick={() => setDispatchResult(null)} className="ml-4 opacity-50 hover:opacity-100">
               <IconX size={14} />
             </button>
           </div>

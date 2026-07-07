@@ -46,9 +46,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const eligibleIds: string[] = contactIds.filter((id: string) => !dncSet.has(id));
     const skipped = contactIds.length - eligibleIds.length;
 
-    // Attach leads and set campaign to ACTIVE
-    await db.$transaction(async (tx: any) => {
-      // 1. Activate campaign
+    // Attach leads and set campaign to ACTIVE. The (campaignId, contactId)
+    // unique constraint + skipDuplicates means re-dispatching only enrols NEW
+    // leads — contacts already in this campaign are skipped (never re-sent).
+    const enrolled = await db.$transaction(async (tx: any) => {
       await tx.flywheelCampaign.update({
         where: { id: campaignId },
         data: { status: 'ACTIVE' }
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       const now = new Date();
       now.setHours(now.getHours() + firstStep.delayHours);
 
-      await tx.flywheelCampaignLead.createMany({
+      const created = await tx.flywheelCampaignLead.createMany({
         data: eligibleIds.map((contactId: string) => ({
           campaignId,
           contactId,
@@ -67,15 +68,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         })),
         skipDuplicates: true
       });
+      return created.count as number;
     });
+
+    const alreadyEnrolled = eligibleIds.length - enrolled;
 
     return NextResponse.json({
       success: true,
-      dispatched: eligibleIds.length,
+      enrolled,
+      alreadyEnrolled,
+      dncSkipped: skipped,
+      // kept for backward compatibility
+      dispatched: enrolled,
       skipped,
-      message: skipped > 0
-        ? `Dispatched ${eligibleIds.length} contacts. ${skipped} skipped (Do Not Contact).`
-        : `Dispatched ${eligibleIds.length} contacts.`,
+      message:
+        `Enrolled ${enrolled} new lead${enrolled === 1 ? '' : 's'}.` +
+        (alreadyEnrolled > 0 ? ` ${alreadyEnrolled} already in this campaign (skipped).` : '') +
+        (skipped > 0 ? ` ${skipped} skipped (Do Not Contact).` : ''),
     });
 
   } catch (error) {
