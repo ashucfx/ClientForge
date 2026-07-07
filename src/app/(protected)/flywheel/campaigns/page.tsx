@@ -338,35 +338,87 @@ export default function FlywheelCampaigns() {
   };
 
 
+  const renderCampaignActions = (c: Campaign) => (
+    <>
+      {c.status === 'DRAFT' && (
+        <button onClick={() => handleDispatch(c.id)} disabled={dispatching}
+          className="px-3 py-1.5 rounded-md text-xs font-semibold text-white transition-opacity flex items-center gap-1 disabled:opacity-60"
+          style={{ background: brand.primaryColor }}>
+          <IconSend size={12} /> Launch
+        </button>
+      )}
+      {c.status === 'ACTIVE' && (
+        <button onClick={() => handlePause(c.id, c.status)} disabled={mutating}
+          className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-md text-xs font-semibold hover:bg-amber-100 transition-colors flex items-center gap-1">
+          <IconPause size={12} /> Pause
+        </button>
+      )}
+      {c.status === 'PAUSED' && (
+        <button onClick={() => handlePause(c.id, c.status)} disabled={mutating}
+          className="px-3 py-1.5 rounded-md text-xs font-semibold text-white transition-opacity flex items-center gap-1"
+          style={{ background: brand.primaryColor }}>
+          <IconPlay size={12} /> Resume
+        </button>
+      )}
+      <button onClick={() => setSelectedCampaign(c)}
+        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-md text-xs font-medium hover:border-slate-300 transition-colors flex items-center gap-1">
+        <IconEye size={12} /> Details
+      </button>
+      <button onClick={() => handleDelete(c.id)} disabled={mutating}
+        className="px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-md text-xs font-medium hover:bg-red-100 transition-colors flex items-center gap-1">
+        <IconX size={12} /> Delete
+      </button>
+    </>
+  );
+
+  const summaryStats = [
+    { label: 'Campaigns',     value: String(campaigns.length),                                                                     color: 'text-slate-900' },
+    { label: 'Active',        value: String(campaigns.filter(c => c.status === 'ACTIVE').length),                                   color: 'text-emerald-600' },
+    { label: 'Emails Sent',   value: campaigns.reduce((s, c) => s + (c.stats?.sent || 0), 0).toLocaleString(),                      color: 'text-blue-600' },
+    { label: 'Avg Open Rate', value: (() => { const sent = campaigns.reduce((s, c) => s + (c.stats?.sent || 0), 0); const op = campaigns.reduce((s, c) => s + (c.stats?.opens || 0), 0); return sent > 0 ? `${Math.round((op / sent) * 100)}%` : '—'; })(), color: 'text-amber-600' },
+  ];
+
   return (
     <AppShell>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-16">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
-                <IconMail size={20} style={{ color: '#fff' }} />
-              </div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">Campaigns</h1>
-            </div>
-            <p className="text-slate-500 mt-1 ml-[52px]">Create, manage, and track email marketing campaigns.</p>
-          </div>
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
           <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0" style={{ background: brand.gradient }}>
+              <IconMail size={20} style={{ color: '#fff' }} />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Campaigns</h1>
+              <p className="text-sm text-slate-500">Create, send, and track email marketing.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full md:w-auto">
             <button
               onClick={handleProcessNow}
               disabled={processing}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all disabled:opacity-60"
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all disabled:opacity-60"
             >
               <IconRefresh size={15} className={processing ? 'animate-spin' : ''} />
-              {processing ? 'Processing…' : 'Process Now'}
+              <span className="whitespace-nowrap">{processing ? 'Processing…' : 'Process Now'}</span>
             </button>
-            <button onClick={() => { setWizardOpen(true); resetWizard(); }} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium text-sm shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5" style={{ background: brand.gradient }}>
-              <IconPlus size={16} /> New Campaign
+            <button onClick={() => { setWizardOpen(true); resetWizard(); }} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium text-sm shadow-md transition-all hover:shadow-lg" style={{ background: brand.gradient }}>
+              <IconPlus size={16} /> <span className="whitespace-nowrap">New Campaign</span>
             </button>
           </div>
         </div>
+
+        {/* Summary stats */}
+        {!loading && campaigns.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {summaryStats.map(s => (
+              <div key={s.label} className="bg-white border border-slate-200 rounded-xl px-4 py-3">
+                <p className="text-xs text-slate-400 font-medium">{s.label}</p>
+                <p className={`text-lg sm:text-xl font-bold mt-0.5 ${s.color}`}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {processResult && (
           <div className={`mb-6 px-5 py-3.5 rounded-xl border text-sm font-medium flex items-center justify-between ${
@@ -387,8 +439,50 @@ export default function FlywheelCampaigns() {
           </div>
         )}
 
-        {/* Campaign Table */}
-        <div className="card overflow-hidden">
+        {/* Empty state (shared) */}
+        {!loading && campaigns.length === 0 && (
+          <div className="bg-white border border-slate-200 rounded-2xl px-6 py-16 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4" style={{ background: brand.primaryLight, color: brand.primaryColor }}><IconMail size={28} /></div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-1">No campaigns yet</h3>
+            <p className="text-slate-500 text-sm mb-5 max-w-sm mx-auto">Create your first campaign — start from a ready-made template or build your own.</p>
+            <button onClick={() => { setWizardOpen(true); resetWizard(); }} className="px-5 py-2.5 text-white rounded-lg text-sm font-semibold inline-flex items-center gap-1.5" style={{ background: brand.primaryColor }}>
+              <IconPlus size={15} /> Create Campaign
+            </button>
+          </div>
+        )}
+
+        {/* ── Mobile / tablet: card list ── */}
+        <div className="lg:hidden space-y-3">
+          {loading
+            ? Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-32 bg-slate-100 rounded-2xl animate-pulse" />)
+            : campaigns.map(c => {
+                const meta = STATUS_META[c.status] || STATUS_META.DRAFT;
+                return (
+                  <div key={c.id} className="bg-white border border-slate-200 rounded-2xl p-4 cursor-pointer hover:border-slate-300 transition-colors" onClick={() => setSelectedCampaign(c)}>
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900 truncate">{c.name}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{c.type.replace('_', ' ')} · {new Date(c.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      <span className="flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: meta.bg, color: meta.color }}>{meta.label}</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 mb-3 text-center bg-slate-50 rounded-xl py-2.5">
+                      <div><p className="text-[10px] text-slate-400 uppercase tracking-wide">Audience</p><p className="text-sm font-bold text-slate-700 mt-0.5">{c._count?.leads || 0}</p></div>
+                      <div><p className="text-[10px] text-slate-400 uppercase tracking-wide">Sent</p><p className="text-sm font-bold text-blue-600 mt-0.5">{c.stats?.sent || 0}</p></div>
+                      <div><p className="text-[10px] text-slate-400 uppercase tracking-wide">Opens</p><p className="text-sm font-bold text-violet-600 mt-0.5">{c.stats?.opens || 0}</p></div>
+                      <div><p className="text-[10px] text-slate-400 uppercase tracking-wide">Rate</p><p className="text-sm font-bold text-amber-600 mt-0.5">{c.stats?.openRate || 0}%</p></div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5" onClick={e => e.stopPropagation()}>
+                      {renderCampaignActions(c)}
+                    </div>
+                  </div>
+                );
+              })}
+        </div>
+
+        {/* ── Desktop: table ── */}
+        {!(!loading && campaigns.length === 0) && (
+        <div className="hidden lg:block card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50/80 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
@@ -409,17 +503,6 @@ export default function FlywheelCampaigns() {
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i}><td colSpan={9} className="px-5 py-4"><div className="skeleton h-4 rounded" style={{ width: `${50 + Math.random() * 40}%` }} /></td></tr>
                   ))
-                ) : campaigns.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="px-6 py-16 text-center">
-                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-300 mb-4 border border-emerald-100"><IconMail size={28} /></div>
-                      <h3 className="text-lg font-semibold text-slate-900 mb-1">No campaigns yet</h3>
-                      <p className="text-slate-500 text-sm mb-4">Create your first campaign to start engaging your audience.</p>
-                      <button onClick={() => { setWizardOpen(true); resetWizard(); }} className="px-4 py-2 text-white rounded-lg text-sm font-medium" style={{ background: brand.primaryColor }}>
-                        <IconPlus size={14} className="inline mr-1" /> Create Campaign
-                      </button>
-                    </td>
-                  </tr>
                 ) : campaigns.map(c => {
                   const meta = STATUS_META[c.status] || STATUS_META.DRAFT;
                   return (
@@ -437,28 +520,8 @@ export default function FlywheelCampaigns() {
                       <td className="px-5 py-4 text-center font-semibold text-amber-600">{c.stats?.openRate || 0}%</td>
                       <td className="px-5 py-4 text-center text-xs text-slate-400">{new Date(c.createdAt).toLocaleDateString()}</td>
                       <td className="px-5 py-4 text-right" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {c.status === 'DRAFT' && (
-                            <button onClick={() => handleDispatch(c.id)} disabled={dispatching} className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-md text-xs font-semibold hover:bg-emerald-100 transition-colors flex items-center gap-1">
-                              <IconSend size={12} /> Launch
-                            </button>
-                          )}
-                          {c.status === 'ACTIVE' && (
-                            <button onClick={() => handlePause(c.id, c.status)} disabled={mutating} className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-md text-xs font-semibold hover:bg-amber-100 transition-colors flex items-center gap-1">
-                              <IconPause size={12} /> Pause
-                            </button>
-                          )}
-                          {c.status === 'PAUSED' && (
-                            <button onClick={() => handlePause(c.id, c.status)} disabled={mutating} className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-md text-xs font-semibold hover:bg-emerald-100 transition-colors flex items-center gap-1">
-                              <IconPlay size={12} /> Resume
-                            </button>
-                          )}
-                          <button onClick={() => setSelectedCampaign(c)} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-md text-xs font-medium hover:text-blue-600 transition-colors flex items-center gap-1">
-                            <IconEye size={12} /> Details
-                          </button>
-                          <button onClick={() => handleDelete(c.id)} disabled={mutating} className="px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-md text-xs font-medium hover:bg-red-100 transition-colors flex items-center gap-1">
-                            <IconX size={12} /> Delete
-                          </button>
+                        <div className="flex justify-end gap-1.5">
+                          {renderCampaignActions(c)}
                         </div>
                       </td>
                     </tr>
@@ -468,6 +531,7 @@ export default function FlywheelCampaigns() {
             </table>
           </div>
         </div>
+        )}
       </div>
 
       {/* ── CAMPAIGN WIZARD (Multi-step) ── */}
@@ -563,7 +627,7 @@ export default function FlywheelCampaigns() {
                           {leadSearchResults.map(l => (
                             <button key={l.id} type="button" onClick={() => { setPickedLeads(p => [...p, l]); setLeadSearch(''); setLeadSearchResults([]); }}
                               className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50 transition-colors">
-                              <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                              <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: brand.primaryLight, color: brand.primaryColor }}>
                                 {l.name[0]?.toUpperCase()}
                               </div>
                               <div>
@@ -578,7 +642,7 @@ export default function FlywheelCampaigns() {
                         <div className="space-y-1.5">
                           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Selected ({pickedLeads.length})</p>
                           {pickedLeads.map(l => (
-                            <div key={l.id} className="flex items-center justify-between px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-lg">
+                            <div key={l.id} className="flex items-center justify-between px-3 py-2 bg-[#FBF8F3] border border-[#F0EAE0] rounded-lg">
                               <div>
                                 <span className="text-sm font-semibold text-slate-800">{l.name}</span>
                                 <span className="text-xs text-slate-400 ml-2">{l.email}</span>
