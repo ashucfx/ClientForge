@@ -740,7 +740,7 @@ export default function FlywheelCampaigns() {
                       <td className="px-5 py-4 text-center font-semibold text-amber-600">{c.stats?.openRate || 0}%</td>
                       <td className="px-5 py-4 text-center text-xs text-slate-400">{new Date(c.createdAt).toLocaleDateString()}</td>
                       <td className="px-5 py-4 text-right" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-end gap-1.5">
+                        <div className="flex flex-wrap justify-end gap-1.5 max-w-[340px] ml-auto">
                           {renderCampaignActions(c)}
                         </div>
                       </td>
@@ -897,7 +897,7 @@ export default function FlywheelCampaigns() {
                 <div className="space-y-5">
                   {/* Email sequence bar — 1 email = one-off blast, 2+ = drip sent day by day */}
                   <div>
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                       <label className="block text-sm font-semibold text-slate-700">
                         Emails in this campaign
                         <span className="ml-2 text-xs font-normal text-slate-400">
@@ -905,7 +905,7 @@ export default function FlywheelCampaigns() {
                         </span>
                       </label>
                       <button type="button" onClick={addEmailStep}
-                        className="text-xs font-bold px-3 py-1.5 rounded-lg border border-[#B8935B]/40 text-[#9A7540] bg-[#FBF8F3] hover:bg-[#F5EFE6] transition-colors">
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg border border-[#B8935B]/40 text-[#9A7540] bg-[#FBF8F3] hover:bg-[#F5EFE6] transition-colors whitespace-nowrap">
                         + Add follow-up email
                       </button>
                     </div>
@@ -1247,17 +1247,29 @@ export default function FlywheelCampaigns() {
                   )}
                 </div>
 
-                <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-between gap-3">
-                  <button onClick={() => handleDelete(selectedCampaign.id)} disabled={mutating} className="px-4 py-2 text-red-600 font-medium hover:bg-red-50 rounded-lg text-sm border border-red-200 flex items-center gap-1.5">
+                <div className="p-4 sm:p-6 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center gap-2">
+                  <button onClick={() => handleDelete(selectedCampaign.id)} disabled={mutating} className="px-4 py-2 text-red-600 font-medium hover:bg-red-50 rounded-lg text-sm border border-red-200 flex items-center gap-1.5 whitespace-nowrap mr-auto">
                     <IconX size={14} /> Delete
                   </button>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2 justify-end">
                     <Dialog.Close asChild>
                       <button className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg text-sm">Close</button>
                     </Dialog.Close>
                     {selectedCampaign.status === 'DRAFT' && (
                       <button onClick={() => handleDispatch(selectedCampaign.id)} disabled={dispatching} className="px-5 py-2 text-white font-medium rounded-lg shadow-sm text-sm flex items-center gap-2" style={{ background: brand.primaryColor }}>
                         <IconSend size={14} /> {dispatching ? 'Dispatching...' : 'Launch Campaign'}
+                      </button>
+                    )}
+                    {selectedCampaign.status === 'SCHEDULED' && (
+                      <button onClick={() => cancelSchedule(selectedCampaign.id)} disabled={mutating} className="px-5 py-2 bg-violet-100 text-violet-700 font-medium rounded-lg text-sm flex items-center gap-2 border border-violet-200">
+                        <IconX size={14} /> Cancel Schedule
+                      </button>
+                    )}
+                    {(selectedCampaign.status === 'ACTIVE' || selectedCampaign.status === 'PAUSED') && (
+                      <button onClick={() => handleDispatch(selectedCampaign.id)} disabled={dispatching}
+                        className="px-4 py-2 font-medium rounded-lg text-sm flex items-center gap-2 border border-[#B8935B]/40 text-[#9A7540] bg-[#FBF8F3] hover:bg-[#F5EFE6]"
+                        title="Pick leads to enrol — anyone already in the campaign is skipped">
+                        <IconSend size={14} /> Add / Send to Leads
                       </button>
                     )}
                     {selectedCampaign.status === 'ACTIVE' && (
@@ -1359,7 +1371,7 @@ export default function FlywheelCampaigns() {
               {/* When to send */}
               <div className="px-5 pt-3 border-t border-slate-100">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-2">When to send</p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button type="button" onClick={() => setPickerTiming('NOW')}
                     className={`text-left p-2.5 rounded-xl border transition-all ${pickerTiming === 'NOW' ? 'border-[#B8935B] bg-[#FBF8F3]' : 'border-slate-200 hover:border-slate-300'}`}>
                     <p className="text-sm font-semibold text-slate-800">Send now</p>

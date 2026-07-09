@@ -70,8 +70,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         delayHours: i === 0 ? 0 : Math.max(1, Number(s.delayHours) || 24),
       }));
 
-      if (auth.campaign.status === 'DRAFT') {
-        // No enrolled leads on a draft — safe to replace the whole set
+      // Decide by ENROLLED LEADS, not status: with no leads there are no
+      // currentStepId references, so a full replace is always safe (covers
+      // DRAFT and SCHEDULED). With leads, update in place AND append new
+      // steps — appending at a higher orderIndex can't break references;
+      // only deleting can, so removals are ignored on live campaigns.
+      const leadCount = await db.flywheelCampaignLead.count({ where: { campaignId: params.id } });
+
+      if (leadCount === 0) {
         await db.$transaction([
           db.flywheelCampaignStep.deleteMany({ where: { campaignId: params.id } }),
           db.flywheelCampaignStep.createMany({
@@ -79,20 +85,45 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           }),
         ]);
       } else {
-        // Active/paused: only update content of EXISTING steps in place (by order),
-        // never add/remove — that would break leads' currentStepId references.
         const existing = await db.flywheelCampaignStep.findMany({
           where: { campaignId: params.id }, orderBy: { orderIndex: 'asc' },
         });
-        const n = Math.min(existing.length, incoming.length);
-        await db.$transaction(
-          Array.from({ length: n }, (_, i) =>
-            db.flywheelCampaignStep.update({
+        await db.$transaction(async (tx) => {
+          // Update content of existing steps in place
+          for (let i = 0; i < Math.min(existing.length, incoming.length); i++) {
+            await tx.flywheelCampaignStep.update({
               where: { id: existing[i].id },
               data: { subject: incoming[i].subject, contentHtml: incoming[i].contentHtml, delayHours: incoming[i].delayHours },
-            })
-          )
-        );
+            });
+          }
+          // Append new follow-ups
+          let firstAppended: { id: string; delayHours: number } | null = null;
+          for (let j = existing.length; j < incoming.length; j++) {
+            const created = await tx.flywheelCampaignStep.create({
+              data: { campaignId: params.id, ...incoming[j], orderIndex: j },
+            });
+            if (!firstAppended) firstAppended = { id: created.id, delayHours: created.delayHours };
+          }
+          // Leads who already FINISHED the old sequence would otherwise never
+          // receive the new follow-up — resume them onto the first appended step.
+          if (firstAppended) {
+            const runAt = new Date();
+            runAt.setHours(runAt.getHours() + firstAppended.delayHours);
+            await tx.flywheelCampaignLead.updateMany({
+              where: { campaignId: params.id, status: 'COMPLETED' },
+              data: { status: 'ACTIVE', currentStepId: firstAppended.id, nextExecutionAt: runAt },
+            });
+            // The cron only processes ACTIVE campaigns
+            if (auth.campaign.status === 'COMPLETED') {
+              await tx.flywheelCampaign.update({ where: { id: params.id }, data: { status: 'ACTIVE' } });
+            }
+          }
+        });
+      }
+
+      // If the campaign grew into a sequence, reflect the type
+      if (incoming.length > 1 && auth.campaign.type === 'ONE_OFF') {
+        await db.flywheelCampaign.update({ where: { id: params.id }, data: { type: 'DRIP' } }).catch(() => null);
       }
     }
 
