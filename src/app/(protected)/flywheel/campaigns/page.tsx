@@ -15,6 +15,7 @@ import {
 
 const STATUS_META: Record<string, { label: string; bg: string; color: string }> = {
   DRAFT:     { label: 'Draft',     bg: '#f1f5f9', color: '#64748b' },
+  SCHEDULED: { label: 'Scheduled', bg: '#f5f3ff', color: '#8b5cf6' },
   ACTIVE:    { label: 'Active',    bg: '#ecfdf5', color: '#10b981' },
   PAUSED:    { label: 'Paused',    bg: '#fffbeb', color: '#f59e0b' },
   COMPLETED: { label: 'Completed', bg: '#eff6ff', color: '#3b82f6' },
@@ -107,6 +108,9 @@ export default function FlywheelCampaigns() {
   const [picker, setPicker] = useState<{ campaignId: string; campaignName: string; leads: LeadOption[] } | null>(null);
   const [pickerChecked, setPickerChecked] = useState<Set<string>>(new Set());
   const [pickerSearch, setPickerSearch] = useState('');
+  // Send timing: NOW = enrol + trigger delivery immediately; SCHEDULE = cron launches at the chosen time
+  const [pickerTiming, setPickerTiming] = useState<'NOW' | 'SCHEDULE'>('NOW');
+  const [pickerScheduleAt, setPickerScheduleAt] = useState('');
 
   const fetchCampaigns = useCallback(async () => {
     try {
@@ -334,6 +338,29 @@ export default function FlywheelCampaigns() {
   const [testStepIdx, setTestStepIdx] = useState(0);
   const [testSending, setTestSending] = useState(false);
 
+  // Enrolled-leads panel
+  type EnrolledLead = { leadId: string; name: string; email: string; status: string; stepIndex: number };
+  const [enrolled, setEnrolled] = useState<EnrolledLead[] | null>(null);
+  const [enrolledLoading, setEnrolledLoading] = useState(false);
+  const [enrolledFor, setEnrolledFor] = useState<string | null>(null);
+
+  const fetchEnrolled = async (campaignId: string) => {
+    setEnrolledFor(campaignId); setEnrolledLoading(true); setEnrolled(null);
+    try {
+      const res = await fetch(`/api/admin/flywheel/campaigns/${campaignId}/leads`);
+      if (res.ok) { const d = await res.json(); setEnrolled(d.leads || []); }
+      else setEnrolled([]);
+    } catch { setEnrolled([]); }
+    finally { setEnrolledLoading(false); }
+  };
+  const leadAction = async (campaignId: string, leadId: string, action: 'pause' | 'resume' | 'remove') => {
+    const res = await fetch(`/api/admin/flywheel/campaigns/${campaignId}/leads`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId, action }),
+    });
+    if (res.ok) fetchEnrolled(campaignId);
+  };
+
   const handleEdit = async (campaign: Campaign) => {
     try {
       const res = await fetch(`/api/admin/flywheel/campaigns/${campaign.id}`);
@@ -411,27 +438,61 @@ export default function FlywheelCampaigns() {
       setPicker({ campaignId, campaignName: campaign?.name ?? 'Campaign', leads });
       setPickerChecked(new Set(leads.map(l => l.id)));
       setPickerSearch('');
+      setPickerTiming('NOW');
+      // Default schedule slot: tomorrow 10:00 local, as a datetime-local value
+      const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(10, 0, 0, 0);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      setPickerScheduleAt(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
     } catch { setDispatchResult('An error occurred.'); }
     finally { setDispatching(false); }
   };
 
   const confirmDispatch = async () => {
     if (!picker || pickerChecked.size === 0) return;
+    if (pickerTiming === 'SCHEDULE' && !pickerScheduleAt) return;
     setDispatching(true);
     try {
       const res = await fetch(`/api/admin/flywheel/campaigns/${picker.campaignId}/dispatch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contactIds: Array.from(pickerChecked) }),
+        body: JSON.stringify({
+          contactIds: Array.from(pickerChecked),
+          ...(pickerTiming === 'SCHEDULE' ? { scheduledAt: new Date(pickerScheduleAt).toISOString() } : {}),
+        }),
       });
       const data = await res.json();
       if (data.success) {
-        setDispatchResult(data.message || `Enrolled ${data.enrolled ?? pickerChecked.size} new leads.`);
-        setPicker(null);
+        if (pickerTiming === 'NOW' && !data.scheduled) {
+          // Fire the processor so step-1 emails go out immediately instead of
+          // waiting for the next cron run.
+          setDispatchResult(`${data.message || 'Enrolled.'} Sending now…`);
+          setPicker(null);
+          try {
+            const proc = await fetch('/api/admin/flywheel/cron/process-campaigns');
+            const p = await proc.json().catch(() => ({}));
+            setDispatchResult(
+              `${data.message || 'Enrolled.'} ${typeof p.processedCount === 'number' ? `${p.processedCount} email${p.processedCount === 1 ? '' : 's'} sent now.` : 'Delivery triggered.'}`
+            );
+          } catch { /* enrolment succeeded; cron will deliver if trigger failed */ }
+        } else {
+          setDispatchResult(data.message || 'Scheduled.');
+          setPicker(null);
+        }
         fetchCampaigns();
       } else { setDispatchResult(`Error: ${data.error || 'Failed to dispatch'}`); setPicker(null); }
     } catch { setDispatchResult('An error occurred.'); setPicker(null); }
     finally { setDispatching(false); }
+  };
+
+  const cancelSchedule = async (campaignId: string) => {
+    setMutating(true);
+    await fetch(`/api/admin/flywheel/campaigns/${campaignId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'DRAFT' }),
+    });
+    setDispatchResult('Schedule cancelled — campaign is back to draft.');
+    await fetchCampaigns();
+    setMutating(false);
   };
 
   const handlePause = async (campaignId: string, currentStatus: string) => {
@@ -493,7 +554,14 @@ export default function FlywheelCampaigns() {
           <IconPlay size={12} /> Resume
         </button>
       )}
-      {c.status !== 'DRAFT' && (
+      {c.status === 'SCHEDULED' && (
+        <button onClick={() => cancelSchedule(c.id)} disabled={mutating}
+          className="px-3 py-1.5 bg-violet-50 border border-violet-200 text-violet-700 rounded-md text-xs font-semibold hover:bg-violet-100 transition-colors flex items-center gap-1"
+          title="Cancel the scheduled launch and return to draft">
+          <IconX size={12} /> Cancel schedule
+        </button>
+      )}
+      {(c.status === 'ACTIVE' || c.status === 'PAUSED') && (
         <button onClick={() => handleDispatch(c.id)} disabled={dispatching}
           className="px-3 py-1.5 rounded-md text-xs font-semibold border border-[#B8935B]/40 text-[#9A7540] bg-[#FBF8F3] hover:bg-[#F5EFE6] transition-colors flex items-center gap-1 disabled:opacity-60"
           title="Enrol newly-added leads in this campaign — anyone already in it is skipped (never re-sent)">
@@ -1133,6 +1201,47 @@ export default function FlywheelCampaigns() {
                     )}
                   </div>
 
+                  {/* Enrolled leads */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Enrolled leads</p>
+                      {enrolledFor === selectedCampaign.id && enrolled ? (
+                        <button onClick={() => { setEnrolled(null); setEnrolledFor(null); }} className="text-[11px] font-semibold text-slate-400 hover:text-slate-600">Hide</button>
+                      ) : (
+                        <button onClick={() => fetchEnrolled(selectedCampaign.id)} className="text-[11px] font-semibold text-[#9A7540] hover:underline">View who&rsquo;s enrolled →</button>
+                      )}
+                    </div>
+                    {enrolledFor === selectedCampaign.id && (
+                      enrolledLoading ? (
+                        <p className="text-xs text-slate-400 py-2">Loading…</p>
+                      ) : enrolled && enrolled.length === 0 ? (
+                        <p className="text-xs text-slate-400 py-2">No one is enrolled yet — dispatch the campaign to add leads.</p>
+                      ) : enrolled ? (
+                        <div className="border border-slate-100 rounded-xl divide-y divide-slate-100 max-h-64 overflow-y-auto">
+                          {enrolled.map(l => {
+                            const paused = l.status === 'PAUSED';
+                            return (
+                              <div key={l.leadId} className="flex items-center gap-2 px-3 py-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-semibold text-slate-700 truncate">{l.name}</p>
+                                  <p className="text-[10px] text-slate-400 truncate">{l.email} · email {l.stepIndex + 1} · {l.status.toLowerCase()}</p>
+                                </div>
+                                <button onClick={() => leadAction(selectedCampaign.id, l.leadId, paused ? 'resume' : 'pause')}
+                                  className="text-[10px] font-semibold px-2 py-1 rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50">
+                                  {paused ? 'Resume' : 'Pause'}
+                                </button>
+                                <button onClick={() => leadAction(selectedCampaign.id, l.leadId, 'remove')}
+                                  className="text-[10px] font-semibold px-2 py-1 rounded-md border border-red-200 text-red-500 hover:bg-red-50">
+                                  Remove
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : null
+                    )}
+                  </div>
+
                   {dispatchResult && (
                     <div className={`p-4 rounded-lg text-sm font-medium ${dispatchResult.includes('Error') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{dispatchResult}</div>
                   )}
@@ -1247,15 +1356,46 @@ export default function FlywheelCampaigns() {
                   );
                 })}
               </div>
-              <div className="px-5 py-4 border-t border-slate-100 flex gap-2">
+              {/* When to send */}
+              <div className="px-5 pt-3 border-t border-slate-100">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-2">When to send</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setPickerTiming('NOW')}
+                    className={`text-left p-2.5 rounded-xl border transition-all ${pickerTiming === 'NOW' ? 'border-[#B8935B] bg-[#FBF8F3]' : 'border-slate-200 hover:border-slate-300'}`}>
+                    <p className="text-sm font-semibold text-slate-800">Send now</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">First email goes out immediately</p>
+                  </button>
+                  <button type="button" onClick={() => setPickerTiming('SCHEDULE')}
+                    className={`text-left p-2.5 rounded-xl border transition-all ${pickerTiming === 'SCHEDULE' ? 'border-[#B8935B] bg-[#FBF8F3]' : 'border-slate-200 hover:border-slate-300'}`}>
+                    <p className="text-sm font-semibold text-slate-800">Schedule</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Launch automatically later</p>
+                  </button>
+                </div>
+                {pickerTiming === 'SCHEDULE' && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <input type="datetime-local" value={pickerScheduleAt}
+                      onChange={e => setPickerScheduleAt(e.target.value)}
+                      min={new Date(Date.now() + 5 * 60 * 1000).toISOString().slice(0, 16)}
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-1" />
+                    <span className="text-[10px] text-slate-400">your local time</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="px-5 py-4 flex gap-2">
                 <button onClick={() => setPicker(null)} disabled={dispatching}
                   className="px-4 py-2.5 text-sm font-semibold text-slate-500 border border-slate-200 rounded-xl hover:bg-slate-50">
                   Cancel
                 </button>
-                <button onClick={confirmDispatch} disabled={dispatching || pickerChecked.size === 0}
+                <button onClick={confirmDispatch}
+                  disabled={dispatching || pickerChecked.size === 0 || (pickerTiming === 'SCHEDULE' && !pickerScheduleAt)}
                   className="flex-1 py-2.5 text-sm font-bold text-white rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
                   style={{ background: brand.primaryColor }}>
-                  {dispatching ? 'Sending…' : `Send to ${pickerChecked.size} lead${pickerChecked.size === 1 ? '' : 's'}`}
+                  {dispatching
+                    ? 'Working…'
+                    : pickerTiming === 'SCHEDULE'
+                      ? `Schedule for ${pickerChecked.size} lead${pickerChecked.size === 1 ? '' : 's'}`
+                      : `Send now to ${pickerChecked.size} lead${pickerChecked.size === 1 ? '' : 's'}`}
                 </button>
               </div>
             </div>

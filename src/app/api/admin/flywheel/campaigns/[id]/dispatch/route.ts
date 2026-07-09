@@ -11,10 +11,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const campaignId = params.id;
     const body = await req.json();
-    const { contactIds } = body;
+    const { contactIds, scheduledAt } = body;
 
     if (!Array.isArray(contactIds) || contactIds.length === 0) {
       return NextResponse.json({ success: false, error: 'At least one contact ID required' }, { status: 400 });
+    }
+
+    // Optional scheduling: a future timestamp defers enrolment to the cron
+    let scheduleDate: Date | null = null;
+    if (scheduledAt) {
+      scheduleDate = new Date(scheduledAt);
+      if (isNaN(scheduleDate.getTime())) {
+        return NextResponse.json({ success: false, error: 'Invalid scheduledAt date' }, { status: 400 });
+      }
+      if (scheduleDate.getTime() <= Date.now()) scheduleDate = null; // past date = send now
     }
 
     // Ensure Campaign exists, belongs to this admin's tenant, and get first step
@@ -35,6 +45,28 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const firstStep = campaign.steps[0];
     if (!firstStep) {
       return NextResponse.json({ success: false, error: 'Campaign has no steps configured' }, { status: 400 });
+    }
+
+    // ── Scheduled launch: store the plan in metadata; the cron enrols when due ──
+    if (scheduleDate) {
+      const existingMeta = (campaign.metadata ?? {}) as Record<string, unknown>;
+      await db.flywheelCampaign.update({
+        where: { id: campaignId },
+        data: {
+          status: 'SCHEDULED',
+          metadata: {
+            ...existingMeta,
+            scheduledAt: scheduleDate.toISOString(),
+            scheduledContactIds: contactIds,
+          } as object,
+        },
+      });
+      return NextResponse.json({
+        success: true,
+        scheduled: true,
+        scheduledAt: scheduleDate.toISOString(),
+        message: `Scheduled for ${scheduleDate.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })} — ${contactIds.length} lead${contactIds.length === 1 ? '' : 's'} will be enrolled automatically.`,
+      });
     }
 
     // Filter DNC contacts before the transaction so the count is available after
