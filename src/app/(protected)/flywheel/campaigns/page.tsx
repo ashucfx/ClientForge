@@ -32,6 +32,29 @@ interface LeadOption { id: string; name: string; email: string; }
 type BlockType = 'heading' | 'paragraph' | 'button' | 'divider';
 interface ContentBlock { id: string; type: BlockType; content: string; extra?: string; }
 
+// One email in a campaign — a drip sequence is simply several of these, each
+// sent `delayDays` after the previous one (the cron advances leads step by step).
+interface EmailStep {
+  id: string;
+  subject: string;
+  delayDays: number; // days after the PREVIOUS email (first email: 0 = immediately on launch)
+  templateHtml: string | null;
+  templateName: string;
+  blocks: ContentBlock[];
+}
+
+const newEmailStep = (delayDays = 0): EmailStep => ({
+  id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+  subject: '',
+  delayDays,
+  templateHtml: null,
+  templateName: '',
+  blocks: [
+    { id: '1', type: 'heading', content: '' },
+    { id: '2', type: 'paragraph', content: '' },
+  ],
+});
+
 export default function FlywheelCampaigns() {
   const { activeBrand } = useBrand();
   const brand = getBrand(activeBrand === 'all' ? 'catalyst' : activeBrand);
@@ -44,14 +67,21 @@ export default function FlywheelCampaigns() {
   const [wizardStep, setWizardStep] = useState(1);
   const [campaignName, setCampaignName] = useState('');
   const [campaignType, setCampaignType] = useState('ONE_OFF');
-  const [subject, setSubject] = useState('');
-  const [blocks, setBlocks] = useState<ContentBlock[]>([
-    { id: '1', type: 'heading', content: '' },
-    { id: '2', type: 'paragraph', content: '' },
-  ]);
-  // When a prebuilt template is chosen, its HTML overrides the block editor.
-  const [templateHtml, setTemplateHtml] = useState<string | null>(null);
-  const [templateName, setTemplateName] = useState<string>('');
+  // Multi-email support: each campaign is a list of emails (1 = one-off blast,
+  // 2+ = drip sequence sent day by day). The editor below always edits the
+  // ACTIVE email; subject/blocks/template are derived shims so the existing
+  // editor JSX keeps working unchanged.
+  const [emails, setEmails] = useState<EmailStep[]>([newEmailStep()]);
+  const [activeEmailIdx, setActiveEmailIdx] = useState(0);
+  const activeEmail = emails[Math.min(activeEmailIdx, emails.length - 1)];
+  const patchActiveEmail = (patch: Partial<EmailStep>) =>
+    setEmails(prev => prev.map((e, i) => (i === Math.min(activeEmailIdx, prev.length - 1) ? { ...e, ...patch } : e)));
+  const subject = activeEmail.subject;
+  const setSubject = (v: string) => patchActiveEmail({ subject: v });
+  const blocks = activeEmail.blocks;
+  const setBlocks = (v: ContentBlock[]) => patchActiveEmail({ blocks: v });
+  const templateHtml = activeEmail.templateHtml;
+  const templateName = activeEmail.templateName;
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryCat, setGalleryCat] = useState<TemplateCategory | 'ALL'>('ALL');
   const [galleryPreviewId, setGalleryPreviewId] = useState<string | null>(null);
@@ -71,6 +101,12 @@ export default function FlywheelCampaigns() {
   const [dispatching, setDispatching] = useState(false);
   const [dispatchResult, setDispatchResult] = useState<string | null>(null);
   const [mutating, setMutating] = useState(false);
+
+  // Launch-time lead picker: review the resolved audience, select/deselect
+  // individual leads, then send only to the checked ones.
+  const [picker, setPicker] = useState<{ campaignId: string; campaignName: string; leads: LeadOption[] } | null>(null);
+  const [pickerChecked, setPickerChecked] = useState<Set<string>>(new Set());
+  const [pickerSearch, setPickerSearch] = useState('');
 
   const fetchCampaigns = useCallback(async () => {
     try {
@@ -142,7 +178,7 @@ export default function FlywheelCampaigns() {
   const resolvePlaceholders = (text: string) =>
     text.replace(/\{brand\}/gi, brand.name);
 
-  const blocksToHtml = () => blocks.map(b => {
+  const blocksToHtml = (list: ContentBlock[] = blocks) => list.map(b => {
     const content = resolvePlaceholders(b.content);
     switch (b.type) {
       case 'heading':   return content ? `<h2 style="font-size:20px;font-weight:700;color:#1e293b;margin:24px 0 8px;">${content}</h2>` : '';
@@ -153,8 +189,8 @@ export default function FlywheelCampaigns() {
     }
   }).join('\n');
 
-  const buildEmailPreview = () => {
-    const bodyHtml = templateHtml ?? blocksToHtml();
+  const buildEmailPreview = (email: EmailStep = activeEmail) => {
+    const bodyHtml = email.templateHtml ?? blocksToHtml(email.blocks);
     const isCatalyst = brand.id === 'catalyst';
     const logoHtml = brand.logoEmailHtml(44);
     const nameColor = isCatalyst ? '#F4F1EB' : '#F4F5FA';
@@ -213,19 +249,33 @@ export default function FlywheelCampaigns() {
 </body></html>`;
   };
 
-  // Create campaign
+  // An email has content if it uses a template or any block has text
+  const emailHasContent = (e: EmailStep) =>
+    !!e.templateHtml || e.blocks.some(b => b.type === 'divider' || b.content.trim().length > 0);
+
+  // Create campaign — one step per email; 2+ emails automatically make it a drip
   const handleCreate = async () => {
-    if (!campaignName || !subject) return;
+    if (!campaignName) return;
+    const invalid = emails.findIndex(e => !e.subject.trim() || !emailHasContent(e));
+    if (invalid !== -1) {
+      setActiveEmailIdx(invalid);
+      alert(`Email ${invalid + 1} needs a subject and some content before creating.`);
+      return;
+    }
     setSaving(true);
     try {
       const body = {
         name: campaignName,
-        type: campaignType,
+        type: emails.length > 1 ? 'DRIP' : campaignType,
         brandId: activeBrand === 'all' ? 'catalyst' : activeBrand,
         metadata: audienceFilter === 'PICK'
           ? { audienceFilter: 'PICK', contactIds: pickedLeads.map(l => l.id) }
           : { audienceFilter },
-        steps: [{ subject, contentHtml: templateHtml ?? blocksToHtml(), delayHours: 0 }],
+        steps: emails.map((e, i) => ({
+          subject: e.subject,
+          contentHtml: e.templateHtml ?? blocksToHtml(e.blocks),
+          delayHours: i === 0 ? 0 : Math.max(1, Math.round(e.delayDays * 24)),
+        })),
       };
       const res = await fetch('/api/admin/flywheel/campaigns', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -243,61 +293,78 @@ export default function FlywheelCampaigns() {
 
   const resetWizard = () => {
     setWizardStep(1); setCampaignName(''); setCampaignType('ONE_OFF');
-    setSubject(''); setAudienceFilter('ALL');
+    setAudienceFilter('ALL');
     setPickedLeads([]); setLeadSearch(''); setLeadSearchResults([]);
-    setTemplateHtml(null); setTemplateName(''); setGalleryOpen(false); setGalleryCat('ALL');
-    setBlocks([
-      { id: '1', type: 'heading', content: '' },
-      { id: '2', type: 'paragraph', content: '' },
-    ]);
+    setGalleryOpen(false); setGalleryCat('ALL');
+    setEmails([newEmailStep()]); setActiveEmailIdx(0);
   };
 
-  // Load a prebuilt template into the wizard
+  // ── Multi-email (drip) helpers ──
+  const addEmailStep = () => {
+    setEmails(prev => [...prev, newEmailStep(2)]); // sensible default: 2 days after previous
+    setActiveEmailIdx(emails.length);
+    if (campaignType === 'ONE_OFF') setCampaignType('DRIP');
+  };
+  const removeEmailStep = (idx: number) => {
+    if (emails.length <= 1) return;
+    setEmails(prev => prev.filter((_, i) => i !== idx));
+    setActiveEmailIdx(prev => Math.max(0, prev >= idx ? prev - 1 : prev));
+  };
+
+  // Load a prebuilt template into the ACTIVE email
   const applyTemplate = (tpl: typeof MARKETING_TEMPLATES[number]) => {
-    setTemplateHtml(tpl.bodyHtml);
-    setTemplateName(tpl.name);
-    setSubject(tpl.subject);
+    patchActiveEmail({ templateHtml: tpl.bodyHtml, templateName: tpl.name, subject: tpl.subject });
     if (!campaignName.trim()) setCampaignName(tpl.name);
     setGalleryOpen(false);
   };
-  const clearTemplate = () => { setTemplateHtml(null); setTemplateName(''); };
+  const clearTemplate = () => patchActiveEmail({ templateHtml: null, templateName: '' });
 
-  // Dispatch campaign — resolve audience contactIds first, then send
+  // Launch / add-leads — resolve the audience into a reviewable list first, so
+  // the admin can select/deselect exactly who receives the campaign.
   const handleDispatch = async (campaignId: string) => {
     setDispatching(true); setDispatchResult(null);
     try {
-      // Use the filter stored in the campaign's metadata (not the wizard state)
       const campaign = campaigns.find(c => c.id === campaignId) ?? selectedCampaign;
       const savedFilter = campaign?.metadata?.audienceFilter ?? 'ALL';
-      let contactIds: string[] = [];
+
+      const params = new URLSearchParams({ pageSize: '1000' });
+      if (savedFilter !== 'ALL' && savedFilter !== 'PICK') params.set('stage', savedFilter);
+      const audienceRes = await fetch(`/api/admin/flywheel/leads?${params}`);
+      if (!audienceRes.ok) { setDispatchResult('Error: Could not resolve audience.'); return; }
+      const audienceData = await audienceRes.json();
+      let leads: LeadOption[] = (audienceData.contacts || audienceData.data || [])
+        .map((c: any) => ({ id: c.id, name: c.name ?? '(no name)', email: c.email ?? '' }));
 
       if (savedFilter === 'PICK') {
-        // Use the explicit list stored at creation time
-        contactIds = campaign?.metadata?.contactIds ?? [];
-        if (contactIds.length === 0) { setDispatchResult('No specific contacts were saved with this campaign.'); return; }
-      } else {
-        const params = new URLSearchParams({ pageSize: '1000' });
-        if (savedFilter !== 'ALL') params.set('stage', savedFilter);
-        const audienceRes = await fetch(`/api/admin/flywheel/leads?${params}`);
-        if (!audienceRes.ok) { setDispatchResult('Error: Could not resolve audience.'); return; }
-        const audienceData = await audienceRes.json();
-        const contacts: Array<{ id: string }> = audienceData.contacts || audienceData.data || [];
-        contactIds = contacts.map((c: { id: string }) => c.id);
+        const savedIds = new Set(campaign?.metadata?.contactIds ?? []);
+        leads = leads.filter(l => savedIds.has(l.id));
+        if (leads.length === 0) { setDispatchResult('No specific contacts were saved with this campaign.'); return; }
       }
+      if (leads.length === 0) { setDispatchResult('No contacts match the selected audience.'); return; }
 
-      if (contactIds.length === 0) { setDispatchResult('No contacts match the selected audience.'); return; }
+      setPicker({ campaignId, campaignName: campaign?.name ?? 'Campaign', leads });
+      setPickerChecked(new Set(leads.map(l => l.id)));
+      setPickerSearch('');
+    } catch { setDispatchResult('An error occurred.'); }
+    finally { setDispatching(false); }
+  };
 
-      const res = await fetch(`/api/admin/flywheel/campaigns/${campaignId}/dispatch`, {
+  const confirmDispatch = async () => {
+    if (!picker || pickerChecked.size === 0) return;
+    setDispatching(true);
+    try {
+      const res = await fetch(`/api/admin/flywheel/campaigns/${picker.campaignId}/dispatch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contactIds }),
+        body: JSON.stringify({ contactIds: Array.from(pickerChecked) }),
       });
       const data = await res.json();
       if (data.success) {
-        setDispatchResult(data.message || `Enrolled ${data.enrolled ?? contactIds.length} new leads.`);
+        setDispatchResult(data.message || `Enrolled ${data.enrolled ?? pickerChecked.size} new leads.`);
+        setPicker(null);
         fetchCampaigns();
-      } else { setDispatchResult(`Error: ${data.error || 'Failed to dispatch'}`); }
-    } catch { setDispatchResult('An error occurred.'); }
+      } else { setDispatchResult(`Error: ${data.error || 'Failed to dispatch'}`); setPicker(null); }
+    } catch { setDispatchResult('An error occurred.'); setPicker(null); }
     finally { setDispatching(false); }
   };
 
@@ -694,6 +761,49 @@ export default function FlywheelCampaigns() {
               {/* Step 3: Content */}
               {wizardStep === 3 && (
                 <div className="space-y-5">
+                  {/* Email sequence bar — 1 email = one-off blast, 2+ = drip sent day by day */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Emails in this campaign
+                        <span className="ml-2 text-xs font-normal text-slate-400">
+                          {emails.length === 1 ? 'one-off blast' : `drip sequence · ${emails.length} emails over ${emails.reduce((s, e, i) => s + (i === 0 ? 0 : e.delayDays), 0)} days`}
+                        </span>
+                      </label>
+                      <button type="button" onClick={addEmailStep}
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg border border-[#B8935B]/40 text-[#9A7540] bg-[#FBF8F3] hover:bg-[#F5EFE6] transition-colors">
+                        + Add follow-up email
+                      </button>
+                    </div>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {emails.map((e, i) => (
+                        <div key={e.id} className={`flex items-center gap-1 rounded-lg border text-xs font-semibold transition-all ${
+                          i === activeEmailIdx ? 'border-[#B8935B] bg-[#FBF8F3] text-[#9A7540]' : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                        }`}>
+                          <button type="button" onClick={() => setActiveEmailIdx(i)} className="pl-3 py-1.5 pr-1">
+                            Email {i + 1}
+                            <span className="ml-1 font-normal text-[10px] opacity-70">
+                              {i === 0 ? '· on launch' : `· +${e.delayDays}d`}
+                            </span>
+                          </button>
+                          {emails.length > 1 && (
+                            <button type="button" onClick={() => removeEmailStep(i)} title="Remove this email"
+                              className="pr-2 py-1.5 text-slate-300 hover:text-red-500">×</button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {activeEmailIdx > 0 && (
+                      <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                        <span>Send</span>
+                        <input type="number" min={1} max={60} value={activeEmail.delayDays}
+                          onChange={e => patchActiveEmail({ delayDays: Math.min(60, Math.max(1, parseInt(e.target.value) || 1)) })}
+                          className="w-16 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-center font-semibold outline-none focus:ring-1" />
+                        <span>day{activeEmail.delayDays === 1 ? '' : 's'} after Email {activeEmailIdx}</span>
+                      </div>
+                    )}
+                  </div>
+
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Email Subject Line</label>
                     <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g., We have something special for you!" className="w-full px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:bg-white outline-none" style={{ '--tw-ring-color': brand.primaryColor } as any} />
@@ -787,10 +897,8 @@ export default function FlywheelCampaigns() {
                   <div className="bg-slate-50 rounded-xl p-5 space-y-4">
                     {[
                       ['Campaign Name', campaignName],
-                      ['Type', campaignType === 'ONE_OFF' ? 'One-Off Blast' : 'Drip Sequence'],
+                      ['Type', emails.length > 1 ? `Drip Sequence · ${emails.length} emails` : 'One-Off Blast'],
                       ['Audience', audienceFilter === 'PICK' ? `Hand-picked: ${pickedLeads.map(l => l.name).join(', ')}` : audienceFilter === 'ALL' ? `All contacts (${audienceCount})` : `${audienceFilter} (${audienceCount})`],
-                      ['Subject', subject],
-                      ['Content', templateHtml ? `Template: ${templateName}` : `${blocks.length} blocks`],
                     ].map(([label, value]) => (
                       <div key={label as string} className="flex justify-between items-center">
                         <span className="text-sm text-slate-500">{label}</span>
@@ -799,13 +907,45 @@ export default function FlywheelCampaigns() {
                     ))}
                   </div>
 
-                  {/* Email Preview */}
+                  {/* Sequence schedule */}
                   <div>
-                    <h4 className="text-sm font-semibold text-slate-700 mb-2">Email Preview</h4>
+                    <h4 className="text-sm font-semibold text-slate-700 mb-2">
+                      {emails.length > 1 ? 'Sequence schedule' : 'Email'}
+                    </h4>
+                    <div className="space-y-1.5">
+                      {(() => {
+                        let day = 0;
+                        return emails.map((e, i) => {
+                          day += i === 0 ? 0 : e.delayDays;
+                          return (
+                            <button key={e.id} type="button" onClick={() => setActiveEmailIdx(i)}
+                              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg border text-left transition-all ${
+                                i === activeEmailIdx ? 'border-[#B8935B] bg-[#FBF8F3]' : 'border-slate-200 hover:border-slate-300'
+                              }`}>
+                              <span className="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+                                {i === 0 ? 'Day 0' : `Day ${day}`}
+                              </span>
+                              <span className="text-sm font-semibold text-slate-800 truncate flex-1">{e.subject || '(no subject)'}</span>
+                              <span className="flex-shrink-0 text-[10px] text-slate-400">
+                                {e.templateHtml ? e.templateName : `${e.blocks.length} blocks`}
+                              </span>
+                            </button>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Email Preview (click an email above to preview it) */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-700 mb-2">
+                      Preview — Email {activeEmailIdx + 1}
+                    </h4>
                     <div className="border border-slate-200 rounded-xl overflow-hidden" style={{ height: 420 }}>
                       {mounted && (
                         <iframe
-                          srcDoc={buildEmailPreview()}
+                          key={activeEmail.id}
+                          srcDoc={buildEmailPreview(activeEmail)}
                           title="Email preview"
                           style={{ width: '100%', height: '100%', border: 'none' }}
                           sandbox="allow-same-origin"
@@ -824,13 +964,17 @@ export default function FlywheelCampaigns() {
               </button>
               {wizardStep < 4 ? (
                 <button onClick={() => setWizardStep(wizardStep + 1)}
-                  disabled={(wizardStep === 1 && !campaignName) || (wizardStep === 2 && audienceFilter === 'PICK' && pickedLeads.length === 0)}
+                  disabled={
+                    (wizardStep === 1 && !campaignName) ||
+                    (wizardStep === 2 && audienceFilter === 'PICK' && pickedLeads.length === 0) ||
+                    (wizardStep === 3 && emails.some(e => !e.subject.trim() || !emailHasContent(e)))
+                  }
                   className="px-5 py-2 text-white font-medium rounded-lg text-sm disabled:opacity-50 transition-all" style={{ background: brand.primaryColor }}>
                   Next →
                 </button>
               ) : (
-                <button onClick={handleCreate} disabled={saving || !campaignName || !subject} className="px-5 py-2 text-white font-medium rounded-lg text-sm disabled:opacity-50 shadow-sm transition-all" style={{ background: brand.gradient }}>
-                  {saving ? 'Creating...' : 'Create Campaign'}
+                <button onClick={handleCreate} disabled={saving || !campaignName} className="px-5 py-2 text-white font-medium rounded-lg text-sm disabled:opacity-50 shadow-sm transition-all" style={{ background: brand.gradient }}>
+                  {saving ? 'Creating...' : emails.length > 1 ? `Create ${emails.length}-Email Sequence` : 'Create Campaign'}
                 </button>
               )}
             </div>
@@ -928,6 +1072,72 @@ export default function FlywheelCampaigns() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
+      {/* ── Launch lead picker: select/deselect exactly who receives it ── */}
+      {picker && (() => {
+        const q = pickerSearch.trim().toLowerCase();
+        const visible = q
+          ? picker.leads.filter(l => l.name.toLowerCase().includes(q) || l.email.toLowerCase().includes(q))
+          : picker.leads;
+        const allVisibleChecked = visible.length > 0 && visible.every(l => pickerChecked.has(l.id));
+        const toggleAllVisible = () => setPickerChecked(prev => {
+          const next = new Set(prev);
+          if (allVisibleChecked) visible.forEach(l => next.delete(l.id));
+          else visible.forEach(l => next.add(l.id));
+          return next;
+        });
+        return (
+          <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" onClick={() => !dispatching && setPicker(null)}>
+            <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b border-slate-100">
+                <h3 className="text-base font-bold text-slate-900">Send &ldquo;{picker.campaignName}&rdquo;</h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {pickerChecked.size} of {picker.leads.length} selected · leads already in this campaign are skipped automatically (never re-sent)
+                </p>
+              </div>
+              <div className="px-5 pt-3 flex items-center gap-2">
+                <div className="relative flex-1">
+                  <IconSearch size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-300" />
+                  <input value={pickerSearch} onChange={e => setPickerSearch(e.target.value)} placeholder="Search name or email…"
+                    className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-1" />
+                </div>
+                <button type="button" onClick={toggleAllVisible}
+                  className="text-xs font-semibold text-slate-600 border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-50 whitespace-nowrap">
+                  {allVisibleChecked ? 'Deselect all' : 'Select all'}
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1">
+                {visible.length === 0 && <p className="text-sm text-slate-400 text-center py-6">No leads match your search.</p>}
+                {visible.map(l => {
+                  const checked = pickerChecked.has(l.id);
+                  return (
+                    <label key={l.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-all ${
+                      checked ? 'border-[#B8935B]/40 bg-[#FBF8F3]' : 'border-slate-100 hover:border-slate-200'
+                    }`}>
+                      <input type="checkbox" checked={checked}
+                        onChange={() => setPickerChecked(prev => { const n = new Set(prev); if (checked) n.delete(l.id); else n.add(l.id); return n; })}
+                        className="w-4 h-4 accent-[#B8935B]" />
+                      <span className="text-sm font-semibold text-slate-800 truncate">{l.name}</span>
+                      <span className="text-xs text-slate-400 truncate ml-auto">{l.email}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <div className="px-5 py-4 border-t border-slate-100 flex gap-2">
+                <button onClick={() => setPicker(null)} disabled={dispatching}
+                  className="px-4 py-2.5 text-sm font-semibold text-slate-500 border border-slate-200 rounded-xl hover:bg-slate-50">
+                  Cancel
+                </button>
+                <button onClick={confirmDispatch} disabled={dispatching || pickerChecked.size === 0}
+                  className="flex-1 py-2.5 text-sm font-bold text-white rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: brand.primaryColor }}>
+                  {dispatching ? 'Sending…' : `Send to ${pickerChecked.size} lead${pickerChecked.size === 1 ? '' : 's'}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Template Gallery ── */}
       {galleryOpen && (() => {
