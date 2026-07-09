@@ -1,0 +1,35 @@
+name: Campaign processor (hourly)
+
+# Vercel's free plan only allows once-daily crons, so this workflow pings the
+# campaign processor every hour instead — at zero cost (a few seconds of free
+# GitHub Actions minutes per run). It makes "Schedule" launches and day-based
+# drip delays accurate to within the hour.
+#
+# SETUP (one time): add a repository secret named CRON_SECRET with the SAME
+# value as the CRON_SECRET env var in Vercel:
+#   GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+
+on:
+  schedule:
+    # Every hour at minute 15 (GitHub cron is UTC; exact minute may drift a few
+    # minutes under load — fine for email cadence)
+    - cron: '15 * * * *'
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+jobs:
+  process-campaigns:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger campaign processor
+        run: |
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "::error::CRON_SECRET repository secret is not set — add it in repo Settings → Secrets → Actions"
+            exit 1
+          fi
+          status=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://clientforge.theripplenexus.com/api/admin/flywheel/cron/process-campaigns")
+          echo "HTTP $status"
+          cat /tmp/resp.json || true
+          [ "$status" = "200" ] || exit 1
