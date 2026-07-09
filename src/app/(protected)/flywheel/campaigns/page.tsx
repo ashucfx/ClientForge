@@ -264,29 +264,36 @@ export default function FlywheelCampaigns() {
     }
     setSaving(true);
     try {
-      const body = {
-        name: campaignName,
-        type: emails.length > 1 ? 'DRIP' : campaignType,
-        brandId: activeBrand === 'all' ? 'catalyst' : activeBrand,
-        metadata: audienceFilter === 'PICK'
-          ? { audienceFilter: 'PICK', contactIds: pickedLeads.map(l => l.id) }
-          : { audienceFilter },
-        steps: emails.map((e, i) => ({
-          subject: e.subject,
-          contentHtml: e.templateHtml ?? blocksToHtml(e.blocks),
-          delayHours: i === 0 ? 0 : Math.max(1, Math.round(e.delayDays * 24)),
-        })),
-      };
-      const res = await fetch('/api/admin/flywheel/campaigns', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-      });
+      const steps = emails.map((e, i) => ({
+        subject: e.subject,
+        contentHtml: e.templateHtml ?? blocksToHtml(e.blocks),
+        delayHours: i === 0 ? 0 : Math.max(1, Math.round(e.delayDays * 24)),
+      }));
+      const metadata = audienceFilter === 'PICK'
+        ? { audienceFilter: 'PICK', contactIds: pickedLeads.map(l => l.id) }
+        : { audienceFilter };
+
+      const res = editingId
+        ? await fetch(`/api/admin/flywheel/campaigns/${editingId}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: campaignName, steps, metadata }),
+          })
+        : await fetch('/api/admin/flywheel/campaigns', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: campaignName,
+              type: emails.length > 1 ? 'DRIP' : campaignType,
+              brandId: activeBrand === 'all' ? 'catalyst' : activeBrand,
+              metadata, steps,
+            }),
+          });
       if (res.ok) {
         setWizardOpen(false);
         resetWizard();
         fetchCampaigns();
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(`Failed to create campaign: ${err.error || res.statusText}`);
+        alert(`Failed to save campaign: ${err.error || res.statusText}`);
       }
     } finally { setSaving(false); }
   };
@@ -297,6 +304,7 @@ export default function FlywheelCampaigns() {
     setPickedLeads([]); setLeadSearch(''); setLeadSearchResults([]);
     setGalleryOpen(false); setGalleryCat('ALL');
     setEmails([newEmailStep()]); setActiveEmailIdx(0);
+    setEditingId(null);
   };
 
   // ── Multi-email (drip) helpers ──
@@ -318,6 +326,64 @@ export default function FlywheelCampaigns() {
     setGalleryOpen(false);
   };
   const clearTemplate = () => patchActiveEmail({ templateHtml: null, templateName: '' });
+
+  // ── Edit / duplicate / test-send / export ──
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [testSendFor, setTestSendFor] = useState<Campaign | null>(null);
+  const [testEmail, setTestEmail] = useState('');
+  const [testStepIdx, setTestStepIdx] = useState(0);
+  const [testSending, setTestSending] = useState(false);
+
+  const handleEdit = async (campaign: Campaign) => {
+    try {
+      const res = await fetch(`/api/admin/flywheel/campaigns/${campaign.id}`);
+      if (!res.ok) { alert('Could not load campaign for editing.'); return; }
+      const d = await res.json();
+      const steps: { id: string; subject: string; contentHtml: string; delayHours: number }[] = d.steps ?? [];
+      setEditingId(campaign.id);
+      setCampaignName(campaign.name);
+      setCampaignType(steps.length > 1 ? 'DRIP' : campaign.type);
+      setAudienceFilter(campaign.metadata?.audienceFilter ?? 'ALL');
+      setPickedLeads([]);
+      setEmails(steps.length ? steps.map((s, i) => ({
+        id: s.id || (Date.now() + i).toString(),
+        subject: s.subject,
+        delayDays: i === 0 ? 0 : Math.max(1, Math.round((s.delayHours || 24) / 24)),
+        templateHtml: s.contentHtml,           // saved content shown as-is
+        templateName: 'Saved content',
+        blocks: [{ id: '1', type: 'heading', content: '' }, { id: '2', type: 'paragraph', content: '' }],
+      })) : [newEmailStep()]);
+      setActiveEmailIdx(0);
+      setSelectedCampaign(null);
+      setGalleryOpen(false);
+      setWizardStep(3);          // jump straight to content
+      setWizardOpen(true);
+    } catch { alert('Network error while loading campaign.'); }
+  };
+
+  const handleDuplicate = async (campaign: Campaign) => {
+    setMutating(true);
+    try {
+      const res = await fetch(`/api/admin/flywheel/campaigns/${campaign.id}/duplicate`, { method: 'POST' });
+      if (res.ok) { setDispatchResult(`Duplicated "${campaign.name}" as a new draft.`); fetchCampaigns(); }
+      else alert('Could not duplicate campaign.');
+    } finally { setMutating(false); }
+  };
+
+  const handleTestSend = async () => {
+    if (!testSendFor) return;
+    setTestSending(true);
+    try {
+      const res = await fetch(`/api/admin/flywheel/campaigns/${testSendFor.id}/test-send`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: testEmail.trim(), stepIndex: testStepIdx }),
+      });
+      const d = await res.json();
+      if (d.success) { alert(d.message || 'Test email sent.'); setTestSendFor(null); setTestEmail(''); }
+      else alert(d.error || 'Could not send test email.');
+    } catch { alert('Network error.'); }
+    finally { setTestSending(false); }
+  };
 
   // Launch / add-leads — resolve the audience into a reviewable list first, so
   // the admin can select/deselect exactly who receives the campaign.
@@ -634,7 +700,7 @@ export default function FlywheelCampaigns() {
             {/* Wizard Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div>
-                <Dialog.Title className="text-lg font-bold text-slate-900">New Campaign</Dialog.Title>
+                <Dialog.Title className="text-lg font-bold text-slate-900">{editingId ? 'Edit Campaign' : 'New Campaign'}</Dialog.Title>
                 <Dialog.Description className="text-sm text-slate-500">Step {wizardStep} of 4</Dialog.Description>
               </div>
               <Dialog.Close asChild>
@@ -974,7 +1040,7 @@ export default function FlywheelCampaigns() {
                 </button>
               ) : (
                 <button onClick={handleCreate} disabled={saving || !campaignName} className="px-5 py-2 text-white font-medium rounded-lg text-sm disabled:opacity-50 shadow-sm transition-all" style={{ background: brand.gradient }}>
-                  {saving ? 'Creating...' : emails.length > 1 ? `Create ${emails.length}-Email Sequence` : 'Create Campaign'}
+                  {saving ? 'Saving…' : editingId ? 'Save Changes' : emails.length > 1 ? `Create ${emails.length}-Email Sequence` : 'Create Campaign'}
                 </button>
               )}
             </div>
@@ -983,10 +1049,14 @@ export default function FlywheelCampaigns() {
       </Dialog.Root>
 
       {/* ── CAMPAIGN DETAIL SLIDE-OVER ── */}
-      <Dialog.Root open={!!selectedCampaign} onOpenChange={open => { if (!open) { setSelectedCampaign(null); setDispatchResult(null); } }}>
+      <Dialog.Root open={!!selectedCampaign} modal={false} onOpenChange={open => { if (!open) { setSelectedCampaign(null); setDispatchResult(null); } }}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40" />
-          <Dialog.Content className="fixed top-0 right-0 h-full w-[90vw] max-w-md bg-white shadow-2xl z-50 animate-in slide-in-from-right duration-300 flex flex-col">
+          <Dialog.Content
+            onInteractOutside={(e) => { if (picker || testSendFor) e.preventDefault(); }}
+            onPointerDownOutside={(e) => { if (picker || testSendFor) e.preventDefault(); }}
+            className="fixed top-0 right-0 h-full w-[90vw] max-w-md bg-white shadow-2xl z-50 animate-in slide-in-from-right duration-300 flex flex-col"
+          >
             {selectedCampaign && (
               <>
                 <div className="p-6 border-b border-slate-100" style={{ background: STATUS_META[selectedCampaign.status]?.bg || '#f1f5f9' }}>
@@ -1037,6 +1107,32 @@ export default function FlywheelCampaigns() {
                     </div>
                   </div>
 
+                  {/* Manage */}
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-2">Manage</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button onClick={() => handleEdit(selectedCampaign)}
+                        className="flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                        ✎ Edit content
+                      </button>
+                      <button onClick={() => handleDuplicate(selectedCampaign)} disabled={mutating}
+                        className="flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50">
+                        ⧉ Duplicate
+                      </button>
+                      <button onClick={() => { setTestSendFor(selectedCampaign); setTestStepIdx(0); }}
+                        className="flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                        ✉ Send test
+                      </button>
+                      <a href={`/api/admin/flywheel/campaigns/${selectedCampaign.id}/export`}
+                        className="flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                        ⭳ Export CSV
+                      </a>
+                    </div>
+                    {editingId ? null : (
+                      <p className="text-[10px] text-slate-400 mt-1.5">Editing a live campaign updates unsent emails only; drafts can be fully changed.</p>
+                    )}
+                  </div>
+
                   {dispatchResult && (
                     <div className={`p-4 rounded-lg text-sm font-medium ${dispatchResult.includes('Error') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{dispatchResult}</div>
                   )}
@@ -1072,6 +1168,34 @@ export default function FlywheelCampaigns() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
+      {/* ── Send-test modal ── */}
+      {testSendFor && (
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" onClick={() => !testSending && setTestSendFor(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-slate-900 mb-1">Send a test email</h3>
+            <p className="text-xs text-slate-400 mb-4">A real copy of the email is sent so you can check it in an inbox. Uses a sample first name.</p>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Send to</label>
+            <input type="email" value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="you@example.com"
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 mb-3" />
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Which email</label>
+            <select value={testStepIdx} onChange={e => setTestStepIdx(Number(e.target.value))}
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 mb-4">
+              {Array.from({ length: (testSendFor?._count?.steps ?? 1) }, (_, i) => (
+                <option key={i} value={i}>Email {i + 1}</option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <button onClick={() => setTestSendFor(null)} disabled={testSending}
+                className="px-4 py-2.5 text-sm font-semibold text-slate-500 border border-slate-200 rounded-xl hover:bg-slate-50">Cancel</button>
+              <button onClick={handleTestSend} disabled={testSending || !testEmail.trim()}
+                className="flex-1 py-2.5 text-sm font-bold text-white rounded-xl disabled:opacity-50" style={{ background: brand.primaryColor }}>
+                {testSending ? 'Sending…' : 'Send test'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Launch lead picker: select/deselect exactly who receives it ── */}
       {picker && (() => {
