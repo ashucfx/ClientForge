@@ -2038,13 +2038,17 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
   const [confirming,      setConfirming]      = useState(false);
   const [deletingId,      setDeletingId]      = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  // Per-service free-revision usage (freeUsed / freeLimit / paidUsed) — same
+  // numbers the client sees in their portal, so admin and client stay aligned.
+  type RevSummaryRow = { slug: string; name: string; freeLimit: number; freeUsed: number; revisionsLeft: number; paidUsed: number };
+  const [revSummary, setRevSummary] = useState<RevSummaryRow[]>([]);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
   useEffect(() => {
     fetch(`/api/career/admin/clients/${clientId}/revisions`)
-      .then(r => r.json() as Promise<{ revisions: RevisionItem[] }>)
-      .then(d => { setRevisions(d.revisions ?? []); setLoading(false); })
+      .then(r => r.json() as Promise<{ revisions: RevisionItem[]; revisionSummary?: RevSummaryRow[] }>)
+      .then(d => { setRevisions(d.revisions ?? []); setRevSummary(d.revisionSummary ?? []); setLoading(false); })
       .catch(() => setLoading(false));
   }, [clientId]);
 
@@ -2129,6 +2133,33 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
         </button>
       </div>
 
+      {/* Free-revision usage per service — the same numbers the client sees in
+          their portal. Exhausted services show red so misuse is obvious. */}
+      {revSummary.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {revSummary.map(s => {
+            const exhausted = s.revisionsLeft === 0;
+            const pct = Math.min(100, Math.round((s.freeUsed / s.freeLimit) * 100));
+            return (
+              <div key={s.slug} className={`px-3.5 py-2.5 rounded-xl border ${exhausted ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'}`}>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-xs font-semibold text-slate-700 truncate">{s.name}</span>
+                  <span className={`text-[10px] font-bold whitespace-nowrap ${exhausted ? 'text-red-600' : 'text-slate-500'}`}>
+                    {s.freeUsed}/{s.freeLimit} free used{exhausted ? ' · limit reached' : ` · ${s.revisionsLeft} left`}
+                  </span>
+                </div>
+                <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full ${exhausted ? 'bg-red-400' : s.freeUsed > 0 ? 'bg-amber-400' : 'bg-emerald-400'}`} style={{ width: `${pct}%` }} />
+                </div>
+                {s.paidUsed > 0 && (
+                  <p className="text-[10px] text-slate-400 mt-1">{s.paidUsed} paid revision{s.paidUsed === 1 ? '' : 's'} on top</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Pending action banner — surfaces what needs the admin's decision */}
       {(() => {
         const pending = revisions.filter(r => r.status === 'PENDING');
@@ -2158,9 +2189,10 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Revision Instructions *</label>
-              <textarea required rows={4} value={note} onChange={e => setNote(e.target.value)}
-                placeholder="Describe what needs to be revised…"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 resize-none" />
+              <textarea required rows={7} value={note} onChange={e => setNote(e.target.value)}
+                placeholder={'One change per line — each line becomes its own bullet point:\n\nShorten the summary to 3 lines\nAdd the AWS certification under Education\nFix the date on the Acme role (2021, not 2020)'}
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 resize-y min-h-[120px] leading-relaxed" />
+              <p className="text-[10px] text-slate-400 mt-1">Tip: press Enter for a new point — the client sees each line as a separate bullet.</p>
             </div>
             <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
               <input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)}
@@ -2230,7 +2262,22 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
                     <span className="text-xs text-slate-400">{fmt(r.createdAt)}</span>
                   </div>
                   {r.fileLabel && <p className="text-xs font-semibold text-slate-500 mb-1">Re: {r.fileLabel}</p>}
-                  <p className="text-sm text-slate-800 leading-relaxed">{r.note}</p>
+                  {(() => {
+                    // Multi-line notes render as a clean bullet list; single-line as a paragraph
+                    const lines = r.note.split('\n').map(l => l.trim()).filter(Boolean);
+                    return lines.length > 1 ? (
+                      <ul className="space-y-1">
+                        {lines.map((l, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-slate-800 leading-relaxed">
+                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#B8935B] flex-shrink-0" />
+                            <span className="min-w-0">{l.replace(/^[-•*]\s*/, '')}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">{r.note}</p>
+                    );
+                  })()}
                   {r.adminNote && (
                     <div className="mt-2 px-3 py-2 bg-[#FBF8F3] border border-[#F0EAE0] rounded-lg">
                       <p className="text-xs text-[#9A7540]"><strong>Admin note:</strong> {r.adminNote}</p>
@@ -2565,7 +2612,9 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
   const autoResize = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+    // Grow with the text up to a cap; past the cap the textarea scrolls
+    // internally (overflow-y-auto) so long messages stay fully editable.
+    el.style.height = Math.min(el.scrollHeight, 240) + 'px';
   };
 
   const startEdit = (id: string, content: string) => {
@@ -2626,8 +2675,9 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
         )}
       </div>
 
-      {/* Thread */}
-      <div ref={threadRef} className="p-5 space-y-4 max-h-[520px] overflow-y-auto">
+      {/* Thread — overscroll-contain stops the page hijacking the wheel when
+          you reach the top/bottom of the thread, which made scrolling painful */}
+      <div ref={threadRef} className="p-4 sm:p-5 space-y-4 max-h-[60vh] sm:max-h-[520px] overflow-y-auto overscroll-contain scroll-smooth">
         {loading ? (
           <div className="space-y-3">
             {[1,2,3].map(i => <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />)}
@@ -2660,7 +2710,7 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
                       value={editContent}
                       onChange={e => { setEditContent(e.target.value); autoResize(e.target); }}
                       onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { void saveEdit(); } if (e.key === 'Escape') cancelEdit(); }}
-                      className="w-full px-3.5 py-2.5 text-sm border border-[#B8935B] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B]/30 bg-white resize-none leading-relaxed overflow-hidden"
+                      className="w-full px-3.5 py-2.5 text-sm border border-[#B8935B] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B]/30 bg-white resize-none leading-relaxed overflow-y-auto max-h-[240px] overscroll-contain"
                       style={{ minHeight: '2.5rem' }}
                     />
                     <div className="flex items-center gap-2 mt-1.5">
@@ -2699,7 +2749,7 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
             onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { void postReply(e as unknown as React.FormEvent); } }}
             placeholder={`Message ${clientName}… (Ctrl+Enter to send)`}
             rows={2}
-            className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 resize-none leading-relaxed overflow-hidden"
+            className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 resize-none leading-relaxed overflow-y-auto max-h-[240px] overscroll-contain"
             style={{ minHeight: '2.5rem' }}
           />
           <div className="flex items-center justify-between gap-2">
