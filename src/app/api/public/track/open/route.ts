@@ -10,14 +10,17 @@ const TRANSPARENT_GIF = Buffer.from(
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const leadId = url.searchParams.get('lead');
+  const step = url.searchParams.get('step');
 
   if (leadId) {
     try {
-      // Find if this open event already exists to prevent duplicates
+      // Dedup per EMAIL, not per lead: a drip lead opens step 1, then step 2 —
+      // both must count. When a step is present, only dedup within that step.
       const existing = await db.flywheelEmailEvent.findFirst({
         where: {
           campaignLeadId: leadId,
-          eventType: 'OPEN'
+          eventType: 'OPEN',
+          ...(step ? { metadata: { path: ['step'], equals: step } } : {}),
         }
       });
 
@@ -28,6 +31,7 @@ export async function GET(req: NextRequest) {
             campaignLeadId: leadId,
             eventType: 'OPEN',
             metadata: {
+              ...(step ? { step } : {}),
               userAgent: req.headers.get('user-agent'),
               ip: req.headers.get('x-forwarded-for') || req.ip
             }

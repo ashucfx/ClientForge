@@ -26,12 +26,14 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   // Per-step event counts (sent/opens/clicks) via the lead's current step is
   // approximate; instead we count events joined to their step through the lead.
+  // Attribute each event to the step recorded ON THE EVENT (metadata->>'step');
+  // fall back to the lead's current step for legacy events without it.
   const stepStatRows = await db.$queryRaw<{ stepId: string; eventType: string; count: bigint }[]>`
-    SELECT cl."currentStepId" as "stepId", fe."eventType", COUNT(*) as count
+    SELECT COALESCE(fe.metadata->>'step', cl."currentStepId") as "stepId", fe."eventType", COUNT(*) as count
     FROM "FlywheelEmailEvent" fe
     JOIN "FlywheelCampaignLead" cl ON cl.id = fe."campaignLeadId"
     WHERE cl."campaignId" = ${params.id}
-    GROUP BY cl."currentStepId", fe."eventType"
+    GROUP BY COALESCE(fe.metadata->>'step', cl."currentStepId"), fe."eventType"
   `.catch(() => []);
 
   const enrolled = await db.flywheelCampaignLead.count({ where: { campaignId: params.id } });

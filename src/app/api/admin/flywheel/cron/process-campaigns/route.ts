@@ -120,17 +120,19 @@ export async function GET(req: NextRequest) {
           lead.currentStep.contentHtml,
           lead.campaign.brandId,
           lead.id,
-          lead.contact.name
+          lead.contact.name,
+          lead.currentStepId, // step-aware tracking (fixes drip open/click attribution)
         );
 
         // Brief pause between sends to stay within SMTP provider rate limits
         await new Promise(r => setTimeout(r, 250));
 
-        // Record the event
+        // Record the event (with the step so per-email stats are accurate)
         await db.flywheelEmailEvent.create({
           data: {
             campaignLeadId: lead.id,
-            eventType: 'SENT'
+            eventType: 'SENT',
+            metadata: { step: lead.currentStepId } as object,
           }
         });
 

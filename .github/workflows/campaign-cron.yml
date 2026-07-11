@@ -1,35 +1,51 @@
 name: Campaign processor (hourly)
 
-# Vercel's free plan only allows once-daily crons, so this workflow pings the
-# campaign processor every hour instead — at zero cost (a few seconds of free
-# GitHub Actions minutes per run). It makes "Schedule" launches and day-based
-# drip delays accurate to within the hour.
+# Vercel's free plan runs crons at most once a day, so this pings the campaign
+# processor hourly (free GitHub Actions minutes) to advance drip follow-ups and
+# launch scheduled campaigns on time.
 #
-# SETUP (one time): add a repository secret named CRON_SECRET with the SAME
-# value as the CRON_SECRET env var in Vercel:
-#   GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+# BEST-EFFORT: this job never hard-fails (always exits 0), so a missing secret or
+# a transient error does NOT spam the Actions tab with red failures — it just
+# logs and retries next hour. Set it up once and forget it:
+#   1. In Vercel → your project → Settings → Environment Variables: ensure
+#      CRON_SECRET exists (any long random string) and redeploy.
+#   2. In GitHub → repo Settings → Secrets and variables → Actions →
+#      New repository secret: name CRON_SECRET, same value as Vercel.
 
 on:
   schedule:
-    # Every hour at minute 15 (GitHub cron is UTC; exact minute may drift a few
-    # minutes under load — fine for email cadence)
-    - cron: '15 * * * *'
-  workflow_dispatch: {} # allow manual runs from the Actions tab
+    - cron: '15 * * * *' # hourly at :15 (UTC)
+  workflow_dispatch: {}   # manual "Run workflow" button
+
+# Only one run at a time; a slow run won't pile up
+concurrency:
+  group: campaign-cron
+  cancel-in-progress: false
 
 jobs:
   process-campaigns:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Trigger campaign processor
+      - name: Trigger campaign processor (best-effort)
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
-            echo "::error::CRON_SECRET repository secret is not set — add it in repo Settings → Secrets → Actions"
-            exit 1
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::warning::CRON_SECRET repo secret not set yet — skipping. Add it in Settings → Secrets → Actions (same value as Vercel), then this runs automatically."
+            exit 0
           fi
-          status=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "https://clientforge.theripplenexus.com/api/admin/flywheel/cron/process-campaigns")
+          status=$(curl -s -m 60 -o /tmp/resp.json -w "%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "https://clientforge.theripplenexus.com/api/admin/flywheel/cron/process-campaigns" || echo "000")
           echo "HTTP $status"
-          cat /tmp/resp.json || true
-          [ "$status" = "200" ] || exit 1
+          head -c 500 /tmp/resp.json 2>/dev/null || true
+          echo
+          if [ "$status" = "200" ]; then
+            echo "Campaign processor ran successfully."
+          elif [ "$status" = "401" ]; then
+            echo "::warning::401 Unauthorized — the GitHub CRON_SECRET does not match Vercel's CRON_SECRET. Update one to match the other."
+          else
+            echo "::warning::Processor returned HTTP $status (will retry next hour)."
+          fi
+          exit 0

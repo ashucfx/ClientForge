@@ -6,6 +6,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const leadId = url.searchParams.get('lead');
+  const step = url.searchParams.get('step');
   const destination = url.searchParams.get('url');
 
   if (!destination) {
@@ -30,6 +31,7 @@ export async function GET(req: NextRequest) {
         campaignLeadId: leadId,
         eventType: 'CLICK',
         metadata: {
+          ...(step ? { step } : {}),
           url: dest,
           userAgent: req.headers.get('user-agent'),
           ip: req.headers.get('x-forwarded-for') ?? '',

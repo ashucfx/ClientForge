@@ -46,6 +46,7 @@ export async function sendMarketingEmail(
   brandId: string,
   campaignLeadId: string,
   contactName?: string | null,
+  stepId?: string | null,
 ): Promise<void> {
   const brand = getBrand(brandId);
   const portalUrl = brand.portalUrl;
@@ -55,13 +56,17 @@ export async function sendMarketingEmail(
   subject = personalize(subject, pvars);
   htmlContent = personalize(htmlContent, pvars);
 
+  // stepId makes open/click tracking per-EMAIL, not per-lead — so opens of
+  // follow-up emails in a drip aren't dropped by the once-per-lead dedup.
+  const stepQ = stepId ? `&step=${encodeURIComponent(stepId)}` : '';
+
   // Unsubscribe and tracking URLs
   const unsubscribeUrl = `${portalUrl}/api/public/unsubscribe?lead=${campaignLeadId}`;
-  const trackingPixelUrl = `${portalUrl}/api/public/track/open?lead=${campaignLeadId}`;
-  
+  const trackingPixelUrl = `${portalUrl}/api/public/track/open?lead=${campaignLeadId}${stepQ}`;
+
   // Intercept links for click tracking
   // We use a simple regex to find href="..." and wrap it
-  const clickTrackBaseUrl = `${portalUrl}/api/public/track/click?lead=${campaignLeadId}&url=`;
+  const clickTrackBaseUrl = `${portalUrl}/api/public/track/click?lead=${campaignLeadId}${stepQ}&url=`;
   const trackedHtmlContent = htmlContent.replace(/href="([^"]+)"/g, (match, url) => {
     // Don't track mailto or tel links
     if (url.startsWith('mailto:') || url.startsWith('tel:')) return match;
