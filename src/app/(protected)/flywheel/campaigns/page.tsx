@@ -277,10 +277,15 @@ export default function FlywheelCampaigns() {
         ? { audienceFilter: 'PICK', contactIds: pickedLeads.map(l => l.id) }
         : { audienceFilter };
 
+      // When editing a hand-picked campaign, the wizard doesn't reload the
+      // saved lead list — sending an empty PICK list would WIPE it. Omit
+      // metadata in that case so the saved audience is preserved.
+      const omitMetadata = !!editingId && audienceFilter === 'PICK' && pickedLeads.length === 0;
+
       const res = editingId
         ? await fetch(`/api/admin/flywheel/campaigns/${editingId}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: campaignName, steps, metadata }),
+            body: JSON.stringify({ name: campaignName, steps, ...(omitMetadata ? {} : { metadata }) }),
           })
         : await fetch('/api/admin/flywheel/campaigns', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -425,18 +430,22 @@ export default function FlywheelCampaigns() {
       const audienceRes = await fetch(`/api/admin/flywheel/leads?${params}`);
       if (!audienceRes.ok) { setDispatchResult('Error: Could not resolve audience.'); return; }
       const audienceData = await audienceRes.json();
-      let leads: LeadOption[] = (audienceData.contacts || audienceData.data || [])
+      const leads: LeadOption[] = (audienceData.contacts || audienceData.data || [])
         .map((c: any) => ({ id: c.id, name: c.name ?? '(no name)', email: c.email ?? '' }));
 
-      if (savedFilter === 'PICK') {
-        const savedIds = new Set(campaign?.metadata?.contactIds ?? []);
-        leads = leads.filter(l => savedIds.has(l.id));
-        if (leads.length === 0) { setDispatchResult('No specific contacts were saved with this campaign.'); return; }
-      }
-      if (leads.length === 0) { setDispatchResult('No contacts match the selected audience.'); return; }
+      if (leads.length === 0) { setDispatchResult('No leads found — create leads in Funnel → Leads first.'); return; }
+
+      // The picker always shows the FULL list so you can add anyone. For
+      // hand-picked campaigns the previously saved leads come pre-checked;
+      // otherwise everyone starts checked. Dedup on the server means leads
+      // already in the campaign are never re-sent regardless of selection.
+      const savedIds = new Set(campaign?.metadata?.contactIds ?? []);
+      const preChecked = savedFilter === 'PICK' && savedIds.size > 0
+        ? leads.filter(l => savedIds.has(l.id)).map(l => l.id)
+        : leads.map(l => l.id);
 
       setPicker({ campaignId, campaignName: campaign?.name ?? 'Campaign', leads });
-      setPickerChecked(new Set(leads.map(l => l.id)));
+      setPickerChecked(new Set(preChecked));
       setPickerSearch('');
       setPickerTiming('NOW');
       // Default schedule slot: tomorrow 10:00 local, as a datetime-local value
@@ -555,11 +564,19 @@ export default function FlywheelCampaigns() {
         </button>
       )}
       {c.status === 'SCHEDULED' && (
-        <button onClick={() => cancelSchedule(c.id)} disabled={mutating}
-          className="px-3 py-1.5 bg-violet-50 border border-violet-200 text-violet-700 rounded-md text-xs font-semibold hover:bg-violet-100 transition-colors flex items-center gap-1"
-          title="Cancel the scheduled launch and return to draft">
-          <IconX size={12} /> Cancel schedule
-        </button>
+        <>
+          <button onClick={() => handleDispatch(c.id)} disabled={dispatching}
+            className="px-3 py-1.5 rounded-md text-xs font-semibold text-white transition-opacity flex items-center gap-1 disabled:opacity-60"
+            style={{ background: brand.primaryColor }}
+            title="Don't wait for the schedule — pick leads and send immediately">
+            <IconSend size={12} /> Send now
+          </button>
+          <button onClick={() => cancelSchedule(c.id)} disabled={mutating}
+            className="px-3 py-1.5 bg-violet-50 border border-violet-200 text-violet-700 rounded-md text-xs font-semibold hover:bg-violet-100 transition-colors flex items-center gap-1"
+            title="Cancel the scheduled launch and return to draft">
+            <IconX size={12} /> Cancel schedule
+          </button>
+        </>
       )}
       {(c.status === 'ACTIVE' || c.status === 'PAUSED') && (
         <button onClick={() => handleDispatch(c.id)} disabled={dispatching}
@@ -620,9 +637,10 @@ export default function FlywheelCampaigns() {
         {!loading && campaigns.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
             {summaryStats.map(s => (
-              <div key={s.label} className="bg-white border border-slate-200 rounded-xl px-4 py-3">
-                <p className="text-xs text-slate-400 font-medium">{s.label}</p>
-                <p className={`text-lg sm:text-xl font-bold mt-0.5 ${s.color}`}>{s.value}</p>
+              <div key={s.label} className="relative bg-white border border-slate-200 rounded-2xl px-4 py-3.5 overflow-hidden">
+                <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: 'var(--brand, #B8935B)', opacity: 0.5 }} />
+                <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wide">{s.label}</p>
+                <p className={`text-xl sm:text-2xl font-bold mt-1 tabular-nums ${s.color}`}>{s.value}</p>
               </div>
             ))}
           </div>
@@ -671,86 +689,65 @@ export default function FlywheelCampaigns() {
           </div>
         )}
 
-        {/* ── Mobile / tablet: card list ── */}
-        <div className="lg:hidden space-y-3">
-          {loading
-            ? Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-32 bg-slate-100 rounded-2xl animate-pulse" />)
-            : campaigns.map(c => {
-                const meta = STATUS_META[c.status] || STATUS_META.DRAFT;
-                return (
-                  <div key={c.id} className="bg-white border border-slate-200 rounded-2xl p-4 cursor-pointer hover:border-slate-300 transition-colors" onClick={() => setSelectedCampaign(c)}>
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-slate-900 truncate">{c.name}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{c.type.replace('_', ' ')} · {new Date(c.createdAt).toLocaleDateString()}</p>
-                      </div>
-                      <span className="flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: meta.bg, color: meta.color }}>{meta.label}</span>
-                    </div>
-                    <div className="grid grid-cols-4 gap-2 mb-3 text-center bg-slate-50 rounded-xl py-2.5">
-                      <div><p className="text-[10px] text-slate-400 uppercase tracking-wide">Audience</p><p className="text-sm font-bold text-slate-700 mt-0.5">{c._count?.leads || 0}</p></div>
-                      <div><p className="text-[10px] text-slate-400 uppercase tracking-wide">Sent</p><p className="text-sm font-bold text-blue-600 mt-0.5">{c.stats?.sent || 0}</p></div>
-                      <div><p className="text-[10px] text-slate-400 uppercase tracking-wide">Opens</p><p className="text-sm font-bold text-violet-600 mt-0.5">{c.stats?.opens || 0}</p></div>
-                      <div><p className="text-[10px] text-slate-400 uppercase tracking-wide">Rate</p><p className="text-sm font-bold text-amber-600 mt-0.5">{c.stats?.openRate || 0}%</p></div>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5" onClick={e => e.stopPropagation()}>
-                      {renderCampaignActions(c)}
-                    </div>
-                  </div>
-                );
-              })}
-        </div>
-
-        {/* ── Desktop: table ── */}
+        {/* ── Campaign card grid (responsive: 1 / 2 / 3 columns) ── */}
         {!(!loading && campaigns.length === 0) && (
-        <div className="hidden lg:block card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50/80 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
-                <tr>
-                  <th className="px-5 py-3.5">Campaign Name</th>
-                  <th className="px-5 py-3.5">Type</th>
-                  <th className="px-5 py-3.5">Status</th>
-                  <th className="px-5 py-3.5 text-center">Audience</th>
-                  <th className="px-5 py-3.5 text-center">Sent</th>
-                  <th className="px-5 py-3.5 text-center">Opens</th>
-                  <th className="px-5 py-3.5 text-center">Open Rate</th>
-                  <th className="px-5 py-3.5 text-center">Created</th>
-                  <th className="px-5 py-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i}><td colSpan={9} className="px-5 py-4"><div className="skeleton h-4 rounded" style={{ width: `${[68, 82, 55, 90, 74][i % 5]}%` }} /></td></tr>
-                  ))
-                ) : campaigns.map(c => {
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {loading
+              ? Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-56 bg-slate-100 rounded-2xl animate-pulse" />)
+              : campaigns.map(c => {
                   const meta = STATUS_META[c.status] || STATUS_META.DRAFT;
+                  const openRate = c.stats?.openRate || 0;
+                  const stepCount = c._count?.steps ?? 1;
                   return (
-                    <tr key={c.id} className="hover:bg-slate-50/70 transition-colors cursor-pointer group" onClick={() => setSelectedCampaign(c)}>
-                      <td className="px-5 py-4">
-                        <div className="font-semibold text-slate-900">{c.name}</div>
-                      </td>
-                      <td className="px-5 py-4"><span className="text-xs font-medium text-slate-500">{c.type.replace('_', ' ')}</span></td>
-                      <td className="px-5 py-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold" style={{ background: meta.bg, color: meta.color }}>{meta.label}</span>
-                      </td>
-                      <td className="px-5 py-4 text-center font-semibold text-slate-700">{c._count?.leads || 0}</td>
-                      <td className="px-5 py-4 text-center font-semibold text-blue-600">{c.stats?.sent || 0}</td>
-                      <td className="px-5 py-4 text-center font-semibold text-violet-600">{c.stats?.opens || 0}</td>
-                      <td className="px-5 py-4 text-center font-semibold text-amber-600">{c.stats?.openRate || 0}%</td>
-                      <td className="px-5 py-4 text-center text-xs text-slate-400">{new Date(c.createdAt).toLocaleDateString()}</td>
-                      <td className="px-5 py-4 text-right" onClick={e => e.stopPropagation()}>
-                        <div className="flex flex-wrap justify-end gap-1.5 max-w-[340px] ml-auto">
-                          {renderCampaignActions(c)}
+                    <div key={c.id} className="group bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-lg hover:border-slate-300 transition-all flex flex-col">
+                      {/* status accent bar */}
+                      <div className="h-1" style={{ background: meta.color }} />
+
+                      <div className="p-5 flex flex-col flex-1 cursor-pointer" onClick={() => setSelectedCampaign(c)}>
+                        <div className="flex items-start justify-between gap-3 mb-1.5">
+                          <h3 className="font-bold text-slate-900 leading-snug line-clamp-2 group-hover:text-[#9A7540] transition-colors">{c.name}</h3>
+                          <span className="flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold" style={{ background: meta.bg, color: meta.color }}>
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} />{meta.label}
+                          </span>
                         </div>
-                      </td>
-                    </tr>
+                        <p className="text-xs text-slate-400 mb-4">
+                          {c.type === 'DRIP' ? 'Drip sequence' : 'One-off blast'} · {stepCount} email{stepCount === 1 ? '' : 's'} · {new Date(c.createdAt).toLocaleDateString()}
+                        </p>
+
+                        {/* stat strip */}
+                        <div className="grid grid-cols-3 gap-2 mb-4">
+                          {[
+                            { label: 'Audience', value: c._count?.leads || 0, color: 'text-slate-800' },
+                            { label: 'Sent',     value: c.stats?.sent || 0,   color: 'text-blue-600' },
+                            { label: 'Opened',   value: c.stats?.opens || 0,  color: 'text-violet-600' },
+                          ].map(s => (
+                            <div key={s.label} className="text-center bg-slate-50 rounded-xl py-2">
+                              <p className={`text-lg font-bold tabular-nums ${s.color}`}>{s.value.toLocaleString()}</p>
+                              <p className="text-[10px] text-slate-400 uppercase tracking-wide">{s.label}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* open-rate bar */}
+                        <div className="mt-auto">
+                          <div className="flex items-center justify-between text-[11px] mb-1">
+                            <span className="text-slate-400 font-medium">Open rate</span>
+                            <span className="font-bold text-amber-600 tabular-nums">{openRate}%</span>
+                          </div>
+                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all" style={{ width: `${Math.min(100, openRate)}%` }} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* actions */}
+                      <div className="px-5 pb-4 pt-1 flex flex-wrap gap-1.5 border-t border-slate-50" onClick={e => e.stopPropagation()}>
+                        {renderCampaignActions(c)}
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
           </div>
-        </div>
         )}
       </div>
 
@@ -1261,9 +1258,14 @@ export default function FlywheelCampaigns() {
                       </button>
                     )}
                     {selectedCampaign.status === 'SCHEDULED' && (
-                      <button onClick={() => cancelSchedule(selectedCampaign.id)} disabled={mutating} className="px-5 py-2 bg-violet-100 text-violet-700 font-medium rounded-lg text-sm flex items-center gap-2 border border-violet-200">
-                        <IconX size={14} /> Cancel Schedule
-                      </button>
+                      <>
+                        <button onClick={() => cancelSchedule(selectedCampaign.id)} disabled={mutating} className="px-4 py-2 bg-violet-100 text-violet-700 font-medium rounded-lg text-sm flex items-center gap-2 border border-violet-200 whitespace-nowrap">
+                          <IconX size={14} /> Cancel Schedule
+                        </button>
+                        <button onClick={() => handleDispatch(selectedCampaign.id)} disabled={dispatching} className="px-4 py-2 text-white font-medium rounded-lg shadow-sm text-sm flex items-center gap-2 whitespace-nowrap" style={{ background: brand.primaryColor }}>
+                          <IconSend size={14} /> Send Now Instead
+                        </button>
+                      </>
                     )}
                     {(selectedCampaign.status === 'ACTIVE' || selectedCampaign.status === 'PAUSED') && (
                       <button onClick={() => handleDispatch(selectedCampaign.id)} disabled={dispatching}
