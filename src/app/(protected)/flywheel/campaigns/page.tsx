@@ -285,7 +285,7 @@ export default function FlywheelCampaigns() {
       const res = editingId
         ? await fetch(`/api/admin/flywheel/campaigns/${editingId}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: campaignName, steps, ...(omitMetadata ? {} : { metadata }) }),
+            body: JSON.stringify({ name: campaignName, steps, sendNewNow: sendFollowupNow, ...(omitMetadata ? {} : { metadata }) }),
           })
         : await fetch('/api/admin/flywheel/campaigns', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -297,9 +297,19 @@ export default function FlywheelCampaigns() {
             }),
           });
       if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const wasEditing = !!editingId;
+        const triggerNow = wasEditing && sendFollowupNow && data.appendedFollowup;
         setWizardOpen(false);
         resetWizard();
         fetchCampaigns();
+        if (triggerNow) {
+          // Deliver the just-added follow-up right away
+          fetch('/api/admin/flywheel/cron/process-campaigns')
+            .then(r => r.json()).then(p => setDispatchResult(
+              `Follow-up saved. ${typeof p.processedCount === 'number' ? `${p.processedCount} email(s) sent now.` : 'Delivery triggered.'}`))
+            .catch(() => setDispatchResult('Follow-up saved — it will send on the next processor run.'));
+        }
       } else {
         const err = await res.json().catch(() => ({}));
         alert(`Failed to save campaign: ${err.error || res.statusText}`);
@@ -313,7 +323,7 @@ export default function FlywheelCampaigns() {
     setPickedLeads([]); setLeadSearch(''); setLeadSearchResults([]);
     setGalleryOpen(false); setGalleryCat('ALL');
     setEmails([newEmailStep()]); setActiveEmailIdx(0);
-    setEditingId(null);
+    setEditingId(null); setSendFollowupNow(false);
   };
 
   // ── Multi-email (drip) helpers ──
@@ -338,6 +348,8 @@ export default function FlywheelCampaigns() {
 
   // ── Edit / duplicate / test-send / export ──
   const [editingId, setEditingId] = useState<string | null>(null);
+  // When editing a live campaign, deliver any newly-added follow-up immediately
+  const [sendFollowupNow, setSendFollowupNow] = useState(false);
   const [testSendFor, setTestSendFor] = useState<Campaign | null>(null);
   const [testEmail, setTestEmail] = useState('');
   const [testStepIdx, setTestStepIdx] = useState(0);
@@ -1084,6 +1096,16 @@ export default function FlywheelCampaigns() {
                       )}
                     </div>
                   </div>
+
+                  {/* When editing a running campaign: send any newly-added follow-up now */}
+                  {editingId && (
+                    <label className="flex items-start gap-2.5 p-3 rounded-xl border border-[#E8DDD0] bg-[#FBF8F3] cursor-pointer">
+                      <input type="checkbox" checked={sendFollowupNow} onChange={e => setSendFollowupNow(e.target.checked)} className="w-4 h-4 mt-0.5 accent-[#B8935B]" />
+                      <span className="text-xs text-slate-600 leading-relaxed">
+                        <span className="font-semibold text-slate-800">Send newly-added follow-up now</span> — deliver it immediately to leads who already finished the sequence, instead of waiting for its delay. (Existing emails are never re-sent.)
+                      </span>
+                    </label>
+                  )}
                 </div>
               )}
             </div>

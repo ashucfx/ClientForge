@@ -78,6 +78,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       // steps — appending at a higher orderIndex can't break references;
       // only deleting can, so removals are ignored on live campaigns.
       const leadCount = await db.flywheelCampaignLead.count({ where: { campaignId: params.id } });
+      const existingCount = await db.flywheelCampaignStep.count({ where: { campaignId: params.id } });
+      const appendedFollowup = incoming.length > existingCount;
 
       if (leadCount === 0) {
         await db.$transaction([
@@ -108,15 +110,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           }
           // Leads who already FINISHED the old sequence would otherwise never
           // receive the new follow-up — resume them onto the first appended step.
+          // sendNewNow makes it due immediately (skip the delay for this send).
           if (firstAppended) {
             const runAt = new Date();
-            runAt.setHours(runAt.getHours() + firstAppended.delayHours);
+            if (!body.sendNewNow) runAt.setHours(runAt.getHours() + firstAppended.delayHours);
             await tx.flywheelCampaignLead.updateMany({
               where: { campaignId: params.id, status: 'COMPLETED' },
               data: { status: 'ACTIVE', currentStepId: firstAppended.id, nextExecutionAt: runAt },
             });
             // The cron only processes ACTIVE campaigns
-            if (auth.campaign.status === 'COMPLETED') {
+            if (auth.campaign.status !== 'ACTIVE') {
               await tx.flywheelCampaign.update({ where: { id: params.id }, data: { status: 'ACTIVE' } });
             }
           }
@@ -127,6 +130,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       if (incoming.length > 1 && auth.campaign.type === 'ONE_OFF') {
         await db.flywheelCampaign.update({ where: { id: params.id }, data: { type: 'DRIP' } }).catch(() => null);
       }
+      return NextResponse.json({ success: true, appendedFollowup, sendNewNow: !!body.sendNewNow });
     }
 
     return NextResponse.json({ success: true });

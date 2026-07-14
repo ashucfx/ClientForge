@@ -190,7 +190,7 @@ export function formatCurrency(amount: number, symbol: string): string {
 
 export function toSmallestUnit(amount: number, currency: string): number {
   // Zero-decimal currencies — no subunit (Razorpay & Stripe both expect whole number)
-  const zeroDecimal = ['JPY', 'KRW', 'VND', 'IDR', 'CLP', 'TWD', 'HUF', 'UGX', 'RWF', 'XAF', 'XOF'];
+  const zeroDecimal = ['JPY', 'KRW', 'VND', 'IDR', 'CLP', 'TWD', 'HUF', 'UGX', 'RWF', 'XAF', 'XOF', 'ISK', 'PYG', 'VUV', 'XPF', 'DJF', 'GNF', 'KMF', 'BIF', 'MGA'];
   if (zeroDecimal.includes(currency)) return Math.round(amount);
   // 3-decimal currencies (Gulf) — smallest unit is 1/1000 (fils/baisa)
   const threeDecimal = ['KWD', 'BHD', 'OMR', 'JOD', 'TND', 'LYD'];

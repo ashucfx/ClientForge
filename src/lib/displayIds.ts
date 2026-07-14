@@ -17,13 +17,26 @@ function isUniqueConstraintError(error: unknown, fieldName: string): boolean {
 }
 
 export async function nextContactDisplayId(tx: Prisma.TransactionClient): Promise<string> {
-  const latest = await tx.contact.findFirst({
-    where: { displayId: { startsWith: 'LD-' } },
-    orderBy: { displayId: 'desc' },
-    select: { displayId: true },
-  });
-  const last = parseNumericSuffix(latest?.displayId) ?? 999;
-  return `LD-${last + 1}`;
+  // Compute the true NUMERIC max of the LD- suffix. Ordering by displayId string
+  // is lexicographic ("LD-9999" > "LD-10000"), which picks the wrong latest once
+  // IDs cross a digit boundary and generates an already-used id -> P2002 -> 500.
+  try {
+    const rows = await tx.$queryRaw<{ max: number | null }[]>`
+      SELECT MAX(CAST(NULLIF(regexp_replace("displayId", '\D', '', 'g'), '') AS BIGINT)) AS max
+      FROM "Contact"
+      WHERE "displayId" LIKE 'LD-%'
+    `;
+    const last = rows[0]?.max ?? 999;
+    return `LD-${Number(last) + 1}`;
+  } catch {
+    // Fallback: scan for the numeric max in JS (still correct, just less efficient)
+    const all = await tx.contact.findMany({
+      where: { displayId: { startsWith: 'LD-' } },
+      select: { displayId: true },
+    });
+    const last = all.reduce((m, c) => Math.max(m, parseNumericSuffix(c.displayId) ?? 0), 999);
+    return `LD-${last + 1}`;
+  }
 }
 
 export async function nextInquiryDisplayId(tx: Prisma.TransactionClient): Promise<string> {

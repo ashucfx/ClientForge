@@ -330,7 +330,11 @@ function CheckoutPageInner() {
       }
       throw new Error('Payment link unavailable. Please try again.');
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'Checkout failed');
+      // Show a calm retry message; never leak a raw server/status error.
+      const msg = e instanceof Error ? e.message : '';
+      alert(msg && !/internal server error|failed to fetch|load failed/i.test(msg)
+        ? msg
+        : 'Something went wrong setting up your payment. Please try again in a moment.');
     } finally {
       setLoading(false);
       submitting.current = false;

@@ -82,11 +82,28 @@ export async function POST(req: NextRequest) {
     }
 
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Checkout failed';
-    if (message.includes('Unable to create')) {
+    // Never surface a raw 500 / provider error to a paying customer. Log the
+    // real cause server-side; show a calm, retry-oriented message for both
+    // Razorpay and PayPal failures.
+    console.error('Draft Checkout Error:', error);
+    const message = error instanceof Error ? error.message : '';
+
+    // The India-on-PayPal limitation is actionable — surface it as-is.
+    if (message.toLowerCase().includes('within india')) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
-    console.error('Draft Checkout Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+
+    const isGatewayHiccup =
+      /razorpay|paypal|unable to create|payment link|gateway|timeout|fetch failed|network|ECONN|ETIMEDOUT/i.test(message);
+
+    return NextResponse.json(
+      {
+        error: isGatewayHiccup
+          ? 'We couldn’t reach the payment provider just now. Please try again in a moment.'
+          : 'Something went wrong setting up your payment. Please try again.',
+        retry: true,
+      },
+      { status: 503 },
+    );
   }
 }
