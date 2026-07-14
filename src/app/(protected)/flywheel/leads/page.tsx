@@ -104,12 +104,15 @@ export default function FlywheelLeadsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...formData, brandId: activeBrand })
       });
+      const d = await res.json().catch(() => ({}));
       if (res.ok) {
         setIsCreateModalOpen(false);
         setFormData({});
         fetchContacts();
+        if (d.adopted) {
+          alert('This person already existed in your records (archived or from an earlier interaction) — they\'ve been restored into your funnel.');
+        }
       } else {
-        const d = await res.json().catch(() => ({}));
         alert(d.error || 'Failed to create lead');
       }
     } finally { setSaving(false); }

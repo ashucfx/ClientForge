@@ -111,14 +111,57 @@ export async function POST(req: NextRequest) {
       ? email.trim().toLowerCase()
       : null;
 
-    // Reject a duplicate real email up front with a clear message
+    // Email is globally unique across ALL contacts (leads, checkout buyers,
+    // inquiries, archived/merged records) — but the funnel list only shows
+    // status='ACTIVE'. So a hidden contact (ARCHIVED/MERGED, or one that was
+    // never a flywheel lead) blocks creation yet is invisible to the admin —
+    // a confusing dead-end. Instead of erroring, ADOPT that contact back into
+    // the funnel: make it visible + ensure a flywheel profile. This never
+    // deletes or overwrites data (only fills blank fields) and never touches
+    // its career/invoice relations. Only a genuinely-active funnel lead is a
+    // true duplicate and stays blocked.
     if (cleanEmail) {
-      const existing = await db.contact.findUnique({ where: { email: cleanEmail }, select: { id: true } });
+      const existing = await db.contact.findUnique({
+        where: { email: cleanEmail },
+        include: { flywheelProfile: true },
+      });
       if (existing) {
-        return NextResponse.json(
-          { success: false, error: 'A contact with this email already exists.' },
-          { status: 409 },
-        );
+        if (existing.status === 'ACTIVE' && existing.flywheelProfile) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'This contact is already in your funnel.',
+              contactId: existing.id,
+              displayId: existing.displayId,
+            },
+            { status: 409 },
+          );
+        }
+
+        const adopted = await db.$transaction(async (tx) => {
+          await tx.contact.update({
+            where: { id: existing.id },
+            data: {
+              status: 'ACTIVE',
+              // Fill only blanks — never overwrite existing (possibly client) data
+              name: existing.name || String(name).trim(),
+              phone: existing.phone ?? (phone || null),
+              companyName: existing.companyName ?? (companyName || null),
+              industry: existing.industry ?? (industry || null),
+              jobTitle: existing.jobTitle ?? (jobTitle || null),
+              linkedinUrl: existing.linkedinUrl ?? (linkedinUrl || null),
+              city: existing.city ?? (city || null),
+            },
+          });
+          if (!existing.flywheelProfile) {
+            await tx.flywheelProfile.create({
+              data: { contactId: existing.id, leadStatus: 'NEW', lifecycleStage: 'LEAD', optInSource: 'MANUAL_ENTRY' },
+            });
+          }
+          return tx.contact.findUnique({ where: { id: existing.id }, include: { flywheelProfile: true } });
+        });
+
+        return NextResponse.json({ success: true, data: adopted, adopted: true });
       }
     }
 
