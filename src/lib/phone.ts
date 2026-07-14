@@ -2,50 +2,15 @@
 
 import { getCountryCallingCode, parsePhoneNumberFromString } from 'libphonenumber-js/min';
 import type { CountryCode } from 'libphonenumber-js';
+import { ISO2_TO_COUNTRY } from './currency';
 
-const COUNTRY_NAME_TO_ISO2: Record<string, CountryCode> = {
-  'India': 'IN',
-  'United States': 'US',
-  'United Kingdom': 'GB',
-  'Canada': 'CA',
-  'Australia': 'AU',
-  'United Arab Emirates': 'AE',
-  'Saudi Arabia': 'SA',
-  'Singapore': 'SG',
-  'Germany': 'DE',
-  'France': 'FR',
-  'Italy': 'IT',
-  'Spain': 'ES',
-  'Netherlands': 'NL',
-  'Belgium': 'BE',
-  'New Zealand': 'NZ',
-  'Japan': 'JP',
-  'South Korea': 'KR',
-  'Malaysia': 'MY',
-  'Hong Kong': 'HK',
-  'South Africa': 'ZA',
-  'Nigeria': 'NG',
-  'Kenya': 'KE',
-  'Bangladesh': 'BD',
-  'Pakistan': 'PK',
-  'Sri Lanka': 'LK',
-  'Nepal': 'NP',
-  'Switzerland': 'CH',
-  'Sweden': 'SE',
-  'Norway': 'NO',
-  'Denmark': 'DK',
-  'Qatar': 'QA',
-  'Kuwait': 'KW',
-  'Bahrain': 'BH',
-  'Oman': 'OM',
-  'China': 'CN',
-  'Thailand': 'TH',
-  'Philippines': 'PH',
-  'Indonesia': 'ID',
-  'Vietnam': 'VN',
-  'Brazil': 'BR',
-  'Mexico': 'MX',
-};
+// Derive country-name → ISO2 from the single source of truth in currency.ts,
+// so every supported country automatically gets a calling code + phone
+// validation. Maintaining a second hand-written map here caused new countries
+// to render "—" for their dial code and fail phone parsing.
+const COUNTRY_NAME_TO_ISO2: Record<string, CountryCode> = Object.fromEntries(
+  Object.entries(ISO2_TO_COUNTRY).map(([iso2, name]) => [name, iso2 as CountryCode]),
+);
 
 export function getIso2ForCountryName(countryName: string): CountryCode | null {
   return COUNTRY_NAME_TO_ISO2[countryName] ?? null;
@@ -54,7 +19,11 @@ export function getIso2ForCountryName(countryName: string): CountryCode | null {
 export function getCallingCodeForCountryName(countryName: string): string | null {
   const iso2 = getIso2ForCountryName(countryName);
   if (!iso2) return null;
-  return getCountryCallingCode(iso2);
+  try {
+    return getCountryCallingCode(iso2);
+  } catch {
+    return null;
+  }
 }
 
 export function normalizePhoneE164(input: string, countryName?: string): { e164: string; country?: CountryCode } | null {
