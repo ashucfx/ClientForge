@@ -29,6 +29,20 @@ if (!dbUrl) {
   process.exit(0);
 }
 
+// CI pipelines build with a placeholder database (e.g. postgres@localhost)
+// that does not actually run. Never try to sync those — only real, remote
+// databases (Vercel/production) get schema sync, and there a failure is fatal.
+try {
+  const host = new URL(dbUrl).hostname;
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') {
+    console.log(`[db-sync] DATABASE_URL points at ${host} (placeholder/CI database) — skipping schema sync.`);
+    process.exit(0);
+  }
+} catch {
+  console.log('[db-sync] DATABASE_URL is not a valid URL — skipping schema sync.');
+  process.exit(0);
+}
+
 if (!process.env.DIRECT_URL) {
   // Neon convention: pooled host is "<endpoint>-pooler.<region>...", the
   // direct endpoint is the same host without "-pooler".
