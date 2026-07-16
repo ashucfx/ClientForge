@@ -1,11 +1,27 @@
-// src/app/(protected)/rn/projects/[id]/page.tsx
+// src/app/(protected)/rn/projects/[id]/page.tsx — Project Cockpit
 import { RippleNexusShell } from '@/components/shells/RippleNexusShell';
 import { getAdminSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getTenantDb } from '@/lib/db/tenantDb';
-import { formatDistanceToNow, format } from 'date-fns';
-import { MessageInput, AdvanceStageButton, UploadDeliverableButton } from '@/components/rn/ProjectMutations';
+import { formatDistanceToNow, format, differenceInCalendarDays } from 'date-fns';
+import {
+  MessageInput, AdvanceStageButton, UploadDeliverableButton,
+  EditProjectButton, ArchiveProjectButton, DeliverableAdminActions,
+} from '@/components/rn/ProjectMutations';
+import { PortalLinkActions } from '@/components/rn/PortalLinkActions';
+
+export const dynamic = 'force-dynamic';
+
+const CURRENCY_SYMBOLS: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$' };
+
+function approvalBadge(status: string) {
+  switch (status) {
+    case 'APPROVED':          return <span className="rn-badge success">Approved</span>;
+    case 'CHANGES_REQUESTED': return <span className="rn-badge warning">Changes Requested</span>;
+    default:                  return <span className="rn-badge neutral">Pending Review</span>;
+  }
+}
 
 export default async function RnProjectCockpitPage({ params }: { params: { id: string } }) {
   const session = await getAdminSession();
@@ -19,125 +35,152 @@ export default async function RnProjectCockpitPage({ params }: { params: { id: s
       serviceModule: true,
       deliverables: { orderBy: { createdAt: 'desc' } },
       messages: { orderBy: { createdAt: 'desc' }, take: 20 },
-      activityLogs: { orderBy: { createdAt: 'desc' }, take: 20 }
-    }
+      activityLogs: { orderBy: { createdAt: 'desc' }, take: 20 },
+      revisions: { orderBy: { createdAt: 'desc' }, take: 5 },
+      ConversationReadState: true,
+    },
   });
 
   if (!client) {
     redirect('/rn/projects');
   }
 
-  let status = 'on-track';
-  if (client.expectedDeliveryAt && new Date(client.expectedDeliveryAt) < new Date()) {
-    status = 'at-risk';
-  }
+  const isCompleted = client.currentStage === 'COMPLETED';
+  const overdueDays = client.expectedDeliveryAt && !isCompleted
+    ? differenceInCalendarDays(new Date(), new Date(client.expectedDeliveryAt))
+    : 0;
+  const isOverdue = overdueDays > 0;
+  const slaDeadline = client.ConversationReadState?.adminSlaDeadline
+    ? new Date(client.ConversationReadState.adminSlaDeadline)
+    : null;
+  const slaBreached = !!(slaDeadline && slaDeadline.getTime() < Date.now());
 
+  const sym = CURRENCY_SYMBOLS[client.currency] ?? `${client.currency} `;
   const project = {
     id: client.id,
     name: client.serviceModule.name,
     client: client.companyName || client.name,
-    health: status,
-    startDate: format(new Date(client.createdAt), 'MMM d, yyyy'),
     deadline: client.expectedDeliveryAt ? format(new Date(client.expectedDeliveryAt), 'MMM d, yyyy') : 'TBD',
-    budget: `${client.currency} ${client.amountPaid.toLocaleString()}`,
+    budget: `${sym}${Math.round(client.amountPaid).toLocaleString()}`,
   };
 
-  // Convert DB stages to milestones timeline
   const completedArr = Array.isArray(client.completedStages) ? client.completedStages : [];
   const milestones = (Array.isArray(client.serviceModule.workflowStages) ? client.serviceModule.workflowStages : []).map((stage: any, i) => {
     let mStatus = 'upcoming';
     if (completedArr.includes(stage)) mStatus = 'completed';
     else if (stage === client.currentStage) mStatus = 'active';
-
     return {
       id: `m_${i}`,
       title: typeof stage === 'string' ? stage.replace(/_/g, ' ') : stage,
       status: mStatus,
-      date: mStatus === 'completed' ? 'Done' : mStatus === 'active' ? 'Current' : 'Pending'
+      date: mStatus === 'completed' ? 'Done' : mStatus === 'active' ? 'Current' : 'Pending',
     };
   });
 
-  const deliverables = client.deliverables.map(d => ({
-    id: d.id,
-    title: d.originalName || d.label || 'Unnamed Asset',
-    type: d.mimeType?.includes('pdf') ? 'document' : d.mimeType?.includes('image') ? 'design' : 'spreadsheet',
-    status: d.fileCategory,
-    date: format(new Date(d.createdAt), 'MMM d'),
-  }));
-
-  // Combine messages and activity logs
   const rawActivities = [
-    ...client.messages.map(m => ({ id: m.id, user: m.authorName, action: 'posted a message', target: '', time: m.createdAt, isMessage: true })),
-    ...client.activityLogs.map(a => ({ id: a.id, user: 'System', action: a.action, target: '', time: a.createdAt, isMessage: false }))
+    ...client.messages.map(m => ({ id: m.id, user: m.authorName, action: m.isInternalOnly ? 'added an internal note' : 'posted a message', detail: m.content.slice(0, 90), time: m.createdAt, internal: m.isInternalOnly })),
+    ...client.activityLogs.map(a => ({ id: a.id, user: a.performedBy === 'Admin' ? 'Team' : a.performedBy, action: a.action, detail: '', time: a.createdAt, internal: false })),
   ].sort((a, b) => b.time.getTime() - a.time.getTime()).slice(0, 20);
-
-  const activityFeed = rawActivities.map(a => ({
-    id: a.id,
-    user: a.user,
-    action: a.action,
-    target: a.target,
-    time: formatDistanceToNow(new Date(a.time), { addSuffix: true })
-  }));
 
   return (
     <RippleNexusShell>
       <main className="rn-page">
-        
+
         {/* Breadcrumb & Header */}
-        <div style={{ marginBottom: 32 }}>
+        <div style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', gap: 8, fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
-            <Link href="/rn/projects" style={{ color: 'var(--brand)', textDecoration: 'none' }}>Projects</Link>
+            <Link href="/rn/projects" style={{ color: 'var(--plasma)', textDecoration: 'none' }}>Projects</Link>
             <span>/</span>
             <span>{project.client}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+            <div style={{ minWidth: 0 }}>
               <h1 className="rn-title-xl">{project.name}</h1>
-              <div style={{ display: 'flex', gap: 16, marginTop: 12, alignItems: 'center' }}>
-                <span className="rn-badge success">On Track</span>
+              <div style={{ display: 'flex', gap: 12, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                {isCompleted
+                  ? <span className="rn-badge cyan">Completed</span>
+                  : isOverdue
+                    ? <span className="rn-badge danger">Overdue</span>
+                    : <span className="rn-badge success">On Track</span>}
+                {client.lifecycleStatus !== 'ACTIVE' && <span className="rn-badge neutral">{client.lifecycleStatus}</span>}
                 <span className="rn-subtitle">Due: {project.deadline}</span>
-                <span className="rn-subtitle">Budget: {project.budget}</span>
+                <span className="rn-subtitle">Budget: <span className="rn-proof">{project.budget}</span></span>
+                <span className="rn-subtitle">Waiting on: {client.waitingOn === 'CLIENT' ? 'Client' : 'Agency'}</span>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <AdvanceStageButton 
-                projectId={project.id} 
-                currentStage={client.currentStage} 
-                allStages={Array.isArray(client.serviceModule.workflowStages) ? client.serviceModule.workflowStages as string[] : []} 
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <EditProjectButton
+                projectId={project.id}
+                expectedDeliveryAt={client.expectedDeliveryAt?.toISOString() ?? null}
+                amountPaid={client.amountPaid}
+                notes={client.notes}
+                companyName={client.companyName}
+              />
+              <AdvanceStageButton
+                projectId={project.id}
+                currentStage={client.currentStage}
+                allStages={Array.isArray(client.serviceModule.workflowStages) ? client.serviceModule.workflowStages as string[] : []}
               />
               <UploadDeliverableButton projectId={project.id} />
+              <ArchiveProjectButton projectId={project.id} lifecycleStatus={client.lifecycleStatus} />
             </div>
           </div>
+
+          {/* Alert banners */}
+          {isOverdue && (
+            <div style={{ marginTop: 16, padding: '12px 16px', borderRadius: 12, background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: 13, fontWeight: 600 }}>
+              ⚠ This project is {overdueDays} day{overdueDays === 1 ? '' : 's'} past its expected delivery date.
+            </div>
+          )}
+          {slaBreached && (
+            <div style={{ marginTop: 10, padding: '12px 16px', borderRadius: 12, background: 'var(--warning-bg)', border: '1px solid var(--warning)', color: 'var(--warning)', fontSize: 13, fontWeight: 600 }}>
+              ⏱ Response SLA breached — the client is waiting on a reply.
+            </div>
+          )}
+
+          {/* Portal + notes strip */}
+          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Client Portal</span>
+            <PortalLinkActions clientId={project.id} />
+          </div>
+          {client.notes && (
+            <div style={{ marginTop: 12, padding: '12px 16px', borderRadius: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
+              <span style={{ fontWeight: 700, color: 'var(--text-tertiary)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 4 }}>Internal Notes</span>
+              {client.notes}
+            </div>
+          )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '7fr 3fr', gap: 32 }}>
-          
+        <div className="rn-dash-grid">
+
           {/* Main Left Column */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-            
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
+
             {/* Timeline View */}
             <div className="rn-panel">
               <div className="rn-panel-header">
                 <h2 className="rn-panel-title">Milestone Tracker</h2>
+                <Link href={`/rn/projects/${project.id}/milestones`} style={{ fontSize: 12, color: 'var(--plasma)', textDecoration: 'none', fontWeight: 600 }}>
+                  Detail view →
+                </Link>
               </div>
-              <div className="rn-panel-body" style={{ display: 'flex', justifyContent: 'space-between', position: 'relative' }}>
+              <div className="rn-panel-body table-scroll-wrapper" style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', minWidth: 0 }}>
                 <div style={{ position: 'absolute', top: 40, left: 40, right: 40, height: 2, background: 'var(--surface-3)', zIndex: 0 }} />
-                
-                {milestones.map((m, i) => (
-                  <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, gap: 12, flex: 1 }}>
-                    <div style={{ 
-                      width: 32, height: 32, borderRadius: 16, 
+                {milestones.map((m) => (
+                  <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, gap: 12, flex: 1, minWidth: 90 }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 16,
                       background: m.status === 'completed' ? 'var(--success)' : m.status === 'active' ? 'var(--brand)' : 'var(--surface-3)',
-                      border: `2px solid ${m.status === 'upcoming' ? 'var(--surface-3)' : 'transparent'}`,
+                      border: `2px solid ${m.status === 'upcoming' ? 'var(--border)' : 'transparent'}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       boxShadow: m.status === 'active' ? '0 0 0 4px var(--brand-light)' : 'none'
                     }}>
-                      {m.status === 'completed' && <span style={{ color: '#fff', fontSize: 12 }}>✓</span>}
-                      {m.status === 'active' && <div style={{ width: 8, height: 8, borderRadius: 4, background: '#fff' }} />}
+                      {m.status === 'completed' && <span style={{ color: '#0A0B14', fontSize: 12, fontWeight: 800 }}>✓</span>}
+                      {m.status === 'active' && <div style={{ width: 8, height: 8, borderRadius: 4, background: '#0A0B14' }} />}
                     </div>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: m.status === 'upcoming' ? 'var(--text-secondary)' : '#fff' }}>{m.title}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>{m.date}</div>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: m.status === 'upcoming' ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>{m.title}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>{m.date}</div>
                     </div>
                   </div>
                 ))}
@@ -147,59 +190,92 @@ export default async function RnProjectCockpitPage({ params }: { params: { id: s
             {/* Deliverables Board */}
             <div className="rn-panel">
               <div className="rn-panel-header">
-                <h2 className="rn-panel-title">Active Deliverables</h2>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn-secondary" style={{ padding: '4px 12px', fontSize: 12, borderRadius: 6 }}>All</button>
-                  <button className="btn-secondary" style={{ padding: '4px 12px', fontSize: 12, borderRadius: 6, background: 'var(--surface-3)' }}>Needs Review</button>
-                </div>
+                <h2 className="rn-panel-title">Deliverables</h2>
+                <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                  {client.deliverables.filter(d => d.approvalStatus === 'APPROVED').length}/{client.deliverables.length} approved
+                </span>
               </div>
               <div className="rn-panel-body" style={{ padding: 0 }}>
-                {deliverables.map((d) => (
-                  <div key={d.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)' }}>
-                        {d.type === 'document' ? '📄' : d.type === 'design' ? '🎨' : '📊'}
+                {client.deliverables.length === 0 && (
+                  <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>
+                    No deliverables yet — upload the first file for client review.
+                  </div>
+                )}
+                {client.deliverables.map((d) => (
+                  <div key={d.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--border)', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {d.mimeType?.includes('pdf') ? '📄' : d.mimeType?.includes('image') ? '🎨' : '📦'}
                       </div>
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{d.title}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Updated {d.date}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4, overflowWrap: 'anywhere' }}>{d.originalName || d.label}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                          {format(new Date(d.createdAt), 'MMM d, yyyy')}
+                          {d.sizeBytes > 0 && <> · {(d.sizeBytes / 1024 / 1024).toFixed(2)} MB</>}
+                        </div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-                      <span className={`rn-badge ${d.status === 'approved' ? 'success' : d.status === 'client-review' ? 'warning' : 'neutral'}`}>
-                        {d.status.replace('-', ' ')}
-                      </span>
-                      <button className="btn-secondary" style={{ padding: '6px 12px', borderRadius: 6, fontSize: 12 }}>View</button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                      {approvalBadge(d.approvalStatus)}
+                      <DeliverableAdminActions deliverableId={d.id} approvalStatus={d.approvalStatus} fileUrl={d.fileUrl} />
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
+            {/* Revision requests */}
+            {client.revisions.length > 0 && (
+              <div className="rn-panel">
+                <div className="rn-panel-header">
+                  <h2 className="rn-panel-title">Revision Requests</h2>
+                </div>
+                <div className="rn-panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {client.revisions.map(r => (
+                    <div key={r.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                      <span className="rn-badge warning" style={{ flexShrink: 0 }}>Revision</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: 'var(--text-primary)', overflowWrap: 'anywhere' }}>{r.note}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 3 }}>
+                          {r.fileLabel && <>{r.fileLabel} · </>}{formatDistanceToNow(new Date(r.createdAt), { addSuffix: true })} · by {r.requestedBy}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </div>
 
           {/* Right Column: Activity & Comms */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
             <div className="rn-panel" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <div className="rn-panel-header">
                 <h2 className="rn-panel-title">Workspace Activity</h2>
               </div>
-              <div className="rn-panel-body" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 24 }}>
-                
-                {activityFeed.map((activity) => (
+              <div className="rn-panel-body" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20, maxHeight: 520, overflowY: 'auto' }}>
+                {rawActivities.length === 0 && (
+                  <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13, padding: '20px 0' }}>No activity yet.</div>
+                )}
+                {rawActivities.map((activity) => (
                   <div key={activity.id} style={{ display: 'flex', gap: 12 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 16, background: 'var(--surface-3)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600 }}>
-                      {activity.user.charAt(0)}
+                    <div style={{ width: 32, height: 32, borderRadius: 16, background: activity.internal ? 'var(--warning-bg)' : 'var(--surface-3)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: activity.internal ? 'var(--warning)' : 'var(--text-secondary)' }}>
+                      {activity.internal ? '🔒' : activity.user.charAt(0)}
                     </div>
-                    <div>
+                    <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-secondary)' }}>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{activity.user}</span> {activity.action} <span style={{ color: 'var(--brand)' }}>{activity.target}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{activity.user}</span> {activity.action}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>{activity.time}</div>
+                      {activity.detail && (
+                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2, overflowWrap: 'anywhere' }}>“{activity.detail}”</div>
+                      )}
+                      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
+                        {formatDistanceToNow(new Date(activity.time), { addSuffix: true })}
+                      </div>
                     </div>
                   </div>
                 ))}
-
               </div>
               <MessageInput projectId={project.id} />
             </div>

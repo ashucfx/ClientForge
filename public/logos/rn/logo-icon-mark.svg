@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Ripple Nexus — Icon Mark
+     Concept: A central Nexus node broadcasting three rippling signal arcs.
+     Use: favicon source, app icon, avatar, dense UI placements.
+     Clear space: 1 unit = 1/8 of icon side. Keep 1 unit clear on all sides.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Ripple Nexus">
+  <defs>
+    <linearGradient id="rn-grad" x1="0%" y1="0%" x2="100%" y2="50%">
+      <stop offset="0%"  stop-color="#7C5CFF"/>
+      <stop offset="55%" stop-color="#9F7CFF"/>
+      <stop offset="100%" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <!-- Nexus node -->
+  <circle cx="22" cy="32" r="5" fill="url(#rn-grad)"/>
+  <!-- Ripple 1 -->
+  <path d="M 27 23.34 A 10 10 0 0 1 27 40.66"
+        fill="none" stroke="url(#rn-grad)" stroke-width="3" stroke-linecap="round" opacity="1"/>
+  <!-- Ripple 2 -->
+  <path d="M 34.73 19.27 A 18 18 0 0 1 34.73 44.73"
+        fill="none" stroke="url(#rn-grad)" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <!-- Ripple 3 -->
+  <path d="M 44.52 19 A 26 26 0 0 1 44.52 45"
+        fill="none" stroke="url(#rn-grad)" stroke-width="3" stroke-linecap="round" opacity="0.45"/>
+</svg>

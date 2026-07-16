@@ -25,11 +25,11 @@ function useToast() {
 
 function StatusBadge({ status }: { status: InvoiceStatus }) {
   const map: Record<InvoiceStatus, { label: string; bg: string; color: string }> = {
-    PAID:           { label: 'Paid',           bg: '#dcfce7', color: '#166534' },
+    PAID:           { label: 'Paid',           bg: 'var(--success-bg)', color: 'var(--success)' },
     PARTIALLY_PAID: { label: 'Partially Paid', bg: '#dbeafe', color: '#1e3a8a' },
-    PENDING:        { label: 'Pending',        bg: '#fef3c7', color: '#92400e' },
+    PENDING:        { label: 'Pending',        bg: 'var(--warning-bg)', color: 'var(--warning)' },
     EXPIRED:        { label: 'Expired',        bg: '#f1f5f9', color: '#475569' },
-    CANCELLED:      { label: 'Cancelled',      bg: '#fee2e2', color: '#991b1b' },
+    CANCELLED:      { label: 'Cancelled',      bg: 'var(--danger-bg)', color: 'var(--danger)' },
   };
   const s = map[status];
   return (
@@ -152,7 +152,7 @@ export default function RnInvoiceDetailPage() {
     <RippleNexusShell>
       <main className="page-wrapper" style={{ maxWidth: 1000, margin: '0 auto' }}>
         {showBanner && (
-          <div style={{ background: '#dcfce7', border: '1px solid #86efac', color: '#166534', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <div style={{ background: 'var(--success-bg)', border: '1px solid #86efac', color: 'var(--success)', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
             <span style={{ fontSize: 22 }}>✅</span>
             <div>
               <div style={{ fontWeight: 700 }}>Invoice Created Successfully!</div>
@@ -231,7 +231,7 @@ export default function RnInvoiceDetailPage() {
           </div>
 
           {/* Client Details */}
-          <div style={{ background: '#f8fafc', borderBottom: '1px solid var(--border)', padding: '20px 36px' }}>
+          <div style={{ background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', padding: '20px 36px' }}>
             <div className="grid grid-cols-2 gap-5">
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 10 }}>Bill To</div>
@@ -243,12 +243,12 @@ export default function RnInvoiceDetailPage() {
               </div>
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 10 }}>Details</div>
-                <span style={{ background: '#f3f0ff', color: '#7C5CFF', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700 }}>B2B Client</span>
+                <span style={{ background: 'var(--brand-light)', color: '#7C5CFF', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700 }}>B2B Client</span>
                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>
                   Exchange Rate: 1 INR = {invoice.exchangeRate.toFixed(5)} {invoice.currency}
                 </div>
                 {invoice.notes && (
-                  <div style={{ fontSize: 12, color: 'var(--muted)', background: '#fff', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', marginTop: 8 }}>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', marginTop: 8 }}>
                     📝 {invoice.notes}
                   </div>
                 )}
@@ -261,7 +261,7 @@ export default function RnInvoiceDetailPage() {
             <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 14 }}>Line Items</div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: '#f8fafc' }}>
+                <tr style={{ background: 'var(--surface-3)' }}>
                   <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8 }}>Description</th>
                   <th style={{ textAlign: 'center', padding: '10px 12px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, width: 60 }}>Qty</th>
                   <th style={{ textAlign: 'right', padding: '10px 12px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, width: 120 }}>Unit Price</th>
@@ -315,7 +315,7 @@ export default function RnInvoiceDetailPage() {
           {invoice.status === 'PENDING' && (
             <>
               {invoice.paymentGateway !== 'PAYPAL' && invoice.razorpayLinkUrl && (
-                <div style={{ background: '#f8fafc', borderTop: '1px solid var(--border)', padding: '24px 36px', textAlign: 'center' }}>
+                <div style={{ background: 'var(--surface-3)', borderTop: '1px solid var(--border)', padding: '24px 36px', textAlign: 'center' }}>
                   <a href={invoice.razorpayLinkUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ fontSize: 16, padding: '14px 36px', background: '#7C5CFF', borderColor: '#7C5CFF' }}>
                     Pay {fmt(invoice.totalPayable)} Now
                   </a>
@@ -323,7 +323,7 @@ export default function RnInvoiceDetailPage() {
                 </div>
               )}
               {invoice.paymentGateway === 'PAYPAL' && invoice.paypalPaymentUrl && (
-                <div style={{ background: '#f8fafc', borderTop: '1px solid var(--border)', padding: '24px 36px', textAlign: 'center' }}>
+                <div style={{ background: 'var(--surface-3)', borderTop: '1px solid var(--border)', padding: '24px 36px', textAlign: 'center' }}>
                   <a href={invoice.paypalPaymentUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: '#003087', color: '#fff', textDecoration: 'none', padding: '14px 36px', borderRadius: 8, fontWeight: 800, fontSize: 16 }}>
                     Pay {fmt(invoice.totalPayable)} via PayPal
                   </a>
@@ -334,10 +334,10 @@ export default function RnInvoiceDetailPage() {
           )}
 
           {invoice.status === 'PAID' && (
-            <div style={{ background: '#dcfce7', borderTop: '1px solid #86efac', padding: '20px 36px', textAlign: 'center' }}>
+            <div style={{ background: 'var(--success-bg)', borderTop: '1px solid #86efac', padding: '20px 36px', textAlign: 'center' }}>
               <div style={{ fontSize: 28, marginBottom: 6 }}>✅</div>
-              <div style={{ fontWeight: 700, color: '#166534', fontSize: 16 }}>Payment Received</div>
-              {invoice.paidAt && <div style={{ fontSize: 13, color: '#15803d', marginTop: 4 }}>Paid on {format(new Date(invoice.paidAt), 'dd MMM yyyy, h:mm a')}</div>}
+              <div style={{ fontWeight: 700, color: 'var(--success)', fontSize: 16 }}>Payment Received</div>
+              {invoice.paidAt && <div style={{ fontSize: 13, color: 'var(--success)', marginTop: 4 }}>Paid on {format(new Date(invoice.paidAt), 'dd MMM yyyy, h:mm a')}</div>}
             </div>
           )}
         </div>
@@ -360,7 +360,7 @@ export default function RnInvoiceDetailPage() {
       {/* Toasts */}
       <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 999, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {toasts.map(t => (
-          <div key={t.id} style={{ background: t.type === 'error' ? '#fee2e2' : '#10b981', color: t.type === 'error' ? '#991b1b' : '#fff', padding: '12px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600 }}>{t.msg}</div>
+          <div key={t.id} style={{ background: t.type === 'error' ? 'var(--danger-bg)' : '#10b981', color: t.type === 'error' ? 'var(--danger)' : '#fff', padding: '12px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600 }}>{t.msg}</div>
         ))}
       </div>
     </RippleNexusShell>

@@ -3,8 +3,7 @@ import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db';
 import { verifyRnClientSession } from '@/lib/rn/auth';
 import { Logo } from '@/components/Logo';
-import Link from 'next/link';
-import { IconGrid, IconDocument, IconMail } from '@/components/Icons';
+import { PortalTabs } from '@/components/rn/PortalTabs';
 import OtpGate from './OtpGate';
 
 export const dynamic = 'force-dynamic';
@@ -52,27 +51,7 @@ export default async function RnClientPortalLayout({ params, children }: { param
       </header>
 
       {/* Tabs */}
-      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto', padding: '0 24px', display: 'flex', gap: 32 }}>
-          <Link href={`/rn/portal/${params.token}`} style={{ padding: '16px 0', color: '#A1A1AA', textDecoration: 'none', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <IconGrid size={16} /> Overview
-          </Link>
-          <Link href={`/rn/portal/${params.token}/milestones`} style={{ padding: '16px 0', color: '#A1A1AA', textDecoration: 'none', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <IconGrid size={16} /> Milestones
-          </Link>
-          <Link href={`/rn/portal/${params.token}/deliverables`} style={{ padding: '16px 0', color: '#A1A1AA', textDecoration: 'none', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <IconDocument size={16} /> Deliverables
-          </Link>
-          <Link href={`/rn/portal/${params.token}/messages`} style={{ padding: '16px 0', color: '#A1A1AA', textDecoration: 'none', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
-            <IconMail size={16} /> Messages
-            {client.ConversationReadState?.unreadByClient ? (
-              <span style={{ position: 'absolute', top: 12, right: -12, background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 700, padding: '0 6px', borderRadius: 9999 }}>
-                {client.ConversationReadState.unreadByClient > 99 ? '99+' : client.ConversationReadState.unreadByClient}
-              </span>
-            ) : null}
-          </Link>
-        </div>
-      </div>
+      <PortalTabs token={params.token} unread={client.ConversationReadState?.unreadByClient ?? 0} />
 
       {/* Main Content */}
       <main style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 24px' }}>

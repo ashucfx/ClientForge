@@ -9,50 +9,34 @@ interface LogoProps {
 
 export function Logo({ variant = 'horizontal', size = 40, dark = false, brandId = 'catalyst' }: LogoProps) {
   if (brandId === 'ripple_nexus') {
-    const textColor = dark ? '#F4F5FA' : '#0A0B14';
-    const markW = size; // RN icon is 1:1
-    const mark = (
-      <svg
-        width={markW}
-        height={size}
-        viewBox="0 0 64 64"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-      >
-        <defs>
-          <linearGradient id="rn-grad-react" x1="0%" y1="0%" x2="100%" y2="50%">
-            <stop offset="0%" stopColor="#7C5CFF" />
-            <stop offset="55%" stopColor="#9F7CFF" />
-            <stop offset="100%" stopColor="#22D3EE" />
-          </linearGradient>
-        </defs>
-        <circle cx="22" cy="32" r="5" fill="url(#rn-grad-react)" />
-        <path d="M 27 23.34 A 10 10 0 0 1 27 40.66" fill="none" stroke="url(#rn-grad-react)" strokeWidth="3" strokeLinecap="round" opacity="1" />
-        <path d="M 34.73 19.27 A 18 18 0 0 1 34.73 44.73" fill="none" stroke="url(#rn-grad-react)" strokeWidth="3" strokeLinecap="round" opacity="0.7" />
-        <path d="M 44.52 19 A 26 26 0 0 1 44.52 45" fill="none" stroke="url(#rn-grad-react)" strokeWidth="3" strokeLinecap="round" opacity="0.45" />
-      </svg>
-    );
+    // Official assets from the Ripple Nexus Brand System (02-logos).
+    // `dark` = rendered on a dark background → use the dark-background lockup.
+    if (variant === 'icon') {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/logos/rn/logo-icon-mark.svg"
+          alt="Ripple Nexus"
+          height={size}
+          width={size}
+          style={{ display: 'block' }}
+          draggable={false}
+        />
+      );
+    }
 
-    if (variant === 'icon') return mark;
-
+    const src = dark ? '/logos/rn/logo-horizontal-dark.svg' : '/logos/rn/logo-horizontal-light.svg';
+    // Horizontal lockup viewBox is 360×80 (4.5:1)
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: Math.round(size * 0.3) }} aria-label="Ripple Nexus">
-        {mark}
-        <span
-          style={{
-            fontFamily: 'Inter, Helvetica, Arial, sans-serif',
-            fontWeight: 800,
-            fontSize: Math.round(size * 0.45),
-            letterSpacing: '-0.3px',
-            color: textColor,
-            lineHeight: 1,
-            userSelect: 'none',
-          }}
-        >
-          Ripple Nexus
-        </span>
-      </div>
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt="Ripple Nexus"
+        height={size}
+        width={Math.round(size * 4.5)}
+        style={{ display: 'block' }}
+        draggable={false}
+      />
     );
   }
 

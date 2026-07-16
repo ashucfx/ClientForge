@@ -113,7 +113,7 @@ export default function RnServicesPage() {
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '12px 16px', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
-                    background: selected?.id === s.id ? '#f3f0ff' : '#fff',
+                    background: selected?.id === s.id ? 'var(--brand-light)' : '#fff',
                     border: `1px solid ${selected?.id === s.id ? '#7C5CFF' : 'var(--border)'}`,
                     transition: 'all 0.15s'
                   }}
@@ -124,7 +124,7 @@ export default function RnServicesPage() {
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--muted)' }}>/{s.slug}</div>
                   </div>
-                  {!s.isActive && <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>INACTIVE</span>}
+                  {!s.isActive && <span style={{ fontSize: 10, background: 'var(--danger-bg)', color: 'var(--danger)', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>INACTIVE</span>}
                 </button>
               ))}
             </div>
@@ -139,7 +139,7 @@ export default function RnServicesPage() {
               {formData.id ? 'Edit Service' : 'Create New Service'}
             </h2>
 
-            {error && <div style={{ background: '#fee2e2', color: '#991b1b', padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 20, fontWeight: 600 }}>{error}</div>}
+            {error && <div style={{ background: 'var(--danger-bg)', color: 'var(--danger)', padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 20, fontWeight: 600 }}>{error}</div>}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
               <div style={{ gridColumn: '1 / -1' }}>

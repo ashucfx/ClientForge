@@ -1,40 +1,83 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { RippleNexusShell } from '@/components/shells/RippleNexusShell';
-import { IconLink } from '@/components/Icons';
+import { PortalLinkActions } from '@/components/rn/PortalLinkActions';
 import { format } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
 
-export default async function RnClientsPage() {
+const CURRENCY_SYMBOLS: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$' };
+
+function healthBadge(status?: string | null) {
+  switch (status) {
+    case 'EXCELLENT':        return <span className="rn-badge success">Excellent</span>;
+    case 'HEALTHY':          return <span className="rn-badge success">Healthy</span>;
+    case 'ATTENTION_NEEDED': return <span className="rn-badge warning">Attention</span>;
+    case 'AT_RISK':          return <span className="rn-badge danger">At Risk</span>;
+    default:                 return <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>—</span>;
+  }
+}
+
+export default async function RnClientsPage({ searchParams }: { searchParams: { q?: string } }) {
+  const q = (searchParams.q ?? '').trim();
+
   const clients = await prisma.rnClient.findMany({
+    where: q
+      ? {
+          OR: [
+            { name:        { contains: q, mode: 'insensitive' } },
+            { email:       { contains: q, mode: 'insensitive' } },
+            { companyName: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : undefined,
     orderBy: { createdAt: 'desc' },
-    include: { ConversationReadState: true }
+    include: {
+      ConversationReadState: true,
+      ClientHealthScore: true,
+      serviceModule: { select: { name: true } },
+    },
   });
 
   return (
     <RippleNexusShell>
-      <div className="page-header" style={{ paddingBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+      <main className="rn-page">
+        <header style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
           <div>
-            <h1 className="page-title" style={{ color: '#A78BFA' }}>Agency Clients</h1>
-            <p className="page-subtitle">Ripple Nexus B2B Client Directory</p>
+            <div className="rn-eyebrow" style={{ marginBottom: 6 }}>Operations</div>
+            <h1 className="rn-title-xl">Agency Clients</h1>
+            <p className="rn-subtitle" style={{ marginTop: 8 }}>
+              {clients.length} client{clients.length === 1 ? '' : 's'} · Ripple Nexus B2B directory
+            </p>
           </div>
-        </div>
-      </div>
+          <Link href="/rn/projects/new">
+            <button className="btn-primary" style={{ padding: '10px 20px', fontSize: 13 }}>+ New Client Project</button>
+          </Link>
+        </header>
 
-      <div className="page-body" style={{ paddingTop: 0 }}>
-        <div className="card" style={{ overflow: 'hidden' }}>
+        <form method="GET" action="/rn/clients" className="rn-filter-bar">
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Search by name, company, or email…"
+            className="input"
+            style={{ minWidth: 260 }}
+          />
+          {q && <Link href="/rn/clients" className="rn-chip">Clear ✕</Link>}
+        </form>
+
+        <div className="rn-panel">
           <div className="table-scroll-wrapper">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Client Name</th>
-                  <th>Company</th>
-                  <th>Contact</th>
-                  <th>Invoices</th>
-                  <th>SLA Status</th>
-                  <th>Portal Link</th>
+                  <th>Client</th>
+                  <th>Service</th>
+                  <th>Revenue</th>
+                  <th>Health</th>
+                  <th>SLA</th>
+                  <th>Portal</th>
                   <th>Joined</th>
                 </tr>
               </thead>
@@ -43,69 +86,73 @@ export default async function RnClientsPage() {
                   <tr>
                     <td colSpan={7} style={{ textAlign: 'center', padding: '64px 0' }}>
                       <div style={{ fontSize: 40, marginBottom: 12 }}>🏢</div>
-                      <div style={{ fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>No agency clients yet</div>
-                      <p style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>Clients will appear here automatically when a Ripple Nexus invoice is paid.</p>
+                      <div style={{ fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
+                        {q ? `No clients match “${q}”` : 'No agency clients yet'}
+                      </div>
+                      <p style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>
+                        {q ? 'Try a different search.' : 'Clients appear automatically when a Ripple Nexus invoice is paid, or create a project manually.'}
+                      </p>
                     </td>
                   </tr>
-                ) : clients.map(client => (
-                  <tr key={client.id}>
-                    <td>
-                      <Link href={`/rn/projects/${client.id}`} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f3f0ff', color: '#7C5CFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
-                          {client.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                          {client.name}
-                          {client.ConversationReadState?.unreadByAdmin ? (
-                            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, borderRadius: 9999, background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 700, padding: '0 6px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                              {client.ConversationReadState.unreadByAdmin > 99 ? '99+' : client.ConversationReadState.unreadByAdmin}
-                            </span>
-                          ) : null}
-                        </div>
-                      </Link>
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)' }}>{client.companyName || '—'}</td>
-                    <td>
-                      <div style={{ fontSize: 13 }}>{client.email}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{client.phone}</div>
-                    </td>
-                    <td>
-                      {client.invoiceId ? (
-                        <span className="badge" style={{ background: '#ede9fe', color: '#5b21b6', fontSize: 11 }}>
-                          Invoice Linked
-                        </span>
-                      ) : '—'}
-                    </td>
-                    <td>
-                      {client.ConversationReadState?.adminSlaDeadline ? (
-                        (() => {
-                          const deadline = new Date(client.ConversationReadState.adminSlaDeadline);
-                          const isBreached = deadline.getTime() < Date.now();
-                          const isDueSoon = deadline.getTime() - Date.now() < 2 * 60 * 60 * 1000 && !isBreached;
-                          
-                          if (isBreached) return <span style={{ display: 'inline-flex', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: '#fee2e2', color: '#b91c1c' }}>🔴 Breached</span>;
-                          if (isDueSoon) return <span style={{ display: 'inline-flex', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: '#fef3c7', color: '#b45309' }}>🟡 Due Soon</span>;
-                          return <span style={{ display: 'inline-flex', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: '#dcfce3', color: '#15803d' }}>🟢 Healthy</span>;
-                        })()
-                      ) : (
-                        <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>—</span>
-                      )}
-                    </td>
-                    <td>
-                      <a href={`/rn/portal/${client.magicToken}`} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm" style={{ color: '#7C5CFF' }}>
-                        <IconLink size={14} style={{ marginRight: 6 }} /> Open Portal
-                      </a>
-                    </td>
-                    <td style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>
-                      {format(new Date(client.createdAt), 'MMM dd, yyyy')}
-                    </td>
-                  </tr>
-                ))}
+                ) : clients.map(client => {
+                  const sym = CURRENCY_SYMBOLS[client.currency] ?? `${client.currency} `;
+                  return (
+                    <tr key={client.id}>
+                      <td>
+                        <Link href={`/rn/projects/${client.id}`} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+                          <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--brand-light)', color: 'var(--plasma)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>
+                            {client.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                              {client.name}
+                              {client.ConversationReadState?.unreadByAdmin ? (
+                                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, borderRadius: 9999, background: 'var(--danger)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '0 6px' }}>
+                                  {client.ConversationReadState.unreadByAdmin > 99 ? '99+' : client.ConversationReadState.unreadByAdmin}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                              {client.companyName || client.email}
+                            </div>
+                          </div>
+                        </Link>
+                      </td>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{client.serviceModule?.name ?? '—'}</td>
+                      <td>
+                        {client.amountPaid > 0
+                          ? <span className="rn-proof">{sym}{Math.round(client.amountPaid).toLocaleString()}</span>
+                          : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
+                      </td>
+                      <td>{healthBadge(client.ClientHealthScore?.status)}</td>
+                      <td>
+                        {client.ConversationReadState?.adminSlaDeadline ? (
+                          (() => {
+                            const deadline = new Date(client.ConversationReadState.adminSlaDeadline);
+                            const isBreached = deadline.getTime() < Date.now();
+                            const isDueSoon = deadline.getTime() - Date.now() < 2 * 60 * 60 * 1000 && !isBreached;
+                            if (isBreached) return <span className="rn-badge danger">Breached</span>;
+                            if (isDueSoon) return <span className="rn-badge warning">Due Soon</span>;
+                            return <span className="rn-badge success">Healthy</span>;
+                          })()
+                        ) : (
+                          <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>—</span>
+                        )}
+                      </td>
+                      <td>
+                        <PortalLinkActions clientId={client.id} compact />
+                      </td>
+                      <td style={{ color: 'var(--text-tertiary)', fontSize: 13, whiteSpace: 'nowrap' }}>
+                        {format(new Date(client.createdAt), 'MMM dd, yyyy')}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
-      </div>
+      </main>
     </RippleNexusShell>
   );
 }

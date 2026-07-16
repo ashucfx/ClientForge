@@ -204,7 +204,7 @@ export default function RnNewInvoicePage() {
           {/* Left Form */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {error && (
-              <div ref={errorRef} style={{ background: '#fee2e2', color: '#991b1b', padding: '12px 16px', borderRadius: 8, fontSize: 13, display: 'flex', gap: 10 }}>
+              <div ref={errorRef} style={{ background: 'var(--danger-bg)', color: 'var(--danger)', padding: '12px 16px', borderRadius: 8, fontSize: 13, display: 'flex', gap: 10 }}>
                 <IconAlert /> <div>{error}</div>
               </div>
             )}
@@ -222,7 +222,7 @@ export default function RnNewInvoicePage() {
                 <div>
                   <FieldLabel label="Phone Number" required />
                   <div style={{ display: 'flex', gap: 10 }}>
-                    <div className="input" style={{ width: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', fontWeight: 700 }}>
+                    <div className="input" style={{ width: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-3)', fontWeight: 700 }}>
                       {callingCode ? `+${callingCode}` : '—'}
                     </div>
                     <input className="input" style={{ flex: 1 }} type="tel" value={clientPhone} onChange={e => setClientPhone(e.target.value)} />
@@ -258,7 +258,7 @@ export default function RnNewInvoicePage() {
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
                   <thead>
-                    <tr style={{ background: '#f8fafc' }}>
+                    <tr style={{ background: 'var(--surface-3)' }}>
                       <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 10, fontWeight: 700, color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>DESCRIPTION</th>
                       <th style={{ textAlign: 'center', padding: '10px 8px', fontSize: 10, fontWeight: 700, color: 'var(--muted)', borderBottom: '1px solid var(--border)', width: 70 }}>QTY</th>
                       <th style={{ textAlign: 'right', padding: '10px 14px', fontSize: 10, fontWeight: 700, color: 'var(--muted)', borderBottom: '1px solid var(--border)', width: 130 }}>PRICE ({sym})</th>

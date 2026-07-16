@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomBytes } from 'crypto';
 import { requireRnAdmin } from '@/lib/auth/rnAdmin';
 import { getTenantDb } from '@/lib/db/tenantDb';
 import { logAudit } from '@/lib/audit/logger';
@@ -41,6 +42,9 @@ export async function POST(req: Request) {
         currentStage: firstStage,
         expectedDeliveryAt: expectedDeliveryAt ? new Date(expectedDeliveryAt) : null,
         amountPaid: budget ? parseFloat(budget) : 0,
+        // Every project gets a portal link from day one — admin-created
+        // projects previously had none, which 404'd the client portal.
+        magicToken: randomBytes(32).toString('hex'),
       }
     });
 

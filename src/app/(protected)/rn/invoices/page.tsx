@@ -116,7 +116,7 @@ export default function RnInvoiceHistory() {
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>Loading...</div>
         ) : visible.length === 0 ? (
-          <div style={{ padding: 60, textAlign: 'center', color: 'var(--muted)', background: '#fff', borderRadius: 12, border: '1px solid var(--border)' }}>
+          <div style={{ padding: 60, textAlign: 'center', color: 'var(--muted)', background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)' }}>
             <IconDocument size={48} style={{ opacity: 0.2, marginBottom: 16 }} />
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>No invoices found</div>
             <div style={{ fontSize: 14, marginTop: 4 }}>{search || statusFilter ? 'Try adjusting your filters.' : 'Create your first agency invoice.'}</div>
@@ -125,7 +125,7 @@ export default function RnInvoiceHistory() {
           <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
             <table style={{ width: '100%', minWidth: 800, borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--border)' }}>
+                <tr style={{ background: 'var(--surface-3)', borderBottom: '1px solid var(--border)' }}>
                   <th style={{ textAlign: 'left', padding: '14px 20px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)' }}>Invoice</th>
                   <th style={{ textAlign: 'left', padding: '14px 20px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)' }}>Client</th>
                   <th style={{ textAlign: 'right', padding: '14px 20px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)' }}>Amount</th>
@@ -156,8 +156,8 @@ export default function RnInvoiceHistory() {
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
                       <span style={{
                         display: 'inline-block', padding: '4px 10px', borderRadius: 99, fontSize: 11, fontWeight: 800, letterSpacing: '.5px',
-                        background: inv.status === 'PAID' ? '#dcfce7' : inv.status === 'PENDING' ? '#fef3c7' : '#fee2e2',
-                        color: inv.status === 'PAID' ? '#166534' : inv.status === 'PENDING' ? '#92400e' : '#991b1b'
+                        background: inv.status === 'PAID' ? 'var(--success-bg)' : inv.status === 'PENDING' ? 'var(--warning-bg)' : 'var(--danger-bg)',
+                        color: inv.status === 'PAID' ? 'var(--success)' : inv.status === 'PENDING' ? 'var(--warning)' : 'var(--danger)'
                       }}>
                         {inv.status}
                       </span>
@@ -202,8 +202,8 @@ export default function RnInvoiceHistory() {
       <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 999, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {toasts.map(t => (
           <div key={t.id} style={{
-            background: t.type === 'error' ? '#fee2e2' : '#10b981',
-            color: t.type === 'error' ? '#991b1b' : '#fff',
+            background: t.type === 'error' ? 'var(--danger-bg)' : '#10b981',
+            color: t.type === 'error' ? 'var(--danger)' : '#fff',
             padding: '12px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
           }}>
             {t.msg}

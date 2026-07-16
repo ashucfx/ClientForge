@@ -1,4 +1,4 @@
-// src/app/(protected)/rn/dashboard/page.tsx
+// src/app/(protected)/rn/dashboard/page.tsx — Executive Overview
 import { RippleNexusShell } from '@/components/shells/RippleNexusShell';
 import { getAdminSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
@@ -32,7 +32,7 @@ export default async function RnDashboardPage() {
 
   const tenantDb = getTenantDb('ripple_nexus');
 
-  const [clients, pendingApprovals, unreadMessages, recentLogs] = await Promise.all([
+  const [clients, pendingApprovals, unreadMessages, recentLogs, breachedSla] = await Promise.all([
     tenantDb.rnClient.findMany({
       include: { serviceModule: true },
       orderBy: { createdAt: 'desc' },
@@ -43,6 +43,10 @@ export default async function RnDashboardPage() {
       orderBy: { createdAt: 'desc' },
       take: 6,
       include: { client: true },
+    }),
+    tenantDb.conversationReadState.findMany({
+      where: { rnClientId: { not: null }, adminSlaDeadline: { lt: new Date() } },
+      take: 5,
     }),
   ]);
 
@@ -66,9 +70,35 @@ export default async function RnDashboardPage() {
     };
   });
 
-  // ── Real metrics ─────────────────────────────────────────────────────────
-  // Active retainer value, grouped per currency (amounts in different
-  // currencies must never be summed together).
+  // Upcoming deadlines (next 14 days)
+  const now = Date.now();
+  const upcoming = activeClients
+    .filter(c => c.expectedDeliveryAt)
+    .map(c => ({
+      id: c.id,
+      client: c.companyName || c.name,
+      service: c.serviceModule.name,
+      days: differenceInCalendarDays(new Date(c.expectedDeliveryAt!), new Date()),
+      date: format(new Date(c.expectedDeliveryAt!), 'MMM d'),
+    }))
+    .filter(d => d.days >= 0 && d.days <= 14)
+    .sort((a, b) => a.days - b.days)
+    .slice(0, 5);
+
+  // Stage distribution
+  const stageCounts = new Map<string, number>();
+  for (const c of activeClients) {
+    const s = c.currentStage.replace(/_/g, ' ');
+    stageCounts.set(s, (stageCounts.get(s) ?? 0) + 1);
+  }
+  const stageDist = Array.from(stageCounts.entries()).sort((a, b) => b[1] - a[1]);
+  const maxStage = Math.max(1, ...stageDist.map(([, n]) => n));
+
+  // SLA breaches → map to clients
+  const breachedClientIds = breachedSla.map(b => b.rnClientId).filter(Boolean) as string[];
+  const breachedClients = clients.filter(c => breachedClientIds.includes(c.id));
+
+  // Metrics
   const retainersByCurrency = new Map<string, number>();
   for (const c of activeClients) {
     if (!c.amountPaid) continue;
@@ -81,7 +111,6 @@ export default async function RnDashboardPage() {
         .map(([cur, amt]) => formatMoney(amt, cur))
         .join(' + ');
 
-  // Average delivery time across completed projects.
   const completed = clients.filter(c => c.completedAt);
   const avgDeliveryDays = completed.length
     ? Math.round(
@@ -129,59 +158,79 @@ export default async function RnDashboardPage() {
       <main className="rn-page">
 
         {/* Header Section */}
-        <header style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
+        <header style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
           <div>
+            <div className="rn-eyebrow" style={{ marginBottom: 6 }}>The Autonomous Enterprise Stack</div>
             <h1 className="rn-title-xl">Executive Overview</h1>
             <p className="rn-subtitle" style={{ marginTop: 8 }}>{greeting()}. Here is the current operational status for Ripple Nexus.</p>
           </div>
-          <div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link href="/rn/inbox" className="btn-secondary" style={{ padding: '10px 16px', fontSize: 13, textDecoration: 'none' }}>
+              Inbox{unreadMessages > 0 ? ` (${unreadMessages})` : ''}
+            </Link>
+            <Link href="/rn/invoices/new" className="btn-secondary" style={{ padding: '10px 16px', fontSize: 13, textDecoration: 'none' }}>
+              New Invoice
+            </Link>
             <Link href="/rn/projects/new">
-              <button className="btn-primary" style={{ padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              <button className="btn-primary" style={{ padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                 + New Project
               </button>
             </Link>
           </div>
         </header>
 
+        {/* SLA breach alert */}
+        {breachedClients.length > 0 && (
+          <div style={{ marginBottom: 20, padding: '14px 18px', borderRadius: 12, background: 'var(--danger-bg)', border: '1px solid var(--danger)', fontSize: 13 }}>
+            <span style={{ fontWeight: 700, color: 'var(--danger)' }}>⏱ {breachedClients.length} response SLA{breachedClients.length === 1 ? '' : 's'} breached — </span>
+            {breachedClients.slice(0, 3).map((c, i) => (
+              <Link key={c.id} href={`/rn/inbox?client=${c.id}`} style={{ color: 'var(--danger)', fontWeight: 600, marginLeft: i ? 8 : 4 }}>
+                {c.companyName || c.name}
+              </Link>
+            ))}
+            {breachedClients.length > 3 && <span style={{ color: 'var(--danger)' }}> +{breachedClients.length - 3} more</span>}
+          </div>
+        )}
+
         {/* Metrics Grid */}
         <div className="rn-metrics-grid">
           {metrics.map((m, i) => (
-            <div key={i} className="rn-panel" style={{ padding: 24 }}>
-              <div className="rn-subtitle" style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>{m.label}</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em', marginBottom: 8, overflowWrap: 'anywhere' }}>{m.value}</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: m.isUp ? 'var(--success)' : 'var(--warning)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div key={i} className="rn-panel hover-lift" style={{ padding: 24 }}>
+              <div className="rn-eyebrow" style={{ fontSize: 11, marginBottom: 12 }}>{m.label}</div>
+              <div className="rn-stat-value" style={{ marginBottom: 8, overflowWrap: 'anywhere' }}>{m.value}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: m.isUp ? 'var(--success)' : 'var(--warning)' }}>
                 {m.trend}
               </div>
             </div>
           ))}
         </div>
 
-        <div className="rn-dash-grid">
-          {/* Active Projects Timeline Array */}
+        <div className="rn-dash-grid" style={{ marginBottom: 24 }}>
+          {/* Active Projects Pipeline */}
           <div className="rn-panel">
             <div className="rn-panel-header">
               <h2 className="rn-panel-title">Active Projects Pipeline</h2>
-              <Link href="/rn/projects" className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, textDecoration: 'none' }}>View All</Link>
+              <Link href="/rn/projects" className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12, textDecoration: 'none' }}>View All</Link>
             </div>
             <div className="rn-panel-body table-scroll-wrapper" style={{ padding: 0 }}>
               <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <tr>
                     <th>Client / Project</th>
                     <th>Phase</th>
                     <th>Progress</th>
-                    <th>Next Milestone</th>
+                    <th>Due</th>
                   </tr>
                 </thead>
                 <tbody>
                   {activeProjects.length === 0 ? (
                     <tr>
                       <td colSpan={4} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-tertiary)', fontSize: 13 }}>
-                        No active projects. <Link href="/rn/projects/new" style={{ color: 'var(--brand)', fontWeight: 600 }}>Start one →</Link>
+                        No active projects. <Link href="/rn/projects/new" style={{ color: 'var(--plasma)', fontWeight: 600 }}>Start one →</Link>
                       </td>
                     </tr>
-                  ) : activeProjects.map((p) => (
-                    <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  ) : activeProjects.slice(0, 8).map((p) => (
+                    <tr key={p.id}>
                       <td>
                         <Link href={`/rn/projects/${p.id}`} style={{ textDecoration: 'none' }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{p.client}</div>
@@ -195,8 +244,8 @@ export default async function RnDashboardPage() {
                       </td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 120 }}>
-                          <div style={{ flex: 1, height: 6, background: 'var(--surface-3)', borderRadius: 3, overflow: 'hidden' }}>
-                            <div style={{ width: `${p.progress}%`, height: '100%', background: p.status === 'on-track' ? 'var(--brand)' : 'var(--warning)', borderRadius: 3 }} />
+                          <div className="rn-progress-track">
+                            <div className={`rn-progress-fill${p.status === 'at-risk' ? ' warning' : ''}`} style={{ width: `${p.progress}%` }} />
                           </div>
                           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', width: 36 }}>{p.progress}%</span>
                         </div>
@@ -211,7 +260,7 @@ export default async function RnDashboardPage() {
             </div>
           </div>
 
-          {/* Action Items Feed */}
+          {/* Operational Feed */}
           <div className="rn-panel">
             <div className="rn-panel-header">
               <h2 className="rn-panel-title">Operational Feed</h2>
@@ -231,7 +280,7 @@ export default async function RnDashboardPage() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{activity.time}</span>
-                      <Link href={`/rn/projects/${activity.clientId}`} style={{ color: 'var(--brand)', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+                      <Link href={`/rn/projects/${activity.clientId}`} style={{ color: 'var(--plasma)', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
                         View →
                       </Link>
                     </div>
@@ -241,6 +290,57 @@ export default async function RnDashboardPage() {
               <div style={{ marginTop: 8, paddingTop: 16, borderTop: '1px solid var(--border)', textAlign: 'center' }}>
                 <Link href="/rn/inbox" style={{ color: 'var(--text-secondary)', fontSize: 13, textDecoration: 'none' }}>Open Inbox →</Link>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom row: deadlines + stage distribution */}
+        <div className="rn-two-col">
+          <div className="rn-panel">
+            <div className="rn-panel-header">
+              <h2 className="rn-panel-title">Upcoming Deadlines (14 days)</h2>
+            </div>
+            <div className="rn-panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {upcoming.length === 0 && (
+                <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13, padding: '16px 0' }}>
+                  Nothing due in the next two weeks.
+                </div>
+              )}
+              {upcoming.map(d => (
+                <Link key={d.id} href={`/rn/projects/${d.id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', gap: 12 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{d.client}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{d.service}</div>
+                  </div>
+                  <span className={`rn-badge ${d.days <= 3 ? 'danger' : d.days <= 7 ? 'warning' : 'neutral'}`} style={{ flexShrink: 0 }}>
+                    {d.days === 0 ? 'Today' : `${d.days}d · ${d.date}`}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className="rn-panel">
+            <div className="rn-panel-header">
+              <h2 className="rn-panel-title">Pipeline by Stage</h2>
+            </div>
+            <div className="rn-panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {stageDist.length === 0 && (
+                <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13, padding: '16px 0' }}>
+                  No active projects.
+                </div>
+              )}
+              {stageDist.map(([stage, count]) => (
+                <div key={stage}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 5 }}>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'capitalize' }}>{stage.toLowerCase()}</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{count}</span>
+                  </div>
+                  <div className="rn-progress-track">
+                    <div className="rn-progress-fill" style={{ width: `${(count / maxStage) * 100}%` }} />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

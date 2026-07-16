@@ -38,9 +38,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
 
   let content: string;
+  let internal = false;
   try {
     const body = await req.json();
     content = (body?.content ?? '').toString().trim();
+    internal = body?.internal === true;
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
@@ -58,12 +60,27 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       clientId: client.id,
       content,
       authorType: 'admin',
-      authorName: 'Ripple Nexus Team',
+      authorName: internal ? 'Internal Note' : 'Ripple Nexus Team',
       readByAdmin: true,
+      isInternalOnly: internal,
     },
   });
 
-  await recordMessageSent(client.id, 'RN', 'admin', undefined);
+  if (!internal) {
+    await recordMessageSent(client.id, 'RN', 'admin', undefined);
+  }
+
+  // Internal notes never reach the client — skip email + client-facing side effects
+  if (internal) {
+    await db.rnActivityLog.create({
+      data: {
+        clientId: client.id,
+        action: 'added an internal note',
+        performedBy: session.adminId,
+      },
+    }).catch(() => {});
+    return NextResponse.json({ message }, { status: 201 });
+  }
 
   // Fire-and-forget: email client + log activity
   waitUntil((async () => {

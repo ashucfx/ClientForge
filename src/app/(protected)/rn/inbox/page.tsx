@@ -9,7 +9,7 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-export default async function RnInboxPage({ searchParams }: { searchParams: { client?: string; q?: string } }) {
+export default async function RnInboxPage({ searchParams }: { searchParams: { client?: string; q?: string; filter?: string } }) {
   const session = await getAdminSession();
   if (!session || (session.role !== 'SUPER_ADMIN' && !session.brandAccess.includes('ripple_nexus'))) {
     redirect('/login');
@@ -17,11 +17,14 @@ export default async function RnInboxPage({ searchParams }: { searchParams: { cl
 
   const tenantDb = getTenantDb('ripple_nexus');
   const q = (searchParams.q ?? '').trim();
+  const unreadOnly = searchParams.filter === 'unread';
 
   // Fetch all clients that have messages (optionally filtered by search)
   const clientsWithMessages = await tenantDb.rnClient.findMany({
     where: {
-      messages: { some: {} },
+      messages: unreadOnly
+        ? { some: { authorType: 'client', readByAdmin: false } }
+        : { some: {} },
       ...(q
         ? {
             OR: [
@@ -67,7 +70,7 @@ export default async function RnInboxPage({ searchParams }: { searchParams: { cl
     }
   }
 
-  const listQuerySuffix = q ? `&q=${encodeURIComponent(q)}` : '';
+  const listQuerySuffix = `${q ? `&q=${encodeURIComponent(q)}` : ''}${unreadOnly ? '&filter=unread' : ''}`;
 
   return (
     <RippleNexusShell>
@@ -81,6 +84,10 @@ export default async function RnInboxPage({ searchParams }: { searchParams: { cl
           )}
           <h1 className="rn-title-xl">Inbox</h1>
           <p className="rn-subtitle" style={{ marginTop: 6 }}>Cross-project communication with your clients.</p>
+          <div className="rn-filter-bar" style={{ marginTop: 12, marginBottom: 0 }}>
+            <Link href={q ? `/rn/inbox?q=${encodeURIComponent(q)}` : '/rn/inbox'} className={`rn-chip${!unreadOnly ? ' active' : ''}`}>All</Link>
+            <Link href={`/rn/inbox?filter=unread${q ? `&q=${encodeURIComponent(q)}` : ''}`} className={`rn-chip${unreadOnly ? ' active' : ''}`}>Unread</Link>
+          </div>
         </header>
 
         <div className={`rn-panel rn-inbox${activeClient && explicitClientId ? ' has-thread' : ''}`} style={{ flex: 1 }}>
@@ -88,6 +95,7 @@ export default async function RnInboxPage({ searchParams }: { searchParams: { cl
           {/* Thread List */}
           <div className="rn-inbox-list">
             <form method="GET" action="/rn/inbox" style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+              {unreadOnly && <input type="hidden" name="filter" value="unread" />}
               <input
                 type="search"
                 name="q"

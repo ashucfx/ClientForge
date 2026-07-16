@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { IconDocument } from '@/components/Icons';
+import { DeliverableApprovalButtons } from '@/components/rn/DeliverableApprovalButtons';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,17 +31,18 @@ export default async function RnDeliverablesPage({ params }: { params: { token: 
       ) : (
         <div style={{ display: 'grid', gap: 16 }}>
           {deliverables.map(d => (
-            <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: 'rgba(0,0,0,0.2)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.04)' }}>
+            <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: 'rgba(0,0,0,0.2)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.04)', gap: 12, flexWrap: 'wrap' }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#F4F5FA', marginBottom: 4 }}>{d.label}</div>
                 <div style={{ fontSize: 12, color: '#A1A1AA' }}>
                   {d.originalName} • {(d.sizeBytes / 1024 / 1024).toFixed(2)} MB • Uploaded {new Date(d.createdAt).toLocaleDateString()}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <a href={d.fileUrl} target="_blank" rel="noreferrer" style={{ background: '#7C5CFF', color: '#fff', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
                   Download
                 </a>
+                <DeliverableApprovalButtons deliverableId={d.id} approvalStatus={d.approvalStatus} />
               </div>
             </div>
           ))}
