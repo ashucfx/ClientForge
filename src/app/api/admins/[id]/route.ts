@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 import { cookies } from 'next/headers';
 import { verifySessionToken } from '@/lib/authToken';
-import { getAdminSessionSecret, getAdminCookieName } from '@/lib/auth';
+import { getAdminSessionSecret, getAdminCookieName, hashPassword } from '@/lib/auth';
 
 async function isSuperAdmin() {
   try {
@@ -28,11 +28,17 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   try {
     const { id } = params;
     const body = await request.json();
-    const { role, isActive, brandAccess } = body;
+    const { role, isActive, brandAccess, password } = body;
 
     const data: Record<string, any> = {};
     if (role) data.role = role;
     if (typeof isActive === 'boolean') data.isActive = isActive;
+    if (typeof password === 'string' && password.length > 0) {
+      if (password.length < 8) {
+        return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
+      }
+      data.passwordHash = await hashPassword(password);
+    }
     if (Array.isArray(brandAccess)) {
       const VALID_BRANDS = ['catalyst', 'ripple_nexus'];
       const access = brandAccess.filter((b: unknown): b is string => typeof b === 'string' && VALID_BRANDS.includes(b));

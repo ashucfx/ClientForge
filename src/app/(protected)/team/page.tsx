@@ -79,6 +79,29 @@ export default function TeamPage() {
     setInviting(false);
   };
 
+  const handleResetPassword = async (id: string, email: string) => {
+    const password = prompt(`Set a new password for ${email} (min 8 characters):`);
+    if (password === null) return;
+    if (password.length < 8) {
+      alert('Password must be at least 8 characters.');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admins/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to reset password');
+      }
+      alert(`Password updated for ${email}.`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Password reset failed');
+    }
+  };
+
   const handleUpdate = async (id: string, updates: { role?: string; isActive?: boolean; brandAccess?: string[] }) => {
     try {
       const res = await fetch(`/api/admins/${id}`, {
@@ -213,12 +236,20 @@ export default function TeamPage() {
                         {admin.lastLoginAt ? format(new Date(admin.lastLoginAt), 'dd MMM yyyy, HH:mm') : 'Never'}
                       </td>
                       <td>
-                        <button 
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDelete(admin.id)}
-                        >
-                          Delete
-                        </button>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => handleResetPassword(admin.id, admin.email)}
+                          >
+                            Reset Password
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDelete(admin.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
