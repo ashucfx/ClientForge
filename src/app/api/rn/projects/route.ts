@@ -65,6 +65,25 @@ export async function POST(req: Request) {
       { after: newProject }
     );
 
+    // Onboarding flow: send the branded portal invite immediately so the
+    // client can log in the moment the project exists (opt-out via sendInvite:false).
+    if (body.sendInvite !== false) {
+      try {
+        const { sendRnEmail, tplWelcome, portalUrlFor } = await import('@/lib/rn/mailer');
+        const { subject, html } = tplWelcome(newProject.name, portalUrlFor(newProject.magicToken));
+        await sendRnEmail({
+          clientId: newProject.id,
+          to: newProject.email,
+          subject,
+          html,
+          trigger: 'welcome',
+          sentBy: session.adminId,
+        });
+      } catch (e) {
+        console.error('[rn projects] welcome email failed:', e);
+      }
+    }
+
     return NextResponse.json({ project: newProject });
 
   } catch (error: any) {

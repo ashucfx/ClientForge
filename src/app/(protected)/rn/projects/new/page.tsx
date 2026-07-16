@@ -16,6 +16,7 @@ export default function RnNewProjectPage() {
     serviceModuleId: '',
     budget: '',
     expectedDeliveryAt: '',
+    sendInvite: true,
   });
 
   useEffect(() => {
@@ -61,8 +62,10 @@ export default function RnNewProjectPage() {
             <span>/</span>
             <span>New</span>
           </div>
-          <h1 className="rn-title-xl">Provision Workspace</h1>
-          <p className="rn-subtitle" style={{ marginTop: 8 }}>Create a new project workspace and initialize the delivery pipeline.</p>
+          <h1 className="rn-title-xl">Onboard a Client</h1>
+          <p className="rn-subtitle" style={{ marginTop: 8 }}>
+            Creates the project workspace, generates the secure client portal, and (optionally) emails the branded invite — the client can log in within a minute.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="rn-panel" style={{ padding: 32 }}>
@@ -131,11 +134,21 @@ export default function RnNewProjectPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, borderTop: '1px solid var(--border)', paddingTop: 24 }}>
-            <button type="button" onClick={() => router.back()} className="btn-secondary" style={{ padding: '10px 20px', borderRadius: 8 }}>Cancel</button>
-            <button type="submit" disabled={loading} className="btn-primary" style={{ padding: '10px 24px', borderRadius: 8, fontWeight: 600 }}>
-              {loading ? 'Provisioning...' : 'Provision Workspace'}
-            </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, borderTop: '1px solid var(--border)', paddingTop: 24, flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={formData.sendInvite}
+                onChange={e => setFormData({ ...formData, sendInvite: e.target.checked })}
+              />
+              Email the client their portal invite now
+            </label>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button type="button" onClick={() => router.back()} className="btn-secondary" style={{ padding: '10px 20px', borderRadius: 8 }}>Cancel</button>
+              <button type="submit" disabled={loading} className="btn-primary" style={{ padding: '10px 24px', borderRadius: 8, fontWeight: 600 }}>
+                {loading ? 'Onboarding…' : formData.sendInvite ? 'Onboard & Send Invite' : 'Create Workspace'}
+              </button>
+            </div>
           </div>
 
         </form>

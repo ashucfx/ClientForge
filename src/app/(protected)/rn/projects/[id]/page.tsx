@@ -10,6 +10,7 @@ import {
   EditProjectButton, ArchiveProjectButton, DeliverableAdminActions,
 } from '@/components/rn/ProjectMutations';
 import { PortalLinkActions } from '@/components/rn/PortalLinkActions';
+import { DeleteClientButton } from '@/components/rn/DeleteClientButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -125,6 +126,7 @@ export default async function RnProjectCockpitPage({ params }: { params: { id: s
               />
               <UploadDeliverableButton projectId={project.id} />
               <ArchiveProjectButton projectId={project.id} lifecycleStatus={client.lifecycleStatus} />
+              <DeleteClientButton clientId={project.id} clientLabel={project.client} />
             </div>
           </div>
 

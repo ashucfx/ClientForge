@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { IconGrid, IconList, IconLogout, IconTarget, IconUser, IconHome, IconFolder, IconInbox, IconTrendUp, IconMail } from '@/components/Icons';
+import { IconGrid, IconList, IconLogout, IconTarget, IconUser, IconHome, IconFolder, IconInbox, IconTrendUp, IconMail, IconCalendar } from '@/components/Icons';
 import { Logo } from '@/components/Logo';
 import { useAdmin } from '@/components/AdminProvider';
 import NotificationBell from '@/components/NotificationBell';
@@ -16,6 +16,7 @@ const RN_NAV = [
   { href: '/rn/dashboard',    Icon: IconHome,     label: 'Overview',            section: 'Workspace' },
   { href: '/rn/projects',     Icon: IconFolder,   label: 'Projects',            section: 'Workspace' },
   { href: '/rn/inbox',        Icon: IconInbox,    label: 'Inbox',               section: 'Workspace' },
+  { href: '/rn/calendar',     Icon: IconCalendar, label: 'Calendar',            section: 'Workspace' },
 
   { href: '/rn/clients',      Icon: IconUser,     label: 'Clients',             section: 'Operations' },
   { href: '/rn/services',     Icon: IconTarget,   label: 'Service Workflows',   section: 'Operations' },

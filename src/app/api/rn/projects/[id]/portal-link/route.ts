@@ -34,6 +34,38 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   return NextResponse.json({ url: portalUrl(token), token });
 }
 
+/** PUT — (re)send the branded portal invite email to the client. */
+export async function PUT(_req: Request, { params }: { params: { id: string } }) {
+  const session = await requireRnAdmin();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+
+  const client = await db.rnClient.findUnique({
+    where: { id: params.id },
+    select: { id: true, name: true, email: true, magicToken: true },
+  });
+  if (!client) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+
+  let token = client.magicToken;
+  if (!token) {
+    token = randomBytes(32).toString('hex');
+    await db.rnClient.update({ where: { id: client.id }, data: { magicToken: token } });
+  }
+
+  const { sendRnEmail, tplWelcome } = await import('@/lib/rn/mailer');
+  const { subject, html } = tplWelcome(client.name, portalUrl(token));
+  const result = await sendRnEmail({
+    clientId: client.id,
+    to: client.email,
+    subject,
+    html,
+    trigger: 'welcome',
+    sentBy: session.adminId,
+  });
+
+  if (!result.ok) return NextResponse.json({ error: result.error ?? 'Send failed' }, { status: 502 });
+  return NextResponse.json({ ok: true });
+}
+
 export async function POST(_req: Request, { params }: { params: { id: string } }) {
   const session = await requireRnAdmin();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });

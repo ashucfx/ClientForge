@@ -44,6 +44,22 @@ export function PortalLinkActions({ clientId, compact = false }: { clientId: str
     }
   };
 
+  const emailInvite = async () => {
+    if (busy) return;
+    if (!confirm('Email the branded portal invite to this client?')) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/rn/projects/${clientId}/portal-link`, { method: 'PUT' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? 'Failed');
+      alert('Portal invite sent.');
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not send the invite.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const regenerate = async () => {
     if (busy) return;
     if (!confirm('Regenerate the portal link? The old link will stop working.')) return;
@@ -72,10 +88,16 @@ export function PortalLinkActions({ clientId, compact = false }: { clientId: str
         {copied ? 'Copied ✓' : 'Copy Link'}
       </button>
       {!compact && (
-        <button className="btn-secondary" onClick={regenerate} disabled={busy} title="Invalidate the old link and issue a new one"
-          style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-          Regenerate
-        </button>
+        <>
+          <button className="btn-secondary" onClick={emailInvite} disabled={busy} title="Send the branded portal invite email"
+            style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--plasma)' }}>
+            Email Invite
+          </button>
+          <button className="btn-secondary" onClick={regenerate} disabled={busy} title="Invalidate the old link and issue a new one"
+            style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            Regenerate
+          </button>
+        </>
       )}
     </div>
   );

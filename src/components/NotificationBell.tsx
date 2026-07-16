@@ -48,63 +48,44 @@ export default function NotificationBell({ direction = 'down', label }: { direct
   const careerEndpoint = '/api/career/admin/unread-summary';
   const rnEndpoint = '/api/rn/admin/unread-summary';
 
+  // Tenant separation: only ever poll the ACTIVE brand's feed. A Ripple Nexus
+  // session must never see (or request) Catalyst/career notifications.
+  const isRnBrand = activeBrand === 'ripple_nexus';
+
   const fetchSummary = useCallback(async () => {
     try {
-      const [careerRes, rnRes] = await Promise.allSettled([
-        fetch(careerEndpoint, { cache: 'no-store' }),
-        fetch(rnEndpoint, { cache: 'no-store' }),
-      ]);
+      const res = await fetch(isRnBrand ? rnEndpoint : careerEndpoint, { cache: 'no-store' });
+      if (!res.ok) return;
+      const data: UnreadSummary = await res.json();
 
-      let totalUnread = 0;
-      let totalUnreadMessages = 0;
-      let pendingRevisions = 0;
-      let unreadNotifications = 0;
-      const allClients: UnreadClient[] = [];
-
-      if (careerRes.status === 'fulfilled' && careerRes.value.ok) {
-        const data: UnreadSummary = await careerRes.value.json();
-        totalUnread += data.totalUnread;
-        totalUnreadMessages += data.totalUnreadMessages;
-        pendingRevisions += data.pendingRevisions;
-        unreadNotifications = data.unreadNotifications; // admin-level, not additive
-        allClients.push(...data.clientsWithUnread);
-        if (data.recentNotifications) {
-          allClients.push(...data.recentNotifications.map((n: any) => ({
-            id: n.id,
-            name: n.title,
-            email: 'system',
-            unreadCount: 1,
-            lastActivityAt: n.createdAt,
-            lastPreview: n.message,
-            link: n.link || '/notifications',
-          })));
-        }
+      const allClients: UnreadClient[] = [...(data.clientsWithUnread ?? [])];
+      if (!isRnBrand && data.recentNotifications) {
+        allClients.push(...data.recentNotifications.map((n: any) => ({
+          id: n.id,
+          name: n.title,
+          email: 'system',
+          unreadCount: 1,
+          lastActivityAt: n.createdAt,
+          lastPreview: n.message,
+          link: n.link || '/notifications',
+        })));
       }
 
-      if (rnRes.status === 'fulfilled' && rnRes.value.ok) {
-        const data = await rnRes.value.json() as UnreadSummary;
-        totalUnread += data.totalUnread;
-        totalUnreadMessages += data.totalUnreadMessages;
-        pendingRevisions += data.pendingRevisions;
-        allClients.push(...data.clientsWithUnread);
-      }
-
-      // Sort combined list by most recent
       allClients.sort((a, b) =>
         new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime()
       );
 
       setSummary({
-        totalUnread,
-        totalUnreadMessages,
-        pendingRevisions,
-        unreadNotifications,
-        clientsWithUnread: allClients.slice(0, 8), // show top 8 in dropdown
+        totalUnread: data.totalUnread ?? 0,
+        totalUnreadMessages: data.totalUnreadMessages ?? 0,
+        pendingRevisions: data.pendingRevisions ?? 0,
+        unreadNotifications: isRnBrand ? 0 : (data.unreadNotifications ?? 0),
+        clientsWithUnread: allClients.slice(0, 8),
       });
     } catch {
       // Silently fail — badge just won't update
     }
-  }, []);
+  }, [isRnBrand]);
 
   // Poll every 60 seconds
   useEffect(() => {
@@ -197,8 +178,8 @@ export default function NotificationBell({ direction = 'down', label }: { direct
           ...(direction === 'up' ? { bottom: 'calc(100% + 8px)' } : { top: 'calc(100% + 8px)' }),
           ...(direction === 'up' ? { left: 0 } : { right: 0 }),
           width: 340,
-          background: '#fff',
-          border: '1px solid #e2e8f0',
+          background: 'var(--surface, #fff)',
+          border: '1px solid var(--border, #e2e8f0)',
           borderRadius: 14,
           boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)',
           zIndex: 200,
@@ -208,12 +189,12 @@ export default function NotificationBell({ direction = 'down', label }: { direct
           {/* Header */}
           <div style={{
             padding: '12px 16px',
-            borderBottom: '1px solid #f1f5f9',
+            borderBottom: '1px solid var(--border, #f1f5f9)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary, #0f172a)' }}>
               Activity & Notifications
             </span>
             {totalBadge > 0 && (
@@ -237,8 +218,8 @@ export default function NotificationBell({ direction = 'down', label }: { direct
               display: 'flex',
               gap: 8,
               flexWrap: 'wrap',
-              borderBottom: '1px solid #f8fafc',
-              background: '#fafbfc',
+              borderBottom: '1px solid var(--border, #f8fafc)',
+              background: 'var(--surface-2, #fafbfc)',
             }}>
               {summary.totalUnreadMessages > 0 && (
                 <span style={{
@@ -274,7 +255,7 @@ export default function NotificationBell({ direction = 'down', label }: { direct
           {/* Client list */}
           <div style={{ maxHeight: 280, overflowY: 'auto' }}>
             {!summary || summary.clientsWithUnread.length === 0 ? (
-              <div style={{ padding: '24px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+              <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-tertiary, #94a3b8)', fontSize: 13 }}>
                 <div style={{ fontSize: 24, marginBottom: 8 }}>✓</div>
                 All caught up
               </div>
@@ -292,19 +273,19 @@ export default function NotificationBell({ direction = 'down', label }: { direct
                       alignItems: 'flex-start',
                       gap: 10,
                       padding: '10px 14px',
-                      borderBottom: '1px solid #f8fafc',
+                      borderBottom: '1px solid var(--border, #f8fafc)',
                       textDecoration: 'none',
                       transition: 'background 0.1s',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-3, #f8fafc)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     {/* Avatar or Icon */}
                     <div style={{
                       width: 32, height: 32, borderRadius: 10,
-                      background: isSystem ? '#f1f5f9' : accentColor,
+                      background: isSystem ? 'var(--surface-3, #f1f5f9)' : accentColor,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: isSystem ? '#64748b' : '#fff', fontSize: 13, fontWeight: 700, flexShrink: 0,
+                      color: isSystem ? 'var(--text-secondary, #64748b)' : '#fff', fontSize: 13, fontWeight: 700, flexShrink: 0,
                     }}>
                       {isSystem ? (
                         <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -316,17 +297,17 @@ export default function NotificationBell({ direction = 'down', label }: { direct
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary, #0f172a)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {c.name}
                         </span>
-                        <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-tertiary, #94a3b8)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                           {timeAgo(c.lastActivityAt)}
                         </span>
                       </div>
                       <p style={{
                         margin: '2px 0 0',
                         fontSize: 12,
-                        color: '#64748b',
+                        color: 'var(--text-secondary, #64748b)',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
@@ -360,16 +341,16 @@ export default function NotificationBell({ direction = 'down', label }: { direct
           </div>
 
           {/* Footer */}
-          <div style={{ borderTop: '1px solid #f1f5f9', padding: '10px 14px' }}>
+          <div style={{ borderTop: '1px solid var(--border, #f1f5f9)', padding: '10px 14px' }}>
             <Link
-              href="/notifications"
+              href={isRn ? '/rn/inbox' : '/notifications'}
               onClick={() => setOpen(false)}
               style={{
                 fontSize: 12, fontWeight: 600, color: accentColor,
                 textDecoration: 'none', display: 'block', textAlign: 'center',
               }}
             >
-              View all notifications →
+              {isRn ? 'Open inbox →' : 'View all notifications →'}
             </Link>
           </div>
         </div>

@@ -14,12 +14,16 @@ export default async function RnPortalOverviewPage({ params }: { params: { token
 
   if (!client) notFound();
 
-  const [invoice, recentDeliverables] = await Promise.all([
+  const [invoice, recentDeliverables, nextHoliday] = await Promise.all([
     client.invoiceId ? prisma.invoice.findUnique({ where: { id: client.invoiceId } }) : Promise.resolve(null),
     prisma.rnDeliverable.findMany({
       where: { clientId: client.id },
       orderBy: { createdAt: 'desc' },
       take: 3,
+    }),
+    prisma.rnHoliday.findFirst({
+      where: { date: { gte: new Date(), lte: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000) } },
+      orderBy: { date: 'asc' },
     }),
   ]);
 
@@ -54,6 +58,17 @@ export default async function RnPortalOverviewPage({ params }: { params: { token
           </span>
         </div>
       </div>
+
+      {nextHoliday && (
+        <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', borderRadius: 12, background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.25)' }}>
+          <span style={{ fontSize: 18 }}>🗓</span>
+          <div style={{ fontSize: 13, color: '#C6CBDD', lineHeight: 1.5 }}>
+            <strong style={{ color: '#22D3EE' }}>Heads up:</strong> our team is offline on{' '}
+            <strong style={{ color: '#F4F5FA' }}>{format(new Date(nextHoliday.date), 'EEEE, MMM d')}</strong> for {nextHoliday.name}.
+            Replies around that date may take one extra working day.
+          </div>
+        </div>
+      )}
 
       {client.currentStage === 'DELIVERED' && (!client.Feedback || !client.Review) && (
         <RnClientFeedbackForms 
@@ -130,9 +145,29 @@ export default async function RnPortalOverviewPage({ params }: { params: { token
         <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 20px', color: '#F4F5FA', display: 'flex', alignItems: 'center', gap: 8 }}>
           <IconDocument size={18} style={{ color: '#22D3EE' }} /> Recent Deliverables
         </h2>
-        <div style={{ fontSize: 13, color: '#A1A1AA', padding: 20, textAlign: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: 12 }}>
-          Head over to the Deliverables tab to view and approve your project assets.
-        </div>
+        {recentDeliverables.length === 0 ? (
+          <div style={{ fontSize: 13, color: '#A1A1AA', padding: 20, textAlign: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: 12 }}>
+            Your project assets will appear here as soon as the team uploads them.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {recentDeliverables.map(d => (
+              <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'rgba(0,0,0,0.2)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.04)' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#F4F5FA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</div>
+                  <div style={{ fontSize: 11, color: '#A1A1AA' }}>{format(new Date(d.createdAt), 'MMM dd, yyyy')}</div>
+                </div>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 9999, flexShrink: 0,
+                  color: d.approvalStatus === 'APPROVED' ? '#22c55e' : d.approvalStatus === 'CHANGES_REQUESTED' ? '#FBBF24' : '#A1A1AA',
+                  background: d.approvalStatus === 'APPROVED' ? 'rgba(34,197,94,0.12)' : d.approvalStatus === 'CHANGES_REQUESTED' ? 'rgba(251,191,36,0.12)' : 'rgba(255,255,255,0.06)',
+                }}>
+                  {d.approvalStatus === 'APPROVED' ? 'APPROVED' : d.approvalStatus === 'CHANGES_REQUESTED' ? 'IN REVISION' : 'REVIEW'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
     </div>
