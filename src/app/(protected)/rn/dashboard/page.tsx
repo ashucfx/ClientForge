@@ -3,8 +3,26 @@ import { RippleNexusShell } from '@/components/shells/RippleNexusShell';
 import { getAdminSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getTenantDb } from '@/lib/db/tenantDb';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, differenceInCalendarDays } from 'date-fns';
 import Link from 'next/link';
+
+export const dynamic = 'force-dynamic';
+
+const CURRENCY_SYMBOLS: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$' };
+
+function formatMoney(amount: number, currency: string) {
+  const symbol = CURRENCY_SYMBOLS[currency] ?? `${currency} `;
+  return `${symbol}${Math.round(amount).toLocaleString()}`;
+}
+
+function greeting() {
+  const hour = Number(
+    new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Kolkata' }).format(new Date())
+  );
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 
 export default async function RnDashboardPage() {
   const session = await getAdminSession();
@@ -14,70 +32,107 @@ export default async function RnDashboardPage() {
 
   const tenantDb = getTenantDb('ripple_nexus');
 
-  // Fetch all active projects
-  const clients = await tenantDb.rnClient.findMany({
-    include: { serviceModule: true },
-    orderBy: { createdAt: 'desc' }
-  });
+  const [clients, pendingApprovals, unreadMessages, recentLogs] = await Promise.all([
+    tenantDb.rnClient.findMany({
+      include: { serviceModule: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    tenantDb.rnDeliverable.count({ where: { approvalStatus: 'PENDING' } }),
+    tenantDb.rnMessage.count({ where: { authorType: 'client', readByAdmin: false } }),
+    tenantDb.rnActivityLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 6,
+      include: { client: true },
+    }),
+  ]);
 
-  const activeClients = clients.filter(c => c.currentStage !== 'COMPLETED');
+  const activeClients = clients.filter(c => c.currentStage !== 'COMPLETED' && c.lifecycleStatus === 'ACTIVE');
   const atRiskClients = activeClients.filter(c => c.expectedDeliveryAt && new Date(c.expectedDeliveryAt) < new Date());
 
   const activeProjects = activeClients.map(c => {
-    let status = 'on-track';
-    if (c.expectedDeliveryAt && new Date(c.expectedDeliveryAt) < new Date()) {
-      status = 'at-risk';
-    }
-
+    const isAtRisk = !!(c.expectedDeliveryAt && new Date(c.expectedDeliveryAt) < new Date());
     const workflowStages = Array.isArray(c.serviceModule.workflowStages) ? c.serviceModule.workflowStages : [];
     const completedStages = Array.isArray(c.completedStages) ? c.completedStages : [];
     const progress = workflowStages.length > 0 ? Math.round((completedStages.length / workflowStages.length) * 100) : 0;
-    
+
     return {
       id: c.id,
       client: c.companyName || c.name,
       project: c.serviceModule.name,
-      phase: c.currentStage,
+      phase: c.currentStage.replace(/_/g, ' '),
       progress,
-      status,
-      nextMilestone: c.expectedDeliveryAt ? format(new Date(c.expectedDeliveryAt), 'MMM d') : 'TBD'
+      status: isAtRisk ? 'at-risk' : 'on-track',
+      nextMilestone: c.expectedDeliveryAt ? format(new Date(c.expectedDeliveryAt), 'MMM d') : 'TBD',
     };
   });
 
-  // Calculate metrics
-  const totalRetainers = activeClients.reduce((sum, c) => sum + (c.amountPaid || 0), 0);
+  // ── Real metrics ─────────────────────────────────────────────────────────
+  // Active retainer value, grouped per currency (amounts in different
+  // currencies must never be summed together).
+  const retainersByCurrency = new Map<string, number>();
+  for (const c of activeClients) {
+    if (!c.amountPaid) continue;
+    retainersByCurrency.set(c.currency, (retainersByCurrency.get(c.currency) ?? 0) + c.amountPaid);
+  }
+  const retainerValue = retainersByCurrency.size === 0
+    ? '—'
+    : Array.from(retainersByCurrency.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([cur, amt]) => formatMoney(amt, cur))
+        .join(' + ');
 
-  // Fetch recent activity
-  const recentLogs = await tenantDb.rnActivityLog.findMany({
-    orderBy: { createdAt: 'desc' },
-    take: 5,
-    include: { client: true }
-  });
+  // Average delivery time across completed projects.
+  const completed = clients.filter(c => c.completedAt);
+  const avgDeliveryDays = completed.length
+    ? Math.round(
+        completed.reduce((sum, c) => sum + Math.max(0, differenceInCalendarDays(new Date(c.completedAt!), new Date(c.createdAt))), 0) /
+          completed.length
+      )
+    : null;
+
+  const metrics = [
+    {
+      label: 'Active Retainers',
+      value: retainerValue,
+      trend: `${activeClients.length} active project${activeClients.length === 1 ? '' : 's'}`,
+      isUp: true,
+    },
+    {
+      label: 'Projects On Track',
+      value: `${activeClients.length - atRiskClients.length} / ${activeClients.length}`,
+      trend: atRiskClients.length ? `${atRiskClients.length} at risk` : 'All on schedule',
+      isUp: atRiskClients.length === 0,
+    },
+    {
+      label: 'Pending Approvals',
+      value: String(pendingApprovals),
+      trend: pendingApprovals ? 'Awaiting client review' : 'Nothing pending',
+      isUp: pendingApprovals === 0,
+    },
+    {
+      label: 'Unread Messages',
+      value: String(unreadMessages),
+      trend: avgDeliveryDays !== null ? `Avg delivery ${avgDeliveryDays} days` : 'No completed projects yet',
+      isUp: unreadMessages === 0,
+    },
+  ];
 
   const recentActivity = recentLogs.map(log => ({
     id: log.id,
-    type: 'activity',
+    clientId: log.clientId,
     content: `${log.client.companyName || log.client.name}: ${log.performedBy} ${log.action}`,
     time: formatDistanceToNow(new Date(log.createdAt), { addSuffix: true }),
-    action: 'View'
   }));
-
-  const metrics = [
-    { label: 'Active Retainers', value: `₹${totalRetainers.toLocaleString()}`, trend: 'Live', isUp: true },
-    { label: 'Projects On Track', value: `${activeClients.length - atRiskClients.length} / ${activeClients.length}`, trend: `${atRiskClients.length} At Risk`, isUp: atRiskClients.length === 0 },
-    { label: 'Pending Approvals', value: '-', trend: 'Under Construction', isUp: false },
-    { label: 'Avg. Delivery Time', value: '14 Days', trend: '-2.4 Days', isUp: true },
-  ];
 
   return (
     <RippleNexusShell>
-      <main className="page-body" style={{ padding: '40px 48px' }}>
-        
+      <main className="rn-page">
+
         {/* Header Section */}
-        <header style={{ marginBottom: 40, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <header style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
           <div>
             <h1 className="rn-title-xl">Executive Overview</h1>
-            <p className="rn-subtitle" style={{ marginTop: 8 }}>Good morning. Here is the current operational status for Ripple Nexus.</p>
+            <p className="rn-subtitle" style={{ marginTop: 8 }}>{greeting()}. Here is the current operational status for Ripple Nexus.</p>
           </div>
           <div>
             <Link href="/rn/projects/new">
@@ -89,11 +144,11 @@ export default async function RnDashboardPage() {
         </header>
 
         {/* Metrics Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24, marginBottom: 40 }}>
+        <div className="rn-metrics-grid">
           {metrics.map((m, i) => (
             <div key={i} className="rn-panel" style={{ padding: 24 }}>
               <div className="rn-subtitle" style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>{m.label}</div>
-              <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em', marginBottom: 8 }}>{m.value}</div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em', marginBottom: 8, overflowWrap: 'anywhere' }}>{m.value}</div>
               <div style={{ fontSize: 12, fontWeight: 600, color: m.isUp ? 'var(--success)' : 'var(--warning)', display: 'flex', alignItems: 'center', gap: 6 }}>
                 {m.trend}
               </div>
@@ -101,44 +156,52 @@ export default async function RnDashboardPage() {
           ))}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 32 }}>
+        <div className="rn-dash-grid">
           {/* Active Projects Timeline Array */}
           <div className="rn-panel">
             <div className="rn-panel-header">
               <h2 className="rn-panel-title">Active Projects Pipeline</h2>
-              <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6 }}>View All</button>
+              <Link href="/rn/projects" className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, textDecoration: 'none' }}>View All</Link>
             </div>
-            <div className="rn-panel-body" style={{ padding: 0 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <div className="rn-panel-body table-scroll-wrapper" style={{ padding: 0 }}>
+              <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    <th style={{ padding: '16px 24px', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 500 }}>CLIENT / PROJECT</th>
-                    <th style={{ padding: '16px 24px', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 500 }}>PHASE</th>
-                    <th style={{ padding: '16px 24px', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 500 }}>PROGRESS</th>
-                    <th style={{ padding: '16px 24px', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 500 }}>NEXT MILESTONE</th>
+                    <th>Client / Project</th>
+                    <th>Phase</th>
+                    <th>Progress</th>
+                    <th>Next Milestone</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {activeProjects.map((p) => (
-                    <tr key={p.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }} className="table-row-hover">
-                      <td style={{ padding: '20px 24px' }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 }}>{p.client}</div>
-                        <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{p.project}</div>
+                  {activeProjects.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-tertiary)', fontSize: 13 }}>
+                        No active projects. <Link href="/rn/projects/new" style={{ color: 'var(--brand)', fontWeight: 600 }}>Start one →</Link>
                       </td>
-                      <td style={{ padding: '20px 24px' }}>
+                    </tr>
+                  ) : activeProjects.map((p) => (
+                    <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td>
+                        <Link href={`/rn/projects/${p.id}`} style={{ textDecoration: 'none' }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{p.client}</div>
+                          <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{p.project}</div>
+                        </Link>
+                      </td>
+                      <td>
                         <span className={`rn-badge ${p.status === 'on-track' ? 'success' : 'warning'}`}>
                           {p.phase}
                         </span>
                       </td>
-                      <td style={{ padding: '20px 24px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{ flex: 1, height: 6, background: 'var(--obsidian)', borderRadius: 3, overflow: 'hidden' }}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 120 }}>
+                          <div style={{ flex: 1, height: 6, background: 'var(--surface-3)', borderRadius: 3, overflow: 'hidden' }}>
                             <div style={{ width: `${p.progress}%`, height: '100%', background: p.status === 'on-track' ? 'var(--brand)' : 'var(--warning)', borderRadius: 3 }} />
                           </div>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', width: 32 }}>{p.progress}%</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', width: 36 }}>{p.progress}%</span>
                         </div>
                       </td>
-                      <td style={{ padding: '20px 24px', fontSize: 13, color: p.status === 'at-risk' ? 'var(--error)' : 'var(--text-secondary)' }}>
+                      <td style={{ fontSize: 13, color: p.status === 'at-risk' ? 'var(--danger)' : 'var(--text-secondary)' }}>
                         {p.nextMilestone}
                       </td>
                     </tr>
@@ -154,32 +217,35 @@ export default async function RnDashboardPage() {
               <h2 className="rn-panel-title">Operational Feed</h2>
             </div>
             <div className="rn-panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {recentActivity.length === 0 && (
+                <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13, padding: '24px 0' }}>
+                  No activity yet.
+                </div>
+              )}
               {recentActivity.map((activity) => (
                 <div key={activity.id} style={{ display: 'flex', gap: 16 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 4, background: 'var(--brand)', marginTop: 6 }} />
-                  <div style={{ flex: 1 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 4, background: 'var(--brand)', marginTop: 6, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.5, marginBottom: 4 }}>
                       {activity.content}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{activity.time}</span>
-                      <button style={{ background: 'none', border: 'none', color: 'var(--brand)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{activity.action} →</button>
+                      <Link href={`/rn/projects/${activity.clientId}`} style={{ color: 'var(--brand)', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+                        View →
+                      </Link>
                     </div>
                   </div>
                 </div>
               ))}
-              
-              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)', textAlign: 'center' }}>
-                <button style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: 13, cursor: 'pointer' }}>View All Activity</button>
+              <div style={{ marginTop: 8, paddingTop: 16, borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+                <Link href="/rn/inbox" style={{ color: 'var(--text-secondary)', fontSize: 13, textDecoration: 'none' }}>Open Inbox →</Link>
               </div>
             </div>
           </div>
         </div>
 
       </main>
-      <style dangerouslySetInnerHTML={{__html: `
-        .table-row-hover:hover { background: var(--surface-2); }
-      `}} />
     </RippleNexusShell>
   );
 }

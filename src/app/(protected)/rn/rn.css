@@ -49,14 +49,14 @@
   background: var(--surface-1);
 }
 
-/* Layout */
+/* Layout
+   Desktop/tablet (≥768px): fixed 260px sidebar + offset content.
+   Mobile (<768px): globals.css hides .desktop-sidebar and zeroes the margin —
+   breakpoints MUST stay in sync with globals.css (767px). */
 [data-tenant="ripple_nexus"] .page-wrapper {
   margin-left: 260px;
   min-height: 100vh;
   background: var(--surface-1);
-}
-@media (max-width: 1024px) {
-  [data-tenant="ripple_nexus"] .page-wrapper { margin-left: 0; padding-top: 60px; }
 }
 
 /* Sidebar */
@@ -224,4 +224,103 @@
 /* Data Table Specific */
 [data-tenant="ripple_nexus"] .data-table {
   background: var(--surface-1);
+}
+
+/* ═══════════════════════════════════════════════
+   RN PAGE SPACING (responsive — replaces the old
+   hardcoded inline `padding: 40px 48px`)
+═══════════════════════════════════════════════ */
+[data-tenant="ripple_nexus"] .rn-page {
+  padding: 40px 48px;
+}
+@media (max-width: 1023px) {
+  [data-tenant="ripple_nexus"] .rn-page { padding: 28px 24px; }
+}
+@media (max-width: 767px) {
+  [data-tenant="ripple_nexus"] .rn-page { padding: 16px 14px 40px; }
+  [data-tenant="ripple_nexus"] .rn-title-xl { font-size: 22px; }
+  [data-tenant="ripple_nexus"] .rn-subtitle { font-size: 13px; }
+  [data-tenant="ripple_nexus"] .rn-panel-body { padding: 16px; }
+  [data-tenant="ripple_nexus"] .rn-panel-header { padding: 14px 16px; }
+  [data-tenant="ripple_nexus"] th,
+  [data-tenant="ripple_nexus"] td { padding: 10px 12px; }
+}
+
+/* ═══════════════════════════════════════════════
+   RN DASHBOARD GRIDS
+═══════════════════════════════════════════════ */
+[data-tenant="ripple_nexus"] .rn-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-bottom: 40px;
+}
+[data-tenant="ripple_nexus"] .rn-dash-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 32px;
+}
+@media (max-width: 1023px) {
+  [data-tenant="ripple_nexus"] .rn-metrics-grid { grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+  [data-tenant="ripple_nexus"] .rn-dash-grid { grid-template-columns: 1fr; gap: 16px; }
+}
+@media (max-width: 767px) {
+  [data-tenant="ripple_nexus"] .rn-metrics-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+}
+
+/* ═══════════════════════════════════════════════
+   RN INBOX — two panes on desktop, stacked on mobile
+═══════════════════════════════════════════════ */
+[data-tenant="ripple_nexus"] .rn-inbox-page {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+@media (max-width: 767px) {
+  /* Account for the fixed mobile topbar so the panel isn't pushed offscreen */
+  [data-tenant="ripple_nexus"] .rn-inbox-page {
+    height: calc(100dvh - var(--topbar-h, 60px));
+  }
+}
+[data-tenant="ripple_nexus"] .rn-inbox {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+[data-tenant="ripple_nexus"] .rn-inbox-list {
+  width: 350px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface-2);
+  overflow-y: auto;
+}
+[data-tenant="ripple_nexus"] .rn-inbox-thread {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-1);
+  min-width: 0;
+}
+[data-tenant="ripple_nexus"] .rn-inbox-back { display: none; }
+
+@media (max-width: 767px) {
+  [data-tenant="ripple_nexus"] .rn-inbox-list {
+    width: 100%;
+    border-right: none;
+  }
+  /* When a thread is open on mobile, it takes the full pane */
+  [data-tenant="ripple_nexus"] .rn-inbox.has-thread .rn-inbox-list { display: none; }
+  [data-tenant="ripple_nexus"] .rn-inbox:not(.has-thread) .rn-inbox-thread { display: none; }
+  [data-tenant="ripple_nexus"] .rn-inbox-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--brand);
+    text-decoration: none;
+    margin-bottom: 8px;
+  }
 }

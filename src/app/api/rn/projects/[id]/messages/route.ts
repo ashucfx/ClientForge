@@ -4,7 +4,7 @@
 export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
-import { getAdminSession } from '@/lib/auth';
+import { requireRnAdmin } from '@/lib/auth/rnAdmin';
 import { prisma as db } from '@/lib/db';
 import { notifyAllAdmins } from '@/lib/notifications';
 import { recordMessageSent, markConversationReadByAdmin } from '@/lib/communications';
@@ -15,13 +15,6 @@ const PORTAL_URL  =
   process.env.NODE_ENV === 'development'
     ? 'http://localhost:3000'
     : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://theripplenexus.com');
-
-async function requireRnAdmin() {
-  const session = await getAdminSession();
-  if (!session) return null;
-  if (session.role !== 'SUPER_ADMIN' && !session.brandAccess.includes('ripple_nexus')) return null;
-  return session;
-}
 
 /** GET — fetch full message thread, mark client messages as read by admin */
 export async function GET(_req: Request, { params }: { params: { id: string } }) {

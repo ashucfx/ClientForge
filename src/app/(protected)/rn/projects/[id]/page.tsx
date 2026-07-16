@@ -81,7 +81,7 @@ export default async function RnProjectCockpitPage({ params }: { params: { id: s
 
   return (
     <RippleNexusShell>
-      <main className="page-body" style={{ padding: '40px 48px' }}>
+      <main className="rn-page">
         
         {/* Breadcrumb & Header */}
         <div style={{ marginBottom: 32 }}>
@@ -127,7 +127,7 @@ export default async function RnProjectCockpitPage({ params }: { params: { id: s
                   <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, gap: 12, flex: 1 }}>
                     <div style={{ 
                       width: 32, height: 32, borderRadius: 16, 
-                      background: m.status === 'completed' ? 'var(--success)' : m.status === 'active' ? 'var(--brand)' : 'var(--obsidian)',
+                      background: m.status === 'completed' ? 'var(--success)' : m.status === 'active' ? 'var(--brand)' : 'var(--surface-3)',
                       border: `2px solid ${m.status === 'upcoming' ? 'var(--surface-3)' : 'transparent'}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       boxShadow: m.status === 'active' ? '0 0 0 4px var(--brand-light)' : 'none'
@@ -161,7 +161,7 @@ export default async function RnProjectCockpitPage({ params }: { params: { id: s
                         {d.type === 'document' ? '📄' : d.type === 'design' ? '🎨' : '📊'}
                       </div>
                       <div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', marginBottom: 4 }}>{d.title}</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{d.title}</div>
                         <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Updated {d.date}</div>
                       </div>
                     </div>
@@ -193,7 +193,7 @@ export default async function RnProjectCockpitPage({ params }: { params: { id: s
                     </div>
                     <div>
                       <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-secondary)' }}>
-                        <span style={{ fontWeight: 600, color: '#fff' }}>{activity.user}</span> {activity.action} <span style={{ color: 'var(--brand)' }}>{activity.target}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{activity.user}</span> {activity.action} <span style={{ color: 'var(--brand)' }}>{activity.target}</span>
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>{activity.time}</div>
                     </div>

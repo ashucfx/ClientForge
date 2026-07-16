@@ -133,19 +133,12 @@ interface UnreadSummary { totalUnread: number }
 
 function useUnreadSummary() {
   const [careerUnread, setCareerUnread] = useState(0);
-  const [rnUnread, setRnUnread] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const poll = useCallback(async () => {
     try {
-      const [c, r] = await Promise.allSettled([
-        fetch('/api/career/admin/unread-summary', { cache: 'no-store' }),
-        fetch('/api/rn/admin/unread-summary', { cache: 'no-store' }),
-      ]);
-      if (c.status === 'fulfilled' && c.value.ok)
-        setCareerUnread(((await c.value.json()) as UnreadSummary).totalUnread);
-      if (r.status === 'fulfilled' && r.value.ok)
-        setRnUnread(((await r.value.json()) as UnreadSummary).totalUnread);
+      const res = await fetch('/api/career/admin/unread-summary', { cache: 'no-store' });
+      if (res.ok) setCareerUnread(((await res.json()) as UnreadSummary).totalUnread);
     } catch { /* silent */ }
   }, []);
 
@@ -155,7 +148,7 @@ function useUnreadSummary() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [poll]);
 
-  return { careerUnread, rnUnread };
+  return { careerUnread };
 }
 
 // ── Badge ─────────────────────────────────────────────────────────
@@ -296,20 +289,20 @@ interface SidebarProps {
   hasCatalystAccess: boolean;
   hasRnAccess: boolean;
   careerUnread: number;
-  rnUnread: number;
   onNavigate: () => void;
   onLogout: () => void;
+  onSwitchTenant: () => void;
+  switching: boolean;
 }
 
 function SidebarContent({
   pathname, activeBrand, hasCatalystAccess, hasRnAccess,
-  careerUnread, rnUnread, onNavigate, onLogout,
+  careerUnread, onNavigate, onLogout, onSwitchTenant, switching,
 }: SidebarProps) {
   const inFinance = ['/invoices', '/analytics'].some(p => pathname.startsWith(p));
   const inCareer  = pathname.startsWith('/career');
   const inGrowth  = pathname.startsWith('/flywheel') || pathname.startsWith('/sales');
   const inTools   = pathname.startsWith('/bugs') || pathname.startsWith('/referrals') || pathname.startsWith('/team') || pathname.startsWith('/reviews');
-  const inRN      = pathname.startsWith('/rn/');
 
   return (
     <>
@@ -390,20 +383,23 @@ function SidebarContent({
             active={isActive('/team', pathname)} onClick={onNavigate} />
         </NavSection>
 
-        {/* Ripple Nexus */}
-        {activeBrand === 'ripple_nexus' && hasRnAccess && (
-          <NavSection id="rn" label="Ripple Nexus" color="#A78BFA"
-            defaultOpen={inRN} hasActiveChild={inRN} badge={rnUnread}>
-            <NavLink href="/rn/clients" icon={<IconUser size={16} />} label="Agency Clients"
-              active={isActive('/rn/clients', pathname)} accent="#A78BFA" badge={rnUnread} onClick={onNavigate} />
-            <NavLink href="/rn/services" icon={<IconTarget size={16} />} label="Services"
-              active={isActive('/rn/services', pathname)} accent="#A78BFA" onClick={onNavigate} />
-          </NavSection>
-        )}
       </nav>
 
       <div className="sidebar-footer">
         <NotificationBell direction="up" label="Notifications" />
+        {hasRnAccess && (
+          <button className="nav-item" onClick={onSwitchTenant} disabled={switching} style={{ marginBottom: 2, width: '100%', color: '#7C5CFF' }}>
+            <span className="nav-icon" style={{ display: 'inline-flex', color: '#7C5CFF' }}>
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" aria-hidden>
+                <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 3L4 7l4 4" /><path d="M4 7h16" />
+                  <path d="M16 21l4-4-4-4" /><path d="M20 17H4" />
+                </g>
+              </svg>
+            </span>
+            {switching ? 'Switching…' : 'Switch to Ripple Nexus'}
+          </button>
+        )}
         <button className="nav-item" onClick={onLogout} style={{ marginBottom: 6 }}>
           <span className="nav-icon" style={{ display: 'inline-flex' }}><IconLogout size={16} /></span>
           Logout
@@ -419,10 +415,11 @@ function SidebarContent({
 // ── AppShell ──────────────────────────────────────────────────────
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const { activeBrand } = useBrand();
   const pathname = usePathname();
   const { hasCatalystAccess, hasRnAccess } = useAdmin();
-  const { careerUnread, rnUnread } = useUnreadSummary();
+  const { careerUnread } = useUnreadSummary();
 
   useEffect(() => { setOpen(false); }, [pathname]);
   useEffect(() => {
@@ -435,15 +432,34 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     window.location.href = '/login';
   };
 
+  const handleSwitchTenant = async () => {
+    if (switching) return;
+    setSwitching(true);
+    try {
+      const res = await fetch('/api/auth/switch-tenant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand: 'ripple_nexus' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.redirectTo) {
+        window.location.href = data.redirectTo;
+        return;
+      }
+    } catch { /* ignore */ }
+    setSwitching(false);
+  };
+
   const sidebarProps: SidebarProps = {
     pathname,
     activeBrand,
     hasCatalystAccess,
     hasRnAccess,
     careerUnread,
-    rnUnread,
     onNavigate: () => setOpen(false),
     onLogout: handleLogout,
+    onSwitchTenant: handleSwitchTenant,
+    switching,
   };
 
   return (

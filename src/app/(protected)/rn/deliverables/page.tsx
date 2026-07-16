@@ -21,7 +21,7 @@ export default async function RnDeliverablesPage() {
 
   return (
     <RippleNexusShell>
-      <main className="page-body" style={{ padding: '40px 48px' }}>
+      <main className="rn-page">
         
         <header style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>

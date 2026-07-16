@@ -1,6 +1,7 @@
 // src/middleware.ts
 // Tenant-Aware Routing Middleware
-// Resolves tenant from URL path, verifies JWT activeTenant matches, enforces isolation.
+// Resolves tenant from URL path, verifies JWT activeTenant matches, enforces isolation
+// in BOTH directions (Catalyst ↔ Ripple Nexus) for pages and admin APIs.
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -9,14 +10,6 @@ import { jwtVerify } from 'jose';
 // ─── Constants ─────────────────────────────────────────────────────────────
 const ADMIN_COOKIE = 'cf_admin';
 const ALGORITHM = 'HS256';
-
-// ─── Tenant Resolution from Path ───────────────────────────────────────────
-function resolveTenantFromPath(pathname: string): 'ripple_nexus' | 'catalyst' | null {
-  if (pathname.startsWith('/rn') || pathname.startsWith('/api/rn')) {
-    return 'ripple_nexus';
-  }
-  return null; // Catalyst is the default — no prefix required
-}
 
 // ─── JWT Decode (lightweight — no DB hit) ──────────────────────────────────
 async function getSessionPayload(token: string): Promise<{
@@ -56,6 +49,8 @@ const PUBLIC_PREFIXES = [
   '/api/cron',
   '/testimonials',        // Public testimonials page — no login required
   '/rn/portal',          // B2B client portal
+  '/api/rn/auth',        // B2B client portal OTP login
+  '/api/rn/client',      // B2B client portal actions (token-authenticated)
   '/portal',             // Catalyst career portal
   '/api/career/webhook',
   '/api/career/auth',
@@ -73,6 +68,30 @@ function isPublicPath(pathname: string): boolean {
   return PUBLIC_PREFIXES.some(p => pathname.startsWith(p));
 }
 
+// ─── Catalyst-only admin API namespaces ────────────────────────────────────
+// These endpoints operate on Catalyst data. Route handlers verify the session
+// exists, but brand scoping is enforced HERE so a Ripple-Nexus-only admin can
+// never read or mutate Catalyst data (career clients, invoices, flywheel, …).
+const CATALYST_ADMIN_API_PREFIXES = [
+  '/api/career/admin',
+  '/api/catalyst',
+  '/api/invoices',
+  '/api/admin/', // analytics, flywheel, sales, marketing, contacts, … (trailing slash — /api/admins is guarded in its own route)
+];
+
+function isCatalystAdminApi(pathname: string): boolean {
+  return CATALYST_ADMIN_API_PREFIXES.some(p => pathname.startsWith(p));
+}
+
+function hasBrand(session: { role: string; brandAccess?: string[] }, brand: string): boolean {
+  if (session.role === 'SUPER_ADMIN') return true;
+  return Array.isArray(session.brandAccess) && session.brandAccess.includes(brand);
+}
+
+function apiError(message: string, status: number) {
+  return NextResponse.json({ error: message }, { status });
+}
+
 // ─── Middleware ─────────────────────────────────────────────────────────────
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -82,58 +101,74 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Only enforce on /rn/* and /(protected)/* routes (not API in general)
-  const isRnRoute = pathname.startsWith('/rn');
-  const isProtectedRoute = !pathname.startsWith('/api/'); // protect page routes
+  const isRnPage = pathname.startsWith('/rn');
+  const isRnApi = pathname.startsWith('/api/rn');
+  const isApi = pathname.startsWith('/api/');
 
-  // Skip non-page, non-rn API routes (they have their own guards)
-  if (!isRnRoute && !isProtectedRoute) {
+  // 2. Get the JWT from the cookie
+  const token = request.cookies.get(ADMIN_COOKIE)?.value ?? '';
+
+  // ── RN admin APIs: require a session with Ripple Nexus access ──────────
+  if (isRnApi) {
+    const session = token ? await getSessionPayload(token) : null;
+    if (!session) return apiError('Unauthorized: Missing session', 401);
+    if (!hasBrand(session, 'ripple_nexus')) {
+      return apiError('Forbidden: No Ripple Nexus access', 403);
+    }
+    const response = NextResponse.next();
+    response.headers.set('x-tenant-id', 'ripple_nexus');
+    return response;
+  }
+
+  // ── Catalyst admin APIs: require a session with Catalyst access ────────
+  if (isCatalystAdminApi(pathname)) {
+    const session = token ? await getSessionPayload(token) : null;
+    if (!session) return apiError('Unauthorized: Missing session', 401);
+    if (!hasBrand(session, 'catalyst')) {
+      return apiError('Forbidden: No Catalyst access', 403);
+    }
+    const response = NextResponse.next();
+    response.headers.set('x-tenant-id', 'catalyst');
+    return response;
+  }
+
+  // Other API routes (e.g. /api/admins, /api/search, /api/webhooks) carry
+  // their own guards in the route handlers.
+  if (isApi) {
     return NextResponse.next();
   }
 
-  // 3. Get the JWT from the cookie
-  const token = request.cookies.get(ADMIN_COOKIE)?.value ?? '';
-
-  // 4. Resolve the tenant the URL is asking for
-  const urlTenant = resolveTenantFromPath(pathname);
-
-  // 5. For RN routes specifically: verify JWT activeTenant matches
-  if (isRnRoute) {
+  // ── RN pages ────────────────────────────────────────────────────────────
+  if (isRnPage) {
     if (!token) {
-      // No session at all — redirect to login
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('next', pathname);
       return NextResponse.redirect(loginUrl);
     }
 
     const session = await getSessionPayload(token);
-
     if (!session) {
-      // Invalid/expired token
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('next', pathname);
       return NextResponse.redirect(loginUrl);
     }
 
-    // For legacy sessions (v2 tokens without activeTenant), fall back to brandAccess check
     const activeTenant = session.activeTenant;
     const brandAccess = Array.isArray(session.brandAccess) ? session.brandAccess : [];
     const isSuperAdmin = session.role === 'SUPER_ADMIN';
 
     if (!isSuperAdmin) {
-      // v3+ JWT: check activeTenant matches
+      // v3+ JWT: the session must be an RN session
       if (activeTenant && activeTenant !== 'ripple_nexus') {
-        // User is logged in as Catalyst but trying to access RN routes
-        // Redirect them to their correct portal
+        // Catalyst session trying to open RN pages → back to Catalyst home
         return NextResponse.redirect(new URL('/', request.url));
       }
-      // Fallback for v2 tokens: check brandAccess
+      // Fallback for legacy v2 tokens without activeTenant
       if (!activeTenant && !brandAccess.includes('ripple_nexus')) {
         return NextResponse.redirect(new URL('/', request.url));
       }
     }
 
-    // ✅ Valid RN session — inject tenant headers for RSCs
     const response = NextResponse.next();
     response.headers.set('x-tenant-id', 'ripple_nexus');
     response.headers.set('x-admin-id', session.adminId);
@@ -141,30 +176,31 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // 6. For all other protected page routes: just verify session exists
-  if (isProtectedRoute && !pathname.startsWith('/api/')) {
-    if (!token) {
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('next', pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-
-    const session = await getSessionPayload(token);
-    if (!session) {
-      const loginUrl = new URL('/login', request.url);
-      return NextResponse.redirect(loginUrl);
-    }
-
-    // Inject tenant headers for Catalyst routes
-    const response = NextResponse.next();
-    const activeTenant = session.activeTenant ?? 'catalyst';
-    response.headers.set('x-tenant-id', activeTenant);
-    response.headers.set('x-admin-id', session.adminId);
-    response.headers.set('x-admin-role', session.role);
-    return response;
+  // ── All other protected (Catalyst) pages ────────────────────────────────
+  if (!token) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('next', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  const session = await getSessionPayload(token);
+  if (!session) {
+    const loginUrl = new URL('/login', request.url);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Reverse isolation: an active Ripple Nexus session (non-super-admin) does
+  // not belong in the Catalyst workspace — send it to the RN dashboard.
+  const activeTenant = session.activeTenant ?? 'catalyst';
+  if (session.role !== 'SUPER_ADMIN' && activeTenant === 'ripple_nexus') {
+    return NextResponse.redirect(new URL('/rn/dashboard', request.url));
+  }
+
+  const response = NextResponse.next();
+  response.headers.set('x-tenant-id', activeTenant);
+  response.headers.set('x-admin-id', session.adminId);
+  response.headers.set('x-admin-role', session.role);
+  return response;
 }
 
 // ─── Matcher: which paths this middleware runs on ──────────────────────────

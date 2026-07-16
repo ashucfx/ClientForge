@@ -1,17 +1,12 @@
-import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { prisma } from '@/lib/db';
-import { isRnModuleEnabled } from '@/lib/brand/flags';
 import { RippleNexusShell } from '@/components/shells/RippleNexusShell';
-import { IconUser, IconLink } from '@/components/Icons';
+import { IconLink } from '@/components/Icons';
 import { format } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
 
 export default async function RnClientsPage() {
-  if (!isRnModuleEnabled()) {
-    redirect('/');
-  }
-
   const clients = await prisma.rnClient.findMany({
     orderBy: { createdAt: 'desc' },
     include: { ConversationReadState: true }
@@ -46,7 +41,7 @@ export default async function RnClientsPage() {
               <tbody>
                 {clients.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '64px 0' }}>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '64px 0' }}>
                       <div style={{ fontSize: 40, marginBottom: 12 }}>🏢</div>
                       <div style={{ fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>No agency clients yet</div>
                       <p style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>Clients will appear here automatically when a Ripple Nexus invoice is paid.</p>
@@ -55,7 +50,7 @@ export default async function RnClientsPage() {
                 ) : clients.map(client => (
                   <tr key={client.id}>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Link href={`/rn/projects/${client.id}`} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
                         <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f3f0ff', color: '#7C5CFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
                           {client.name.charAt(0).toUpperCase()}
                         </div>
@@ -67,7 +62,7 @@ export default async function RnClientsPage() {
                             </span>
                           ) : null}
                         </div>
-                      </div>
+                      </Link>
                     </td>
                     <td style={{ color: 'var(--text-secondary)' }}>{client.companyName || '—'}</td>
                     <td>

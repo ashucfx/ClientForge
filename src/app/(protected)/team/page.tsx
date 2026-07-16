@@ -8,10 +8,16 @@ type AdminUser = {
   id: string;
   email: string;
   role: 'SUPER_ADMIN' | 'EDITOR' | 'VIEWER';
+  brandAccess: string[];
   isActive: boolean;
   lastLoginAt: string | null;
   createdAt: string;
 };
+
+const PORTALS: { id: string; label: string; color: string }[] = [
+  { id: 'catalyst',     label: 'Catalyst',     color: 'var(--brand)' },
+  { id: 'ripple_nexus', label: 'Ripple Nexus', color: '#7C5CFF' },
+];
 
 export default function TeamPage() {
   const [admins, setAdmins] = useState<AdminUser[]>([]);
@@ -23,6 +29,7 @@ export default function TeamPage() {
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<'SUPER_ADMIN' | 'EDITOR' | 'VIEWER'>('EDITOR');
+  const [newBrandAccess, setNewBrandAccess] = useState<string[]>(['catalyst']);
   const [inviting, setInviting] = useState(false);
 
   const fetchAdmins = useCallback(async () => {
@@ -46,20 +53,25 @@ export default function TeamPage() {
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (newBrandAccess.length === 0) {
+      alert('Select at least one portal for this admin.');
+      return;
+    }
     setInviting(true);
     try {
       const res = await fetch('/api/admins', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newEmail, password: newPassword, role: newRole }),
+        body: JSON.stringify({ email: newEmail, password: newPassword, role: newRole, brandAccess: newBrandAccess }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to invite user');
-      
+
       setShowInvite(false);
       setNewEmail('');
       setNewPassword('');
       setNewRole('EDITOR');
+      setNewBrandAccess(['catalyst']);
       fetchAdmins();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error inviting user');
@@ -67,7 +79,7 @@ export default function TeamPage() {
     setInviting(false);
   };
 
-  const handleUpdate = async (id: string, updates: { role?: string; isActive?: boolean }) => {
+  const handleUpdate = async (id: string, updates: { role?: string; isActive?: boolean; brandAccess?: string[] }) => {
     try {
       const res = await fetch(`/api/admins/${id}`, {
         method: 'PATCH',
@@ -131,6 +143,7 @@ export default function TeamPage() {
                 <tr>
                   <th>Email</th>
                   <th>Role</th>
+                  <th>Portal Access</th>
                   <th>Status</th>
                   <th>Last Login</th>
                   <th>Actions</th>
@@ -139,7 +152,7 @@ export default function TeamPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>Loading...</td>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '40px' }}>Loading...</td>
                   </tr>
                 ) : (
                   admins.map((admin) => (
@@ -156,6 +169,35 @@ export default function TeamPage() {
                           <option value="EDITOR">Editor</option>
                           <option value="VIEWER">Viewer</option>
                         </select>
+                      </td>
+                      <td>
+                        {admin.role === 'SUPER_ADMIN' ? (
+                          <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>All portals</span>
+                        ) : (
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                            {PORTALS.map(portal => {
+                              const access = admin.brandAccess ?? [];
+                              const checked = access.includes(portal.id);
+                              return (
+                                <label key={portal.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, cursor: 'pointer', color: checked ? portal.color : 'var(--text-tertiary)', fontWeight: checked ? 700 : 500 }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => {
+                                      const next = checked ? access.filter(b => b !== portal.id) : [...access, portal.id];
+                                      if (next.length === 0) {
+                                        alert('An admin must keep access to at least one portal.');
+                                        return;
+                                      }
+                                      handleUpdate(admin.id, { brandAccess: next });
+                                    }}
+                                  />
+                                  {portal.label}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
                       </td>
                       <td>
                         <button 
@@ -212,6 +254,30 @@ export default function TeamPage() {
                     <option value="VIEWER">Viewer (Read-only access)</option>
                   </select>
                 </div>
+                {newRole !== 'SUPER_ADMIN' && (
+                  <div className="field">
+                    <label style={{ fontSize: 12, fontWeight: 700 }}>Portal Access</label>
+                    <div style={{ display: 'flex', gap: 16, marginTop: 6 }}>
+                      {PORTALS.map(portal => {
+                        const checked = newBrandAccess.includes(portal.id);
+                        return (
+                          <label key={portal.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', color: checked ? portal.color : 'var(--text-secondary)', fontWeight: checked ? 700 : 500 }}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                setNewBrandAccess(prev =>
+                                  checked ? prev.filter(b => b !== portal.id) : [...prev, portal.id]
+                                )
+                              }
+                            />
+                            {portal.label}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-ghost" onClick={() => setShowInvite(false)}>Cancel</button>

@@ -31,14 +31,14 @@ export default async function ProjectMilestonesPage({ params }: { params: { id: 
 
   return (
     <RippleNexusShell>
-      <main className="page-body" style={{ padding: '40px 48px' }}>
+      <main className="rn-page">
         <div style={{ marginBottom: 32 }}>
           <div style={{ display: 'flex', gap: 8, fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
             <Link href="/rn/projects" style={{ color: 'var(--brand)', textDecoration: 'none' }}>Projects</Link>
             <span>/</span>
             <Link href={`/rn/projects/${client.id}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{client.companyName || client.name}</Link>
             <span>/</span>
-            <span style={{ color: '#fff' }}>Milestones & Sprints</span>
+            <span style={{ color: 'var(--text-primary)' }}>Milestones & Sprints</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>

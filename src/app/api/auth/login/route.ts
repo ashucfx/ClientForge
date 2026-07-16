@@ -39,13 +39,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    // Verify brand access strictly
+    // Resolve the portal for this account. If the requested brand isn't
+    // accessible but the account belongs to exactly one portal, sign them
+    // into that portal instead of dead-ending on a 403 (the login form's
+    // brand toggle defaults to Catalyst, which RN-only admins would trip on).
     const isSuperAdmin = adminUser.role === 'SUPER_ADMIN';
+    let effectiveBrand = brand;
     if (!isSuperAdmin && !adminUser.brandAccess.includes(brand)) {
-      return NextResponse.json(
-        { error: `Account does not have access to the ${brand === 'catalyst' ? 'Catalyst' : 'Ripple Nexus'} portal.` },
-        { status: 403 }
-      );
+      if (adminUser.brandAccess.length === 1) {
+        effectiveBrand = adminUser.brandAccess[0];
+      } else {
+        return NextResponse.json(
+          { error: `Account does not have access to the ${brand === 'catalyst' ? 'Catalyst' : 'Ripple Nexus'} portal.` },
+          { status: 403 }
+        );
+      }
     }
 
     // Update last login
@@ -59,13 +67,19 @@ export async function POST(request: NextRequest) {
       email: adminUser.email,
       role: adminUser.role,
       brandAccess: adminUser.brandAccess,
-      activeTenant: brand, // 🔐 Cryptographically embedded — cannot be tampered via XSS
+      activeTenant: effectiveBrand, // 🔐 Cryptographically embedded — cannot be tampered via XSS
     });
-    
+
     // Determine post-login redirect based on tenant
-    const redirectTo = brand === 'ripple_nexus' ? '/rn/dashboard' : '/';
-    
-    const res = NextResponse.json({ ok: true, role: adminUser.role, brandAccess: adminUser.brandAccess, redirectTo });
+    const redirectTo = effectiveBrand === 'ripple_nexus' ? '/rn/dashboard' : '/';
+
+    const res = NextResponse.json({
+      ok: true,
+      role: adminUser.role,
+      brandAccess: adminUser.brandAccess,
+      brand: effectiveBrand,
+      redirectTo,
+    });
 
 
     res.cookies.set({
@@ -81,7 +95,7 @@ export async function POST(request: NextRequest) {
     // Set the active brand cookie — now httpOnly so XSS cannot forge tenant context
     res.cookies.set({
       name:     'cf_active_brand',
-      value:    brand,
+      value:    effectiveBrand,
       httpOnly: true, // 🔐 Fixed: was false — XSS could tamper brand context
       sameSite: 'lax',
       path:     '/',

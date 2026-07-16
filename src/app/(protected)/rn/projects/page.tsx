@@ -40,8 +40,8 @@ export default async function RnProjectsPage() {
 
   return (
     <RippleNexusShell>
-      <main className="page-body" style={{ padding: '40px 48px' }}>
-        <header style={{ marginBottom: 40, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <main className="rn-page">
+        <header style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <div>
             <h1 className="rn-title-xl">Active Projects</h1>
             <p className="rn-subtitle" style={{ marginTop: 8 }}>Manage client workspaces and deliverables.</p>
@@ -56,48 +56,57 @@ export default async function RnProjectsPage() {
         </header>
 
         <div className="rn-panel" style={{ padding: 0 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--obsidian)' }}>
-                <th style={{ padding: '16px 24px', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em' }}>CLIENT & PROJECT</th>
-                <th style={{ padding: '16px 24px', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em' }}>PHASE</th>
-                <th style={{ padding: '16px 24px', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em' }}>PROGRESS</th>
-                <th style={{ padding: '16px 24px', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em' }}>LAST UPDATED</th>
-                <th style={{ padding: '16px 24px', textAlign: 'right' }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {projects.map((p) => (
-                <tr key={p.id} style={{ borderBottom: '1px solid var(--border)', transition: 'all 0.2s' }} className="table-row-hover">
-                  <td style={{ padding: '24px' }}>
-                    <div style={{ fontWeight: 600, color: '#fff', fontSize: 15, marginBottom: 4 }}>{p.name}</div>
-                    <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{p.client}</div>
-                  </td>
-                  <td style={{ padding: '24px' }}>
-                    <span className={`rn-badge ${p.status === 'on-track' ? 'success' : 'error'}`}>{p.phase}</span>
-                  </td>
-                  <td style={{ padding: '24px', width: 250 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ flex: 1, height: 6, background: 'var(--obsidian)', borderRadius: 3, overflow: 'hidden' }}>
-                        <div style={{ width: `${p.progress}%`, height: '100%', background: p.status === 'on-track' ? 'var(--brand)' : 'var(--error)', borderRadius: 3 }} />
-                      </div>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', width: 32 }}>{p.progress}%</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '24px', fontSize: 13, color: 'var(--text-tertiary)' }}>
-                    {p.lastUpdated}
-                  </td>
-                  <td style={{ padding: '24px', textAlign: 'right' }}>
-                    <Link href={`/rn/projects/${p.id}`}>
-                      <button className="btn-secondary" style={{ padding: '8px 16px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                        Open Workspace
-                      </button>
-                    </Link>
-                  </td>
+          <div className="table-scroll-wrapper">
+            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <th>Client & Project</th>
+                  <th>Phase</th>
+                  <th>Progress</th>
+                  <th>Last Updated</th>
+                  <th style={{ textAlign: 'right' }}></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {projects.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: '56px 16px', color: 'var(--text-tertiary)', fontSize: 13 }}>
+                      No projects yet. <Link href="/rn/projects/new" style={{ color: 'var(--brand)', fontWeight: 600 }}>Create the first one →</Link>
+                    </td>
+                  </tr>
+                )}
+                {projects.map((p) => (
+                  <tr key={p.id} style={{ borderBottom: '1px solid var(--border)', transition: 'all 0.2s' }} className="table-row-hover">
+                    <td>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 15, marginBottom: 4 }}>{p.name}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{p.client}</div>
+                    </td>
+                    <td>
+                      <span className={`rn-badge ${p.status === 'on-track' ? 'success' : 'warning'}`}>{p.phase}</span>
+                    </td>
+                    <td style={{ width: 250 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 140 }}>
+                        <div style={{ flex: 1, height: 6, background: 'var(--surface-3)', borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ width: `${p.progress}%`, height: '100%', background: p.status === 'on-track' ? 'var(--brand)' : 'var(--warning)', borderRadius: 3 }} />
+                        </div>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', width: 36 }}>{p.progress}%</span>
+                      </div>
+                    </td>
+                    <td style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
+                      {p.lastUpdated}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <Link href={`/rn/projects/${p.id}`}>
+                        <button className="btn-secondary" style={{ padding: '8px 16px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                          Open Workspace
+                        </button>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
       <style dangerouslySetInnerHTML={{__html: `

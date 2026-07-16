@@ -58,7 +58,7 @@ export async function GET(request: Request) {
           ],
         },
         take: 5,
-        select: { id: true, invoiceNumber: true, clientName: true, status: true },
+        select: { id: true, invoiceNumber: true, clientName: true, status: true, brandId: true },
       }),
     ]);
 
@@ -81,7 +81,8 @@ export async function GET(request: Request) {
         type: 'Invoice',
         title: i.invoiceNumber,
         subtitle: i.clientName,
-        url: `/invoices/${i.id}`,
+        // Route each invoice to the UI of the tenant that owns it
+        url: i.brandId === 'ripple_nexus' ? `/rn/invoices/${i.id}` : `/invoices/${i.id}`,
         badge: i.status,
       })),
     ];

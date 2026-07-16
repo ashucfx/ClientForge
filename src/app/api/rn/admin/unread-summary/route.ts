@@ -5,15 +5,8 @@
 export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
-import { getAdminSession } from '@/lib/auth';
+import { requireRnAdmin } from '@/lib/auth/rnAdmin';
 import { prisma as db } from '@/lib/db';
-
-async function requireRnAdmin() {
-  const session = await getAdminSession();
-  if (!session) return null;
-  if (session.role !== 'SUPER_ADMIN' && !session.brandAccess.includes('ripple_nexus')) return null;
-  return session;
-}
 
 export async function GET() {
   const session = await requireRnAdmin();

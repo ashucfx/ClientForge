@@ -1,29 +1,22 @@
 // src/lib/db/tenantDb.ts
 
 import { prisma } from '@/lib/db';
-import { Prisma } from '@prisma/client';
 
 /**
- * Returns a Prisma Client extension that automatically scopes all queries
- * and mutations to the specified tenant brandId.
- * 
+ * Returns a Prisma Client extension that automatically scopes queries and
+ * mutations to the specified tenant brandId.
+ *
  * If tenantId === 'SUPER_ADMIN', it bypasses the scoping (useful for global metrics).
+ *
+ * Models WITHOUT a brandId column (e.g. the Rn* tables, which are inherently
+ * Ripple-Nexus-only) pass through unmodified.
  */
 export function getTenantDb(tenantId: string) {
   if (tenantId === 'SUPER_ADMIN') {
     return prisma;
   }
 
-  // Define models that are tenant-scoped (e.g. have a brandId column)
-  // We apply this extension to all models. If a model doesn't have brandId,
-  // we might need to handle it differently, but for now we enforce it globally.
-  // Wait, if a model doesn't have brandId, Prisma will throw a type/runtime error.
-  // To be perfectly safe, we only extend specific models, or we ensure all models have brandId.
-  // For ClientForge, Invoice definitely has it. Let's extend $allModels and assume we add brandId to everything,
-  // OR we can specifically extend the models we know are scoped.
-  
-  // Whitelist of models that have a `brandId` column.
-  // Models not in this list will be queried normally without brandId injection.
+  // Whitelist of models that have a `brandId` column shared across tenants.
   const TENANT_SCOPED_MODELS = ['Invoice'];
 
   return prisma.$extends({
@@ -36,6 +29,12 @@ export function getTenantDb(tenantId: string) {
           return query(args);
         },
         async findFirst({ model, args, query }) {
+          if (TENANT_SCOPED_MODELS.includes(model)) {
+            args.where = { ...args.where, brandId: tenantId };
+          }
+          return query(args);
+        },
+        async findFirstOrThrow({ model, args, query }) {
           if (TENANT_SCOPED_MODELS.includes(model)) {
             args.where = { ...args.where, brandId: tenantId };
           }
@@ -61,7 +60,10 @@ export function getTenantDb(tenantId: string) {
           }
           return query(args);
         },
-        async update({ model, args, query }) {
+        async aggregate({ model, args, query }) {
+          if (TENANT_SCOPED_MODELS.includes(model)) {
+            args.where = { ...(args as any).where, brandId: tenantId };
+          }
           return query(args);
         },
         async create({ model, args, query }) {
@@ -69,8 +71,41 @@ export function getTenantDb(tenantId: string) {
             args.data = { ...(args.data as any), brandId: tenantId };
           }
           return query(args);
-        }
-      }
-    }
+        },
+        async update({ model, args, query }) {
+          if (TENANT_SCOPED_MODELS.includes(model)) {
+            // `update` takes a unique where — verify ownership before mutating.
+            const existing = await (prisma as any)[model.charAt(0).toLowerCase() + model.slice(1)]
+              .findUnique({ where: args.where, select: { brandId: true } });
+            if (!existing || existing.brandId !== tenantId) {
+              throw new Error(`NotFoundError: No ${model} found for tenant`);
+            }
+          }
+          return query(args);
+        },
+        async updateMany({ model, args, query }) {
+          if (TENANT_SCOPED_MODELS.includes(model)) {
+            args.where = { ...args.where, brandId: tenantId };
+          }
+          return query(args);
+        },
+        async delete({ model, args, query }) {
+          if (TENANT_SCOPED_MODELS.includes(model)) {
+            const existing = await (prisma as any)[model.charAt(0).toLowerCase() + model.slice(1)]
+              .findUnique({ where: args.where, select: { brandId: true } });
+            if (!existing || existing.brandId !== tenantId) {
+              throw new Error(`NotFoundError: No ${model} found for tenant`);
+            }
+          }
+          return query(args);
+        },
+        async deleteMany({ model, args, query }) {
+          if (TENANT_SCOPED_MODELS.includes(model)) {
+            args.where = { ...args.where, brandId: tenantId };
+          }
+          return query(args);
+        },
+      },
+    },
   });
 }

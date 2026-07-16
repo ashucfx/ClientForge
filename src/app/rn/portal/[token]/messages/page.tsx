@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { markConversationReadByClient } from '@/lib/communications';
 import { IconMail } from '@/components/Icons';
+import { PortalMessageComposer } from '@/components/rn/PortalMessageComposer';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,18 +52,7 @@ export default async function RnMessagesPage({ params }: { params: { token: stri
         )}
       </div>
 
-      <div style={{ padding: 16, borderTop: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.2)' }}>
-        <form style={{ display: 'flex', gap: 12 }}>
-          <input 
-            type="text" 
-            placeholder="Type your message..." 
-            style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '12px 16px', borderRadius: 8, outline: 'none' }} 
-          />
-          <button type="button" style={{ background: '#7C5CFF', color: '#fff', border: 'none', padding: '0 24px', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
-            Send
-          </button>
-        </form>
-      </div>
+      <PortalMessageComposer />
     </div>
   );
 }

@@ -1,13 +1,21 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Logo } from '@/components/Logo';
 
+const LAST_BRAND_KEY = 'cf_last_brand';
+
+/** Only allow same-origin relative paths as post-login destinations. */
+function safeNextPath(raw: string | null): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith('/') || raw.startsWith('//') || raw.includes('://')) return null;
+  return raw;
+}
+
 export default function LoginClient() {
-  const router = useRouter();
   const sp = useSearchParams();
-  const nextUrl = useMemo(() => sp.get('next') || '/', [sp]);
+  const nextUrl = useMemo(() => safeNextPath(sp.get('next')), [sp]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,6 +23,17 @@ export default function LoginClient() {
   const [error, setError] = useState<string | null>(null);
   const [brand, setBrand] = useState<'catalyst' | 'ripple_nexus'>('catalyst');
 
+  // Preselect the portal: an /rn deep link wins, otherwise the last-used portal.
+  useEffect(() => {
+    if (nextUrl?.startsWith('/rn')) {
+      setBrand('ripple_nexus');
+      return;
+    }
+    try {
+      const last = localStorage.getItem(LAST_BRAND_KEY);
+      if (last === 'ripple_nexus' || last === 'catalyst') setBrand(last);
+    } catch { /* ignore */ }
+  }, [nextUrl]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,8 +48,15 @@ export default function LoginClient() {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? 'Login failed');
-      // Use tenant-aware redirect from API response, fall back to nextUrl
-      const destination = data.redirectTo ?? nextUrl;
+
+      const effectiveBrand: string = data.brand ?? brand;
+      try { localStorage.setItem(LAST_BRAND_KEY, effectiveBrand); } catch { /* ignore */ }
+
+      // Honor a deep link only if it belongs to the portal we signed into;
+      // otherwise use the tenant-aware home from the API.
+      const nextMatchesBrand =
+        nextUrl && (effectiveBrand === 'ripple_nexus' ? nextUrl.startsWith('/rn') : !nextUrl.startsWith('/rn'));
+      const destination = (nextMatchesBrand && nextUrl) || data.redirectTo || '/';
       window.location.href = destination;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');

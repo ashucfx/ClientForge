@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getAdminSession } from '@/lib/auth';
+import { requireRnAdmin } from '@/lib/auth/rnAdmin';
 import { getTenantDb } from '@/lib/db/tenantDb';
 import { logAudit } from '@/lib/audit/logger';
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getAdminSession();
-    if (!session || (session.role !== 'SUPER_ADMIN' && !session.brandAccess.includes('ripple_nexus'))) {
+    const session = await requireRnAdmin();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 

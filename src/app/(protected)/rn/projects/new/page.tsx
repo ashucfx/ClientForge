@@ -53,7 +53,7 @@ export default function RnNewProjectPage() {
 
   return (
     <RippleNexusShell>
-      <main className="page-body" style={{ padding: '40px 48px', maxWidth: 800, margin: '0 auto' }}>
+      <main className="rn-page" style={{ maxWidth: 800, margin: '0 auto' }}>
         
         <div style={{ marginBottom: 32 }}>
           <div style={{ display: 'flex', gap: 8, fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
@@ -67,7 +67,7 @@ export default function RnNewProjectPage() {
 
         <form onSubmit={handleSubmit} className="rn-panel" style={{ padding: 32 }}>
           
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: '#fff', marginBottom: 24 }}>Client Details</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 24 }}>Client Details</h2>
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
             <div>
@@ -97,13 +97,13 @@ export default function RnNewProjectPage() {
             />
           </div>
 
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: '#fff', marginBottom: 24 }}>Project Configuration</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 24 }}>Project Configuration</h2>
           
           <div style={{ marginBottom: 24 }}>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 8 }}>Service Blueprint (Workflow) *</label>
             <select 
               required 
-              className="input" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, appearance: 'none', background: 'var(--obsidian-soft)' }}
+              className="input" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, appearance: 'none', background: 'var(--surface-2)' }}
               value={formData.serviceModuleId} onChange={e => setFormData({...formData, serviceModuleId: e.target.value})}
             >
               <option value="">Select a blueprint...</option>

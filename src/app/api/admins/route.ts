@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         id: true,
         email: true,
         role: true,
+        brandAccess: true,
         isActive: true,
         lastLoginAt: true,
         createdAt: true,
@@ -53,10 +54,19 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { email, password, role } = body;
+    const { email, password, role, brandAccess } = body;
 
     if (!email || !password || !role) {
       return NextResponse.json({ error: 'Email, password, and role are required' }, { status: 400 });
+    }
+
+    // Portal access: explicit selection, validated against known brands.
+    const VALID_BRANDS = ['catalyst', 'ripple_nexus'];
+    let access: string[] = Array.isArray(brandAccess)
+      ? brandAccess.filter((b: unknown): b is string => typeof b === 'string' && VALID_BRANDS.includes(b))
+      : VALID_BRANDS;
+    if (access.length === 0) {
+      return NextResponse.json({ error: 'Select at least one portal for this admin' }, { status: 400 });
     }
 
     const existing = await prisma.adminUser.findUnique({
@@ -72,12 +82,14 @@ export async function POST(request: NextRequest) {
         email: email.toLowerCase(),
         passwordHash: await hashPassword(password),
         role,
+        brandAccess: access,
         isActive: true,
       },
       select: {
         id: true,
         email: true,
         role: true,
+        brandAccess: true,
         isActive: true,
         createdAt: true,
       },

@@ -3,22 +3,23 @@
 // Dedicated shell for Ripple Nexus B2B operations
 // NO conditionals, NO Catalyst contamination.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { IconGrid, IconPlus, IconList, IconLogout, IconTarget, IconUser, IconLink, IconBuilding, IconHome, IconFolder, IconInbox } from '@/components/Icons';
+import { IconGrid, IconList, IconLogout, IconTarget, IconUser, IconHome, IconFolder, IconInbox } from '@/components/Icons';
 import { Logo } from '@/components/Logo';
+import { useAdmin } from '@/components/AdminProvider';
 import '@/app/(protected)/rn/rn.css';
 
 const RN_NAV = [
   { href: '/rn/dashboard',    Icon: IconHome,     label: 'Overview',            section: 'Workspace' },
   { href: '/rn/projects',     Icon: IconFolder,   label: 'Projects',            section: 'Workspace' },
   { href: '/rn/inbox',        Icon: IconInbox,    label: 'Inbox',               section: 'Workspace' },
-  
+
   { href: '/rn/clients',      Icon: IconUser,     label: 'Clients',             section: 'Operations' },
   { href: '/rn/services',     Icon: IconTarget,   label: 'Service Workflows',   section: 'Operations' },
   { href: '/rn/deliverables', Icon: IconGrid,     label: 'Global Deliverables', section: 'Operations' },
-  
+
   { href: '/rn/invoices',     Icon: IconList,     label: 'Billing',             section: 'Operations' },
 ];
 
@@ -28,10 +29,53 @@ function isNavActive(href: string, pathname: string) {
   return pathname.startsWith(href);
 }
 
+function UnreadBadge({ count }: { count: number }) {
+  if (!count) return null;
+  return (
+    <span
+      style={{
+        marginLeft: 'auto', minWidth: 18, height: 18, padding: '0 5px',
+        background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 700,
+        borderRadius: 999, display: 'inline-flex', alignItems: 'center',
+        justifyContent: 'center', flexShrink: 0,
+      }}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
+/** Polls the RN unread summary so the Inbox item carries a live badge. */
+function useRnUnread() {
+  const [unread, setUnread] = useState(0);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const poll = useCallback(async () => {
+    try {
+      const res = await fetch('/api/rn/admin/unread-summary', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        setUnread(Number(data?.totalUnread) || 0);
+      }
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => {
+    poll();
+    pollRef.current = setInterval(poll, 60_000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [poll]);
+
+  return unread;
+}
+
 export function RippleNexusShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const pathname = usePathname();
   const router   = useRouter();
+  const { hasCatalystAccess } = useAdmin();
+  const unread = useRnUnread();
 
   // Close drawer on route change
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -44,7 +88,25 @@ export function RippleNexusShell({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async () => {
     try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
-    router.replace('/login');
+    window.location.href = '/login';
+  };
+
+  const handleSwitchToCatalyst = async () => {
+    if (switching) return;
+    setSwitching(true);
+    try {
+      const res = await fetch('/api/auth/switch-tenant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand: 'catalyst' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.redirectTo) {
+        window.location.href = data.redirectTo;
+        return;
+      }
+    } catch { /* ignore */ }
+    setSwitching(false);
   };
 
   const SidebarContent = () => (
@@ -68,6 +130,7 @@ export function RippleNexusShell({ children }: { children: React.ReactNode }) {
           >
             <span className="nav-icon"><Icon size={16} /></span>
             {label}
+            {href === '/rn/inbox' && <UnreadBadge count={unread} />}
           </Link>
         ))}
 
@@ -87,7 +150,20 @@ export function RippleNexusShell({ children }: { children: React.ReactNode }) {
 
       {/* Footer */}
       <div className="sidebar-footer">
-        <button className="nav-item" onClick={handleLogout} style={{ marginBottom: 6 }}>
+        {hasCatalystAccess && (
+          <button className="nav-item" onClick={handleSwitchToCatalyst} disabled={switching} style={{ marginBottom: 2, width: '100%' }}>
+            <span className="nav-icon" style={{ display: 'inline-flex' }}>
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" aria-hidden>
+                <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 3L4 7l4 4" /><path d="M4 7h16" />
+                  <path d="M16 21l4-4-4-4" /><path d="M20 17H4" />
+                </g>
+              </svg>
+            </span>
+            {switching ? 'Switching…' : 'Switch to Catalyst'}
+          </button>
+        )}
+        <button className="nav-item" onClick={handleLogout} style={{ marginBottom: 6, width: '100%' }}>
           <span className="nav-icon" style={{ display: 'inline-flex' }}>
             <IconLogout size={16} />
           </span>
@@ -99,10 +175,10 @@ export function RippleNexusShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div 
+    <div
       data-tenant="ripple_nexus"
-      style={{ 
-        minHeight: '100vh', 
+      style={{
+        minHeight: '100vh',
       } as React.CSSProperties}
     >
       {/* ── Overlay (mobile) ── */}

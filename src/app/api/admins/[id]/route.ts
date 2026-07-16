@@ -28,11 +28,19 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   try {
     const { id } = params;
     const body = await request.json();
-    const { role, isActive } = body;
+    const { role, isActive, brandAccess } = body;
 
     const data: Record<string, any> = {};
     if (role) data.role = role;
     if (typeof isActive === 'boolean') data.isActive = isActive;
+    if (Array.isArray(brandAccess)) {
+      const VALID_BRANDS = ['catalyst', 'ripple_nexus'];
+      const access = brandAccess.filter((b: unknown): b is string => typeof b === 'string' && VALID_BRANDS.includes(b));
+      if (access.length === 0) {
+        return NextResponse.json({ error: 'Admin must keep access to at least one portal' }, { status: 400 });
+      }
+      data.brandAccess = access;
+    }
 
     // Prevent deactivating or changing role of the last SUPER_ADMIN
     if (role !== 'SUPER_ADMIN' || isActive === false) {
@@ -52,6 +60,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         id: true,
         email: true,
         role: true,
+        brandAccess: true,
         isActive: true,
       },
     });
