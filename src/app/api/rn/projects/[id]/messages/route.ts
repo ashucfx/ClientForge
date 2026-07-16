@@ -51,7 +51,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   const client = await db.rnClient.findUnique({
     where: { id: params.id },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, magicToken: true },
   });
   if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
 
@@ -82,30 +82,18 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ message }, { status: 201 });
   }
 
-  // Fire-and-forget: email client + log activity
+  // Fire-and-forget: email client over RN SMTP + log activity
   waitUntil((async () => {
     try {
-      const { Resend } = await import('resend');
-      const { getBrand } = await import('@/lib/brand/registry');
-      const resend = new Resend(process.env.RESEND_API_KEY!);
-      const brand = getBrand('ripple_nexus');
-      const portalUrl = `${PORTAL_URL}/rn/portal/dashboard`;
-
-      await resend.emails.send({
-        from: `${brand.name} <${brand.fromEmail}>`,
-        reply_to: brand.replyTo,
+      const { sendRnEmail, tplNewMessage, portalUrlFor } = await import('@/lib/rn/mailer');
+      const { subject, html } = tplNewMessage(client.name, portalUrlFor(client.magicToken));
+      await sendRnEmail({
+        clientId: client.id,
         to: client.email,
-        subject: `New message from the ${brand.name} team`,
-        html: `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto">
-          <h2>Hi ${client.name},</h2>
-          <p>You have a new message from the ${brand.name} team on your project portal.</p>
-          <div style="margin:24px 0">
-            <a href="${portalUrl}" style="background:${brand.primaryColor};color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold">
-              View Message
-            </a>
-          </div>
-          <p style="color:#666;font-size:13px">Log in to reply and stay up to date with your project.</p>
-        </div>`,
+        subject,
+        html,
+        trigger: 'admin_message',
+        sentBy: session.adminId,
       });
     } catch (err) {
       console.error('[RN messages POST] Client email failed:', err);

@@ -42,6 +42,22 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       }
     });
 
+    // Automatic flow: deliverable-ready email over SMTP
+    try {
+      const { sendRnEmail, tplDeliverableUploaded, portalUrlFor } = await import('@/lib/rn/mailer');
+      const full = await tenantDb.rnClient.findUnique({ where: { id: params.id } });
+      if (full) {
+        const { subject, html } = tplDeliverableUploaded(full.name, label, portalUrlFor(full.magicToken));
+        await sendRnEmail({
+          clientId: full.id, to: full.email, subject, html,
+          trigger: 'deliverable_uploaded', sentBy: session.adminId,
+          metadata: { deliverableId: deliverable.id },
+        });
+      }
+    } catch (e) {
+      console.error('[rn deliverables] email flow failed:', e);
+    }
+
     await logAudit(
       { tenantId: 'ripple_nexus', adminId: session.adminId, role: session.role, brandAccess: session.brandAccess },
       'DELIVERABLE_UPLOADED',

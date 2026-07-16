@@ -115,6 +115,8 @@ export default async function RnProjectCockpitPage({ params }: { params: { id: s
                 amountPaid={client.amountPaid}
                 notes={client.notes}
                 companyName={client.companyName}
+                clientName={client.name}
+                email={client.email}
               />
               <AdvanceStageButton
                 projectId={project.id}

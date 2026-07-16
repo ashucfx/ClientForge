@@ -19,7 +19,7 @@ export default async function RnReportsPage() {
 
   const twelveMonthsAgo = startOfMonth(subMonths(new Date(), 11));
 
-  const [paidInvoices, clients, deliverables, reviews] = await Promise.all([
+  const [paidInvoices, clients, deliverables, reviews, paidMilestones] = await Promise.all([
     prisma.invoice.findMany({
       where: { brandId: 'ripple_nexus', status: { in: ['PAID', 'PARTIALLY_PAID'] }, createdAt: { gte: twelveMonthsAgo } },
       select: { totalPayable: true, currency: true, createdAt: true, paidAt: true, status: true },
@@ -35,7 +35,17 @@ export default async function RnReportsPage() {
       where: { rnClientId: { not: null } },
       select: { rating: true, npsScore: true },
     }),
+    prisma.rnProjectMilestone.findMany({
+      where: { paymentStatus: 'PAID' },
+      select: { amount: true, currency: true, paidAt: true, title: true },
+    }),
   ]);
+
+  /* ── Revenue by source: invoices vs milestone payments ── */
+  const milestoneRevenue = new Map<string, number>();
+  for (const m of paidMilestones) {
+    milestoneRevenue.set(m.currency, (milestoneRevenue.get(m.currency) ?? 0) + m.amount);
+  }
 
   /* ── Revenue by month (per currency) ── */
   const monthKeys: string[] = [];
@@ -189,6 +199,32 @@ export default async function RnReportsPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Revenue by source */}
+        <div className="rn-panel" style={{ marginBottom: 24 }}>
+          <div className="rn-panel-header">
+            <h2 className="rn-panel-title">Revenue by Source</h2>
+          </div>
+          <div className="rn-panel-body" style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
+            <div>
+              <div className="rn-eyebrow" style={{ fontSize: 11, marginBottom: 8 }}>Invoiced (12 mo)</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
+                {Array.from(currencyTotals.entries()).map(([c, a]) => money(a, c)).join(' + ') || '—'}
+              </div>
+            </div>
+            <div>
+              <div className="rn-eyebrow" style={{ fontSize: 11, marginBottom: 8 }}>Milestone Payments (all time)</div>
+              <div style={{ fontSize: 20, fontWeight: 800 }} className="rn-proof">
+                {milestoneRevenue.size > 0
+                  ? Array.from(milestoneRevenue.entries()).map(([c, a]) => money(a, c)).join(' + ')
+                  : '—'}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>
+                {paidMilestones.length} paid milestone{paidMilestones.length === 1 ? '' : 's'}
+              </div>
             </div>
           </div>
         </div>

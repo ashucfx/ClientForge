@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { IconGrid, IconList, IconLogout, IconTarget, IconUser, IconHome, IconFolder, IconInbox, IconTrendUp } from '@/components/Icons';
+import { IconGrid, IconList, IconLogout, IconTarget, IconUser, IconHome, IconFolder, IconInbox, IconTrendUp, IconMail } from '@/components/Icons';
 import { Logo } from '@/components/Logo';
 import { useAdmin } from '@/components/AdminProvider';
 import NotificationBell from '@/components/NotificationBell';
@@ -22,6 +22,7 @@ const RN_NAV = [
   { href: '/rn/deliverables', Icon: IconGrid,     label: 'Global Deliverables', section: 'Operations' },
 
   { href: '/rn/invoices',     Icon: IconList,     label: 'Billing',             section: 'Operations' },
+  { href: '/rn/emails',       Icon: IconMail,     label: 'Email Center',        section: 'Operations' },
   { href: '/rn/reports',      Icon: IconTrendUp,  label: 'Reports',             section: 'Operations' },
 ];
 
@@ -116,7 +117,7 @@ export function RippleNexusShell({ children }: { children: React.ReactNode }) {
       {/* Brand logo */}
       <div className="sidebar-logo">
         <Link href="/rn/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }} aria-label="Ripple Nexus">
-          <Logo variant="horizontal" size={30} brandId="ripple_nexus" dark={true} />
+          <Logo variant="horizontal" size={40} brandId="ripple_nexus" dark={true} />
         </Link>
       </div>
 
@@ -218,7 +219,7 @@ export function RippleNexusShell({ children }: { children: React.ReactNode }) {
 
         {/* Centered logo */}
         <div className="topbar-logo">
-          <Logo variant="icon" size={28} brandId="ripple_nexus" dark={true} />
+          <Logo variant="horizontal" size={30} brandId="ripple_nexus" dark={true} />
         </div>
 
         <div style={{ width: 44 }} />

@@ -44,6 +44,24 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     data.companyName = body.companyName.slice(0, 200) || null;
     changes.push('company');
   }
+  if (typeof body.clientName === 'string' && body.clientName.trim()) {
+    data.name = body.clientName.trim().slice(0, 200);
+    changes.push('client name');
+  }
+  if (typeof body.email === 'string' && body.email.trim()) {
+    const email = body.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: 'Invalid email address' }, { status: 400 });
+    }
+    if (email !== existing.email) {
+      const taken = await db.rnClient.findFirst({ where: { email, id: { not: params.id } }, select: { id: true } });
+      if (taken) {
+        return NextResponse.json({ error: 'Another client already uses that email' }, { status: 400 });
+      }
+      data.email = email;
+      changes.push('email');
+    }
+  }
   if (body.waitingOn === 'AGENCY' || body.waitingOn === 'CLIENT') {
     data.waitingOn = body.waitingOn;
     changes.push('waiting-on');

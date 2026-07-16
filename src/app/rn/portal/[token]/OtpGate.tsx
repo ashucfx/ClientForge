@@ -53,7 +53,7 @@ export default function OtpGate({ clientId, email, magicToken }: { clientId: str
 
   return (
     <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '40px', width: '100%', maxWidth: 420, textAlign: 'center' }}>
-      <Logo variant="icon" size={48} dark brandId="ripple_nexus" />
+      <Logo variant="horizontal" size={42} dark brandId="ripple_nexus" />
       <h1 style={{ fontSize: 24, fontWeight: 800, marginTop: 24, marginBottom: 8, color: '#F4F5FA' }}>Secure Access</h1>
       
       {step === 'IDLE' ? (

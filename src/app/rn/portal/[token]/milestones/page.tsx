@@ -5,6 +5,9 @@ import { IconCheck } from '@/components/Icons';
 
 export const dynamic = 'force-dynamic';
 
+const CURRENCY_SYMBOLS: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$' };
+const money = (amt: number, cur: string) => `${CURRENCY_SYMBOLS[cur] ?? `${cur} `}${Math.round(amt).toLocaleString()}`;
+
 export default async function RnPortalMilestonesPage({ params }: { params: { token: string } }) {
   const client = await prisma.rnClient.findFirst({
     where: { magicToken: params.token },
@@ -27,7 +30,7 @@ export default async function RnPortalMilestonesPage({ params }: { params: { tok
           Project Milestones
         </h1>
         <p style={{ fontSize: 16, color: '#A1A1AA', maxWidth: 600, lineHeight: 1.6 }}>
-          Track the detailed progress of your project sprints and tasks.
+          Track the detailed progress of your project sprints, tasks, and milestone payments.
         </p>
       </div>
 
@@ -48,13 +51,24 @@ export default async function RnPortalMilestonesPage({ params }: { params: { tok
                     </div>
                   )}
                 </div>
-                <span style={{ 
-                  fontSize: 10, fontWeight: 700, padding: '4px 8px', borderRadius: 4,
-                  color: m.status === 'APPROVED' ? '#22c55e' : m.status === 'IN_PROGRESS' ? '#22D3EE' : '#A1A1AA',
-                  background: m.status === 'APPROVED' ? 'rgba(34,197,94,0.1)' : m.status === 'IN_PROGRESS' ? 'rgba(34,211,238,0.1)' : 'rgba(255,255,255,0.05)'
-                }}>
-                  {m.status.replace('_', ' ')}
-                </span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {m.amount > 0 && (
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 9999,
+                      color: m.paymentStatus === 'PAID' ? '#22c55e' : m.paymentStatus === 'REQUESTED' ? '#FBBF24' : '#A1A1AA',
+                      background: m.paymentStatus === 'PAID' ? 'rgba(34,197,94,0.12)' : m.paymentStatus === 'REQUESTED' ? 'rgba(251,191,36,0.12)' : 'rgba(255,255,255,0.06)'
+                    }}>
+                      {money(m.amount, m.currency)} · {m.paymentStatus === 'PAID' ? 'PAID' : m.paymentStatus === 'REQUESTED' ? 'PAYMENT DUE' : 'UPCOMING'}
+                    </span>
+                  )}
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: '4px 8px', borderRadius: 4,
+                    color: (m.status === 'APPROVED' || m.status === 'COMPLETED') ? '#22c55e' : m.status === 'IN_PROGRESS' ? '#22D3EE' : '#A1A1AA',
+                    background: (m.status === 'APPROVED' || m.status === 'COMPLETED') ? 'rgba(34,197,94,0.1)' : m.status === 'IN_PROGRESS' ? 'rgba(34,211,238,0.1)' : 'rgba(255,255,255,0.05)'
+                  }}>
+                    {m.status.replace(/_/g, ' ')}
+                  </span>
+                </div>
               </div>
               <div style={{ padding: '0 24px' }}>
                 {m.tasks.map((t: any) => (

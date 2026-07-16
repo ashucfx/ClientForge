@@ -37,7 +37,7 @@ export default async function RnClientPortalLayout({ params, children }: { param
       {/* Top Nav */}
       <header style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(10,11,20,0.8)', backdropFilter: 'blur(12px)', position: 'sticky', top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 1000, margin: '0 auto', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Logo variant="horizontal" size={32} dark brandId="ripple_nexus" />
+          <Logo variant="horizontal" size={38} dark brandId="ripple_nexus" />
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#F4F5FA' }}>{client.name}</div>

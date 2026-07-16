@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node --max-old-space-size=4096 node_modules/next/dist/bin/next dev",
     "postinstall": "prisma generate",
-    "build": "next build",
+    "build": "prisma db push --skip-generate && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -60,6 +60,7 @@
     "eslint-config-next": "14.2.35",
     "postcss": "^8",
     "prisma": "^5.10.0",
+    "sharp": "^0.35.3",
     "tailwindcss": "^3.3.0",
     "typescript": "^5",
     "vitest": "^2.1.9"

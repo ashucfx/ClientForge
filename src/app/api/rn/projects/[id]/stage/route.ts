@@ -47,6 +47,25 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       }
     });
 
+    // Automatic flow: stage-advanced email over SMTP (never blocks the action)
+    try {
+      const { sendRnEmail, tplStageAdvanced, portalUrlFor } = await import('@/lib/rn/mailer');
+      const full = await tenantDb.rnClient.findUnique({
+        where: { id: params.id },
+        include: { serviceModule: { select: { name: true } } },
+      });
+      if (full) {
+        const { subject, html } = tplStageAdvanced(full.name, full.serviceModule.name, newStage, portalUrlFor(full.magicToken));
+        await sendRnEmail({
+          clientId: full.id, to: full.email, subject, html,
+          trigger: 'stage_advanced', sentBy: session.adminId,
+          metadata: { newStage },
+        });
+      }
+    } catch (e) {
+      console.error('[rn stage] email flow failed:', e);
+    }
+
     await logAudit(
       { tenantId: 'ripple_nexus', adminId: session.adminId, role: session.role, brandAccess: session.brandAccess },
       'PROJECT_STAGE_UPDATED',

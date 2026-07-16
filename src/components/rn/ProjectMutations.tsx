@@ -170,13 +170,15 @@ export function UploadDeliverableButton({ projectId }: { projectId: string }) {
 
 /* ── Edit project details ─────────────────────────────────────────── */
 export function EditProjectButton({
-  projectId, expectedDeliveryAt, amountPaid, notes, companyName,
+  projectId, expectedDeliveryAt, amountPaid, notes, companyName, clientName, email,
 }: {
   projectId: string;
   expectedDeliveryAt: string | null;
   amountPaid: number;
   notes: string | null;
   companyName: string | null;
+  clientName: string;
+  email: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -186,6 +188,8 @@ export function EditProjectButton({
     amountPaid: String(amountPaid ?? 0),
     notes: notes ?? '',
     companyName: companyName ?? '',
+    clientName: clientName ?? '',
+    email: email ?? '',
   });
 
   const save = async () => {
@@ -199,6 +203,8 @@ export function EditProjectButton({
           amountPaid: Number(form.amountPaid) || 0,
           notes: form.notes,
           companyName: form.companyName,
+          clientName: form.clientName,
+          email: form.email,
         }),
       });
       if (!res.ok) {
@@ -233,6 +239,16 @@ export function EditProjectButton({
           >
             <h3 style={{ margin: '0 0 18px', fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Edit Project</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={label}>Client Name</label>
+                  <input className="input" style={{ width: '100%', padding: '10px 14px', fontSize: 13 }} value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} />
+                </div>
+                <div>
+                  <label style={label}>Client Email (portal login)</label>
+                  <input type="email" className="input" style={{ width: '100%', padding: '10px 14px', fontSize: 13 }} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+                </div>
+              </div>
               <div>
                 <label style={label}>Company Name</label>
                 <input className="input" style={{ width: '100%', padding: '10px 14px', fontSize: 13 }} value={form.companyName} onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))} />

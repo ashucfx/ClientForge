@@ -739,10 +739,19 @@ model RnEmailLog {
   metadata Json?
   sentAt   DateTime @default(now())
 
+  // Production email system fields (SMTP)
+  to        String?
+  subject   String?
+  provider  String  @default("smtp") // 'smtp' | 'resend'
+  messageId String?
+  error     String?
+  sentBy    String  @default("system") // 'system' (automatic flow) | admin id (manual)
+
   client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
   @@index([clientId, trigger, status])
+  @@index([sentAt])
 }
 
 model RnActivityLog {
@@ -819,9 +828,18 @@ model RnProjectMilestone {
   title       String
   description String?
   order       Int
-  status      String    @default("PENDING") // PENDING, IN_PROGRESS, IN_REVIEW, APPROVED
+  status      String    @default("PENDING") // PENDING, IN_PROGRESS, IN_REVIEW, APPROVED, COMPLETED
   dueDate     DateTime?
   approvedAt  DateTime?
+  completedAt DateTime?
+
+  // Milestone billing — a milestone may carry a payment (amount > 0) or be
+  // purely a delivery checkpoint (amount = 0 → paymentStatus NOT_APPLICABLE)
+  amount        Float   @default(0)
+  currency      String  @default("INR")
+  paymentStatus String  @default("NOT_APPLICABLE") // NOT_APPLICABLE | UNPAID | REQUESTED | PAID
+  paidAt        DateTime?
+  invoiceId     String? // linked RN invoice when payment was requested via invoice
 
   client RnClient        @relation(fields: [clientId], references: [id], onDelete: Cascade)
   tasks  RnProjectTask[]
@@ -830,6 +848,7 @@ model RnProjectMilestone {
   updatedAt DateTime @updatedAt
 
   @@index([clientId])
+  @@index([clientId, paymentStatus])
 }
 
 model RnProjectTask {
