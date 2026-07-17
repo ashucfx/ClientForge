@@ -50,6 +50,9 @@ const RN_NAV = [
   { href: '/rn/invoices',     Icon: IconList,      label: 'Billing',             section: 'Operations' },
   { href: '/rn/emails',       Icon: IconMail,      label: 'Email Center',        section: 'Operations' },
   { href: '/rn/reports',      Icon: IconTrendUp,   label: 'Reports',             section: 'Operations' },
+
+  { href: '/rn/templates/services', Icon: IconGrid,      label: 'Service Templates', section: 'Templates' },
+  { href: '/rn/templates/emails',   Icon: IconMail,      label: 'Email Templates',   section: 'Templates' },
 ];
 
 function isNavActive(href: string, pathname: string) {
@@ -157,7 +160,7 @@ export function RippleNexusShell({ children }: { children: React.ReactNode }) {
 
       {/* Navigation */}
       <nav className="sidebar-nav">
-        {(['Workspace', 'Operations', ...(role === 'SUPER_ADMIN' ? ['Admin'] : [])] as const).map(section => {
+        {(['Workspace', 'Operations', 'Templates', ...(role === 'SUPER_ADMIN' ? ['Admin'] : [])] as const).map(section => {
           const items = section === 'Admin'
             ? [{ href: '/rn/team', Icon: IconTeam, label: 'Team & Access', section: 'Admin' }]
             : RN_NAV.filter(n => n.section === section);

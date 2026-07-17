@@ -114,8 +114,8 @@ model Invoice {
 
   // Local currency reference (set when PayPal falls back to USD for unsupported currencies)
   // The invoice currency/totalPayable will be USD; these store the original local equivalent
-  localCurrencyCode     String?  // e.g. "AED", "SAR"
-  localEquivalentAmount Float?   // total in local currency at time of invoice creation
+  localCurrencyCode     String? // e.g. "AED", "SAR"
+  localEquivalentAmount Float? // total in local currency at time of invoice creation
 
   // Split / installment payment
   installmentPlan  Boolean @default(false)
@@ -140,13 +140,13 @@ model Invoice {
   clientLinks         InvoiceClientLink[]
 
   // ── Sales funnel attribution (additive, nullable for legacy rows) ──
-  sourceChannel       String? // INQUIRE | CHECKOUT | APPLY | ADMIN
-  salesInquiryId      String?
-  checkoutSessionId   String?
-  proposalId          String?
-  salesInquiry        SalesInquiry?   @relation("InquiryInvoice", fields: [salesInquiryId], references: [id], onDelete: SetNull)
-  checkoutSession     CheckoutSession? @relation(fields: [checkoutSessionId], references: [id], onDelete: SetNull)
-  proposal            Proposal?       @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  sourceChannel     String? // INQUIRE | CHECKOUT | APPLY | ADMIN
+  salesInquiryId    String?
+  checkoutSessionId String?
+  proposalId        String?
+  salesInquiry      SalesInquiry?    @relation("InquiryInvoice", fields: [salesInquiryId], references: [id], onDelete: SetNull)
+  checkoutSession   CheckoutSession? @relation(fields: [checkoutSessionId], references: [id], onDelete: SetNull)
+  proposal          Proposal?        @relation(fields: [proposalId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -249,14 +249,14 @@ model CareerClient {
   lifecycleStatus  String    @default("ACTIVE") // ACTIVE | ARCHIVED | EXPIRED | CANCELLED
   archivedAt       DateTime?
   archiveReason    String?
-  reEngagedAt        DateTime?
-  reEngagedFrom      String?
-  lastAdminReplyAt   DateTime?
+  reEngagedAt      DateTime?
+  reEngagedFrom    String?
+  lastAdminReplyAt DateTime?
 
   // ── Sales funnel attribution (additive) ──
-  sourceChannel      String?  // 'INQUIRE' | 'CHECKOUT' | 'APPLY' | 'ADMIN' — how this client was acquired
-  checkoutSessionId  String?  // Links back to the CheckoutSession that created this client
-  salesInquiryId     String?  // Links back to the SalesInquiry (for /inquire flow)
+  sourceChannel     String? // 'INQUIRE' | 'CHECKOUT' | 'APPLY' | 'ADMIN' — how this client was acquired
+  checkoutSessionId String? // Links back to the CheckoutSession that created this client
+  salesInquiryId    String? // Links back to the SalesInquiry (for /inquire flow)
 
   forms        CareerFormSubmission[]
   deliverables CareerDeliverable[]
@@ -375,9 +375,9 @@ model CareerRevision {
   adminNote   String?
 
   // Phase 3: Per-service tracking & Paid revisions
-  serviceSlug       String? // e.g., 'RESUME', 'LINKEDIN'
-  chargeStatus      String  @default("FREE") // "FREE" | "PENDING_PAYMENT" | "PAID"
-  invoiceId         String? // Links to the generated invoice for paid revisions
+  serviceSlug        String? // e.g., 'RESUME', 'LINKEDIN'
+  chargeStatus       String  @default("FREE") // "FREE" | "PENDING_PAYMENT" | "PAID"
+  invoiceId          String? // Links to the generated invoice for paid revisions
   clientStatusBefore String? // careerClient.status at the moment this revision was created — used to restore state on DENY
 
   createdAt DateTime @default(now())
@@ -467,7 +467,7 @@ model InvoiceInstallment {
   dueDate         DateTime
   status          String    @default("PENDING") // PENDING, PAID, CANCELLED, EXPIRED
   paidAt          DateTime?
-  paypalInvoiceId String?   // PayPal invoice ID for this installment — enables direct webhook lookup
+  paypalInvoiceId String? // PayPal invoice ID for this installment — enables direct webhook lookup
   createdAt       DateTime  @default(now())
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
@@ -724,6 +724,13 @@ model RnMessage {
   readByClient   Boolean   @default(false)
   readByAdminAt  DateTime?
   readByClientAt DateTime?
+  
+  isPriority     Boolean   @default(false)
+  isPinned       Boolean   @default(false)
+  replyToId      String?
+  editedAt       DateTime?
+  isDeleted      Boolean   @default(false)
+
   createdAt      DateTime  @default(now())
 
   client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -838,9 +845,9 @@ model RnProjectMilestone {
 
   // Milestone billing — a milestone may carry a payment (amount > 0) or be
   // purely a delivery checkpoint (amount = 0 → paymentStatus NOT_APPLICABLE)
-  amount        Float   @default(0)
-  currency      String  @default("INR")
-  paymentStatus String  @default("NOT_APPLICABLE") // NOT_APPLICABLE | UNPAID | REQUESTED | PAID
+  amount        Float     @default(0)
+  currency      String    @default("INR")
+  paymentStatus String    @default("NOT_APPLICABLE") // NOT_APPLICABLE | UNPAID | REQUESTED | PAID
   paidAt        DateTime?
   invoiceId     String? // linked RN invoice when payment was requested via invoice
 
@@ -1032,7 +1039,7 @@ model Contact {
   rnClients     RnClient[]
 
   flywheelProfile FlywheelProfile?
-  salesInquiries        SalesInquiry[]
+  salesInquiries  SalesInquiry[]
 
   sourceMergeReviews    ContactMergeReview[]   @relation("SourceContact")
   targetMergeReviews    ContactMergeReview[]   @relation("TargetContact")
@@ -1298,43 +1305,43 @@ enum CheckoutSessionStatus {
 }
 
 model SalesInquiry {
-  id                  String           @id @default(cuid())
-  displayId           String           @unique
-  contactId           String?
-  status              InquiryStatus    @default(NEW)
-  priority            InquiryPriority  @default(MEDIUM)
-  channel             InquiryChannel   @default(INQUIRE)
-  name                String
-  email               String
-  phone               String?
-  countryCode         String
-  countryName         String
-  requirementType     String
-  servicesRequested   Json             @default("[]")
-  requirementNotes    String?          @db.Text
-  qualificationScore  Int?
-  assignedToId        String?
-  sourceUrl           String?
-  utmJson             Json?
-  flywheelProfileId   String?
-  convertedInvoiceId  String?
-  convertedClientId   String?
-  legacyMetadata      Json?
-  closedAt            DateTime?
+  id                 String          @id @default(cuid())
+  displayId          String          @unique
+  contactId          String?
+  status             InquiryStatus   @default(NEW)
+  priority           InquiryPriority @default(MEDIUM)
+  channel            InquiryChannel  @default(INQUIRE)
+  name               String
+  email              String
+  phone              String?
+  countryCode        String
+  countryName        String
+  requirementType    String
+  servicesRequested  Json            @default("[]")
+  requirementNotes   String?         @db.Text
+  qualificationScore Int?
+  assignedToId       String?
+  sourceUrl          String?
+  utmJson            Json?
+  flywheelProfileId  String?
+  convertedInvoiceId String?
+  convertedClientId  String?
+  legacyMetadata     Json?
+  closedAt           DateTime?
 
   // ── Sales funnel redesign (additive) ──
-  autoQualScore       Int?             // Computed 0-100 score based on requirement type, country, services
-  qualificationNotes  String?          @db.Text  // Admin notes during qualification
-  firstResponseAt     DateTime?        // When admin first reviewed this inquiry
-  slaBreachedAt       DateTime?        // If first response > 24h SLA
+  autoQualScore      Int? // Computed 0-100 score based on requirement type, country, services
+  qualificationNotes String?   @db.Text // Admin notes during qualification
+  firstResponseAt    DateTime? // When admin first reviewed this inquiry
+  slaBreachedAt      DateTime? // If first response > 24h SLA
 
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  contact    Contact?             @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  proposals  Proposal[]
-  activities InquiryActivityLog[]
-  invoices   Invoice[]            @relation("InquiryInvoice")
+  contact          Contact?             @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  proposals        Proposal[]
+  activities       InquiryActivityLog[]
+  invoices         Invoice[]            @relation("InquiryInvoice")
   checkoutSessions CheckoutSession[]
 
   @@index([status])
@@ -1354,8 +1361,8 @@ model Proposal {
   scopeSummary     String         @db.Text
   deliverables     Json           @default("[]")
   lineItems        Json           @default("[]")
-  revisionLimits   Json?          // E.g., { "Resume": 2, "LinkedIn": 1 }
-  deliveryTimeline Json?          // E.g., { "EstimatedDays": 5, "Description": "5 business days" }
+  revisionLimits   Json? // E.g., { "Resume": 2, "LinkedIn": 1 }
+  deliveryTimeline Json? // E.g., { "EstimatedDays": 5, "Description": "5 business days" }
   currency         String
   currencySymbol   String         @default("$")
   subtotal         Float
@@ -1367,7 +1374,7 @@ model Proposal {
   viewedAt         DateTime?
   respondedAt      DateTime?
   acceptedByEmail  String?
-  clientNotes      String?        @db.Text  // Client's notes when accepting/declining
+  clientNotes      String?        @db.Text // Client's notes when accepting/declining
   publicToken      String         @unique @default(cuid())
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
@@ -1382,15 +1389,15 @@ model Proposal {
 }
 
 model InquiryActivityLog {
-  id          String   @id @default(cuid())
-  inquiryId   String
-  action      String
-  fromStatus  String?
-  toStatus    String?
-  note        String?  @db.Text
-  adminId     String?
-  metadata    Json?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  inquiryId  String
+  action     String
+  fromStatus String?
+  toStatus   String?
+  note       String?  @db.Text
+  adminId    String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
 
   inquiry SalesInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
 
@@ -1399,33 +1406,33 @@ model InquiryActivityLog {
 }
 
 model CheckoutSession {
-  id                    String                @id @default(cuid())
-  channel               CheckoutChannel       @default(CHECKOUT)
-  contactId             String?
-  salesInquiryId        String?
-  proposalId            String?
-  invoiceId             String?
-  packageSlug           String
-  services              Json                  @default("[]")
-  experienceLevel       ClientType
-  pricingSnapshot       Json
-  status                CheckoutSessionStatus @default(DRAFT)
-  paymentUrl            String?
-  abandonedCheckoutLevel Int                  @default(0)
-  name                  String
-  email                 String
-  phone                 String?
-  whatsapp              String?
-  countryCode           String
-  countryName           String
+  id                     String                @id @default(cuid())
+  channel                CheckoutChannel       @default(CHECKOUT)
+  contactId              String?
+  salesInquiryId         String?
+  proposalId             String?
+  invoiceId              String?
+  packageSlug            String
+  services               Json                  @default("[]")
+  experienceLevel        ClientType
+  pricingSnapshot        Json
+  status                 CheckoutSessionStatus @default(DRAFT)
+  paymentUrl             String?
+  abandonedCheckoutLevel Int                   @default(0)
+  name                   String
+  email                  String
+  phone                  String?
+  whatsapp               String?
+  countryCode            String
+  countryName            String
 
   // ── Post-payment tracking (additive) ──
-  createdClientId       String?               // The CareerClient created after payment
-  portalActivatedAt     DateTime?
-  onboardingUrl         String?               // The magic link URL for portal access
+  createdClientId   String? // The CareerClient created after payment
+  portalActivatedAt DateTime?
+  onboardingUrl     String? // The magic link URL for portal access
 
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   salesInquiry SalesInquiry? @relation(fields: [salesInquiryId], references: [id], onDelete: SetNull)
   proposal     Proposal?     @relation(fields: [proposalId], references: [id], onDelete: SetNull)
@@ -1450,7 +1457,7 @@ model BugReport {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  client      CareerClient? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  client CareerClient? @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([clientId])
@@ -1461,16 +1468,16 @@ model BugReport {
 // table (tenant isolation). Shown on the RN calendar and client portals;
 // "notify clients" emails every active RN client about the closure.
 model RnHoliday {
-  id               String    @id @default(cuid())
-  date             DateTime  @db.Date
-  name             String
-  description      String?
-  notifiedAt       DateTime?
-  createdById      String?
-  isPublicHoliday  Boolean   @default(false) // true = seeded Indian government holiday
-  isGuested        Boolean   @default(true)  // true = visible on client portal; false = internal only
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  date            DateTime  @db.Date
+  name            String
+  description     String?
+  notifiedAt      DateTime?
+  createdById     String?
+  isPublicHoliday Boolean   @default(false) // true = seeded Indian government holiday
+  isGuested       Boolean   @default(true) // true = visible on client portal; false = internal only
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@unique([date])
   @@index([date])
@@ -1480,22 +1487,22 @@ model RnHoliday {
 // ── Retainer / Subscription / Maintenance Contracts ──────────────────────────
 // Tracks recurring engagements for Ripple Nexus clients.
 model RnRetainer {
-  id            String    @id @default(cuid())
-  clientId      String
-  name          String    // "Monthly SEO Retainer", "Maintenance Package"
-  type          String    @default("MONTHLY") // MONTHLY | QUARTERLY | ANNUAL | MAINTENANCE | CUSTOM
-  amount        Float
-  currency      String    @default("INR")
-  billingDay    Int       @default(1)  // Day of month to generate invoice
-  status        String    @default("ACTIVE") // ACTIVE | PAUSED | CANCELLED | EXPIRED
-  nextBillingAt DateTime
-  lastBilledAt  DateTime?
-  autoRenew     Boolean   @default(true)
-  notes         String?
-  invoiceIds    Json      @default("[]") // String[] — linked invoice IDs
-  paymentGateway String   @default("RAZORPAY") // RAZORPAY | PAYPAL
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  clientId       String
+  name           String // "Monthly SEO Retainer", "Maintenance Package"
+  type           String    @default("MONTHLY") // MONTHLY | QUARTERLY | ANNUAL | MAINTENANCE | CUSTOM
+  amount         Float
+  currency       String    @default("INR")
+  billingDay     Int       @default(1) // Day of month to generate invoice
+  status         String    @default("ACTIVE") // ACTIVE | PAUSED | CANCELLED | EXPIRED
+  nextBillingAt  DateTime
+  lastBilledAt   DateTime?
+  autoRenew      Boolean   @default(true)
+  notes          String?
+  invoiceIds     Json      @default("[]") // String[] — linked invoice IDs
+  paymentGateway String    @default("RAZORPAY") // RAZORPAY | PAYPAL
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -1508,11 +1515,11 @@ model RnRetainer {
 // Static Indian public holidays live in workingDays.ts; these are additional / custom ones.
 model Holiday {
   id          String    @id @default(cuid())
-  date        DateTime  @db.Date          // stored as DATE (midnight UTC)
+  date        DateTime  @db.Date // stored as DATE (midnight UTC)
   name        String
   description String?
-  notifiedAt  DateTime?                   // when "Notify clients" was last triggered
-  createdById String?                     // soft link to AdminUser.id
+  notifiedAt  DateTime? // when "Notify clients" was last triggered
+  createdById String? // soft link to AdminUser.id
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -1526,7 +1533,7 @@ model SysEmailLog {
   id       String   @id @default(cuid())
   to       String
   subject  String
-  trigger  String   // PROPOSAL_SENT | INVOICE_SENT | PROPOSAL_ACCEPTED | PROPOSAL_DECLINED | ADMIN_ALERT
+  trigger  String // PROPOSAL_SENT | INVOICE_SENT | PROPOSAL_ACCEPTED | PROPOSAL_DECLINED | ADMIN_ALERT
   channel  String   @default("smtp") // smtp | resend
   status   String   @default("sent") // sent | failed
   error    String?  @db.Text
@@ -1536,4 +1543,99 @@ model SysEmailLog {
   @@index([sentAt])
   @@index([trigger])
   @@index([to])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENTERPRISE TEMPLATE MANAGEMENT SYSTEM
+// ─────────────────────────────────────────────────────────────────────────────
+
+model RnServiceTemplate {
+  id                 String  @id @default(cuid())
+  name               String
+  description        String?
+  category           String
+  pricingModel       String  @default("FIXED")
+  baseCurrency       String  @default("USD")
+  taxRate            Float   @default(0)
+  discountRules      Json    @default("[]")
+  termsAndConditions String?
+  isActive           Boolean @default(true)
+  version            Int     @default(1)
+  originalId         String?
+
+  milestoneTemplates   RnMilestoneTemplate[]
+  deliverableTemplates RnDeliverableTemplate[]
+  onboardingTemplates  RnOnboardingTemplate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+}
+
+model RnMilestoneTemplate {
+  id                     String  @id @default(cuid())
+  serviceTemplateId      String
+  title                  String
+  description            String?
+  order                  Int
+  estimatedDurationDays  Int     @default(7)
+  paymentPercentage      Float   @default(0)
+  clientApprovalRequired Boolean @default(false)
+
+  serviceTemplate RnServiceTemplate @relation(fields: [serviceTemplateId], references: [id], onDelete: Cascade)
+  taskTemplates   RnTaskTemplate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RnTaskTemplate {
+  id                  String @id @default(cuid())
+  milestoneTemplateId String
+  title               String
+  priority            String @default("MEDIUM")
+  estimatedHours      Float  @default(0)
+
+  milestoneTemplate RnMilestoneTemplate @relation(fields: [milestoneTemplateId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RnDeliverableTemplate {
+  id                  String  @id @default(cuid())
+  serviceTemplateId   String
+  milestoneTemplateId String?
+  label               String
+  format              String  @default("PDF")
+
+  serviceTemplate RnServiceTemplate @relation(fields: [serviceTemplateId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RnOnboardingTemplate {
+  id                String  @id @default(cuid())
+  serviceTemplateId String
+  welcomeMessage    String?
+  requiresNda       Boolean @default(false)
+  requiredDocuments Json    @default("[]")
+
+  serviceTemplate RnServiceTemplate @relation(fields: [serviceTemplateId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RnEmailTemplate {
+  id                 String  @id @default(cuid())
+  triggerEvent       String  @unique
+  subject            String
+  htmlBody           String
+  availableVariables Json    @default("[]")
+  isActive           Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

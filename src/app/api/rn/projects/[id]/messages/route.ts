@@ -22,7 +22,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
 
   const messages = await db.rnMessage.findMany({
-    where: { clientId: params.id, isInternalOnly: false },
+    where: { clientId: params.id },
     orderBy: { createdAt: 'asc' },
   });
 
@@ -39,15 +39,24 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   let content: string;
   let internal = false;
+  let isPriority = false;
+  let isPinned = false;
+  let replyToId: string | undefined;
+  let attachments: any[] | undefined;
+
   try {
     const body = await req.json();
     content = (body?.content ?? '').toString().trim();
     internal = body?.internal === true;
+    isPriority = body?.isPriority === true;
+    isPinned = body?.isPinned === true;
+    replyToId = body?.replyToId;
+    attachments = body?.attachments;
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
   if (!content) return NextResponse.json({ error: 'content required' }, { status: 400 });
-  if (content.length > 4000) return NextResponse.json({ error: 'Message too long (max 4000 chars)' }, { status: 400 });
+  if (content.length > 8000) return NextResponse.json({ error: 'Message too long (max 8000 chars)' }, { status: 400 });
 
   const client = await db.rnClient.findUnique({
     where: { id: params.id },
@@ -63,6 +72,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       authorName: internal ? 'Internal Note' : 'Ripple Nexus Team',
       readByAdmin: true,
       isInternalOnly: internal,
+      isPriority,
+      isPinned,
+      replyToId,
+      attachments: attachments ? (attachments as any) : undefined,
     },
   });
 

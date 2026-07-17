@@ -11,6 +11,7 @@ import {
 } from '@/components/rn/ProjectMutations';
 import { PortalLinkActions } from '@/components/rn/PortalLinkActions';
 import { DeleteClientButton } from '@/components/rn/DeleteClientButton';
+import { AdminMessenger } from '@/components/rn/AdminMessenger';
 
 export const dynamic = 'force-dynamic';
 
@@ -253,36 +254,8 @@ export default async function RnProjectCockpitPage({ params }: { params: { id: s
           </div>
 
           {/* Right Column: Activity & Comms */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
-            <div className="rn-panel" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <div className="rn-panel-header">
-                <h2 className="rn-panel-title">Workspace Activity</h2>
-              </div>
-              <div className="rn-panel-body" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20, maxHeight: 520, overflowY: 'auto' }}>
-                {rawActivities.length === 0 && (
-                  <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13, padding: '20px 0' }}>No activity yet.</div>
-                )}
-                {rawActivities.map((activity) => (
-                  <div key={activity.id} style={{ display: 'flex', gap: 12 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 16, background: activity.internal ? 'var(--warning-bg)' : 'var(--surface-3)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: activity.internal ? 'var(--warning)' : 'var(--text-secondary)' }}>
-                      {activity.internal ? '🔒' : activity.user.charAt(0)}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-secondary)' }}>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{activity.user}</span> {activity.action}
-                      </div>
-                      {activity.detail && (
-                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2, overflowWrap: 'anywhere' }}>“{activity.detail}”</div>
-                      )}
-                      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
-                        {formatDistanceToNow(new Date(activity.time), { addSuffix: true })}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <MessageInput projectId={project.id} />
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0, height: '700px' }}>
+            <AdminMessenger clientId={project.id} adminName={session.adminId === 'admin_1' ? 'Ripple Nexus Team' : 'Project Manager'} />
           </div>
 
         </div>

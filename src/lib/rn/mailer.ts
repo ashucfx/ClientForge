@@ -165,12 +165,13 @@ const APP_URL = () => process.env.NEXT_PUBLIC_APP_URL ?? 'https://clientforge.th
 
 export function tplWelcome(name: string, portalUrl: string) {
   return {
-    subject: `Welcome to ${BRAND.name} — your client portal is live`,
+    subject: `Welcome to ${BRAND.name} — Your Executive Client Portal`,
     html: rnEmailShell(
-      `Welcome, ${name}!`,
-      `<p>Thank you for partnering with ${BRAND.name}. Your dedicated project workspace has been created.</p>
-       <p>Use your secure portal to track milestones, review deliverables, and message the team directly.</p>`,
-      'Open Client Portal', portalUrl,
+      `Welcome, ${name}.`,
+      `<p>Thank you for choosing ${BRAND.name} as your strategic partner. Your dedicated executive project workspace has been successfully provisioned.</p>
+       <p>This secure portal serves as your centralized hub to track project milestones, review deliverables, and communicate directly with our engineering and design teams.</p>
+       <p>We look forward to delivering excellence.</p>`,
+      'Access Client Portal', portalUrl,
     ),
   };
 }
@@ -202,14 +203,20 @@ export function tplDeliverableUploaded(name: string, label: string, portalUrl: s
 }
 
 export function tplMilestonePaymentRequest(name: string, milestoneTitle: string, amountLabel: string, portalUrl: string, invoiceUrl?: string) {
+  // If invoiceUrl is provided and looks like a razorpay link (or any link), we use it.
+  const isRazorpay = invoiceUrl?.includes('rzp.io');
+  
   return {
-    subject: `Payment request: ${milestoneTitle} (${amountLabel})`,
+    subject: `Payment Request: ${milestoneTitle} — Ripple Nexus`,
     html: rnEmailShell(
-      'Milestone payment requested',
-      `<p>Hi ${name},</p>
-       <p>The milestone <strong>${milestoneTitle}</strong> is ready for its payment of <strong>${amountLabel}</strong>.</p>
-       ${invoiceUrl ? `<p>You can pay securely through the invoice link below.</p>` : `<p>Our team will share the payment link shortly, or you can reply to this email.</p>`}`,
-      invoiceUrl ? 'View Invoice & Pay' : 'Open Client Portal',
+      'Milestone Payment Request',
+      `<p>Dear ${name},</p>
+       <p>We are pleased to inform you that the milestone <strong>${milestoneTitle}</strong> is now ready for payment.</p>
+       <p>The total amount due is <strong>${amountLabel}</strong>.</p>
+       ${isRazorpay ? `<p>For your convenience, we have generated a secure Razorpay payment link. Razorpay supports over 100+ national and international currencies.</p>` : `<p>You may complete this transaction securely via your client portal or the provided invoice link.</p>`}
+       <p>Prompt settlement ensures uninterrupted progress on your project. If you have any questions or require clarification regarding this milestone, please do not hesitate to reach out via your client portal.</p>
+       <p>Thank you for your continued partnership.</p>`,
+      isRazorpay ? 'Pay securely via Razorpay' : invoiceUrl ? 'View Invoice & Pay' : 'Open Client Portal',
       invoiceUrl ?? portalUrl,
     ),
   };

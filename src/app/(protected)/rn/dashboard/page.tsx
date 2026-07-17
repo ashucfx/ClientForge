@@ -37,7 +37,7 @@ export default async function RnDashboardPage() {
 
   const tenantDb = getTenantDb('ripple_nexus');
 
-  const [clients, pendingApprovals, unreadMessages, recentLogs, breachedSla, upcomingHoliday, retainers] = await Promise.all([
+  const [clients, pendingApprovals, unreadMessages, recentLogs, breachedSla, upcomingHoliday, retainers, totalTemplates] = await Promise.all([
     tenantDb.rnClient.findMany({
       include: { serviceModule: true },
       orderBy: { createdAt: 'desc' },
@@ -63,6 +63,7 @@ export default async function RnDashboardPage() {
       include: { client: { select: { name: true, companyName: true } } },
       orderBy: { nextBillingAt: 'asc' },
     }) as Promise<RetainerWithClient[]>,
+    prisma.rnServiceTemplate.count({ where: { isActive: true } }),
   ]);
 
   const activeClients = clients.filter((c: ClientWithModule) => c.currentStage !== 'COMPLETED' && c.lifecycleStatus === 'ACTIVE');
@@ -127,7 +128,7 @@ export default async function RnDashboardPage() {
     { label: 'Active Retainers',    value: retainerValue,   sub: `${activeClients.length} active project${activeClients.length !== 1 ? 's' : ''}`, up: true,  icon: <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> },
     { label: 'Projects On Track',   value: `${activeClients.length - atRiskClients.length}/${activeClients.length}`, sub: atRiskClients.length ? `${atRiskClients.length} at risk` : 'All on schedule', up: atRiskClients.length === 0, icon: <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> },
     { label: 'Pending Approvals',   value: String(pendingApprovals),  sub: pendingApprovals ? 'Awaiting review' : 'Nothing pending',    up: pendingApprovals === 0, icon: <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
-    { label: 'Unread Messages',     value: String(unreadMessages),    sub: avgDeliveryDays ? `Avg delivery ${avgDeliveryDays}d` : 'No completions yet', up: unreadMessages === 0, icon: <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg> },
+    { label: 'Active Templates',    value: String(totalTemplates),    sub: 'Reusable service models', up: true, icon: <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg> },
   ];
 
   const recentActivity = (recentLogs as Array<{ id: string; clientId: string; action: string; performedBy: string; createdAt: Date; client: { name: string; companyName: string | null } }>).map(log => ({

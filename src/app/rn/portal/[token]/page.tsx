@@ -96,13 +96,13 @@ export default async function PortalOverviewPage({ params }: { params: { token: 
       {/* Holiday notice */}
       {upcomingHolidays[0] && differenceInCalendarDays(new Date(upcomingHolidays[0].date), new Date()) <= 7 && (
         <div className="portal-holiday-notice">
-          <span style={{ display: 'inline-flex', color: '#22D3EE', marginRight: 12 }}>
+          <span style={{ display: 'inline-flex', color: 'var(--rn-success)', marginRight: 12 }}>
             <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </span>
           <div>
-            <strong style={{ color: '#22D3EE' }}>Upcoming agency closure — </strong>
+            <strong style={{ color: 'var(--rn-success)' }}>Upcoming agency closure — </strong>
             {upcomingHolidays[0].name} on {format(new Date(upcomingHolidays[0].date), 'EEEE, MMMM d')}.
             Deliveries around this date may shift by one working day.
           </div>
@@ -117,18 +117,18 @@ export default async function PortalOverviewPage({ params }: { params: { token: 
           {client.companyName ? `${client.companyName} · ` : ''}
           {client.currentStage.replace(/_/g, ' ')} phase
           {daysToDelivery !== null && !deliveryDone && (
-            <> · <span style={{ color: daysToDelivery <= 7 ? '#FBBF24' : '#A3E635', fontWeight: 700 }}>
+            <> · <span style={{ color: daysToDelivery <= 7 ? 'var(--rn-warning)' : 'var(--rn-success)', fontWeight: 700 }}>
               {daysToDelivery <= 0 ? 'Delivery today' : `${daysToDelivery} days to delivery`}
             </span></>
           )}
           {deliveryDone && (
-            <> · <span style={{ color: '#10B981', fontWeight: 700 }}>✓ Delivered</span></>
+            <> · <span style={{ color: 'var(--rn-success)', fontWeight: 700 }}>✓ Delivered</span></>
           )}
         </p>
 
         <div className="portal-progress-wrap">
           <div className="portal-progress-labels">
-            <span style={{ fontSize: 13, color: '#C6CBDD' }}>Overall progress</span>
+            <span style={{ fontSize: 13, color: 'var(--rn-text-muted)' }}>Overall progress</span>
             <span className="portal-progress-pct">{progress}%</span>
           </div>
           <div className="portal-progress-track">
@@ -168,8 +168,8 @@ export default async function PortalOverviewPage({ params }: { params: { token: 
           {waitingOnLabel.text}
         </span>
         {nextMilestone && (
-          <span style={{ fontSize: 13, color: '#C6CBDD' }}>
-            Next milestone: <strong style={{ color: '#F4F5FA' }}>{nextMilestone.title}</strong>
+          <span style={{ fontSize: 13, color: 'var(--rn-text-muted)' }}>
+            Next milestone: <strong style={{ color: 'var(--rn-text)' }}>{nextMilestone.title}</strong>
             {nextMilestone.dueDate && <> · {format(new Date(nextMilestone.dueDate), 'MMM d')}</>}
           </span>
         )}
@@ -181,13 +181,13 @@ export default async function PortalOverviewPage({ params }: { params: { token: 
           {pendingInvoices.map(inv => (
             <div key={inv.id} className="portal-payment-card">
               <div>
-                <div style={{ fontSize: 13, color: '#B794FF', fontWeight: 700, marginBottom: 6 }}>
+                <div style={{ fontSize: 13, color: 'var(--rn-accent)', fontWeight: 700, marginBottom: 6 }}>
                   Invoice #{inv.invoiceNumber}
                 </div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: '#F4F5FA', marginBottom: 4 }}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--rn-primary)', marginBottom: 4 }}>
                   {inv.currency} {Number(inv.totalPayable).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </div>
-                <div style={{ fontSize: 12, color: '#6B7394' }}>
+                <div style={{ fontSize: 12, color: 'var(--rn-text-muted)' }}>
                   Due {format(new Date(inv.dueDate), 'MMM d, yyyy')}
                 </div>
               </div>
@@ -203,19 +203,19 @@ export default async function PortalOverviewPage({ params }: { params: { token: 
         <div className="portal-card portal-card-hover">
           <div className="portal-card-header">
             <h2 className="portal-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{ color: '#B794FF' }}>
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--rn-accent)' }}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
               Recent Deliverables
             </h2>
-            <Link href={`/rn/portal/${params.token}/deliverables`} style={{ fontSize: 12, color: '#B794FF', textDecoration: 'none', fontWeight: 600 }}>
+            <Link href={`/rn/portal/${params.token}/deliverables`} style={{ fontSize: 12, color: 'var(--rn-accent)', textDecoration: 'none', fontWeight: 600 }}>
               View all →
             </Link>
           </div>
           <div className="portal-card-body">
             {client.deliverables.length === 0 ? (
               <div className="portal-empty">
-                <div className="portal-empty-icon" style={{ display: 'flex', justifyContent: 'center', color: '#6B7394', marginBottom: 12 }}>
+                <div className="portal-empty-icon" style={{ display: 'flex', justifyContent: 'center', color: 'var(--rn-text-muted)', marginBottom: 12 }}>
                   <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
                   </svg>
@@ -234,7 +234,7 @@ export default async function PortalOverviewPage({ params }: { params: { token: 
                   <span style={{
                     flexShrink: 0, fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 9999,
                     background: d.approvalStatus === 'APPROVED' ? 'rgba(16,185,129,0.12)' : d.approvalStatus === 'PENDING' ? 'rgba(251,191,36,0.12)' : 'rgba(124,92,255,0.12)',
-                    color: d.approvalStatus === 'APPROVED' ? '#10B981' : d.approvalStatus === 'PENDING' ? '#FBBF24' : '#B794FF',
+                    color: d.approvalStatus === 'APPROVED' ? '#10B981' : d.approvalStatus === 'PENDING' ? '#FBBF24' : 'var(--rn-accent)',
                   }}>
                     {d.approvalStatus}
                   </span>
@@ -248,19 +248,19 @@ export default async function PortalOverviewPage({ params }: { params: { token: 
         <div className="portal-card portal-card-hover">
           <div className="portal-card-header">
             <h2 className="portal-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{ color: '#B794FF' }}>
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--rn-accent)' }}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
               Project Milestones
             </h2>
-            <Link href={`/rn/portal/${params.token}/milestones`} style={{ fontSize: 12, color: '#B794FF', textDecoration: 'none', fontWeight: 600 }}>
+            <Link href={`/rn/portal/${params.token}/milestones`} style={{ fontSize: 12, color: 'var(--rn-accent)', textDecoration: 'none', fontWeight: 600 }}>
               View all →
             </Link>
           </div>
           <div className="portal-card-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {client.milestones.length === 0 ? (
               <div className="portal-empty">
-                <div className="portal-empty-icon" style={{ display: 'flex', justifyContent: 'center', color: '#6B7394', marginBottom: 12 }}>
+                <div className="portal-empty-icon" style={{ display: 'flex', justifyContent: 'center', color: 'var(--rn-text-muted)', marginBottom: 12 }}>
                   <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                   </svg>
@@ -275,24 +275,24 @@ export default async function PortalOverviewPage({ params }: { params: { token: 
                 <div key={m.id} className="portal-milestone-step">
                   <div className="portal-milestone-dot" style={{
                     background: done ? 'rgba(16,185,129,0.15)' : overdue ? 'rgba(244,63,94,0.15)' : 'rgba(124,92,255,0.15)',
-                    color: done ? '#10B981' : overdue ? '#F43F5E' : '#B794FF',
+                    color: done ? '#10B981' : overdue ? '#F43F5E' : 'var(--rn-accent)',
                     border: `2px solid ${done ? '#10B981' : overdue ? '#F43F5E' : '#7C5CFF'}`,
                   }}>
                     {done ? '✓' : i + 1}
                   </div>
                   <div style={{ flex: 1, minWidth: 0, paddingBottom: 12 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: '#F4F5FA', marginBottom: 3 }}>{m.title}</div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--rn-primary)', marginBottom: 3 }}>{m.title}</div>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                       {m.dueDate && (
-                        <span style={{ fontSize: 12, color: overdue ? '#F43F5E' : '#6B7394', fontWeight: 500 }}>
+                        <span style={{ fontSize: 12, color: overdue ? '#F43F5E' : 'var(--rn-text-muted)', fontWeight: 500 }}>
                           {format(new Date(m.dueDate), 'MMM d, yyyy')}
                         </span>
                       )}
-                      <span style={{ fontSize: 10.5, padding: '2px 7px', borderRadius: 9999, background: done ? 'rgba(16,185,129,0.1)' : overdue ? 'rgba(244,63,94,0.1)' : 'rgba(124,92,255,0.1)', color: done ? '#10B981' : overdue ? '#F43F5E' : '#B794FF', fontWeight: 600 }}>
+                      <span style={{ fontSize: 10.5, padding: '2px 7px', borderRadius: 9999, background: done ? 'rgba(16,185,129,0.1)' : overdue ? 'rgba(244,63,94,0.1)' : 'rgba(124,92,255,0.1)', color: done ? '#10B981' : overdue ? '#F43F5E' : 'var(--rn-accent)', fontWeight: 600 }}>
                         {m.status.replace(/_/g, ' ')}
                       </span>
                     </div>
-                    {m.description && <div style={{ fontSize: 12, color: '#6B7394', marginTop: 4, lineHeight: 1.5 }}>{m.description}</div>}
+                    {m.description && <div style={{ fontSize: 12, color: 'var(--rn-text-muted)', marginTop: 4, lineHeight: 1.5 }}>{m.description}</div>}
                   </div>
                 </div>
               );
@@ -309,9 +309,9 @@ export default async function PortalOverviewPage({ params }: { params: { token: 
           { icon: <svg width="26" height="26" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>, label: 'Milestones done', value: `${client.milestones.filter(m => (['COMPLETED', 'APPROVED'] as string[]).includes(m.status)).length} / ${client.milestones.length}`, desc: 'completed' },
         ].map((stat, i) => (
           <div key={i} className="portal-card" style={{ padding: '20px 22px' }}>
-            <div style={{ color: '#B794FF', marginBottom: 10, display: 'inline-flex' }}>{stat.icon}</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: '#F4F5FA', marginBottom: 4 }}>{stat.value}</div>
-            <div style={{ fontSize: 12, color: '#6B7394' }}>{stat.desc}</div>
+            <div style={{ color: 'var(--rn-accent)', marginBottom: 10, display: 'inline-flex' }}>{stat.icon}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--rn-primary)', marginBottom: 4 }}>{stat.value}</div>
+            <div style={{ fontSize: 12, color: 'var(--rn-text-muted)' }}>{stat.desc}</div>
           </div>
         ))}
       </div>

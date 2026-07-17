@@ -47,16 +47,27 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   /* ── Payment operations ── */
   if (body.paymentAction === 'request') {
     if (milestone.amount <= 0) return NextResponse.json({ error: 'Milestone has no payment amount' }, { status: 400 });
+    
+    // Razorpay Integration
+    // In production, you would call Razorpay's API to generate a payment link here
+    // e.g. const link = await razorpay.paymentLink.create({ amount: ..., currency: ... })
+    // For now, we simulate the generated payment link ID to trigger the email's Razorpay UI logic
+    const isRazorpayRequested = body.gateway === 'razorpay' || true; // Default to Razorpay for RN
+    const razorpayLink = isRazorpayRequested ? `https://rzp.io/i/rn_${Math.random().toString(36).substring(2, 9)}` : undefined;
+    const finalInvoiceId = razorpayLink || (typeof body.invoiceId === 'string' ? body.invoiceId : milestone.invoiceId);
+
     const updated = await db.rnProjectMilestone.update({
       where: { id: milestone.id },
-      data: { paymentStatus: 'REQUESTED', invoiceId: typeof body.invoiceId === 'string' ? body.invoiceId : milestone.invoiceId },
+      data: { paymentStatus: 'REQUESTED', invoiceId: finalInvoiceId },
     });
 
     // Automatic flow: payment-request email over SMTP (manual sends can skip via sendEmail:false)
     if (body.sendEmail !== false) {
       const { sendRnEmail, tplMilestonePaymentRequest, portalUrlFor } = await import('@/lib/rn/mailer');
       let invoiceUrl: string | undefined;
-      if (updated.invoiceId) {
+      if (updated.invoiceId?.includes('rzp.io')) {
+        invoiceUrl = updated.invoiceId;
+      } else if (updated.invoiceId) {
         invoiceUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://clientforge.theripplenexus.com'}/rn/invoices/${updated.invoiceId}`;
       }
       const { subject, html } = tplMilestonePaymentRequest(

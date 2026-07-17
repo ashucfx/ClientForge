@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { RippleNexusShell } from '@/components/shells/RippleNexusShell';
 import { PortalLinkActions } from '@/components/rn/PortalLinkActions';
 import { format } from 'date-fns';
+import { CreateFromTemplateBtn } from './CreateFromTemplateBtn';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,8 +36,15 @@ export default async function RnClientsPage({ searchParams }: { searchParams: { 
     include: {
       ConversationReadState: true,
       ClientHealthScore: true,
+      ClientHealthScore: true,
       serviceModule: { select: { name: true } },
     },
+  });
+
+  const activeTemplates = await prisma.rnServiceTemplate.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true, version: true },
+    orderBy: { createdAt: 'desc' }
   });
 
   return (
@@ -50,9 +58,12 @@ export default async function RnClientsPage({ searchParams }: { searchParams: { 
               {clients.length} client{clients.length === 1 ? '' : 's'} · Ripple Nexus B2B directory
             </p>
           </div>
-          <Link href="/rn/projects/new">
-            <button className="btn-primary" style={{ padding: '10px 20px', fontSize: 13 }}>+ New Client Project</button>
-          </Link>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <CreateFromTemplateBtn templates={activeTemplates} />
+            <Link href="/rn/projects/new">
+              <button className="btn-primary" style={{ padding: '10px 20px', fontSize: 13 }}>+ New Client Project</button>
+            </Link>
+          </div>
         </header>
 
         <form method="GET" action="/rn/clients" className="rn-filter-bar">
