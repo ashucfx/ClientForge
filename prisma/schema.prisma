@@ -616,6 +616,7 @@ model RnClient {
   deleteOtp             RnDeleteOtp?
   milestones            RnProjectMilestone[]
   comments              RnComment[]
+  retainers             RnRetainer[]
   Feedback              Feedback?
   Review                Review?
   ClientHealthScore     ClientHealthScore?
@@ -1458,17 +1459,47 @@ model BugReport {
 // table (tenant isolation). Shown on the RN calendar and client portals;
 // "notify clients" emails every active RN client about the closure.
 model RnHoliday {
-  id          String    @id @default(cuid())
-  date        DateTime  @db.Date
-  name        String
-  description String?
-  notifiedAt  DateTime?
-  createdById String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  date             DateTime  @db.Date
+  name             String
+  description      String?
+  notifiedAt       DateTime?
+  createdById      String?
+  isPublicHoliday  Boolean   @default(false) // true = seeded Indian government holiday
+  isGuested        Boolean   @default(true)  // true = visible on client portal; false = internal only
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@unique([date])
   @@index([date])
+  @@index([isGuested])
+}
+
+// ── Retainer / Subscription / Maintenance Contracts ──────────────────────────
+// Tracks recurring engagements for Ripple Nexus clients.
+model RnRetainer {
+  id            String    @id @default(cuid())
+  clientId      String
+  name          String    // "Monthly SEO Retainer", "Maintenance Package"
+  type          String    @default("MONTHLY") // MONTHLY | QUARTERLY | ANNUAL | MAINTENANCE | CUSTOM
+  amount        Float
+  currency      String    @default("INR")
+  billingDay    Int       @default(1)  // Day of month to generate invoice
+  status        String    @default("ACTIVE") // ACTIVE | PAUSED | CANCELLED | EXPIRED
+  nextBillingAt DateTime
+  lastBilledAt  DateTime?
+  autoRenew     Boolean   @default(true)
+  notes         String?
+  invoiceIds    Json      @default("[]") // String[] — linked invoice IDs
+  paymentGateway String   @default("RAZORPAY") // RAZORPAY | PAYPAL
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([status])
+  @@index([nextBillingAt])
 }
 
 // Admin-managed holidays that block SLA working-day counting.

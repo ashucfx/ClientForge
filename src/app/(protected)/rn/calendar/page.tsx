@@ -1,6 +1,5 @@
-// src/app/(protected)/rn/calendar/page.tsx — Delivery Calendar
-// Month view combining project deadlines, milestone due dates, and agency
-// holidays, with a holiday manager and upcoming-events rail.
+// src/app/(protected)/rn/calendar/page.tsx — Delivery Calendar v2
+// Month view: deadlines + milestones + holidays (guested vs non-guested)
 import { RippleNexusShell } from '@/components/shells/RippleNexusShell';
 import { HolidayManager, DeleteHolidayButton } from '@/components/rn/HolidayManager';
 import { getAdminSession } from '@/lib/auth';
@@ -13,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 type CalEvent = {
   day: number;
-  type: 'deadline' | 'milestone' | 'holiday';
+  type: 'deadline' | 'milestone' | 'holiday_public' | 'holiday_custom' | 'holiday_internal';
   label: string;
   href?: string;
 };
@@ -24,19 +23,18 @@ export default async function RnCalendarPage({ searchParams }: { searchParams: {
     redirect('/login');
   }
 
-  // Month anchor: ?m=YYYY-MM (defaults to current month)
   const anchor = /^\d{4}-\d{2}$/.test(searchParams.m ?? '')
     ? new Date(`${searchParams.m}-01T00:00:00`)
     : new Date();
   const monthStart = startOfMonth(anchor);
-  const monthEnd = endOfMonth(anchor);
+  const monthEnd   = endOfMonth(anchor);
   const prevM = format(addMonths(monthStart, -1), 'yyyy-MM');
-  const nextM = format(addMonths(monthStart, 1), 'yyyy-MM');
+  const nextM = format(addMonths(monthStart,  1), 'yyyy-MM');
 
   const [clients, milestones, holidays, upcomingHolidays] = await Promise.all([
     prisma.rnClient.findMany({
       where: { lifecycleStatus: 'ACTIVE', expectedDeliveryAt: { gte: monthStart, lte: monthEnd } },
-      select: { id: true, name: true, companyName: true, expectedDeliveryAt: true, currentStage: true },
+      select: { id: true, name: true, companyName: true, expectedDeliveryAt: true },
     }),
     prisma.rnProjectMilestone.findMany({
       where: { dueDate: { gte: monthStart, lte: monthEnd }, status: { notIn: ['COMPLETED', 'APPROVED'] } },
@@ -49,11 +47,11 @@ export default async function RnCalendarPage({ searchParams }: { searchParams: {
     prisma.rnHoliday.findMany({
       where: { date: { gte: new Date() } },
       orderBy: { date: 'asc' },
-      take: 6,
+      take: 8,
     }),
   ]);
 
-  // Bucket events by day-of-month
+  // Bucket events by day
   const eventsByDay = new Map<number, CalEvent[]>();
   const push = (day: number, e: CalEvent) => {
     if (!eventsByDay.has(day)) eventsByDay.set(day, []);
@@ -70,12 +68,15 @@ export default async function RnCalendarPage({ searchParams }: { searchParams: {
     });
   }
   for (const h of holidays) {
-    push(new Date(h.date).getUTCDate(), { day: 0, type: 'holiday', label: h.name });
+    const type: CalEvent['type'] = h.isPublicHoliday
+      ? 'holiday_public'
+      : h.isGuested ? 'holiday_custom' : 'holiday_internal';
+    push(new Date(h.date).getUTCDate(), { day: 0, type, label: h.name + (h.isGuested ? '' : ' 🔒') });
   }
 
-  const daysInMonth = monthEnd.getDate();
-  const firstWeekday = monthStart.getDay(); // 0 = Sunday
-  const today = new Date();
+  const daysInMonth   = monthEnd.getDate();
+  const firstWeekday  = monthStart.getDay();
+  const today         = new Date();
   const isCurrentMonth = today.getFullYear() === monthStart.getFullYear() && today.getMonth() === monthStart.getMonth();
 
   const cells: (number | null)[] = [
@@ -85,20 +86,22 @@ export default async function RnCalendarPage({ searchParams }: { searchParams: {
   while (cells.length % 7 !== 0) cells.push(null);
 
   const DOT: Record<CalEvent['type'], string> = {
-    deadline: 'var(--danger)',
-    milestone: 'var(--plasma)',
-    holiday: 'var(--cyan)',
+    deadline:         'var(--danger)',
+    milestone:        'var(--plasma)',
+    holiday_public:   'var(--lime)',
+    holiday_custom:   'var(--cyan)',
+    holiday_internal: 'var(--text-tertiary)',
   };
 
   return (
     <RippleNexusShell>
       <main className="rn-page">
-        <header style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
+        <header className="rn-page-header">
           <div>
             <div className="rn-eyebrow" style={{ marginBottom: 6 }}>Workspace</div>
             <h1 className="rn-title-xl">Delivery Calendar</h1>
             <p className="rn-subtitle" style={{ marginTop: 8 }}>
-              Project deadlines, milestone due dates, and agency holidays in one view.
+              Project deadlines, milestones, and agency holidays in one view.
             </p>
           </div>
           <HolidayManager />
@@ -123,22 +126,23 @@ export default async function RnCalendarPage({ searchParams }: { searchParams: {
                 {cells.map((day, i) => {
                   const events = day ? (eventsByDay.get(day) ?? []) : [];
                   const isToday = isCurrentMonth && day === today.getDate();
+                  const hasHoliday = events.some(e => e.type.startsWith('holiday'));
                   return (
                     <div key={i} style={{
-                      minHeight: 84, borderRadius: 10, padding: 6,
-                      background: day ? 'var(--surface-1)' : 'transparent',
-                      border: day ? `1px solid ${isToday ? 'var(--brand)' : 'var(--border)'}` : '1px solid transparent',
-                      boxShadow: isToday ? '0 0 0 2px var(--brand-light)' : 'none',
-                      overflow: 'hidden',
+                      minHeight: 88, borderRadius: 12, padding: '6px 5px',
+                      background: day ? (hasHoliday ? 'rgba(34,211,238,0.06)' : 'var(--surface-3)') : 'transparent',
+                      border: day ? `1px solid ${isToday ? 'var(--brand)' : hasHoliday ? 'rgba(34,211,238,0.2)' : 'var(--border)'}` : '1px solid transparent',
+                      boxShadow: isToday ? '0 0 0 2px var(--brand-faint)' : 'none',
+                      transition: 'all 150ms var(--ease)',
                     }}>
                       {day && (
                         <>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: isToday ? 'var(--plasma)' : 'var(--text-tertiary)', marginBottom: 4 }}>{day}</div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: isToday ? 'var(--plasma)' : 'var(--text-tertiary)', marginBottom: 4, textAlign: 'right' }}>{day}</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             {events.slice(0, 3).map((e, j) => {
                               const inner = (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  <span style={{ width: 6, height: 6, borderRadius: 3, background: DOT[e.type], flexShrink: 0 }} />
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.4 }}>
+                                  <span style={{ width: 5, height: 5, borderRadius: 3, background: DOT[e.type], flexShrink: 0 }} />
                                   {e.label}
                                 </span>
                               );
@@ -147,7 +151,7 @@ export default async function RnCalendarPage({ searchParams }: { searchParams: {
                                 : <span key={j} title={e.label}>{inner}</span>;
                             })}
                             {events.length > 3 && (
-                              <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>+{events.length - 3} more</span>
+                              <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontWeight: 600 }}>+{events.length - 3} more</span>
                             )}
                           </div>
                         </>
@@ -156,11 +160,18 @@ export default async function RnCalendarPage({ searchParams }: { searchParams: {
                   );
                 })}
               </div>
+
               {/* Legend */}
-              <div style={{ display: 'flex', gap: 18, marginTop: 14, paddingLeft: 4 }}>
-                {([['deadline', 'Project delivery'], ['milestone', 'Milestone due'], ['holiday', 'Agency holiday']] as const).map(([t, lbl]) => (
+              <div style={{ display: 'flex', gap: 16, marginTop: 16, paddingLeft: 4, flexWrap: 'wrap' }}>
+                {([
+                  ['deadline',        'Project delivery'],
+                  ['milestone',       'Milestone due'],
+                  ['holiday_public',  'Public holiday (🇮🇳)'],
+                  ['holiday_custom',  'Custom holiday (client-visible)'],
+                  ['holiday_internal','Internal closure only'],
+                ] as const).map(([t, lbl]) => (
                   <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--text-tertiary)' }}>
-                    <span style={{ width: 8, height: 8, borderRadius: 4, background: DOT[t] }} /> {lbl}
+                    <span style={{ width: 8, height: 8, borderRadius: 4, background: DOT[t], flexShrink: 0 }} /> {lbl}
                   </span>
                 ))}
               </div>
@@ -173,24 +184,31 @@ export default async function RnCalendarPage({ searchParams }: { searchParams: {
               <h2 className="rn-panel-title">Agency Holidays</h2>
             </div>
             <div className="rn-panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {upcomingHolidays.length === 0 && (
-                <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13, padding: '16px 0' }}>
-                  No upcoming holidays. Add one to block delivery expectations and optionally notify clients.
+              {upcomingHolidays.length === 0 ? (
+                <div className="rn-empty" style={{ padding: '24px 0' }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>🗓</div>
+                  <p className="rn-empty-desc">No upcoming holidays. Use &ldquo;Seed Public Holidays&rdquo; to import Indian public holidays or add a custom one.</p>
                 </div>
-              )}
-              {upcomingHolidays.map(h => {
+              ) : upcomingHolidays.map(h => {
                 const days = differenceInCalendarDays(new Date(h.date), new Date());
                 return (
-                  <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                  <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, padding: '12px 14px', background: 'var(--surface-3)', borderRadius: 12, border: '1px solid var(--border)' }}>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>{h.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)' }}>{h.name}</div>
+                        {h.isPublicHoliday && <span className="rn-badge lime" style={{ fontSize: 10 }}>🇮🇳 Public</span>}
+                        {!h.isGuested && <span className="rn-badge neutral" style={{ fontSize: 10 }}>🔒 Internal</span>}
+                      </div>
                       <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
                         {format(new Date(h.date), 'EEE, MMM d, yyyy')}
-                        {h.notifiedAt && <span style={{ color: 'var(--success)' }}> · clients notified</span>}
+                        {h.notifiedAt && <span style={{ color: 'var(--success)', marginLeft: 8, fontWeight: 600 }}>· clients notified</span>}
                       </div>
+                      {h.description && <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', marginTop: 4 }}>{h.description}</div>}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                      <span className={`rn-badge ${days <= 7 ? 'cyan' : 'neutral'}`}>{days === 0 ? 'Today' : `${days}d`}</span>
+                      <span className={`rn-badge ${days <= 3 ? 'warning' : days <= 7 ? 'cyan' : 'neutral'}`}>
+                        {days === 0 ? 'Today' : days < 0 ? `${Math.abs(days)}d ago` : `${days}d`}
+                      </span>
                       <DeleteHolidayButton id={h.id} />
                     </div>
                   </div>

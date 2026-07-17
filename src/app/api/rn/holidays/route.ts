@@ -1,6 +1,6 @@
 // src/app/api/rn/holidays/route.ts
-// GET  — list RN agency holidays (upcoming first)
-// POST — add/update a holiday; optional notify=true emails all active clients
+// GET  — list RN agency holidays
+// POST — add/update a holiday with selective client notification + guested/public flags
 
 import { NextResponse } from 'next/server';
 import { prisma as db } from '@/lib/db';
@@ -28,26 +28,46 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'date (YYYY-MM-DD) and name are required' }, { status: 400 });
   }
   const date = new Date(`${dateStr}T00:00:00.000Z`);
+  const isPublicHoliday = body?.isPublicHoliday === true;
+  const isGuested = body?.isGuested !== false; // default true
 
   const holiday = await db.rnHoliday.upsert({
     where: { date },
-    update: { name: name.slice(0, 120), description: body?.description?.slice(0, 500) ?? null },
+    update: {
+      name: name.slice(0, 120),
+      description: body?.description?.slice(0, 500) ?? null,
+      isPublicHoliday,
+      isGuested,
+    },
     create: {
       date,
       name: name.slice(0, 120),
       description: body?.description?.slice(0, 500) ?? null,
+      isPublicHoliday,
+      isGuested,
       createdById: session.adminId,
     },
   });
 
-  // Optional: notify every active client about the closure (branded SMTP email)
-  if (body?.notify === true) {
+  // Notification logic
+  const shouldNotify = body?.notify === true;
+  const targetClientIds: string[] | undefined = Array.isArray(body?.targetClientIds) && body.targetClientIds.length > 0
+    ? body.targetClientIds
+    : undefined;
+
+  if (shouldNotify) {
+    // Fetch only the target clients, or all active ones
     const clients = await db.rnClient.findMany({
-      where: { lifecycleStatus: 'ACTIVE' },
+      where: targetClientIds
+        ? { id: { in: targetClientIds } }
+        : { lifecycleStatus: 'ACTIVE' },
       select: { id: true, name: true, email: true, magicToken: true },
     });
+
     const { sendRnEmail, rnEmailShell } = await import('@/lib/rn/mailer');
-    const pretty = date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+    const pretty = date.toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
+    });
 
     for (const c of clients) {
       await sendRnEmail({
