@@ -147,7 +147,7 @@ export function RippleNexusShell({ children }: { children: React.ReactNode }) {
       {/* Brand logo */}
       <div className="sidebar-logo">
         <Link href="/rn/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }} aria-label="Ripple Nexus">
-          <Logo variant="horizontal" size={36} brandId="ripple_nexus" dark={true} />
+          <Logo variant="horizontal" size={36} brandId="ripple_nexus" dark={false} />
         </Link>
         <div className="sidebar-brand-pill">
           <span className="sidebar-brand-dot" />
