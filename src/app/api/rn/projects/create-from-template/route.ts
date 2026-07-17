@@ -59,23 +59,7 @@ export async function POST(req: NextRequest) {
 
     // Begin massive instantiation transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Create Client
-      const client = await tx.rnClient.create({
-        data: {
-          email: clientEmail,
-          magicToken,
-          name: clientName,
-          companyName,
-          phone: clientPhone,
-          serviceModuleId: 'dummy_for_now', // We will update this or use the template id as reference
-          currentStage: 'ONBOARDING',
-          expectedDeliveryAt: expectedDeliveryAt ? new Date(expectedDeliveryAt) : null,
-        }
-      });
-
       // Create ServiceModule specific to this client if required, but currently schema requires serviceModuleId referencing RnServiceModule.
-      // Wait, RnClient requires serviceModuleId. The existing logic relies on RnServiceModule.
-      // We should probably map the RnServiceTemplate to a generic RnServiceModule or create one on the fly.
       let serviceModule = await tx.rnServiceModule.findFirst({ where: { name: template.name } });
       if (!serviceModule) {
         serviceModule = await tx.rnServiceModule.create({
@@ -87,10 +71,19 @@ export async function POST(req: NextRequest) {
           }
         });
       }
-      
-      await tx.rnClient.update({
-        where: { id: client.id },
-        data: { serviceModuleId: serviceModule.id }
+
+      // Create Client
+      const client = await tx.rnClient.create({
+        data: {
+          email: clientEmail,
+          magicToken,
+          name: clientName,
+          companyName,
+          phone: clientPhone,
+          serviceModuleId: serviceModule.id,
+          currentStage: 'ONBOARDING',
+          expectedDeliveryAt: expectedDeliveryAt ? new Date(expectedDeliveryAt) : null,
+        }
       });
 
       // Create Milestones and Tasks

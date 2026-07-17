@@ -56,6 +56,7 @@ export default function RnInvoiceDetailPage() {
   const [deleting, setDeleting]       = useState(false);
   const [markingPaid, setMarkingPaid] = useState(false);
   const [syncing, setSyncing]         = useState(false);
+  const [activeTab, setActiveTab]     = useState<'details' | 'preview'>('details');
 
   const loadInvoice = useCallback(() => {
     fetch(`/api/invoices/${params.id}`)
@@ -199,7 +200,25 @@ export default function RnInvoiceDetailPage() {
         </div>
 
         <div className="card overflow-hidden" style={{ boxShadow: '0 4px 40px rgba(124,92,255,.08)' }}>
-          {/* Header */}
+          {/* Tabs */}
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+            <button 
+              onClick={() => setActiveTab('details')}
+              style={{ flex: 1, padding: '16px', background: 'transparent', border: 'none', borderBottom: activeTab === 'details' ? '2px solid #7C5CFF' : '2px solid transparent', color: activeTab === 'details' ? '#7C5CFF' : 'var(--text-secondary)', fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s' }}
+            >
+              🧾 Invoice Details
+            </button>
+            <button 
+              onClick={() => setActiveTab('preview')}
+              style={{ flex: 1, padding: '16px', background: 'transparent', border: 'none', borderBottom: activeTab === 'preview' ? '2px solid #7C5CFF' : '2px solid transparent', color: activeTab === 'preview' ? '#7C5CFF' : 'var(--text-secondary)', fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s' }}
+            >
+              📧 Email Preview
+            </button>
+          </div>
+
+          {activeTab === 'details' ? (
+            <>
+              {/* Header */}
           <div style={{ background: 'linear-gradient(135deg, #7C5CFF, #22D3EE)', padding: '32px 36px' }}>
             <div className="flex items-start justify-between">
               <div>
@@ -338,6 +357,18 @@ export default function RnInvoiceDetailPage() {
               <div style={{ fontSize: 28, marginBottom: 6 }}>✅</div>
               <div style={{ fontWeight: 700, color: 'var(--success)', fontSize: 16 }}>Payment Received</div>
               {invoice.paidAt && <div style={{ fontSize: 13, color: 'var(--success)', marginTop: 4 }}>Paid on {format(new Date(invoice.paidAt), 'dd MMM yyyy, h:mm a')}</div>}
+            </div>
+          )}
+            </>
+          ) : (
+            <div style={{ padding: 0, background: '#F8FAFC', display: 'flex', justifyContent: 'center', minHeight: 600 }}>
+              <div style={{ width: '100%', maxWidth: 600, boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+                <iframe 
+                  src={`/api/invoices/${invoice.id}/preview`} 
+                  style={{ width: '100%', height: '100%', minHeight: 600, border: 'none', display: 'block' }} 
+                  title="Email Preview"
+                />
+              </div>
             </div>
           )}
         </div>

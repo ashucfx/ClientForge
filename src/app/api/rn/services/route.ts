@@ -15,7 +15,20 @@ export const GET = withTenant(async (request, ctx) => {
     const services = await tenantDb.rnServiceModule.findMany({
       orderBy: { name: 'asc' }
     });
-    return NextResponse.json({ services });
+    
+    const templates = await tenantDb.rnServiceTemplate.findMany({
+      orderBy: { name: 'asc' },
+      include: { milestoneTemplates: { orderBy: { order: 'asc' } } }
+    });
+    
+    const mappedTemplates = templates.map(t => ({
+      id: t.id,
+      name: t.name,
+      slug: t.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      workflowStages: t.milestoneTemplates.map(m => m.title)
+    }));
+
+    return NextResponse.json({ services: [...services, ...mappedTemplates] });
   } catch (err) {
     return NextResponse.json({ error: 'Failed to fetch services' }, { status: 500 });
   }
