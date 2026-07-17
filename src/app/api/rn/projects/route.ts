@@ -12,10 +12,10 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { clientName, companyName, email, serviceModuleId, expectedDeliveryAt, budget } = body;
+    const { clientName, companyName, email, phone, serviceModuleId, expectedDeliveryAt, budget } = body;
 
-    if (!clientName || !email || !serviceModuleId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!clientName || !email || !phone || !serviceModuleId) {
+      return NextResponse.json({ error: 'Missing required fields. Name, Email, Phone and Service Module are compulsory.' }, { status: 400 });
     }
 
     const tenantDb = getTenantDb('ripple_nexus');
@@ -38,6 +38,7 @@ export async function POST(req: Request) {
         name: clientName,
         companyName: companyName || null,
         email,
+        phone,
         serviceModuleId,
         currentStage: firstStage,
         expectedDeliveryAt: expectedDeliveryAt ? new Date(expectedDeliveryAt) : null,

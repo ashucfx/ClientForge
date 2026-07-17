@@ -42,7 +42,7 @@ export async function createRazorpayPaymentLink(
       client_type:    invoice.clientType,
       invoice_id:     invoice.id,
     },
-    expire_by:       Math.floor(new Date(invoice.dueDate).getTime() / 1000),
+    expire_by:       Math.floor(Math.max(new Date(invoice.dueDate).getTime(), Date.now() + 20 * 60 * 1000) / 1000),
   };
 
   const response = await fetch('https://api.razorpay.com/v1/payment_links', {

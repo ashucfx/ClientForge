@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import { prisma as db } from '@/lib/db';
 import { requireRnAdmin } from '@/lib/auth/rnAdmin';
-import { sendRnEmail, rnEmailShell } from '@/lib/rn/mailer';
+import { sendRnEmail, tplGeneric } from '@/lib/rn/mailer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     clientId: client.id,
     to: client.email,
     subject,
-    html: rnEmailShell(subject, `<p>Hi ${client.name},</p>${paragraphs}`),
+    html: tplGeneric(subject, subject, subject, subject, [`Hi ${client.name},`, ...paragraphs.map((p: string) => p.replace(/<[^>]*>?/gm, ''))]).html,
     trigger: 'manual',
     sentBy: session.adminId,
   });

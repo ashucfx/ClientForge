@@ -24,7 +24,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const milestone = await db.rnProjectMilestone.findUnique({
     where: { id: params.id },
-    include: { client: { select: { id: true, name: true, email: true, magicToken: true, currency: true } } },
+    include: { client: { select: { id: true, name: true, email: true, phone: true, magicToken: true, currency: true } } },
   });
   if (!milestone) return NextResponse.json({ error: 'Milestone not found' }, { status: 404 });
 
@@ -61,7 +61,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           invoiceNumber: `RN-MS-${milestone.id.slice(-6).toUpperCase()}`,
           clientName: milestone.client.name,
           clientEmail: milestone.client.email,
-          clientPhone: '0000000000', // Fallback, would ideally be on client
+          clientPhone: milestone.client.phone || '9999999999', // Uses actual phone now
           clientType: 'B2B' as any,
           country: 'IN', // Default
           currency: milestone.client.currency,

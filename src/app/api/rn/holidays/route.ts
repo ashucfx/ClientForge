@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       select: { id: true, name: true, email: true, magicToken: true },
     });
 
-    const { sendRnEmail, rnEmailShell } = await import('@/lib/rn/mailer');
+    const { sendRnEmail, tplGeneric } = await import('@/lib/rn/mailer');
     const pretty = date.toLocaleDateString('en-US', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
     });
@@ -76,12 +76,17 @@ export async function POST(req: Request) {
         subject: `Ripple Nexus office closure — ${pretty}`,
         trigger: 'holiday_notice',
         sentBy: session.adminId,
-        html: rnEmailShell(
+        html: tplGeneric(
+          `Ripple Nexus office closure — ${pretty}`,
           'Upcoming office closure',
-          `<p>Hi ${c.name},</p>
-           <p>Our team will be offline on <strong>${pretty}</strong> for <strong>${holiday.name}</strong>${holiday.description ? ` — ${holiday.description}` : ''}.</p>
-           <p>Replies and deliveries scheduled around that date may shift by one working day. Your project timeline is unaffected otherwise.</p>`,
-        ),
+          `Our team will be offline on ${pretty}.`,
+          'Office Closure Notice',
+          [
+            `Hi ${c.name},`,
+            `Our team will be offline on ${pretty} for ${holiday.name}${holiday.description ? ` — ${holiday.description}` : ''}.`,
+            `Replies and deliveries scheduled around that date may shift by one working day. Your project timeline is unaffected otherwise.`
+          ]
+        ).html,
         metadata: { holidayId: holiday.id },
       });
     }

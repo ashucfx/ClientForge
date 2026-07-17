@@ -4,7 +4,7 @@
 // backwards-compatible with existing callers.
 
 import { prisma as db } from '@/lib/db';
-import { sendRnEmail, rnEmailShell, tplWelcome } from './mailer';
+import { sendRnEmail, tplGeneric, tplWelcome } from './mailer';
 
 async function clientIdByEmail(email: string): Promise<string | null> {
   const c = await db.rnClient.findFirst({ where: { email }, select: { id: true } });
@@ -26,11 +26,16 @@ export async function sendRnOtpEmail(to: string, otp: string) {
     to,
     subject: 'Your Ripple Nexus login PIN',
     trigger: 'otp',
-    html: rnEmailShell(
+    html: tplGeneric(
+      'Your Ripple Nexus login PIN',
       'Login verification',
-      `<p>Use this 6-digit PIN to securely log in to your Ripple Nexus client portal.</p>
-       <div style="margin:24px 0;font-size:32px;font-weight:800;letter-spacing:6px;color:#7C5CFF;text-align:center;background:#F4F5FA;padding:20px;border-radius:12px">${otp}</div>
-       <p style="color:#6B7394;font-size:12.5px">This PIN expires shortly. If you did not request it, you can safely ignore this email.</p>`,
-    ),
+      'Use this 6-digit PIN to securely log in to your Ripple Nexus client portal.',
+      'Login PIN',
+      [
+        'Use this 6-digit PIN to securely log in to your Ripple Nexus client portal.',
+        `Your PIN is: ${otp}`,
+        'This PIN expires shortly. If you did not request it, you can safely ignore this email.'
+      ]
+    ).html,
   });
 }

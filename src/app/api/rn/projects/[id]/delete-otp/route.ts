@@ -44,19 +44,24 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   });
 
   // The OTP goes to the ADMIN inbox — deleting a client must never notify them.
-  const { sendRnEmail, rnEmailShell } = await import('@/lib/rn/mailer');
+  const { sendRnEmail, tplGeneric } = await import('@/lib/rn/mailer');
   const result = await sendRnEmail({
     clientId: client.id,
     to: ADMIN_EMAIL,
     subject: `Deletion OTP for ${client.companyName || client.name}`,
     trigger: 'delete_otp',
     sentBy: session.adminId,
-    html: rnEmailShell(
+    html: tplGeneric(
+      `Deletion OTP for ${client.companyName || client.name}`,
       'Confirm client deletion',
-      `<p>You requested deletion of <strong>${client.companyName || client.name}</strong> (${client.email}) and all of their project data.</p>
-       <div style="margin:24px 0;font-size:32px;font-weight:800;letter-spacing:6px;color:#F43F5E;text-align:center;background:#F4F5FA;padding:20px;border-radius:12px">${otp}</div>
-       <p style="color:#6B7394;font-size:12.5px">This code expires in ${OTP_TTL_MINUTES} minutes. If you did not request this, no action is needed — nothing is deleted without the code.</p>`,
-    ),
+      `You requested deletion of ${client.companyName || client.name}.`,
+      'Confirm Deletion',
+      [
+        `You requested deletion of ${client.companyName || client.name} (${client.email}) and all of their project data.`,
+        `Your OTP is: ${otp}`,
+        `This code expires in ${OTP_TTL_MINUTES} minutes. If you did not request this, no action is needed — nothing is deleted without the code.`
+      ]
+    ).html,
   });
 
   if (!result.ok) return NextResponse.json({ error: result.error ?? 'Could not send OTP email' }, { status: 502 });

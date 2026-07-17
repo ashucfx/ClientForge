@@ -23,8 +23,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { serviceTemplateId, clientEmail, clientName, companyName, clientPhone, invoiceDueDate, expectedDeliveryAt } = body;
 
-    if (!serviceTemplateId || !clientEmail || !clientName) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!serviceTemplateId || !clientEmail || !clientName || !clientPhone) {
+      return NextResponse.json({ error: 'Missing required fields. Client Name, Email, and Phone Number are compulsory.' }, { status: 400 });
     }
 
     const template = await prisma.rnServiceTemplate.findUnique({
