@@ -63,13 +63,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           clientName: milestone.client.name,
           clientEmail: milestone.client.email,
           clientPhone: milestone.client.phone || '9999999999',
-          clientType: 'B2B',
+          clientType: 'AGENCY_CLIENT',
           country: 'IN',
           currency: milestone.client.currency,
+          currencySymbol: milestone.client.currency === 'INR' ? '₹' : '$',
+          exchangeRate: 1,
           dueDate: milestone.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           status: 'PENDING',
+          subtotalConverted: milestone.amount,
+          processingFeeRate: 0,
+          processingFeeConverted: 0,
           totalPayable: milestone.amount,
-          subTotal: milestone.amount,
           taxAmount: 0,
           lineItems: [{
             id: milestone.id,
@@ -79,7 +83,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
             qty: 1,
             total: milestone.amount
           }],
-          gateway: 'razorpay'
+          paymentGateway: 'RAZORPAY'
         }
       });
 
@@ -90,7 +94,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         
         await db.invoice.update({
           where: { id: invoice.id },
-          data: { paymentLink: rzp.short_url }
+          data: { 
+            razorpayLinkId: rzp.id,
+            razorpayLinkUrl: rzp.short_url 
+          }
         });
       } catch (err: any) {
         // If razorpay fails, we still have the invoice but no link
