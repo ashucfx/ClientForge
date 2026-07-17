@@ -159,7 +159,7 @@ export function RippleNexusShell({ children }: { children: React.ReactNode }) {
       <nav className="sidebar-nav">
         {(['Workspace', 'Operations', ...(role === 'SUPER_ADMIN' ? ['Admin'] : [])] as const).map(section => {
           const items = section === 'Admin'
-            ? [{ href: '/team', Icon: IconTeam, label: 'Team & Access', section: 'Admin' }]
+            ? [{ href: '/rn/team', Icon: IconTeam, label: 'Team & Access', section: 'Admin' }]
             : RN_NAV.filter(n => n.section === section);
           const isCollapsed = collapsed[section];
           return (
