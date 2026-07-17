@@ -93,6 +93,32 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const admin = await getAdminSession();
+    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (admin.role !== 'SUPER_ADMIN' && admin.role !== 'PROJECT_MANAGER') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const body = await req.json();
+    
+    const existing = await prisma.rnServiceTemplate.findUnique({ where: { id: params.id } });
+    if (!existing) return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+
+    const updatedTemplate = await prisma.rnServiceTemplate.update({
+      where: { id: params.id },
+      data: {
+        meta: body.meta !== undefined ? body.meta : existing.meta,
+      }
+    });
+    return NextResponse.json({ data: updatedTemplate }, { status: 200 });
+  } catch (error) {
+    console.error('Failed to update template config:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const admin = await getAdminSession();

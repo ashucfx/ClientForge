@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-type ServiceTemplate = any; // We can type this out fully later
+type ServiceTemplate = any;
 
 export default function ServiceTemplatesClient({ initialTemplates }: { initialTemplates: ServiceTemplate[] }) {
   const router = useRouter();
@@ -15,6 +15,10 @@ export default function ServiceTemplatesClient({ initialTemplates }: { initialTe
     pricingModel: 'FIXED',
     baseCurrency: 'USD',
   });
+  
+  const [editingMeta, setEditingMeta] = useState<ServiceTemplate | null>(null);
+  const [metaJson, setMetaJson] = useState<string>('');
+  const [savingMeta, setSavingMeta] = useState(false);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,12 +31,50 @@ export default function ServiceTemplatesClient({ initialTemplates }: { initialTe
       if (res.ok) {
         setIsCreating(false);
         router.refresh();
-        // Optimistically update
         const data = await res.json();
         setTemplates([data.data, ...templates]);
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const openMetaEditor = (t: ServiceTemplate) => {
+    setEditingMeta(t);
+    const defaultMeta = {
+      timeline: '4-6 weeks',
+      revisionPolicy: 'Up to 2 major revisions included.',
+      documentsRequired: ['Brand Guidelines', 'API Keys'],
+      dependencies: ['Client Approval on Design', 'Server Access'],
+      clientResponsibilities: ['Provide timely feedback', 'Supply copy'],
+      teamResponsibilities: ['Daily updates', 'Code delivery'],
+      qualityChecklist: ['Lighthouse score > 90', '0 TypeScript Errors'],
+      estimatedEffortHours: 120,
+      automationRules: { onComplete: 'send_feedback_email', defaultFolders: ['Design', 'Code', 'Invoices'] }
+    };
+    setMetaJson(JSON.stringify(t.meta || defaultMeta, null, 2));
+  };
+
+  const saveMeta = async () => {
+    if (!editingMeta) return;
+    setSavingMeta(true);
+    try {
+      const parsedMeta = JSON.parse(metaJson);
+      const res = await fetch(`/api/rn/admin/templates/services/${editingMeta.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meta: parsedMeta }),
+      });
+      if (res.ok) {
+        setTemplates(templates.map(t => t.id === editingMeta.id ? { ...t, meta: parsedMeta } : t));
+        setEditingMeta(null);
+      } else {
+        alert('Failed to save configuration');
+      }
+    } catch (e) {
+      alert('Invalid JSON formatting.');
+    } finally {
+      setSavingMeta(false);
     }
   };
 
@@ -42,10 +84,7 @@ export default function ServiceTemplatesClient({ initialTemplates }: { initialTe
         <h2 style={{ fontSize: 20, fontWeight: 600 }}>Active Templates</h2>
         <button 
           onClick={() => setIsCreating(true)}
-          style={{
-            background: 'var(--rn-primary, #0F172A)', color: '#fff', border: 'none',
-            padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 600
-          }}
+          style={{ background: 'var(--rn-primary, #0F172A)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
         >
           + New Template
         </button>
@@ -94,6 +133,30 @@ export default function ServiceTemplatesClient({ initialTemplates }: { initialTe
         </form>
       )}
 
+      {/* Advanced Configuration Modal */}
+      {editingMeta && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', padding: 24, borderRadius: 12, width: '100%', maxWidth: 700, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ margin: 0 }}>Advanced Configuration ({editingMeta.name})</h3>
+              <button onClick={() => setEditingMeta(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 20 }}>&times;</button>
+            </div>
+            <p style={{ fontSize: 13, color: '#64748B', marginTop: 0 }}>Define deliverables, dependencies, team responsibilities, and automation rules in JSON format.</p>
+            <textarea
+              value={metaJson}
+              onChange={e => setMetaJson(e.target.value)}
+              style={{ flex: 1, minHeight: 300, fontFamily: 'monospace', fontSize: 13, padding: 12, border: '1px solid #CBD5E1', borderRadius: 6, marginBottom: 16 }}
+            />
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button onClick={() => setEditingMeta(null)} style={{ background: '#F1F5F9', color: '#475569', border: 'none', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
+              <button onClick={saveMeta} disabled={savingMeta} style={{ background: '#3B82F6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>
+                {savingMeta ? 'Saving...' : 'Save Configuration'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
         {templates.map(t => (
           <div key={t.id} style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -113,7 +176,7 @@ export default function ServiceTemplatesClient({ initialTemplates }: { initialTe
               <div>{t.deliverableTemplates?.length || 0} Deliverables</div>
             </div>
             <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-               <button style={{ flex: 1, padding: 8, background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Edit Details</button>
+               <button onClick={() => openMetaEditor(t)} style={{ flex: 1, padding: 8, background: '#10B981', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Advanced Config</button>
                <button style={{ flex: 1, padding: 8, background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Manage Milestones</button>
             </div>
           </div>

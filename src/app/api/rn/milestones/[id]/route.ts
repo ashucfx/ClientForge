@@ -6,6 +6,8 @@
 import { NextResponse } from 'next/server';
 import { prisma as db } from '@/lib/db';
 import { requireRnAdmin } from '@/lib/auth/rnAdmin';
+import { createRazorpayPaymentLink } from '@/lib/razorpay';
+import type { InvoiceData } from '@/types';
 
 export const runtime = 'nodejs';
 
@@ -48,13 +50,32 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (body.paymentAction === 'request') {
     if (milestone.amount <= 0) return NextResponse.json({ error: 'Milestone has no payment amount' }, { status: 400 });
     
+    let finalInvoiceId = typeof body.invoiceId === 'string' ? body.invoiceId : milestone.invoiceId;
+    
     // Razorpay Integration
-    // In production, you would call Razorpay's API to generate a payment link here
-    // e.g. const link = await razorpay.paymentLink.create({ amount: ..., currency: ... })
-    // For now, we simulate the generated payment link ID to trigger the email's Razorpay UI logic
     const isRazorpayRequested = body.gateway === 'razorpay' || true; // Default to Razorpay for RN
-    const razorpayLink = isRazorpayRequested ? `https://rzp.io/i/rn_${Math.random().toString(36).substring(2, 9)}` : undefined;
-    const finalInvoiceId = razorpayLink || (typeof body.invoiceId === 'string' ? body.invoiceId : milestone.invoiceId);
+    if (isRazorpayRequested) {
+      try {
+        const invoicePayload = {
+          id: milestone.id,
+          invoiceNumber: `RN-MS-${milestone.id.slice(-6).toUpperCase()}`,
+          clientName: milestone.client.name,
+          clientEmail: milestone.client.email,
+          clientPhone: '0000000000', // Fallback, would ideally be on client
+          clientType: 'B2B' as any,
+          country: 'IN', // Default
+          currency: milestone.currency,
+          totalPayable: milestone.amount,
+          brandId: 'ripple_nexus',
+          dueDate: milestone.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now if null
+        } as unknown as InvoiceData;
+
+        const rzp = await createRazorpayPaymentLink(invoicePayload);
+        finalInvoiceId = rzp.short_url;
+      } catch (err: any) {
+        return NextResponse.json({ error: `Razorpay Error: ${err.message}` }, { status: 500 });
+      }
+    }
 
     const updated = await db.rnProjectMilestone.update({
       where: { id: milestone.id },

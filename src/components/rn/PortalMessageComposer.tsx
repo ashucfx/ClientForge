@@ -1,7 +1,5 @@
 'use client';
 // src/components/rn/PortalMessageComposer.tsx
-// Client-portal message composer (dark theme) — replaces the old dead form.
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -36,30 +34,30 @@ export function PortalMessageComposer() {
   };
 
   return (
-    <div style={{ padding: 16, borderTop: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.2)' }}>
-      <form
-        style={{ display: 'flex', gap: 12 }}
-        onSubmit={(e) => { e.preventDefault(); send(); }}
-      >
+    <div className="chat-input-area">
+      <form className="chat-input-wrapper" onSubmit={(e) => { e.preventDefault(); send(); }}>
         <input
           type="text"
+          className="chat-input"
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Type your message..."
           disabled={sending}
           maxLength={4000}
-          style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '12px 16px', borderRadius: 8, outline: 'none' }}
         />
         <button
           type="submit"
+          className="chat-send-btn"
           disabled={sending || !content.trim()}
-          style={{ background: '#7C5CFF', color: '#fff', border: 'none', padding: '0 24px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', opacity: sending || !content.trim() ? 0.6 : 1 }}
+          style={{ opacity: sending || !content.trim() ? 0.5 : 1 }}
         >
-          {sending ? 'Sending…' : 'Send'}
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
         </button>
       </form>
       {error && (
-        <div style={{ marginTop: 8, color: '#f87171', fontSize: 12 }}>{error}</div>
+        <div style={{ marginTop: 8, color: 'var(--rn-danger)', fontSize: 12 }}>{error}</div>
       )}
     </div>
   );
