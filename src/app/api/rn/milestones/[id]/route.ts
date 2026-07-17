@@ -64,7 +64,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           clientPhone: '0000000000', // Fallback, would ideally be on client
           clientType: 'B2B' as any,
           country: 'IN', // Default
-          currency: milestone.currency,
+          currency: milestone.client.currency,
           totalPayable: milestone.amount,
           brandId: 'ripple_nexus',
           dueDate: milestone.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now if null
@@ -92,7 +92,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         invoiceUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://clientforge.theripplenexus.com'}/rn/invoices/${updated.invoiceId}`;
       }
       const { subject, html } = tplMilestonePaymentRequest(
-        milestone.client.name, milestone.title, money(milestone.amount, milestone.currency),
+        milestone.client.name, milestone.title, money(milestone.amount, milestone.client.currency),
         portalUrlFor(milestone.client.magicToken), invoiceUrl,
       );
       await sendRnEmail({

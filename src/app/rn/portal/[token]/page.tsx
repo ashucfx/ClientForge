@@ -35,6 +35,9 @@ export default async function PortalDashboardPage({ params }: { params: { token:
   const unpaidMilestones = client.milestones.filter(m => m.paymentStatus === 'REQUESTED' || m.paymentStatus === 'UNPAID');
   const outstandingAmount = unpaidMilestones.reduce((acc, m) => acc + (m.amount || 0), 0);
 
+  const CURRENCY_SYMBOLS: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$' };
+  const currencySymbol = CURRENCY_SYMBOLS[client.currency] || client.currency + ' ';
+
   return (
     <div className="portal-dashboard">
       <div className="dashboard-header-block">
@@ -45,12 +48,12 @@ export default async function PortalDashboardPage({ params }: { params: { token:
         <div className="header-actions">
           {pendingInvoices.length > 0 && (
             <Link href={`/rn/portal/${params.token}/invoices`} className="btn-premium alert-btn">
-              Pay ${pendingInvoices.reduce((acc, i) => acc + (i.totalPayable||0), 0).toLocaleString()} Due
+              Pay {currencySymbol}{pendingInvoices.reduce((acc, i) => acc + (i.totalPayable||0), 0).toLocaleString()} Due
             </Link>
           )}
           {outstandingAmount > 0 && pendingInvoices.length === 0 && (
             <Link href={`/rn/portal/${params.token}/milestones`} className="btn-premium alert-btn">
-              ${outstandingAmount.toLocaleString()} Outstanding
+              {currencySymbol}{outstandingAmount.toLocaleString()} Outstanding
             </Link>
           )}
         </div>

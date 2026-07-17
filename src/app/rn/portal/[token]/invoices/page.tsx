@@ -19,6 +19,9 @@ export default async function PortalInvoicesPage({ params }: { params: { token: 
   const unpaidCount = invoices.filter(i => i.status === 'PENDING').length;
   const totalPaid = invoices.filter(i => i.status === 'PAID').reduce((acc, i) => acc + (i.totalPayable || 0), 0);
 
+  const CURRENCY_SYMBOLS: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$' };
+  const currencySymbol = CURRENCY_SYMBOLS[client.currency] || client.currency + ' ';
+
   return (
     <div className="portal-invoices">
       <div className="dashboard-header-block">
@@ -35,7 +38,7 @@ export default async function PortalInvoicesPage({ params }: { params: { token: 
         </div>
         <div className="metric-card glass-panel">
           <div className="metric-label">Total Amount Paid</div>
-          <div className="metric-value">${totalPaid.toLocaleString()}</div>
+          <div className="metric-value">{currencySymbol}{totalPaid.toLocaleString()}</div>
         </div>
       </div>
 
@@ -59,7 +62,7 @@ export default async function PortalInvoicesPage({ params }: { params: { token: 
                     </div>
                   </div>
                   <div className="invoice-card-right">
-                    <div className="invoice-amount">${(inv.totalPayable || 0).toLocaleString()}</div>
+                    <div className="invoice-amount">{currencySymbol}{(inv.totalPayable || 0).toLocaleString()}</div>
                     <div className="invoice-actions">
                       {isPaid ? (
                         <span className="portal-nav-badge" style={{ background: 'var(--rn-success)' }}>PAID</span>

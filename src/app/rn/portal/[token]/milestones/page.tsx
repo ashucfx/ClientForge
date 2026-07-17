@@ -15,6 +15,9 @@ export default async function PortalMilestonesPage({ params }: { params: { token
   });
   if (!client) notFound();
 
+  const CURRENCY_SYMBOLS: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$' };
+  const currencySymbol = CURRENCY_SYMBOLS[client.currency] || client.currency + ' ';
+
   return (
     <div className="portal-milestones">
       <div className="dashboard-header-block">
@@ -69,7 +72,7 @@ export default async function PortalMilestonesPage({ params }: { params: { token
                     {(milestone.paymentStatus === 'REQUESTED' || milestone.paymentStatus === 'UNPAID') && milestone.amount > 0 && (
                       <div className="mt-4" style={{ padding: '16px', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                          <strong style={{ color: 'var(--rn-danger)' }}>Payment Required:</strong> ${milestone.amount.toLocaleString()}
+                          <strong style={{ color: 'var(--rn-danger)' }}>Payment Required:</strong> {currencySymbol}{milestone.amount.toLocaleString()}
                         </div>
                         {milestone.invoiceId ? (
                           milestone.invoiceId.includes('rzp.io') ? (

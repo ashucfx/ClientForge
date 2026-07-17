@@ -40,7 +40,7 @@ export default async function RnClientPortalLayout({ params, children }: { param
       <header className="portal-topbar">
         <div className="portal-topbar-inner">
           <div className="portal-brand">
-            <Logo variant="horizontal" size={34} dark brandId="ripple_nexus" />
+            <Logo variant="horizontal" size={34} brandId="ripple_nexus" />
             <span className="portal-project-name">{serviceName}</span>
           </div>
           <div className="portal-user-badge">
