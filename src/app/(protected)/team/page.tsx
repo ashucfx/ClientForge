@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import AppShell from '@/components/AppShell';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 
 type AdminUser = {
   id: string;
@@ -233,7 +233,7 @@ export default function TeamPage() {
                         </button>
                       </td>
                       <td style={{ color: 'var(--text-tertiary)', fontSize: 13 }} suppressHydrationWarning>
-                        {admin.lastLoginAt ? formatDistanceToNow(new Date(admin.lastLoginAt), { addSuffix: true }) : 'Never'}
+                        {admin.lastLoginAt ? format(new Date(admin.lastLoginAt), 'dd MMM yyyy, HH:mm') : 'Never'}
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: 8 }}>

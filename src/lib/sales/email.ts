@@ -10,7 +10,10 @@ export async function sendProposalEmail(proposalId: string): Promise<void> {
     include: { inquiry: true }
   });
 
-  const brand = getBrand('catalyst'); // Proposals are currently for Catalyst
+  // Derive brand based on inquiry requirement type
+  const isB2b = proposal.inquiry.requirementType === 'ENTERPRISE' || proposal.inquiry.requirementType === 'B2B';
+  const brandId = isB2b ? 'ripple_nexus' : 'catalyst';
+  const brand = getBrand(brandId);
   const sym = proposal.currencySymbol;
   const fmt = (n: number) => formatCurrency(n, sym);
   const firstName = proposal.inquiry.name.split(' ')[0];
@@ -359,7 +362,7 @@ ${brand.name} | ${brand.websiteUrl}
   const subject = `Your Custom Proposal: ${proposal.title} — ${brand.name}`;
   try {
     await transporter.sendMail({
-      from: `"${brand.name}" <${process.env.SMTP_USER || process.env.FROM_EMAIL || 'catalyst@theripplenexus.com'}>`,
+      from: `"${brand.name}" <${process.env.SMTP_USER || process.env.FROM_EMAIL || (brandId === 'catalyst' ? 'catalyst@theripplenexus.com' : 'team@theripplenexus.com')}>`,
       replyTo: brand.replyTo,
       to: proposal.inquiry.email,
       subject,
@@ -368,16 +371,33 @@ ${brand.name} | ${brand.websiteUrl}
     });
     console.log(`[SMTP] Proposal email sent successfully to ${proposal.inquiry.email}`);
     const { prisma } = await import('@/lib/db');
-    prisma.sysEmailLog.create({
-      data: {
-        to: proposal.inquiry.email,
-        subject,
-        trigger: 'PROPOSAL_SENT',
-        channel: 'smtp',
-        status: 'sent',
-        metadata: { proposalId, inquiryId: proposal.inquiryId, version: proposal.version },
-      },
-    }).catch(() => null);
+    
+    // Log to SysEmailLog for Catalyst, RnEmailLog for Ripple Nexus
+    if (brandId === 'ripple_nexus') {
+      prisma.rnEmailLog.create({
+        data: {
+          to: proposal.inquiry.email,
+          clientId: proposal.inquiry.email, // fallback since clientId is not yet established
+          subject,
+          trigger: 'PROPOSAL_SENT',
+          provider: 'smtp',
+          status: 'sent',
+          sentBy: 'system',
+          metadata: { proposalId, inquiryId: proposal.inquiryId, version: proposal.version } as any,
+        }
+      }).catch(() => null);
+    } else {
+      prisma.sysEmailLog.create({
+        data: {
+          to: proposal.inquiry.email,
+          subject,
+          trigger: 'PROPOSAL_SENT',
+          channel: 'smtp',
+          status: 'sent',
+          metadata: { proposalId, inquiryId: proposal.inquiryId, version: proposal.version },
+        },
+      }).catch(() => null);
+    }
   } catch (error) {
     console.error(`[SMTP] Error sending proposal email:`, error);
     const { prisma } = await import('@/lib/db');
@@ -392,6 +412,23 @@ ${brand.name} | ${brand.websiteUrl}
         metadata: { proposalId, inquiryId: proposal.inquiryId },
       },
     }).catch(() => null);
+    
+    if (brandId === 'ripple_nexus') {
+      prisma.rnEmailLog.create({
+        data: {
+          to: proposal.inquiry.email,
+          clientId: proposal.inquiry.email,
+          subject,
+          trigger: 'PROPOSAL_SENT',
+          provider: 'smtp',
+          status: 'failed',
+          error: error instanceof Error ? error.message : String(error),
+          sentBy: 'system',
+          metadata: { proposalId, inquiryId: proposal.inquiryId } as any,
+        }
+      }).catch(() => null);
+    }
+    
     throw new Error('Failed to send proposal email via SMTP.');
   }
 }

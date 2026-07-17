@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   IconGrid, IconList, IconLogout, IconTarget, IconUser, IconHome,
-  IconFolder, IconInbox, IconTrendUp, IconMail, IconCalendar,
+  IconFolder, IconInbox, IconTrendUp, IconMail, IconCalendar, IconSettings,
 } from '@/components/Icons';
 import { Logo } from '@/components/Logo';
 import { useAdmin } from '@/components/AdminProvider';
@@ -21,6 +21,18 @@ function IconRefresh({ size = 16 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       <polyline points="23 4 23 10 17 10" />
       <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+    </svg>
+  );
+}
+
+function IconTeam({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
+      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+      </g>
     </svg>
   );
 }
@@ -145,8 +157,10 @@ export function RippleNexusShell({ children }: { children: React.ReactNode }) {
 
       {/* Navigation */}
       <nav className="sidebar-nav">
-        {(['Workspace', 'Operations'] as const).map(section => {
-          const items = RN_NAV.filter(n => n.section === section);
+        {(['Workspace', 'Operations', ...(role === 'SUPER_ADMIN' ? ['Admin'] : [])] as const).map(section => {
+          const items = section === 'Admin'
+            ? [{ href: '/team', Icon: IconTeam, label: 'Team & Access', section: 'Admin' }]
+            : RN_NAV.filter(n => n.section === section);
           const isCollapsed = collapsed[section];
           return (
             <div key={section}>

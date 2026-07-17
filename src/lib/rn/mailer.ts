@@ -21,27 +21,34 @@ const BRAND = {
 };
 
 export function isRnSmtpConfigured(): boolean {
-  return !!(process.env.RN_SMTP_HOST && process.env.RN_SMTP_USER && process.env.RN_SMTP_PASS);
+  return !!((process.env.RN_SMTP_HOST && process.env.RN_SMTP_USER && process.env.RN_SMTP_PASS) || 
+            (process.env.SMTP_HOST && (process.env.SMTP_USER || process.env.FROM_EMAIL)));
 }
 
 function getTransport() {
-  const port = Number(process.env.RN_SMTP_PORT ?? 587);
+  const host = process.env.RN_SMTP_HOST || process.env.SMTP_HOST;
+  const portStr = process.env.RN_SMTP_PORT || process.env.SMTP_PORT || '587';
+  const port = Number(portStr);
   const secure = process.env.RN_SMTP_SECURE
     ? process.env.RN_SMTP_SECURE === 'true'
     : port === 465;
+  const user = process.env.RN_SMTP_USER || process.env.SMTP_USER || process.env.FROM_EMAIL;
+  const pass = process.env.RN_SMTP_PASS || process.env.SMTP_PASS;
+
   return nodemailer.createTransport({
-    host: process.env.RN_SMTP_HOST,
+    host,
     port,
     secure,
     auth: {
-      user: process.env.RN_SMTP_USER,
-      pass: process.env.RN_SMTP_PASS,
+      user,
+      pass,
     },
   });
 }
 
 function fromAddress(): string {
-  return process.env.RN_SMTP_FROM ?? `${BRAND.name} <${process.env.RN_SMTP_USER}>`;
+  const user = process.env.RN_SMTP_USER || process.env.SMTP_USER || process.env.FROM_EMAIL;
+  return process.env.RN_SMTP_FROM ?? `${BRAND.name} <${user}>`;
 }
 
 /** Brand-book email shell: light body (email-client-safe) with violet accents. */
@@ -229,6 +236,19 @@ export function tplNewMessage(name: string, portalUrl: string) {
       `<p>Hi ${name},</p>
        <p>The ${BRAND.name} team has sent you a new message on your project portal.</p>`,
       'Read & Reply', portalUrl,
+    ),
+  };
+}
+
+export function tplInvoiceCreated(name: string, invoiceNumber: string, amountLabel: string, portalUrl: string, invoiceUrl: string) {
+  return {
+    subject: `New Invoice from ${BRAND.name}: ${invoiceNumber}`,
+    html: rnEmailShell(
+      'Invoice Ready',
+      `<p>Hi ${name},</p>
+       <p>A new invoice (<strong>${invoiceNumber}</strong>) for <strong>${amountLabel}</strong> has been created for your account.</p>
+       <p>You can view the details and pay securely using the link below, or access it from your client portal.</p>`,
+      'View Invoice & Pay', invoiceUrl,
     ),
   };
 }
