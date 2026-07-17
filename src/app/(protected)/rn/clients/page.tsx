@@ -42,7 +42,7 @@ export default async function RnClientsPage({ searchParams }: { searchParams: { 
 
   const activeTemplates = await prisma.rnServiceTemplate.findMany({
     where: { isActive: true },
-    select: { id: true, name: true, version: true },
+    select: { id: true, name: true, version: true, category: true },
     orderBy: { createdAt: 'desc' }
   });
 
