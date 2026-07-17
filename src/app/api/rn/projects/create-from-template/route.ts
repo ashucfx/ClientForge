@@ -63,7 +63,6 @@ export async function POST(req: NextRequest) {
       const client = await tx.rnClient.create({
         data: {
           email: clientEmail,
-          passwordHash,
           magicToken,
           name: clientName,
           companyName,
@@ -71,7 +70,6 @@ export async function POST(req: NextRequest) {
           serviceModuleId: 'dummy_for_now', // We will update this or use the template id as reference
           currentStage: 'ONBOARDING',
           expectedDeliveryAt: expectedDeliveryAt ? new Date(expectedDeliveryAt) : null,
-          adminAccess: [admin.id],
         }
       });
 
@@ -85,10 +83,6 @@ export async function POST(req: NextRequest) {
             slug: template.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
             name: template.name,
             workflowStages: ['ONBOARDING', 'REQUIREMENTS', 'DEVELOPMENT', 'TESTING', 'DELIVERY'],
-            defaultPrice: 0,
-            currency: template.baseCurrency,
-            description: template.description,
-            deliverables: [],
             isActive: true
           }
         });
@@ -134,8 +128,11 @@ export async function POST(req: NextRequest) {
             clientId: client.id,
             label: dTemplate.label,
             fileUrl: '', // To be filled later
-            uploadedBy: admin.id,
-            approvalStatus: 'PENDING'
+            uploadedBy: admin.adminId,
+            approvalStatus: 'PENDING',
+            publicId: 'N/A',
+            fileType: 'document',
+            mimeType: 'application/pdf',
           }
         });
       }
@@ -156,7 +153,7 @@ export async function POST(req: NextRequest) {
       subject,
       html,
       trigger: 'welcome',
-      sentBy: admin.id,
+      sentBy: admin.adminId,
     }).catch(console.error);
 
     return NextResponse.json({ data: result }, { status: 201 });

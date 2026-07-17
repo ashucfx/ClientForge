@@ -36,7 +36,6 @@ export default async function RnClientsPage({ searchParams }: { searchParams: { 
     include: {
       ConversationReadState: true,
       ClientHealthScore: true,
-      ClientHealthScore: true,
       serviceModule: { select: { name: true } },
     },
   });

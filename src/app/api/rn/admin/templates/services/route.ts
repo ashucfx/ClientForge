@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
         taxRate: taxRate || 0,
         discountRules: discountRules || [],
         termsAndConditions,
-        createdBy: admin.id,
+        createdBy: admin.adminId,
       }
     });
 

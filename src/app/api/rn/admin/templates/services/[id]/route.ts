@@ -51,6 +51,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     if (createNewVersion) {
       // Archive the old one
+      await prisma.rnActivityLog.create({
+      data: { clientId: 'SYSTEM', action: `Archived service template ${existing.name}`, performedBy: admin.adminId }
+    }).catch(() => {});
+
       await prisma.rnServiceTemplate.update({
         where: { id: params.id },
         data: { isActive: false }
@@ -69,7 +73,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
           termsAndConditions: termsAndConditions ?? existing.termsAndConditions,
           version: existing.version + 1,
           originalId: existing.originalId || existing.id,
-          createdBy: admin.id,
+          createdBy: admin.adminId,
         }
       });
       return NextResponse.json({ data: newTemplate }, { status: 201 });
