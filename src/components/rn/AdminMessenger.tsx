@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
@@ -15,7 +15,7 @@ export function AdminMessenger({ clientId, adminName }: { clientId: string, admi
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       const res = await fetch(`/api/rn/projects/${clientId}/messages`);
       if (res.ok) {
@@ -25,13 +25,13 @@ export function AdminMessenger({ clientId, adminName }: { clientId: string, admi
     } finally {
       setLoading(false);
     }
-  };
+  }, [clientId]);
 
   useEffect(() => {
     fetchMessages();
     const interval = setInterval(fetchMessages, 10000); // Simple poll for demo
     return () => clearInterval(interval);
-  }, [clientId]);
+  }, [fetchMessages]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -103,7 +103,7 @@ export default function RnNewProjectPage() {
             margin: '0 auto',
             lineHeight: 1.5
           }}>
-            Provision a dedicated project portal, instantly clone the blueprint's milestones, and dispatch a branded welcome sequence to your client.
+            Provision a dedicated project portal, instantly clone the blueprint&apos;s milestones, and dispatch a branded welcome sequence to your client.
           </p>
         </div>
 
