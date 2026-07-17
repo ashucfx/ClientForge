@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 
 export function CreateFromTemplateBtn({ templates }: { templates: any[] }) {
   const [open, setOpen] = useState(false);
@@ -75,6 +77,16 @@ export function CreateFromTemplateBtn({ templates }: { templates: any[] }) {
               <div>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Company (Optional)</label>
                 <input value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} style={{ width: '100%', padding: 10, borderRadius: 6, border: '1px solid #CBD5E1' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Phone Number *</label>
+                <PhoneInput
+                  country={'us'}
+                  value={formData.clientPhone}
+                  onChange={phone => setFormData({...formData, clientPhone: phone})}
+                  inputStyle={{ width: '100%', padding: '10px 14px', paddingLeft: '48px', borderRadius: 6, border: '1px solid #CBD5E1', height: '40px', fontSize: '13px' }}
+                  buttonStyle={{ borderRadius: '6px 0 0 6px', border: '1px solid #CBD5E1', background: '#F8FAFC' }}
+                />
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
                 <button disabled={loading} type="submit" style={{ flex: 1, padding: 10, background: '#3B82F6', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>

@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { RippleNexusShell } from '@/components/shells/RippleNexusShell';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 
 export default function RnNewProjectPage() {
   const router = useRouter();
@@ -13,6 +15,7 @@ export default function RnNewProjectPage() {
     clientName: '',
     companyName: '',
     email: '',
+    phone: '',
     serviceModuleId: '',
     budget: '',
     expectedDeliveryAt: '',
@@ -91,13 +94,25 @@ export default function RnNewProjectPage() {
             </div>
           </div>
           
-          <div style={{ marginBottom: 40 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 8 }}>Company Name (Optional)</label>
-            <input 
-              type="text" 
-              className="input" style={{ width: '100%', padding: '10px 14px', borderRadius: 8 }}
-              value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})}
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 8 }}>Company Name (Optional)</label>
+              <input 
+                type="text" 
+                className="input" style={{ width: '100%', padding: '10px 14px', borderRadius: 8 }}
+                value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 8 }}>Phone Number *</label>
+              <PhoneInput
+                country={'us'}
+                value={formData.phone}
+                onChange={phone => setFormData({...formData, phone})}
+                inputStyle={{ width: '100%', padding: '10px 14px', paddingLeft: '48px', borderRadius: 8, border: '1px solid #CBD5E1', height: '42px', fontSize: '14px' }}
+                buttonStyle={{ borderRadius: '8px 0 0 8px', border: '1px solid #CBD5E1', background: '#F8FAFC' }}
+              />
+            </div>
           </div>
 
           <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 24 }}>Project Configuration</h2>
