@@ -15,10 +15,30 @@ const COMMON_TRIGGERS = [
   'CUSTOM'
 ];
 
-export default function EmailTemplatesClient({ initialTemplates }: { initialTemplates: any[] }) {
+export default function EmailTemplatesClient({ initialTemplates, isSuperAdmin }: { initialTemplates: any[], isSuperAdmin?: boolean }) {
   const router = useRouter();
   const [templates, setTemplates] = useState(initialTemplates);
   const [editing, setEditing] = useState<any>(null);
+  const [seeding, setSeeding] = useState(false);
+  
+  const handleSeedDefaults = async () => {
+    if (!confirm('This will seed 4 branded default email templates (Welcome, Invoice, Milestone, Delivery). Continue?')) return;
+    setSeeding(true);
+    try {
+      const res = await fetch('/api/rn/admin/seed-email-templates', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`✅ Seeded ${data.seeded} email templates!`);
+        router.refresh();
+      } else {
+        alert('❌ Seed failed: ' + data.error);
+      }
+    } catch (e) {
+      alert('❌ Network error');
+    } finally {
+      setSeeding(false);
+    }
+  };
   
   const [formData, setFormData] = useState({
     triggerEvent: '',
@@ -115,18 +135,33 @@ export default function EmailTemplatesClient({ initialTemplates }: { initialTemp
               className="input"
               style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface-1)', width: '100%', maxWidth: 400, fontSize: 14 }}
             />
-            <button 
-              onClick={() => openEditor()}
-              style={{ 
-                background: 'linear-gradient(90deg, #10B981, #059669)', 
-                color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 12, cursor: 'pointer', fontWeight: 600,
-                display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 8px 16px -4px rgba(16, 185, 129, 0.4)', transition: 'all 0.2s'
-              }}
-              onMouseOver={e => e.currentTarget.style.transform = 'translateY(-1px)'}
-              onMouseOut={e => e.currentTarget.style.transform = 'none'}
-            >
-              <Plus size={18} /> New Email Template
-            </button>
+            <div style={{ display: 'flex', gap: 12 }}>
+              {isSuperAdmin && (
+                <button 
+                  onClick={handleSeedDefaults}
+                  disabled={seeding}
+                  style={{ 
+                    background: seeding ? '#94A3B8' : 'linear-gradient(90deg, #F59E0B, #EF4444)', 
+                    color: '#fff', border: 'none', padding: '12px 20px', borderRadius: 12, cursor: seeding ? 'not-allowed' : 'pointer', fontWeight: 600,
+                    display: 'flex', alignItems: 'center', gap: 8, fontSize: 13
+                  }}
+                >
+                  {seeding ? '⏳ Seeding...' : '🔥 Seed Defaults'}
+                </button>
+              )}
+              <button 
+                onClick={() => openEditor()}
+                style={{ 
+                  background: 'linear-gradient(90deg, #10B981, #059669)', 
+                  color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 12, cursor: 'pointer', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 8px 16px -4px rgba(16, 185, 129, 0.4)', transition: 'all 0.2s'
+                }}
+                onMouseOver={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                onMouseOut={e => e.currentTarget.style.transform = 'none'}
+              >
+                <Plus size={18} /> New Email Template
+              </button>
+            </div>
           </div>
 
           {/* Grid */}

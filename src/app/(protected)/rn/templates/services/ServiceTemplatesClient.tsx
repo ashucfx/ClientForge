@@ -6,9 +6,29 @@ import { Sparkles, Briefcase, Plus, X, Box, CheckCircle2, ChevronRight, Coins, S
 
 type ServiceTemplate = any;
 
-export default function ServiceTemplatesClient({ initialTemplates }: { initialTemplates: ServiceTemplate[] }) {
+export default function ServiceTemplatesClient({ initialTemplates, isSuperAdmin }: { initialTemplates: ServiceTemplate[], isSuperAdmin?: boolean }) {
   const router = useRouter();
   const [templates, setTemplates] = useState<ServiceTemplate[]>(initialTemplates);
+  const [seeding, setSeeding] = useState(false);
+
+  const handleSeedProduction = async () => {
+    if (!confirm('This will WIPE all existing blueprints and re-seed 112 fresh templates. Continue?')) return;
+    setSeeding(true);
+    try {
+      const res = await fetch('/api/rn/admin/seed-templates', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`✅ Successfully seeded ${data.seeded} blueprints!`);
+        router.refresh();
+      } else {
+        alert('❌ Seed failed: ' + data.error);
+      }
+    } catch (e) {
+      alert('❌ Network error during seed');
+    } finally {
+      setSeeding(false);
+    }
+  };
   const [isCreating, setIsCreating] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -95,6 +115,20 @@ export default function ServiceTemplatesClient({ initialTemplates }: { initialTe
           className="input"
           style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface-1)', width: '100%', maxWidth: 400, fontSize: 14 }}
         />
+        <div style={{ display: 'flex', gap: 12 }}>
+        {isSuperAdmin && (
+          <button 
+            onClick={handleSeedProduction}
+            disabled={seeding}
+            style={{ 
+              background: seeding ? '#94A3B8' : 'linear-gradient(90deg, #F59E0B, #EF4444)', 
+              color: '#fff', border: 'none', padding: '12px 20px', borderRadius: 12, cursor: seeding ? 'not-allowed' : 'pointer', fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 8, fontSize: 13
+            }}
+          >
+            {seeding ? '⏳ Seeding...' : '🔥 Seed Production DB'}
+          </button>
+        )}
         <button 
           onClick={() => setIsCreating(true)}
           style={{ 
@@ -107,6 +141,7 @@ export default function ServiceTemplatesClient({ initialTemplates }: { initialTe
         >
           <Plus size={18} /> New Blueprint
         </button>
+        </div>
       </div>
 
       {/* Creation Modal */}
