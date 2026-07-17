@@ -31,26 +31,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid year. Must be between 2020 and 2030.' }, { status: 400 });
   }
 
-  // Fetch from Nager.Date (free, no API key needed)
-  let holidays: NagerHoliday[];
-  try {
-    const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/IN`, {
-      next: { revalidate: 86400 }, // cache for 24h
-    });
-    if (!res.ok) throw new Error(`Nager API returned ${res.status}`);
-    holidays = await res.json();
-  } catch (err) {
-    return NextResponse.json({
-      error: 'Failed to fetch Indian public holidays from external API. Please try again later.',
-      detail: String(err),
-    }, { status: 502 });
+  // Nager.Date API does not reliably support India (returns empty).
+  // Provide a curated list of major Indian public holidays instead.
+  const fixedHolidays = [
+    { date: `${year}-01-26`, name: 'Republic Day' },
+    { date: `${year}-05-01`, name: 'Labour Day' },
+    { date: `${year}-08-15`, name: 'Independence Day' },
+    { date: `${year}-10-02`, name: 'Gandhi Jayanti' },
+    { date: `${year}-12-25`, name: 'Christmas Day' },
+  ];
+
+  const movableHolidays2026 = [
+    { date: `2026-03-03`, name: 'Holi' },
+    { date: `2026-03-20`, name: 'Eid-ul-Fitr' },
+    { date: `2026-11-08`, name: 'Diwali' },
+  ];
+
+  let holidays = [...fixedHolidays];
+  if (year === 2026) {
+    holidays = [...holidays, ...movableHolidays2026];
   }
 
-  // Filter to global Indian holidays only (no region-specific ones)
-  const globalHolidays = holidays.filter(h => h.global === true);
-
   let created = 0, skipped = 0;
-  for (const h of globalHolidays) {
+  for (const h of holidays) {
     const date = new Date(`${h.date}T00:00:00.000Z`);
     try {
       await db.rnHoliday.upsert({
@@ -63,7 +66,7 @@ export async function POST(req: Request) {
         create: {
           date,
           name: h.name.slice(0, 120),
-          description: h.localName !== h.name ? h.localName : null,
+          description: null,
           isPublicHoliday: true,
           isGuested: true,
           createdById: session.adminId,

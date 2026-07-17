@@ -73,12 +73,26 @@ export async function GET() {
     (a, b) => b.lastActivityAt.getTime() - a.lastActivityAt.getTime()
   );
 
+  // Unread admin notifications (count AND recent items) for RN
+  const unreadNotificationsCount = await db.notification.count({
+    where: { adminId: session.adminId, brandId: 'ripple_nexus', isRead: false },
+  });
+
+  const recentNotifications = await db.notification.findMany({
+    where: { adminId: session.adminId, brandId: 'ripple_nexus', isRead: false },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+    select: { id: true, title: true, message: true, type: true, createdAt: true, link: true },
+  });
+
   const totalUnreadMessages = unreadMessages.length + unreadComments.length;
 
   return NextResponse.json({
     totalUnread: totalUnreadMessages + pendingRevisions,
     totalUnreadMessages,
     pendingRevisions,
+    unreadNotifications: unreadNotificationsCount,
+    recentNotifications,
     clientsWithUnread: clientsWithUnread.map(c => ({
       id: c.id,
       name: c.name,

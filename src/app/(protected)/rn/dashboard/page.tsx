@@ -124,10 +124,10 @@ export default async function RnDashboardPage() {
     : null;
 
   const metrics = [
-    { label: 'Active Retainers',    value: retainerValue,   sub: `${activeClients.length} active project${activeClients.length !== 1 ? 's' : ''}`, up: true,  icon: '💼' },
-    { label: 'Projects On Track',   value: `${activeClients.length - atRiskClients.length}/${activeClients.length}`, sub: atRiskClients.length ? `${atRiskClients.length} at risk` : 'All on schedule', up: atRiskClients.length === 0, icon: '🎯' },
-    { label: 'Pending Approvals',   value: String(pendingApprovals),  sub: pendingApprovals ? 'Awaiting review' : 'Nothing pending',    up: pendingApprovals === 0, icon: '⏳' },
-    { label: 'Unread Messages',     value: String(unreadMessages),    sub: avgDeliveryDays ? `Avg delivery ${avgDeliveryDays}d` : 'No completions yet', up: unreadMessages === 0, icon: '💬' },
+    { label: 'Active Retainers',    value: retainerValue,   sub: `${activeClients.length} active project${activeClients.length !== 1 ? 's' : ''}`, up: true,  icon: <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> },
+    { label: 'Projects On Track',   value: `${activeClients.length - atRiskClients.length}/${activeClients.length}`, sub: atRiskClients.length ? `${atRiskClients.length} at risk` : 'All on schedule', up: atRiskClients.length === 0, icon: <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> },
+    { label: 'Pending Approvals',   value: String(pendingApprovals),  sub: pendingApprovals ? 'Awaiting review' : 'Nothing pending',    up: pendingApprovals === 0, icon: <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+    { label: 'Unread Messages',     value: String(unreadMessages),    sub: avgDeliveryDays ? `Avg delivery ${avgDeliveryDays}d` : 'No completions yet', up: unreadMessages === 0, icon: <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg> },
   ];
 
   const recentActivity = (recentLogs as Array<{ id: string; clientId: string; action: string; performedBy: string; createdAt: Date; client: { name: string; companyName: string | null } }>).map(log => ({
@@ -165,7 +165,11 @@ export default async function RnDashboardPage() {
         {/* SLA breach alert */}
         {breachedClients.length > 0 && (
           <div className="rn-alert danger" style={{ marginBottom: 24 }}>
-            <span style={{ fontSize: 18 }}>⏱</span>
+            <span style={{ display: 'inline-flex', color: 'var(--danger)', marginRight: 12 }}>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </span>
             <div>
               <strong>{breachedClients.length} response SLA{breachedClients.length !== 1 ? 's' : ''} breached — </strong>
               {breachedClients.slice(0, 3).map((c: ClientWithModule, i: number) => (
@@ -181,7 +185,11 @@ export default async function RnDashboardPage() {
         {/* Holiday notice */}
         {upcomingHoliday && daysToNextHoliday !== null && daysToNextHoliday <= 7 && (
           <div className="rn-alert info" style={{ marginBottom: 24 }}>
-            <span style={{ fontSize: 18 }}>🗓</span>
+            <span style={{ display: 'inline-flex', color: 'var(--cyan)', marginRight: 12 }}>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </span>
             <div>
               <strong style={{ color: 'var(--cyan)' }}>Agency closure in {daysToNextHoliday === 0 ? 'today' : `${daysToNextHoliday} day${daysToNextHoliday !== 1 ? 's' : ''}`}:</strong>
               {' '}{upcomingHoliday.name} — {format(new Date(upcomingHoliday.date), 'EEEE, MMM d')}
@@ -194,7 +202,9 @@ export default async function RnDashboardPage() {
           {metrics.map((m, i) => (
             <div key={i} className="rn-stat-card hover-lift">
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div style={{ fontSize: 28 }}>{m.icon}</div>
+                <div style={{ display: 'inline-flex', color: m.up ? 'var(--brand)' : 'var(--danger)' }}>
+                  {m.icon}
+                </div>
                 <span className={`rn-badge ${m.up ? 'success' : 'warning'}`} style={{ fontSize: 11 }}>
                   {m.up ? '↑ Good' : '↓ Needs attention'}
                 </span>
@@ -211,13 +221,22 @@ export default async function RnDashboardPage() {
           {/* Active Projects Pipeline */}
           <div className="rn-panel">
             <div className="rn-panel-header">
-              <h2 className="rn-panel-title">🚀 Active Projects Pipeline</h2>
+              <h2 className="rn-panel-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--brand)' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+                Active Projects Pipeline
+              </h2>
               <Link href="/rn/projects" className="btn-secondary" style={{ padding: '6px 14px', fontSize: 12, textDecoration: 'none' }}>View All</Link>
             </div>
             <div className="rn-panel-body" style={{ padding: 0 }}>
               {activeProjects.length === 0 ? (
                 <div className="rn-empty" style={{ padding: '40px 24px' }}>
-                  <div className="rn-empty-icon">📋</div>
+                  <div className="rn-empty-icon" style={{ display: 'flex', justifyContent: 'center', color: 'var(--text-tertiary)' }}>
+                    <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                  </div>
                   <p className="rn-empty-title">No active projects</p>
                   <p className="rn-empty-desc">Create your first project to get started</p>
                   <Link href="/rn/projects/new" className="btn-primary" style={{ marginTop: 8 }}>+ New Project</Link>
@@ -245,7 +264,10 @@ export default async function RnDashboardPage() {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                             <span className={`rn-badge ${p.status === 'on-track' ? 'success' : 'warning'}`}>{p.phase}</span>
                             {p.waitingOn === 'CLIENT' && (
-                              <span style={{ fontSize: 10, color: 'var(--warning)', fontWeight: 700 }}>⏳ Waiting on client</span>
+                              <span style={{ fontSize: 10, color: 'var(--warning)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                Waiting on client
+                              </span>
                             )}
                           </div>
                         </td>
@@ -271,7 +293,12 @@ export default async function RnDashboardPage() {
           {/* Operational Feed */}
           <div className="rn-panel">
             <div className="rn-panel-header">
-              <h2 className="rn-panel-title">⚡ Operational Feed</h2>
+              <h2 className="rn-panel-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--brand)' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Operational Feed
+              </h2>
             </div>
             <div className="rn-panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {recentActivity.length === 0 ? (
@@ -302,13 +329,22 @@ export default async function RnDashboardPage() {
           {/* Upcoming deadlines */}
           <div className="rn-panel">
             <div className="rn-panel-header">
-              <h2 className="rn-panel-title">📅 Upcoming Deadlines</h2>
+              <h2 className="rn-panel-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--brand)' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Upcoming Deadlines
+              </h2>
               <span className="rn-badge neutral">Next 14 days</span>
             </div>
             <div className="rn-panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {upcoming.length === 0 ? (
                 <div className="rn-empty" style={{ padding: '24px 0' }}>
-                  <div className="rn-empty-icon" style={{ width: 40, height: 40 }}>✅</div>
+                  <div className="rn-empty-icon" style={{ display: 'flex', justifyContent: 'center', color: 'var(--success)' }}>
+                    <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
                   <p className="rn-empty-desc">Nothing due in the next two weeks</p>
                 </div>
               ) : upcoming.map(d => (
@@ -328,7 +364,12 @@ export default async function RnDashboardPage() {
           {/* Stage distribution */}
           <div className="rn-panel">
             <div className="rn-panel-header">
-              <h2 className="rn-panel-title">📊 Pipeline by Stage</h2>
+              <h2 className="rn-panel-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--brand)' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Pipeline by Stage
+              </h2>
             </div>
             <div className="rn-panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {stageDist.length === 0 ? (
@@ -352,7 +393,12 @@ export default async function RnDashboardPage() {
         {retainers.length > 0 && (
           <div className="rn-panel">
             <div className="rn-panel-header">
-              <h2 className="rn-panel-title">🔄 Active Retainers</h2>
+              <h2 className="rn-panel-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--brand)' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Active Retainers
+              </h2>
               <Link href="/rn/retainers" className="btn-secondary" style={{ padding: '6px 14px', fontSize: 12, textDecoration: 'none' }}>Manage</Link>
             </div>
             <div className="rn-panel-body" style={{ padding: 0 }}>

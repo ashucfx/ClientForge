@@ -186,7 +186,11 @@ export default async function RnCalendarPage({ searchParams }: { searchParams: {
             <div className="rn-panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {upcomingHolidays.length === 0 ? (
                 <div className="rn-empty" style={{ padding: '24px 0' }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>🗓</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--text-tertiary)', marginBottom: 12 }}>
+                    <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
                   <p className="rn-empty-desc">No upcoming holidays. Use &ldquo;Seed Public Holidays&rdquo; to import Indian public holidays or add a custom one.</p>
                 </div>
               ) : upcomingHolidays.map(h => {
@@ -196,7 +200,9 @@ export default async function RnCalendarPage({ searchParams }: { searchParams: {
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                         <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)' }}>{h.name}</div>
-                        {h.isPublicHoliday && <span className="rn-badge lime" style={{ fontSize: 10 }}>🇮🇳 Public</span>}
+                        {h.isPublicHoliday && <span className="rn-badge lime" style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg> Public
+                        </span>}
                         {!h.isGuested && <span className="rn-badge neutral" style={{ fontSize: 10 }}>🔒 Internal</span>}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>

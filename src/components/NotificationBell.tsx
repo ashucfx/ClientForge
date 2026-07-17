@@ -16,6 +16,7 @@ interface UnreadClient {
   lastActivityAt: string;
   lastPreview: string;
   link?: string;
+  isNotification?: boolean;
 }
 
 interface UnreadSummary {
@@ -59,7 +60,7 @@ export default function NotificationBell({ direction = 'down', label }: { direct
       const data: UnreadSummary = await res.json();
 
       const allClients: UnreadClient[] = [...(data.clientsWithUnread ?? [])];
-      if (!isRnBrand && data.recentNotifications) {
+      if (data.recentNotifications) {
         allClients.push(...data.recentNotifications.map((n: any) => ({
           id: n.id,
           name: n.title,
@@ -67,7 +68,8 @@ export default function NotificationBell({ direction = 'down', label }: { direct
           unreadCount: 1,
           lastActivityAt: n.createdAt,
           lastPreview: n.message,
-          link: n.link || '/notifications',
+          link: n.link || (isRnBrand ? '/rn/notifications' : '/notifications'),
+          isNotification: true,
         })));
       }
 
@@ -79,13 +81,24 @@ export default function NotificationBell({ direction = 'down', label }: { direct
         totalUnread: data.totalUnread ?? 0,
         totalUnreadMessages: data.totalUnreadMessages ?? 0,
         pendingRevisions: data.pendingRevisions ?? 0,
-        unreadNotifications: isRnBrand ? 0 : (data.unreadNotifications ?? 0),
+        unreadNotifications: data.unreadNotifications ?? 0,
         clientsWithUnread: allClients.slice(0, 8),
       });
     } catch {
       // Silently fail — badge just won't update
     }
   }, [isRnBrand]);
+
+  const handleDeleteNotification = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await fetch(`/api/admin/notifications/${id}`, { method: 'DELETE' });
+      fetchSummary();
+    } catch {
+      // Ignore
+    }
+  };
 
   // Poll every 60 seconds
   useEffect(() => {
@@ -318,8 +331,29 @@ export default function NotificationBell({ direction = 'down', label }: { direct
                         {c.lastPreview}
                       </p>
                     </div>
-                    {/* Unread count pill */}
-                    {c.unreadCount > 0 && (
+                    {/* Unread count pill or delete button */}
+                    {c.isNotification ? (
+                      <button
+                        onClick={(e) => handleDeleteNotification(c.id, e)}
+                        style={{
+                          flexShrink: 0,
+                          width: 24, height: 24,
+                          borderRadius: '50%',
+                          border: 'none',
+                          background: 'transparent',
+                          color: 'var(--text-tertiary, #94a3b8)',
+                          cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-tertiary, #94a3b8)')}
+                        title="Delete notification"
+                      >
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    ) : c.unreadCount > 0 && (
                       <span style={{
                         flexShrink: 0,
                         minWidth: 20, height: 20,

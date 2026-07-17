@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import AppShell from '@/components/AppShell';
-import { format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 
 type AdminUser = {
   id: string;
@@ -189,8 +189,8 @@ export default function TeamPage() {
                           onChange={(e) => handleUpdate(admin.id, { role: e.target.value })}
                         >
                           <option value="SUPER_ADMIN">Super Admin</option>
-                          <option value="EDITOR">Editor</option>
-                          <option value="VIEWER">Viewer</option>
+                          <option value="EDITOR">Editor (No Team Access)</option>
+                          <option value="VIEWER">Viewer (No Team Access)</option>
                         </select>
                       </td>
                       <td>
@@ -232,8 +232,8 @@ export default function TeamPage() {
                           {admin.isActive ? 'Active' : 'Inactive'}
                         </button>
                       </td>
-                      <td style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>
-                        {admin.lastLoginAt ? format(new Date(admin.lastLoginAt), 'dd MMM yyyy, HH:mm') : 'Never'}
+                      <td style={{ color: 'var(--text-tertiary)', fontSize: 13 }} suppressHydrationWarning>
+                        {admin.lastLoginAt ? formatDistanceToNow(new Date(admin.lastLoginAt), { addSuffix: true }) : 'Never'}
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: 8 }}>
@@ -280,9 +280,9 @@ export default function TeamPage() {
                 <div className="field">
                   <label style={{ fontSize: 12, fontWeight: 700 }}>Role</label>
                   <select className="input" value={newRole} onChange={e => setNewRole(e.target.value as any)}>
-                    <option value="SUPER_ADMIN">Super Admin (Full Access)</option>
-                    <option value="EDITOR">Editor (Can create invoices, cannot manage team)</option>
-                    <option value="VIEWER">Viewer (Read-only access)</option>
+                    <option value="SUPER_ADMIN">Super Admin (Full Access - Can manage team)</option>
+                    <option value="EDITOR">Editor (Can create invoices, cannot access Team page)</option>
+                    <option value="VIEWER">Viewer (Read-only access, cannot access Team page)</option>
                   </select>
                 </div>
                 {newRole !== 'SUPER_ADMIN' && (
