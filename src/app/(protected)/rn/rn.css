@@ -1147,6 +1147,181 @@
 }
 [data-tenant="ripple_nexus"] .hamburger span { background: var(--plasma); }
 
+/* ═══════════════ PREMIUM MODAL SYSTEM ═══════════════ */
+[data-tenant="ripple_nexus"] .rn-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: rn-fade-in 0.2s ease;
+  overflow-y: auto;
+}
+[data-tenant="ripple_nexus"] .rn-modal {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: rn-scale-in 0.2s ease;
+  overflow: hidden;
+}
+[data-tenant="ripple_nexus"] .rn-modal-lg { max-width: 900px; }
+[data-tenant="ripple_nexus"] .rn-modal-header {
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+[data-tenant="ripple_nexus"] .rn-modal-body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 28px 32px;
+}
+[data-tenant="ripple_nexus"] .rn-modal-footer {
+  padding: 20px 32px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+@media (max-width: 767px) {
+  [data-tenant="ripple_nexus"] .rn-modal { border-radius: 20px 20px 0 0; max-height: 92vh; max-width: 100%; }
+  [data-tenant="ripple_nexus"] .rn-modal-backdrop { align-items: flex-end; padding: 0; }
+  [data-tenant="ripple_nexus"] .rn-modal-header { padding: 20px 20px; }
+  [data-tenant="ripple_nexus"] .rn-modal-body { padding: 20px 20px; }
+  [data-tenant="ripple_nexus"] .rn-modal-footer { padding: 16px 20px; }
+}
+
+/* ═══════════════ EMAIL PREVIEW PANE ═══════════════ */
+[data-tenant="ripple_nexus"] .rn-email-editor-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  min-height: 600px;
+}
+[data-tenant="ripple_nexus"] .rn-email-preview-frame {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  height: 100%;
+  min-height: 500px;
+}
+[data-tenant="ripple_nexus"] .rn-preview-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  background: var(--surface-2);
+}
+[data-tenant="ripple_nexus"] .rn-preview-tab {
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+[data-tenant="ripple_nexus"] .rn-preview-tab.active {
+  color: var(--brand);
+  border-bottom-color: var(--brand);
+}
+@media (max-width: 900px) {
+  [data-tenant="ripple_nexus"] .rn-email-editor-layout { grid-template-columns: 1fr; }
+  [data-tenant="ripple_nexus"] .rn-email-preview-frame { min-height: 300px; }
+}
+
+/* ═══════════════ CARD GRID RESPONSIVE ═══════════════ */
+[data-tenant="ripple_nexus"] .rn-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
+}
+@media (max-width: 767px) {
+  [data-tenant="ripple_nexus"] .rn-card-grid { grid-template-columns: 1fr; gap: 16px; }
+}
+
+/* ═══════════════ FORM GRIDS RESPONSIVE ═══════════════ */
+[data-tenant="ripple_nexus"] .rn-form-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+[data-tenant="ripple_nexus"] .rn-form-3col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 640px) {
+  [data-tenant="ripple_nexus"] .rn-form-2col { grid-template-columns: 1fr; }
+  [data-tenant="ripple_nexus"] .rn-form-3col { grid-template-columns: 1fr; }
+}
+
+/* ═══════════════ ACTION BAR RESPONSIVE ═══════════════ */
+[data-tenant="ripple_nexus"] .rn-action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+[data-tenant="ripple_nexus"] .rn-action-bar-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+@media (max-width: 640px) {
+  [data-tenant="ripple_nexus"] .rn-action-bar { flex-direction: column; align-items: stretch; }
+  [data-tenant="ripple_nexus"] .rn-action-bar-buttons { justify-content: stretch; }
+  [data-tenant="ripple_nexus"] .rn-action-bar-buttons button { flex: 1; }
+}
+
+/* ═══════════════ TABLE RESPONSIVE ═══════════════ */
+[data-tenant="ripple_nexus"] .table-scroll-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 12px;
+}
+
+/* ═══════════════ PREMIUM INPUT ═══════════════ */
+[data-tenant="ripple_nexus"] .rn-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 15px;
+  color: var(--text-primary);
+  transition: all 0.2s;
+  outline: none;
+}
+[data-tenant="ripple_nexus"] .rn-input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.1);
+}
+[data-tenant="ripple_nexus"] .rn-input::placeholder { color: var(--text-tertiary); }
+
 /* ═══════════════ REDUCED MOTION ═══════════════ */
 @media (prefers-reduced-motion: reduce) {
   [data-tenant="ripple_nexus"] *,
