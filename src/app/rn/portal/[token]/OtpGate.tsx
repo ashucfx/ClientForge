@@ -52,33 +52,50 @@ export default function OtpGate({ clientId, email, magicToken }: { clientId: str
   };
 
   return (
-    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '40px', width: '100%', maxWidth: 420, textAlign: 'center' }}>
-      <Logo variant="horizontal" size={42} dark brandId="ripple_nexus" />
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginTop: 24, marginBottom: 8, color: '#F4F5FA' }}>Secure Access</h1>
+    <div style={{ 
+      background: 'rgba(255,255,255,0.02)', 
+      borderTop: '1px solid rgba(124,92,255,0.2)',
+      borderLeft: '1px solid rgba(255,255,255,0.05)',
+      borderRight: '1px solid rgba(255,255,255,0.05)',
+      borderBottom: '1px solid rgba(255,255,255,0.05)',
+      boxShadow: '0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(124,92,255,0.05)',
+      borderRadius: 24, 
+      padding: '48px', 
+      width: '100%', 
+      maxWidth: 440, 
+      textAlign: 'center',
+      backdropFilter: 'blur(20px)'
+    }}>
+      <Logo variant="horizontal" size={46} dark brandId="ripple_nexus" />
+      <h1 style={{ fontSize: 26, fontWeight: 800, marginTop: 32, marginBottom: 12, color: '#FFFFFF', letterSpacing: '-0.5px' }}>Secure Access</h1>
       
       {step === 'IDLE' ? (
         <>
-          <p style={{ fontSize: 14, color: '#A1A1AA', marginBottom: 32, lineHeight: 1.5 }}>
+          <p style={{ fontSize: 14, color: '#8B949E', marginBottom: 36, lineHeight: 1.6, fontWeight: 500 }}>
             To protect your agency deliverables and project data, we need to verify your identity.
           </p>
           <button 
             onClick={handleSendOtp} 
             disabled={loading}
             style={{ 
-              width: '100%', padding: '14px', borderRadius: 8, border: 'none', 
-              background: 'linear-gradient(135deg, #7C5CFF, #22D3EE)', color: '#fff', 
-              fontSize: 14, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+              width: '100%', padding: '16px', borderRadius: 12, border: 'none', 
+              background: 'linear-gradient(135deg, #7C5CFF, #38bdf8)', color: '#fff', 
+              fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              boxShadow: '0 8px 24px rgba(124,92,255,0.4)', transition: 'all 0.2s',
+              textShadow: '0 1px 2px rgba(0,0,0,0.2)'
             }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
           >
-            <IconMail size={18} />
-            {loading ? 'Sending...' : `Send Code to ${email}`}
+            <IconMail size={20} />
+            {loading ? 'Sending Verification...' : `Send Code to ${email}`}
           </button>
         </>
       ) : (
         <>
-          <p style={{ fontSize: 14, color: '#A1A1AA', marginBottom: 24, lineHeight: 1.5 }}>
-            We&apos;ve sent a 6-digit code to <strong>{email}</strong>.
+          <p style={{ fontSize: 14, color: '#8B949E', marginBottom: 32, lineHeight: 1.6, fontWeight: 500 }}>
+            We&apos;ve sent a 6-digit code to <strong style={{ color: '#fff' }}>{email}</strong>.
           </p>
           <input 
             type="text" 
@@ -87,24 +104,42 @@ export default function OtpGate({ clientId, email, magicToken }: { clientId: str
             value={otp}
             onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
             style={{ 
-              width: '100%', padding: '16px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', 
-              background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: 24, fontWeight: 800, 
-              textAlign: 'center', letterSpacing: 8, marginBottom: 24, outline: 'none'
+              width: '100%', padding: '20px', borderRadius: 12, border: '1px solid rgba(124,92,255,0.3)', 
+              background: 'rgba(0,0,0,0.4)', color: '#fff', fontSize: 28, fontWeight: 800, 
+              textAlign: 'center', letterSpacing: 12, marginBottom: 28, outline: 'none',
+              boxShadow: 'inset 0 0 0 1px rgba(124,92,255,0.1), 0 0 20px rgba(124,92,255,0.05)', transition: 'all 0.2s'
             }}
+            onFocus={(e) => e.currentTarget.style.borderColor = '#7C5CFF'}
+            onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(124,92,255,0.3)'}
           />
-          {error && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 16, fontWeight: 600 }}>{error}</div>}
+          {error && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 20, fontWeight: 600 }}>{error}</div>}
           <button 
             onClick={handleVerifyOtp} 
             disabled={loading || otp.length !== 6}
             style={{ 
-              width: '100%', padding: '14px', borderRadius: 8, border: 'none', 
-              background: 'linear-gradient(135deg, #7C5CFF, #22D3EE)', color: '#fff', 
-              fontSize: 14, fontWeight: 700, cursor: loading || otp.length !== 6 ? 'not-allowed' : 'pointer'
+              width: '100%', padding: '16px', borderRadius: 12, border: 'none', 
+              background: loading || otp.length !== 6 ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #7C5CFF, #38bdf8)', 
+              color: loading || otp.length !== 6 ? '#8B949E' : '#fff', 
+              fontSize: 15, fontWeight: 700, cursor: loading || otp.length !== 6 ? 'not-allowed' : 'pointer',
+              boxShadow: loading || otp.length !== 6 ? 'none' : '0 8px 24px rgba(124,92,255,0.4)', transition: 'all 0.2s',
+              textShadow: loading || otp.length !== 6 ? 'none' : '0 1px 2px rgba(0,0,0,0.2)'
             }}
+            onMouseOver={(e) => { if(!loading && otp.length === 6) e.currentTarget.style.transform = 'translateY(-2px)' }}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
           >
             {loading ? 'Verifying...' : 'Verify & Access Portal'}
           </button>
-          <button onClick={() => setStep('IDLE')} style={{ background: 'transparent', border: 'none', color: '#A1A1AA', fontSize: 13, marginTop: 24, cursor: 'pointer', textDecoration: 'underline' }}>
+          
+          <button 
+            onClick={handleSendOtp}
+            disabled={loading}
+            style={{
+              background: 'transparent', border: 'none', color: '#8B949E', fontSize: 13, marginTop: 24,
+              cursor: loading ? 'not-allowed' : 'pointer', textDecoration: 'underline', fontWeight: 500, transition: '0.2s'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.color = '#fff'}
+            onMouseOut={(e) => e.currentTarget.style.color = '#8B949E'}
+          >
             Resend Code
           </button>
         </>

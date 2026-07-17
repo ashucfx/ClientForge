@@ -70,17 +70,22 @@ export default async function PortalMilestonesPage({ params }: { params: { token
                     )}
                     
                     {(milestone.paymentStatus === 'REQUESTED' || milestone.paymentStatus === 'UNPAID') && milestone.amount > 0 && (
-                      <div className="mt-4" style={{ padding: '16px', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div className="mt-4" style={{ padding: '20px', background: 'rgba(124, 92, 255, 0.05)', border: '1px solid rgba(124, 92, 255, 0.2)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                          <strong style={{ color: 'var(--rn-danger)' }}>Payment Required:</strong> {currencySymbol}{milestone.amount.toLocaleString()}
+                          <strong style={{ color: '#fff', fontSize: '15px' }}>Payment Required:</strong> 
+                          <span style={{ fontSize: '18px', fontWeight: 'bold', marginLeft: '8px', color: 'var(--rn-accent)' }}>
+                            {currencySymbol}{milestone.amount.toLocaleString()}
+                          </span>
                         </div>
                         {milestone.invoiceId ? (
                           milestone.invoiceId.includes('rzp.io') ? (
-                            <a href={milestone.invoiceId} target="_blank" className="btn-premium alert-btn" style={{ padding: '6px 12px', fontSize: '12px' }}>Pay via Razorpay</a>
+                            <a href={milestone.invoiceId} target="_blank" className="btn-premium alert-btn" style={{ padding: '10px 20px', fontSize: '14px' }}>Pay Amount</a>
                           ) : (
-                            <Link href={`/rn/invoices/${milestone.invoiceId}`} className="btn-premium alert-btn" style={{ padding: '6px 12px', fontSize: '12px' }}>View Invoice</Link>
+                            <Link href={`/rn/invoices/${milestone.invoiceId}`} className="btn-premium alert-btn" style={{ padding: '10px 20px', fontSize: '14px' }}>Pay Amount</Link>
                           )
-                        ) : null}
+                        ) : (
+                           <div style={{ fontSize: '13px', color: 'var(--rn-text-muted)' }}>Awaiting Invoice</div>
+                        )}
                       </div>
                     )}
                   </div>

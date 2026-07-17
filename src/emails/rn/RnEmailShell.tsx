@@ -10,35 +10,35 @@ interface RnEmailShellProps {
 }
 
 export function RnEmailShell({ preview, headerTitle, children }: RnEmailShellProps) {
-  // Deep dark mode theme: Obsidian background, crisp white text, subtle electric blue accents
-  const bgMain = '#0A0B0D';
-  const bgCard = '#141519';
-  const textMain = '#F4F5FA';
-  const textMuted = '#94A3B8';
-  const accent = '#3B82F6'; // Electric Blue
+  // Ultra-Premium Obsidian Dark Mode
+  const bgMain = '#050505'; // Deep black
+  const bgCard = '#0D0E12'; // Slightly elevated dark
+  const textMain = '#FFFFFF';
+  const textMuted = '#8B949E';
+  const accent = '#7C5CFF'; // Ripple Nexus Violet
+  const borderGradient = 'linear-gradient(135deg, rgba(124,92,255,0.4), rgba(34,211,238,0.1))';
 
   return (
     <Html>
       <Head>
         <style>
           {`
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
             body { font-family: 'Inter', -apple-system, sans-serif; background-color: ${bgMain}; color: ${textMain}; margin: 0; padding: 0; }
           `}
         </style>
       </Head>
       <Preview>{preview}</Preview>
       <Body style={{ backgroundColor: bgMain, color: textMain, fontFamily: "'Inter', sans-serif" }}>
-        <Container style={{ margin: '0 auto', padding: '40px 20px', maxWidth: '600px' }}>
+        <Container style={{ margin: '0 auto', padding: '60px 20px', maxWidth: '600px' }}>
           
           {/* Header */}
           <Section style={{ marginBottom: '40px', textAlign: 'center' }}>
-            {/* You can replace this with a real image logo if available. For now, a sleek text logo. */}
-            <Text style={{ fontSize: '24px', fontWeight: 700, color: textMain, letterSpacing: '-0.5px', margin: 0 }}>
+            <Text style={{ fontSize: '26px', fontWeight: 800, color: textMain, letterSpacing: '-0.8px', margin: 0 }}>
               Ripple<span style={{ color: accent }}>Nexus</span>
             </Text>
             {headerTitle && (
-              <Text style={{ fontSize: '12px', fontWeight: 600, color: textMuted, letterSpacing: '2px', textTransform: 'uppercase', marginTop: '8px' }}>
+              <Text style={{ fontSize: '11px', fontWeight: 700, color: textMuted, letterSpacing: '3px', textTransform: 'uppercase', marginTop: '12px' }}>
                 {headerTitle}
               </Text>
             )}
@@ -47,18 +47,21 @@ export function RnEmailShell({ preview, headerTitle, children }: RnEmailShellPro
           {/* Main Card */}
           <Section style={{ 
             backgroundColor: bgCard, 
-            padding: '40px', 
-            borderRadius: '16px',
-            border: '1px solid rgba(255,255,255,0.05)',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.4)'
+            padding: '48px', 
+            borderRadius: '24px',
+            borderTop: '1px solid rgba(124,92,255,0.3)',
+            borderLeft: '1px solid rgba(255,255,255,0.05)',
+            borderRight: '1px solid rgba(255,255,255,0.05)',
+            borderBottom: '1px solid rgba(255,255,255,0.05)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(124,92,255,0.05)'
           }}>
             {children}
           </Section>
 
           {/* Footer */}
-          <Section style={{ marginTop: '40px', textAlign: 'center' }}>
-            <Hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '0 0 24px' }} />
-            <Text style={{ fontSize: '12px', color: textMuted, margin: '0 0 8px' }}>
+          <Section style={{ marginTop: '48px', textAlign: 'center' }}>
+            <Hr style={{ borderColor: 'rgba(255,255,255,0.08)', margin: '0 0 32px' }} />
+            <Text style={{ fontSize: '12px', color: textMuted, margin: '0 0 10px', fontWeight: 500 }}>
               Ripple Nexus Operations &bull; Premium Client Portal
             </Text>
             <Text style={{ fontSize: '12px', color: textMuted, margin: 0 }}>

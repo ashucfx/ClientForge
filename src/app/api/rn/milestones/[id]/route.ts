@@ -52,29 +52,52 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     
     let finalInvoiceId = typeof body.invoiceId === 'string' ? body.invoiceId : milestone.invoiceId;
     
-    // Razorpay Integration
-    const isRazorpayRequested = body.gateway === 'razorpay' || true; // Default to Razorpay for RN
-    if (isRazorpayRequested) {
-      try {
-        const invoicePayload = {
-          id: milestone.id,
-          invoiceNumber: `RN-MS-${milestone.id.slice(-6).toUpperCase()}`,
+    // Create actual invoice if we don't have a valid invoice ID mapped
+    if (!finalInvoiceId || finalInvoiceId.includes('rzp.io')) {
+      const invoiceNumber = `RN-MS-${milestone.id.slice(-6).toUpperCase()}`;
+      
+      const invoice = await db.invoice.create({
+        data: {
+          brandId: 'ripple_nexus',
+          invoiceNumber,
           clientName: milestone.client.name,
           clientEmail: milestone.client.email,
-          clientPhone: milestone.client.phone || '9999999999', // Uses actual phone now
-          clientType: 'B2B' as any,
-          country: 'IN', // Default
+          clientPhone: milestone.client.phone || '9999999999',
+          clientType: 'B2B',
+          country: 'IN',
           currency: milestone.client.currency,
+          dueDate: milestone.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          status: 'PENDING',
           totalPayable: milestone.amount,
-          brandId: 'ripple_nexus',
-          dueDate: milestone.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now if null
-        } as unknown as InvoiceData;
+          subTotal: milestone.amount,
+          taxAmount: 0,
+          lineItems: [{
+            id: milestone.id,
+            type: 'milestone',
+            title: milestone.title,
+            price: milestone.amount,
+            qty: 1,
+            total: milestone.amount
+          }],
+          gateway: 'razorpay'
+        }
+      });
 
+      // Generate Razorpay Link for the new invoice
+      try {
+        const invoicePayload = { ...invoice, totalPayable: invoice.totalPayable } as unknown as InvoiceData;
         const rzp = await createRazorpayPaymentLink(invoicePayload);
-        finalInvoiceId = rzp.short_url;
+        
+        await db.invoice.update({
+          where: { id: invoice.id },
+          data: { paymentLink: rzp.short_url }
+        });
       } catch (err: any) {
-        return NextResponse.json({ error: `Razorpay Error: ${err.message}` }, { status: 500 });
+        // If razorpay fails, we still have the invoice but no link
+        console.error("Razorpay error:", err);
       }
+
+      finalInvoiceId = invoice.id;
     }
 
     const updated = await db.rnProjectMilestone.update({
