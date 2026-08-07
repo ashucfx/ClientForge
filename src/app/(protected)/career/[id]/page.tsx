@@ -416,6 +416,7 @@ export default function CareerClientDetailPage() {
           services={client.services}
           emailLogs={client.emailLogs}
           onSendWelcome={triggerWelcome}
+          onRefresh={reload}
         />
       )}
 
@@ -1415,6 +1416,7 @@ function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetai
                   </div>
                 </div>
               </div>
+
             )}
             
             {client.Review && (
@@ -1437,16 +1439,85 @@ function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetai
 
 // ── Forms Tab ─────────────────────────────────────────────────────────────────
 
-function FormsTab({ forms, packageType, clientId, services, emailLogs, onSendWelcome }: {
+function FormsTab({ forms, packageType, clientId, services, emailLogs, onSendWelcome, onRefresh }: {
   forms: FormSubmission[];
   packageType: CareerPackage | null;
   clientId: string;
   services: { slug: string; name: string }[];
   emailLogs: EmailLog[];
   onSendWelcome: () => void;
+  onRefresh?: () => void;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const welcomeSent = emailLogs.some(l => l.trigger === 'WELCOME');
+
+  // ── Admin fill-form state ───────────────────────────────────────────
+  const [fillFormType,    setFillFormType]    = useState<string | null>(null);
+  const [fillSchema,      setFillSchema]      = useState<import('@/lib/career/types').FormSchema | null>(null);
+  const [fillValues,      setFillValues]      = useState<Record<string, unknown>>({});
+  const [fillLoading,     setFillLoading]     = useState(false);
+  const [fillSubmitting,  setFillSubmitting]  = useState(false);
+  const [fillError,       setFillError]       = useState('');
+  const [fillSuccess,     setFillSuccess]     = useState(false);
+  const [fillAgreed,      setFillAgreed]      = useState(false);
+
+  const openFillModal = async (formType: string) => {
+    setFillFormType(formType);
+    setFillValues({});
+    setFillError('');
+    setFillSuccess(false);
+    setFillAgreed(false);
+    setFillLoading(true);
+    try {
+      const res = await fetch(`/api/career/admin/clients/${clientId}/forms/${formType}`);
+      if (res.ok) {
+        const d = await res.json() as { schema: import('@/lib/career/types').FormSchema | null; submission: { formData: Record<string, unknown> } | null };
+        setFillSchema(d.schema ?? null);
+        // Pre-fill with existing data if re-submission
+        if (d.submission?.formData) setFillValues(d.submission.formData as Record<string, unknown>);
+      } else {
+        setFillError('Could not load form schema. Try again.');
+      }
+    } catch {
+      setFillError('Network error. Try again.');
+    }
+    setFillLoading(false);
+  };
+
+  const closeFillModal = () => {
+    setFillFormType(null);
+    setFillSchema(null);
+    setFillValues({});
+    setFillError('');
+    setFillSuccess(false);
+    setFillAgreed(false);
+  };
+
+  const submitFillForm = async () => {
+    if (!fillFormType || !fillSchema) return;
+    if (!fillAgreed) { setFillError('Please confirm you have reviewed the data before submitting.'); return; }
+    setFillSubmitting(true); setFillError('');
+    try {
+      const res = await fetch(`/api/career/admin/clients/${clientId}/forms/${fillFormType}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fillValues),
+      });
+      if (res.ok) {
+        setFillSuccess(true);
+        setTimeout(() => {
+          closeFillModal();
+          onRefresh?.();
+        }, 2200);
+      } else {
+        const d = await res.json().catch(() => ({ error: 'Submission failed' })) as { error?: string };
+        setFillError(d.error ?? 'Submission failed. Please try again.');
+      }
+    } catch {
+      setFillError('Network error. Please try again.');
+    }
+    setFillSubmitting(false);
+  };
 
   if (forms.length === 0) {
     return (
@@ -1505,6 +1576,165 @@ function FormsTab({ forms, packageType, clientId, services, emailLogs, onSendWel
 
   return (
     <div className="space-y-4">
+
+      {/* ── Admin Fill Form Modal ── */}
+      {fillFormType && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => { if (!fillSubmitting) closeFillModal(); }}>
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-[#0A0B0D] to-[#1A1208] flex items-center justify-between flex-shrink-0">
+              <div>
+                <p className="text-[#B8935B] text-[10px] font-bold uppercase tracking-[0.2em] mb-0.5">Admin Action</p>
+                <h2 className="text-white font-bold text-base">
+                  {FORM_TYPE_LABELS[fillFormType] ?? fillFormType}
+                </h2>
+                <p className="text-white/40 text-xs mt-0.5">Filling on behalf of client · Client will be notified by email</p>
+              </div>
+              {!fillSubmitting && (
+                <button onClick={closeFillModal} className="text-white/40 hover:text-white p-1 transition-colors">
+                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+              )}
+            </div>
+
+            {/* Modal Body */}
+            <div className="overflow-y-auto flex-1 p-6">
+              {fillSuccess ? (
+                <div className="text-center py-10">
+                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg width="28" height="28" fill="none" viewBox="0 0 24 24"><path stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/></svg>
+                  </div>
+                  <p className="font-bold text-slate-900 text-lg">Submitted successfully!</p>
+                  <p className="text-slate-500 text-sm mt-1">The client has been notified by email. Refreshing…</p>
+                </div>
+              ) : fillLoading ? (
+                <div className="flex items-center justify-center py-16 gap-3">
+                  <span className="w-5 h-5 border-2 border-[#B8935B] border-t-transparent rounded-full animate-spin" />
+                  <span className="text-slate-500 text-sm">Loading form schema…</span>
+                </div>
+              ) : fillSchema ? (
+                <div className="space-y-5">
+                  {/* Admin notice */}
+                  <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                    <svg className="flex-shrink-0 mt-0.5 text-amber-600" width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                    <p className="text-amber-800 text-xs leading-relaxed">
+                      <strong>Admin fill mode.</strong> You are filling this form on behalf of the client. This will be logged as an admin action and the client will receive an email notification. Only fill this if the client has explicitly requested it.
+                    </p>
+                  </div>
+
+                  {fillError && (
+                    <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                      <svg className="flex-shrink-0" width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                      {fillError}
+                    </div>
+                  )}
+
+                  {/* Fields */}
+                  {(() => {
+                    const sectionMap = new Map<string, import('@/lib/career/types').FormField[]>();
+                    for (const field of fillSchema.fields) {
+                      const sec = field.section ?? 'Other';
+                      if (!sectionMap.has(sec)) sectionMap.set(sec, []);
+                      sectionMap.get(sec)!.push(field);
+                    }
+                    return Array.from(sectionMap.entries()).map(([secName, secFields]) => (
+                      <div key={secName} className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden">
+                        <div className="px-4 py-2.5 bg-white border-b border-slate-200">
+                          <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">{secName}</p>
+                        </div>
+                        <div className="p-4 space-y-4">
+                          {secFields.filter(f => f.type !== 'file').map(field => (
+                            <div key={field.id}>
+                              <label className="block text-sm font-semibold text-slate-700 mb-1">
+                                {field.label}
+                                {field.required && <span className="text-red-400 ml-1">*</span>}
+                                {!field.required && <span className="text-slate-400 text-xs font-normal ml-1">optional</span>}
+                              </label>
+                              {field.hint && <p className="text-xs text-slate-400 mb-1.5">{field.hint}</p>}
+                              {field.type === 'textarea' ? (
+                                <textarea rows={4}
+                                  value={(fillValues[field.id] as string) ?? ''}
+                                  onChange={e => setFillValues(v => ({ ...v, [field.id]: e.target.value }))}
+                                  placeholder={field.placeholder}
+                                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#B8935B] focus:border-transparent resize-y"
+                                />
+                              ) : field.type === 'select' ? (
+                                <select
+                                  value={(fillValues[field.id] as string) ?? ''}
+                                  onChange={e => setFillValues(v => ({ ...v, [field.id]: e.target.value }))}
+                                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#B8935B]">
+                                  <option value="">Choose…</option>
+                                  {field.options?.map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                              ) : field.type === 'checkbox' && field.options ? (
+                                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                                  {field.options.map((opt, i) => {
+                                    const checked = Array.isArray(fillValues[field.id]) && (fillValues[field.id] as string[]).includes(opt);
+                                    return (
+                                      <label key={opt} className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-slate-50 ${i > 0 ? 'border-t border-slate-100' : ''}`}>
+                                        <input type="checkbox" checked={checked}
+                                          onChange={() => {
+                                            const cur = Array.isArray(fillValues[field.id]) ? (fillValues[field.id] as string[]) : [];
+                                            setFillValues(v => ({ ...v, [field.id]: checked ? cur.filter(x => x !== opt) : [...cur, opt] }));
+                                          }}
+                                          className="accent-[#B8935B]" />
+                                        <span className="text-sm text-slate-700">{opt}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <input type={field.type === 'url' ? 'url' : 'text'}
+                                  value={(fillValues[field.id] as string) ?? ''}
+                                  onChange={e => setFillValues(v => ({ ...v, [field.id]: e.target.value }))}
+                                  placeholder={field.placeholder}
+                                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#B8935B] focus:border-transparent"
+                                />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ));
+                  })()}
+
+                  {/* Confirm checkbox */}
+                  <label className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${fillAgreed ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                    <div
+                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${fillAgreed ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'}`}
+                      onClick={() => setFillAgreed(!fillAgreed)}>
+                      {fillAgreed && <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path stroke="white" strokeWidth="3" strokeLinecap="round" d="M5 13l4 4L19 7"/></svg>}
+                    </div>
+                    <span className="text-sm text-slate-700 font-medium select-none leading-relaxed" onClick={() => setFillAgreed(!fillAgreed)}>
+                      I confirm this data was provided by the client and I am authorised to submit it on their behalf.
+                    </span>
+                  </label>
+                </div>
+              ) : (
+                <p className="text-center text-slate-400 text-sm py-10">{fillError || 'No schema available for this form type.'}</p>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            {!fillSuccess && fillSchema && !fillLoading && (
+              <div className="px-6 py-4 border-t border-slate-100 flex items-center gap-3 flex-shrink-0 bg-slate-50">
+                <button onClick={submitFillForm} disabled={fillSubmitting}
+                  className="flex-1 py-3 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                  {fillSubmitting ? (
+                    <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Submitting…</>
+                  ) : 'Submit on Behalf of Client →'}
+                </button>
+                <button onClick={closeFillModal} disabled={fillSubmitting}
+                  className="px-4 py-3 border border-slate-200 text-slate-600 text-sm font-semibold rounded-xl hover:bg-white transition-colors disabled:opacity-50">
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Progress tracker */}
       {totalRequired > 0 && (
         <div className="bg-white border border-slate-200 rounded-2xl px-5 py-4 shadow-sm">
@@ -1523,14 +1753,25 @@ function FormsTab({ forms, packageType, clientId, services, emailLogs, onSendWel
             />
           </div>
           {submittedCount < totalRequired && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {required
-                .filter(r => !submittedTypes.has(normalizeFormType(r)))
-                .map((r: string) => (
-                  <span key={r} className="text-[10px] px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-full font-medium">
-                    {FORM_TYPE_LABELS[r] ?? r} pending
-                  </span>
-                ))}
+            <div className="mt-3 space-y-2">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Pending forms — fill on behalf of client</p>
+              <div className="flex flex-wrap gap-2">
+                {required
+                  .filter(r => !submittedTypes.has(normalizeFormType(r)))
+                  .map((r: string) => (
+                    <div key={r} className="flex items-center gap-2">
+                      <span className="text-[10px] px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-full font-medium">
+                        {FORM_TYPE_LABELS[r] ?? r} pending
+                      </span>
+                      <button
+                        onClick={() => void openFillModal(normalizeFormType(r))}
+                        className="text-[10px] px-2.5 py-1 bg-[#B8935B] text-white font-bold rounded-full hover:bg-[#9A7540] transition-colors flex items-center gap-1">
+                        <svg width="9" height="9" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        Fill Form
+                      </button>
+                    </div>
+                  ))}
+              </div>
             </div>
           )}
         </div>
