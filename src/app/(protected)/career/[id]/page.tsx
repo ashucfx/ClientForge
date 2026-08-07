@@ -1519,35 +1519,6 @@ function FormsTab({ forms, packageType, clientId, services, emailLogs, onSendWel
     setFillSubmitting(false);
   };
 
-  if (forms.length === 0) {
-    return (
-      <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-10 text-center">
-        <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3 text-slate-400">
-          <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-        </div>
-        {!welcomeSent ? (
-          <>
-            <p className="text-slate-700 font-semibold text-sm">Portal not yet activated</p>
-            <p className="text-slate-400 text-xs mt-1 max-w-sm mx-auto">
-              Send the Welcome Email first so the client can log in and submit their intake forms.
-            </p>
-            <button
-              onClick={onSendWelcome}
-              className="mt-4 px-4 py-2 bg-[#B8935B] text-white text-xs font-bold rounded-xl hover:bg-[#9A7540] transition-colors">
-              Send Welcome Email →
-            </button>
-          </>
-        ) : (
-          <>
-            <p className="text-slate-700 font-semibold text-sm">No forms submitted yet</p>
-            <p className="text-slate-400 text-xs mt-1 max-w-sm mx-auto">
-              Forms will appear here once the client submits them via the portal. The Welcome email has been sent.
-            </p>
-          </>
-        )}
-      </div>
-    );
-  }
 
   // Group by formType, show latest version per type prominently
   const byType = forms.reduce<Record<string, FormSubmission[]>>((acc, f) => {
@@ -1773,6 +1744,35 @@ function FormsTab({ forms, packageType, clientId, services, emailLogs, onSendWel
                   ))}
               </div>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Empty State */}
+      {forms.length === 0 && (
+        <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-10 text-center">
+          <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3 text-slate-400">
+            <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          </div>
+          {!welcomeSent ? (
+            <>
+              <p className="text-slate-700 font-semibold text-sm">Portal not yet activated</p>
+              <p className="text-slate-400 text-xs mt-1 max-w-sm mx-auto">
+                Send the Welcome Email first so the client can log in and submit their intake forms.
+              </p>
+              <button
+                onClick={onSendWelcome}
+                className="mt-4 px-4 py-2 bg-[#B8935B] text-white text-xs font-bold rounded-xl hover:bg-[#9A7540] transition-colors">
+                Send Welcome Email →
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-slate-700 font-semibold text-sm">No forms submitted yet</p>
+              <p className="text-slate-400 text-xs mt-1 max-w-sm mx-auto">
+                Forms will appear here once the client submits them via the portal. The Welcome email has been sent.
+              </p>
+            </>
           )}
         </div>
       )}
