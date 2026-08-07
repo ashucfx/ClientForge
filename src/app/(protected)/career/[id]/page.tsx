@@ -1460,6 +1460,7 @@ function FormsTab({ forms, packageType, clientId, services, emailLogs, onSendWel
   const [fillError,       setFillError]       = useState('');
   const [fillSuccess,     setFillSuccess]     = useState(false);
   const [fillAgreed,      setFillAgreed]      = useState(false);
+  const fillFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const openFillModal = async (formType: string) => {
     setFillFormType(formType);
@@ -1497,11 +1498,38 @@ function FormsTab({ forms, packageType, clientId, services, emailLogs, onSendWel
     if (!fillFormType || !fillSchema) return;
     if (!fillAgreed) { setFillError('Please confirm you have reviewed the data before submitting.'); return; }
     setFillSubmitting(true); setFillError('');
+    
+    const payload = { ...fillValues };
+    
     try {
+      // 1. Upload files first
+      for (const field of fillSchema.fields) {
+        if (field.type !== 'file') continue;
+        const input = fillFileRefs.current[field.id];
+        const file = input?.files?.[0];
+        if (file) {
+          if (file.size > 10 * 1024 * 1024) {
+            setFillError(`File ${file.name} is too large (max 10MB)`);
+            setFillSubmitting(false); return;
+          }
+          const fd = new FormData();
+          fd.append('file', file);
+          const uploadRes = await fetch(`/api/career/admin/clients/${clientId}/upload`, { method: 'POST', body: fd });
+          if (!uploadRes.ok) {
+            const d = await uploadRes.json().catch(() => ({}));
+            setFillError(d.error ?? `Failed to upload ${file.name}`);
+            setFillSubmitting(false); return;
+          }
+          const uploadData = await uploadRes.json() as { url: string; mimeType: string; size: number; name: string };
+          payload[field.id] = { name: file.name, size: file.size, dataUrl: uploadData.url };
+        }
+      }
+
+      // 2. Submit form payload
       const res = await fetch(`/api/career/admin/clients/${clientId}/forms/${fillFormType}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fillValues),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         setFillSuccess(true);
@@ -1615,28 +1643,28 @@ function FormsTab({ forms, packageType, clientId, services, emailLogs, onSendWel
                           <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">{secName}</p>
                         </div>
                         <div className="p-4 space-y-4">
-                          {secFields.filter(f => f.type !== 'file').map(field => (
+                          {secFields.map(field => (
                             <div key={field.id}>
                               <label className="block text-sm font-semibold text-slate-700 mb-1">
                                 {field.label}
-                                {field.required && <span className="text-red-400 ml-1">*</span>}
-                                {!field.required && <span className="text-slate-400 text-xs font-normal ml-1">optional</span>}
+                                {field.required && <span className="text-red-500 ml-1">*</span>}
                               </label>
-                              {field.hint && <p className="text-xs text-slate-400 mb-1.5">{field.hint}</p>}
+                              {field.hint && <p className="text-xs text-slate-400 mb-2">{field.hint}</p>}
+
                               {field.type === 'textarea' ? (
-                                <textarea rows={4}
+                                <textarea
                                   value={(fillValues[field.id] as string) ?? ''}
                                   onChange={e => setFillValues(v => ({ ...v, [field.id]: e.target.value }))}
+                                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#B8935B] min-h-[100px]"
                                   placeholder={field.placeholder}
-                                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#B8935B] focus:border-transparent resize-y"
                                 />
-                              ) : field.type === 'select' ? (
+                              ) : field.type === 'select' && field.options ? (
                                 <select
                                   value={(fillValues[field.id] as string) ?? ''}
                                   onChange={e => setFillValues(v => ({ ...v, [field.id]: e.target.value }))}
                                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#B8935B]">
-                                  <option value="">Choose…</option>
-                                  {field.options?.map(o => <option key={o} value={o}>{o}</option>)}
+                                  <option value="">Select an option</option>
+                                  {field.options.map(o => <option key={o} value={o}>{o}</option>)}
                                 </select>
                               ) : field.type === 'checkbox' && field.options ? (
                                 <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -1654,6 +1682,42 @@ function FormsTab({ forms, packageType, clientId, services, emailLogs, onSendWel
                                       </label>
                                     );
                                   })}
+                                </div>
+                              ) : field.type === 'file' ? (
+                                <div className="space-y-2">
+                                  {fillValues[field.id] && typeof fillValues[field.id] === 'object' && 'dataUrl' in (fillValues[field.id] as any) ? (
+                                    <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                                      <svg className="text-emerald-500 flex-shrink-0" width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M5 13l4 4L19 7"/></svg>
+                                      <span className="text-xs font-semibold text-emerald-700 truncate">
+                                        {(fillValues[field.id] as any).name ?? 'File attached'}
+                                      </span>
+                                      <button type="button" onClick={() => setFillValues(v => { const n={...v}; delete n[field.id]; return n; })}
+                                        className="ml-auto flex-shrink-0 text-xs font-bold text-red-500 hover:underline">Remove</button>
+                                    </div>
+                                  ) : (
+                                    <input type="file"
+                                      ref={el => { fillFileRefs.current[field.id] = el; }}
+                                      className="block w-full text-sm text-slate-500
+                                        file:mr-4 file:py-2 file:px-4
+                                        file:rounded-full file:border-0
+                                        file:text-sm file:font-semibold
+                                        file:bg-slate-100 file:text-slate-700
+                                        hover:file:bg-slate-200 cursor-pointer"
+                                    />
+                                  )}
+                                </div>
+                              ) : field.type === 'rating' ? (
+                                <div className="flex items-center gap-2">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <svg key={star} width="24" height="24" viewBox="0 0 24 24"
+                                      fill={star <= (fillValues[field.id] as number || 0) ? '#B8935B' : 'transparent'}
+                                      stroke={star <= (fillValues[field.id] as number || 0) ? '#B8935B' : '#cbd5e1'}
+                                      strokeWidth="1.5"
+                                      className="cursor-pointer transition-colors"
+                                      onClick={() => setFillValues(v => ({ ...v, [field.id]: star }))}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                                    </svg>
+                                  ))}
                                 </div>
                               ) : (
                                 <input type={field.type === 'url' ? 'url' : 'text'}
