@@ -13,6 +13,7 @@ export type EmailTrigger =
   | 'WELCOME'
   | 'LOGIN_LINK'
   | 'FORM_CONFIRM'
+  | 'ADMIN_FORM_FILLED'
   | 'DRAFT_READY'
   | 'LINKEDIN_DRAFT'
   | 'REVISED_DRAFT'

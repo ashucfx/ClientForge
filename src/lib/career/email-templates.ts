@@ -46,6 +46,22 @@ export async function buildEmail(
       };
     }
 
+    case 'ADMIN_FORM_FILLED': {
+      // Admin filled the brief on behalf of the client
+      const { name, formLabel, portalUrl } = data as { name: string; formLabel: string; portalUrl: string };
+      const label = formLabel ?? 'brief';
+      const portalLink = portalUrl ?? 'https://catalyst.theripplenexus.com/portal/dashboard';
+      return {
+        subject: `Catalyst — Your ${label} has been completed by our team`,
+        html: await render(MessageNotifyEmail({
+          recipientName: name,
+          senderType: 'admin',
+          portalUrl: portalLink,
+          body: `Our team has filled in your **${label}** on your behalf, as requested. You can view the submitted details in your portal. Work on your project will begin shortly and you'll be notified when your draft is ready.`,
+        })),
+      };
+    }
+
     case 'DRAFT_READY': {
       const { name, packageLabel, portalUrl } = data as { name: string; packageLabel: string; portalUrl: string };
       const pkg = packageLabel ?? 'Career';
