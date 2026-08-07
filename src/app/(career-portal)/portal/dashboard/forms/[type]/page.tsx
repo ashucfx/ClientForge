@@ -146,8 +146,10 @@ export default function FormPage() {
 
   // ── Validation ─────────────────────────────────────────────────────────────
 
-  const validate = (): boolean => {
-    if (!schema) return false;
+  // Returns the error map synchronously so handleSubmit can use it immediately
+  // (setErrors is async — reading errors state right after would be stale)
+  const validate = (): Record<string, string> => {
+    if (!schema) return { __schema: 'Schema not loaded' };
     const errs: Record<string, string> = {};
     for (const field of schema.fields) {
       if (!field.required) continue;
@@ -163,16 +165,18 @@ export default function FormPage() {
     }
     if (!agreed) errs.__disclaimer = 'You must accept the disclaimer to continue';
     setErrors(errs);
-    return Object.keys(errs).length === 0;
+    return errs;
   };
 
   // ── Submit ─────────────────────────────────────────────────────────────────
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) {
-      const firstKey = Object.keys(errors)[0];
-      document.getElementById(`field-${firstKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      // Use the returned errors map directly — reading `errors` state here would be stale
+      const firstKey = Object.keys(validationErrors).find(k => k !== '__schema');
+      if (firstKey) document.getElementById(`field-${firstKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
     setSubmitting(true); setSubmitError('');
