@@ -388,8 +388,8 @@ function SidebarContent({
       <div className="sidebar-footer">
         <NotificationBell direction="up" label="Notifications" />
         {hasRnAccess && (
-          <button className="nav-item" onClick={onSwitchTenant} disabled={switching} style={{ marginBottom: 2, width: '100%', color: '#7C5CFF' }}>
-            <span className="nav-icon" style={{ display: 'inline-flex', color: '#7C5CFF' }}>
+          <button className="nav-item" onClick={onSwitchTenant} disabled={switching} style={{ marginBottom: 2, width: '100%' }}>
+            <span className="nav-icon" style={{ display: 'inline-flex' }}>
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24" aria-hidden>
                 <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M8 3L4 7l4 4" /><path d="M4 7h16" />
