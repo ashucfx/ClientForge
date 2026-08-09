@@ -154,7 +154,10 @@ export default function FormPage() {
     for (const field of schema.fields) {
       if (!field.required) continue;
       const val = values[field.id];
-      if (field.type === 'file') continue;
+      if (field.type === 'file') {
+        if (!val) errs[field.id] = `Please upload a file`;
+        continue;
+      }
       if (field.type === 'tags' || field.type === 'checkbox') {
         if (!Array.isArray(val) || val.length === 0) errs[field.id] = `${field.label} is required`;
       } else if (field.type === 'rating') {
@@ -579,7 +582,7 @@ function FieldRenderer({ field, value, error, onChange, fileRef }: {
             error ? 'border-red-300 bg-red-50/30' : 'border-slate-200 hover:border-[#D4AF7A] hover:bg-[#FBF8F3]/20'
           }`}>
             <input type="file" accept={field.accept} ref={fileRef}
-              required={field.required} className="hidden"
+              className="hidden"
               id={`file-${field.id}`}
               onChange={e => { const f = e.target.files?.[0]; if (f) onChange({ name: f.name, size: f.size, dataUrl: '' }); }} />
             <label htmlFor={`file-${field.id}`} className="cursor-pointer block p-6">
