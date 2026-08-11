@@ -129,3 +129,45 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
+
+export async function POST(req: NextRequest) {
+  const session = await getAdminSession();
+  if (!session || session.role !== 'SUPER_ADMIN') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  try {
+    const { clientId, clientName, clientEmail, basePrice, baseCurrency } = await req.json();
+    if (!clientId || !basePrice || !baseCurrency) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    const { getExchangeRate } = await import('@/lib/currency');
+    const { setSetting } = await import('@/lib/systemSettings');
+
+    let inrVal = 0;
+    let usdVal = 0;
+
+    if (baseCurrency === 'USD') {
+      const rate = await getExchangeRate('USD', 'INR');
+      usdVal = Number(basePrice);
+      inrVal = Math.round(usdVal * rate);
+    } else {
+      const rate = await getExchangeRate('USD', 'INR');
+      inrVal = Number(basePrice);
+      usdVal = Math.ceil((inrVal / rate) * 100) / 100;
+    }
+
+    await Promise.all([
+      setSetting(`CLIENT_PRICE_${clientId}_INR`, inrVal, session.adminId),
+      setSetting(`CLIENT_PRICE_${clientId}_USD`, usdVal, session.adminId),
+      setSetting(`CLIENT_UPGRADE_ENABLED_${clientId}`, true, session.adminId),
+      setSetting(`CLIENT_INFO_${clientId}`, { name: clientName, email: clientEmail }, session.adminId),
+    ]);
+
+    return NextResponse.json({ ok: true, inrVal, usdVal });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Failed to save selective pricing';
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}

@@ -62,8 +62,10 @@ function SelectiveClientPricingSection() {
   const [results, setResults] = useState<ClientCandidate[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClientCandidate | null>(null);
-  const [customInr, setCustomInr] = useState<string>('');
-  const [customUsd, setCustomUsd] = useState<string>('');
+  
+  const [basePrice, setBasePrice] = useState<string>('');
+  const [baseCurrency, setBaseCurrency] = useState<'USD' | 'INR'>('USD');
+
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [savingPrice, setSavingPrice] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ msg: string; isError?: boolean } | null>(null);
@@ -111,8 +113,20 @@ function SelectiveClientPricingSection() {
       ]);
       const inrData = inrRes.ok ? await inrRes.json() : null;
       const usdData = usdRes.ok ? await usdRes.json() : null;
-      setCustomInr(typeof inrData?.value === 'number' ? String(inrData.value) : '');
-      setCustomUsd(typeof usdData?.value === 'number' ? String(usdData.value) : '');
+      
+      const inrValue = typeof inrData?.value === 'number' ? inrData.value : 0;
+      const usdValue = typeof usdData?.value === 'number' ? usdData.value : 0;
+
+      if (usdValue > 0) {
+        setBasePrice(String(usdValue));
+        setBaseCurrency('USD');
+      } else if (inrValue > 0) {
+        setBasePrice(String(inrValue));
+        setBaseCurrency('INR');
+      } else {
+        setBasePrice('');
+        setBaseCurrency('USD');
+      }
     } catch {
       setStatusMsg({ msg: 'Failed to load existing overrides.', isError: true });
     } finally {
@@ -121,36 +135,27 @@ function SelectiveClientPricingSection() {
   };
 
   const saveOverride = async () => {
-    if (!selectedClient) return;
+    if (!selectedClient || !basePrice.trim()) {
+      setStatusMsg({ msg: 'Please enter a base price.', isError: true });
+      return;
+    }
     setSavingPrice(true);
     setStatusMsg(null);
     try {
-      const inrVal = customInr.trim() ? Number(customInr) : 0;
-      const usdVal = customUsd.trim() ? Number(customUsd) : 0;
+      const res = await fetch(`/api/admin/settings/selective-clients`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: selectedClient.id,
+          clientName: selectedClient.name,
+          clientEmail: selectedClient.email,
+          basePrice: Number(basePrice),
+          baseCurrency,
+        }),
+      });
 
-      await Promise.all([
-        fetch(`/api/admin/settings/CLIENT_PRICE_${selectedClient.id}_INR`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value: inrVal }),
-        }),
-        fetch(`/api/admin/settings/CLIENT_PRICE_${selectedClient.id}_USD`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value: usdVal }),
-        }),
-        fetch(`/api/admin/settings/CLIENT_UPGRADE_ENABLED_${selectedClient.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value: true }),
-        }),
-        fetch(`/api/admin/settings/CLIENT_INFO_${selectedClient.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value: { name: selectedClient.name, email: selectedClient.email } }),
-        }),
-      ]);
-
+      if (!res.ok) throw new Error();
+      
       setStatusMsg({ msg: `Selective pricing & upgrade offer enabled for ${selectedClient.name}!` });
       fetchActiveClients();
     } catch {
@@ -250,36 +255,37 @@ function SelectiveClientPricingSection() {
               {loadingPrices ? (
                 <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading client settings…</div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <div>
                     <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted)', marginBottom: 6 }}>
-                      Selective Price (INR)
+                      Custom Upgrade Price
                     </label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--muted)' }}>₹</span>
-                      <input
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
+                        <span style={{ position: 'absolute', left: 12, fontSize: 15, fontWeight: 800, color: 'var(--muted)' }}>
+                          {baseCurrency === 'INR' ? '₹' : '$'}
+                        </span>
+                        <input
+                          className="input"
+                          type="number"
+                          placeholder="e.g. 59"
+                          value={basePrice}
+                          onChange={e => setBasePrice(e.target.value)}
+                          style={{ paddingLeft: 30, width: '100%' }}
+                        />
+                      </div>
+                      <select
                         className="input"
-                        type="number"
-                        placeholder="e.g. 4999"
-                        value={customInr}
-                        onChange={e => setCustomInr(e.target.value)}
-                      />
+                        value={baseCurrency}
+                        onChange={e => setBaseCurrency(e.target.value as 'INR' | 'USD')}
+                        style={{ width: 100, flexShrink: 0 }}
+                      >
+                        <option value="USD">USD</option>
+                        <option value="INR">INR</option>
+                      </select>
                     </div>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted)', marginBottom: 6 }}>
-                      Selective Price (USD)
-                    </label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--muted)' }}>$</span>
-                      <input
-                        className="input"
-                        type="number"
-                        placeholder="e.g. 59"
-                        value={customUsd}
-                        onChange={e => setCustomUsd(e.target.value)}
-                      />
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
+                      The system will automatically calculate the equivalent {baseCurrency === 'USD' ? 'INR' : 'USD'} price using live exchange rates.
                     </div>
                   </div>
                 </div>
