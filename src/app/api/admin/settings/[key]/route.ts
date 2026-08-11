@@ -12,6 +12,11 @@ const ALLOWED_KEYS: SettingKey[] = [
   'PREMIUM_PLUS_PRICE_USD',
 ];
 
+function isKeyAllowed(key: string): boolean {
+  if (ALLOWED_KEYS.includes(key as SettingKey)) return true;
+  return /^CLIENT_PRICE_[a-zA-Z0-9_-]+_(INR|USD)$/.test(key);
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: { key: string } }
@@ -19,12 +24,12 @@ export async function GET(
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const key = params.key as SettingKey;
-  if (!ALLOWED_KEYS.includes(key)) {
+  const key = params.key;
+  if (!isKeyAllowed(key)) {
     return NextResponse.json({ error: 'Unknown setting key' }, { status: 400 });
   }
 
-  const value = await getSetting(key);
+  const value = await getSetting(key as SettingKey);
   return NextResponse.json({ key, value });
 }
 
@@ -40,8 +45,8 @@ export async function PUT(
     return NextResponse.json({ error: 'Forbidden — SUPER_ADMIN role required' }, { status: 403 });
   }
 
-  const key = params.key as SettingKey;
-  if (!ALLOWED_KEYS.includes(key)) {
+  const key = params.key;
+  if (!isKeyAllowed(key)) {
     return NextResponse.json({ error: 'Unknown setting key' }, { status: 400 });
   }
 

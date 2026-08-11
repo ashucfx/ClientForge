@@ -194,7 +194,7 @@ export async function GET(req: NextRequest) {
   if (targetUpgrade === 'PREMIUM_PLUS') {
     // Use admin-configured price from SystemSetting for PREMIUM_PLUS.
     // This is the flat upgrade price, not a computed diff, to make admin pricing explicit.
-    const configuredPrice = await getPremiumPlusPrice(isIndia ? 'INR' : 'USD');
+    const configuredPrice = await getPremiumPlusPrice(isIndia ? 'INR' : 'USD', client.id);
     const computedBase = targetPrice - currentlyPaid;
     // Use configured price if set and reasonable, else fall back to computed diff
     differenceBase = configuredPrice > 0 ? configuredPrice : (computedBase > 0 ? computedBase : 0);

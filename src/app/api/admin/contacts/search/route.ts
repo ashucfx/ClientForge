@@ -81,14 +81,14 @@ export async function GET(req: NextRequest) {
           { phone: { contains: q, mode: 'insensitive' } },
         ],
       },
-      select: { id: true, name: true, email: true, phone: true },
+      select: { id: true, name: true, email: true, phone: true, contact: { select: { country: true } } },
       take: limit,
     });
 
     for (const c of careerClients) {
       if (c.email && !seenEmails.has(c.email.toLowerCase())) {
         seenEmails.add(c.email.toLowerCase());
-        results.push({ id: c.id, sourceType: 'career_client', name: c.name, email: c.email, phone: c.phone ?? null, companyName: null, country: null });
+        results.push({ id: c.id, sourceType: 'career_client', name: c.name, email: c.email, phone: c.phone ?? null, companyName: null, country: c.contact?.country ?? null });
       }
     }
   }

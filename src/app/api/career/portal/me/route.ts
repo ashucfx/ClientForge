@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   const client = await db.careerClient.findUnique({
     where: { id: payload.clientId },
     select: {
-      id: true, name: true, email: true,
+      id: true, name: true, email: true, phone: true, contact: { select: { country: true } },
       packageType: true, status: true,
       lifecycleStatus: true, completedAt: true, firstCompletedAt: true,
       waitingOn: true,
@@ -164,14 +164,16 @@ export async function GET(req: NextRequest) {
   // Read Premium Plus settings from SystemSetting table (admin-configurable)
   const [ppEnabled, ppPriceInr, ppPriceUsd] = await Promise.all([
     isPremiumPlusEnabled(),
-    getPremiumPlusPrice('INR'),
-    getPremiumPlusPrice('USD'),
+    getPremiumPlusPrice('INR', client.id),
+    getPremiumPlusPrice('USD', client.id),
   ]);
 
   return NextResponse.json({
     id: client.id,
     name: client.name,
     email: client.email,
+    phone: client.phone ?? null,
+    country: client.contact?.country ?? null,
     packageType: pkg,
     packageLabel,
     status,

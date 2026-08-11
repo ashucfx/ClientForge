@@ -24,14 +24,14 @@ const DEFAULTS: Record<SettingKey, unknown> = {
  * Read a setting value. Returns the stored value or the hardcoded default if
  * the row does not yet exist.
  */
-export async function getSetting<T = unknown>(key: SettingKey): Promise<T> {
+export async function getSetting<T = unknown>(key: string): Promise<T> {
   try {
     const row = await prisma.systemSetting.findUnique({ where: { key } });
-    if (row === null) return DEFAULTS[key] as T;
+    if (row === null) return (DEFAULTS as Record<string, unknown>)[key] as T;
     return row.value as T;
   } catch {
     // Graceful degradation: return default if the table doesn't exist yet
-    return DEFAULTS[key] as T;
+    return (DEFAULTS as Record<string, unknown>)[key] as T;
   }
 }
 
@@ -60,7 +60,7 @@ export async function getSettings(
  * Upsert a setting value. Optionally record which admin changed it.
  */
 export async function setSetting(
-  key: SettingKey,
+  key: string,
   value: unknown,
   updatedBy?: string
 ): Promise<void> {
@@ -78,7 +78,31 @@ export async function isPremiumPlusEnabled(): Promise<boolean> {
   return getSetting<boolean>('PREMIUM_PLUS_ENABLED');
 }
 
-export async function getPremiumPlusPrice(currency: 'INR' | 'USD'): Promise<number> {
+export async function getPremiumPlusPrice(currency: 'INR' | 'USD', clientId?: string): Promise<number> {
+  if (clientId) {
+    try {
+      const clientKey = `CLIENT_PRICE_${clientId}_${currency}`;
+      const row = await prisma.systemSetting.findUnique({ where: { key: clientKey } });
+      if (row !== null && typeof row.value === 'number' && row.value > 0) {
+        return row.value;
+      }
+    } catch { /* fallback to global */ }
+  }
   const key: SettingKey = currency === 'INR' ? 'PREMIUM_PLUS_PRICE_INR' : 'PREMIUM_PLUS_PRICE_USD';
   return getSetting<number>(key);
+}
+
+export async function setClientPriceOverride(
+  clientId: string,
+  currency: 'INR' | 'USD',
+  price: number,
+  updatedBy?: string
+): Promise<void> {
+  const key = `CLIENT_PRICE_${clientId}_${currency}`;
+  const jsonVal = price as Prisma.InputJsonValue;
+  await prisma.systemSetting.upsert({
+    where:  { key },
+    create: { key, value: jsonVal, updatedBy },
+    update: { value: jsonVal, updatedBy },
+  });
 }

@@ -111,17 +111,29 @@ export default function FormPage() {
 
   const load = useCallback(async () => {
     try {
-      const [formsRes, prevRes] = await Promise.all([
+      const [formsRes, prevRes, meRes] = await Promise.all([
         fetch('/api/career/portal/forms'),
         fetch(`/api/career/portal/forms/${type}`),
+        fetch('/api/career/portal/me'),
       ]);
       if (formsRes.status === 401 || prevRes.status === 401) { router.replace('/portal/login'); return; }
       const { forms }      = await formsRes.json() as { forms: FormSchema[] };
       const { submission } = await prevRes.json()  as { submission: PreviousSubmission | null };
+      const meData         = meRes.ok ? await meRes.json() as { name?: string; email?: string; phone?: string } : null;
       const found = forms.find(f => f.formType === type);
       if (!found) { router.replace('/portal/dashboard'); return; }
       setSchema(found);
-      if (submission?.formData) { setValues(submission.formData as FormValues); setPrevious(submission); }
+      
+      const initialValues: FormValues = submission?.formData ? (submission.formData as FormValues) : {};
+      if (meData) {
+        if (!initialValues.full_name && meData.name)    initialValues.full_name = meData.name;
+        if (!initialValues.email && meData.email)        initialValues.email = meData.email;
+        if (!initialValues.phone && meData.phone)        initialValues.phone = meData.phone;
+        if (!initialValues.contact_email && meData.email) initialValues.contact_email = meData.email;
+        if (!initialValues.contact_phone && meData.phone) initialValues.contact_phone = meData.phone;
+      }
+      setValues(initialValues);
+      if (submission?.formData) setPrevious(submission);
       setLoading(false);
     } catch { router.replace('/portal/login'); }
   }, [type, router]);

@@ -216,6 +216,9 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            {/* Selective Client Pricing Overrides */}
+            <SelectiveClientPricingSection />
+
             {/* Save bar */}
             {error && (
               <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, fontSize: 13, color: '#b91c1c' }}>
@@ -253,5 +256,206 @@ export default function SettingsPage() {
         )}
       </main>
     </AppShell>
+  );
+}
+
+function SelectiveClientPricingSection() {
+  type ClientCandidate = { id: string; name: string; email: string | null; sourceType: string };
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<ClientCandidate[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<ClientCandidate | null>(null);
+  const [customInr, setCustomInr] = useState<string>('');
+  const [customUsd, setCustomUsd] = useState<string>('');
+  const [loadingPrices, setLoadingPrices] = useState(false);
+  const [savingPrice, setSavingPrice] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<{ msg: string; isError?: boolean } | null>(null);
+
+  const searchClients = async (q: string) => {
+    if (q.trim().length < 2) { setResults([]); return; }
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/admin/contacts/search?q=${encodeURIComponent(q)}&limit=6`);
+      const data = await res.json();
+      setResults(data.results ?? []);
+    } catch { setResults([]); }
+    finally { setSearching(false); }
+  };
+
+  const selectClient = async (client: ClientCandidate) => {
+    setSelectedClient(client);
+    setResults([]);
+    setQuery('');
+    setLoadingPrices(true);
+    setStatusMsg(null);
+    try {
+      const [inrRes, usdRes] = await Promise.all([
+        fetch(`/api/admin/settings/CLIENT_PRICE_${client.id}_INR`),
+        fetch(`/api/admin/settings/CLIENT_PRICE_${client.id}_USD`),
+      ]);
+      const inrData = inrRes.ok ? await inrRes.json() : null;
+      const usdData = usdRes.ok ? await usdRes.json() : null;
+      setCustomInr(typeof inrData?.value === 'number' ? String(inrData.value) : '');
+      setCustomUsd(typeof usdData?.value === 'number' ? String(usdData.value) : '');
+    } catch {
+      setStatusMsg({ msg: 'Failed to load existing overrides.', isError: true });
+    } finally {
+      setLoadingPrices(false);
+    }
+  };
+
+  const saveOverride = async () => {
+    if (!selectedClient) return;
+    setSavingPrice(true);
+    setStatusMsg(null);
+    try {
+      const inrVal = customInr.trim() ? Number(customInr) : 0;
+      const usdVal = customUsd.trim() ? Number(customUsd) : 0;
+
+      await Promise.all([
+        fetch(`/api/admin/settings/CLIENT_PRICE_${selectedClient.id}_INR`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: inrVal }),
+        }),
+        fetch(`/api/admin/settings/CLIENT_PRICE_${selectedClient.id}_USD`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: usdVal }),
+        }),
+      ]);
+
+      setStatusMsg({ msg: `Selective pricing saved for ${selectedClient.name}!` });
+    } catch {
+      setStatusMsg({ msg: 'Failed to save selective pricing.', isError: true });
+    } finally {
+      setSavingPrice(false);
+    }
+  };
+
+  return (
+    <div className="card" style={{ overflow: 'hidden' }}>
+      <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#dbeafe', borderRadius: 8, fontSize: 15 }}>🎯</span>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Selective Client Upgrade Pricing</h2>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>Set custom package upgrade prices for specific VIP/custom clients.</div>
+        </div>
+      </div>
+      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {!selectedClient ? (
+          <div>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted)', marginBottom: 6 }}>
+              Search Client by Name or Email
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                className="input"
+                type="text"
+                value={query}
+                onChange={e => { setQuery(e.target.value); searchClients(e.target.value); }}
+                placeholder="e.g. Rahul Verma or rahul@example.com…"
+              />
+              {searching && (
+                <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', animation: 'spin .9s linear infinite', fontSize: 14 }}>⟳</span>
+              )}
+              {results.length > 0 && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: '#fff', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, overflow: 'hidden' }}>
+                  {results.map((c, idx) => (
+                    <div
+                      key={c.id}
+                      onClick={() => selectClient(c)}
+                      style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: idx < results.length - 1 ? '1px solid var(--border)' : 'none' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--brand-light)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = '#fff'; }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{c.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{c.email}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface-2)', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--border)' }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{selectedClient.name}</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)' }}>{selectedClient.email}</div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setSelectedClient(null)}
+                style={{ fontSize: 12, padding: '4px 10px' }}
+              >
+                ✕ Change Client
+              </button>
+            </div>
+
+            {loadingPrices ? (
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading client pricing settings…</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted)', marginBottom: 6 }}>
+                    Custom Price (INR)
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--muted)' }}>₹</span>
+                    <input
+                      className="input"
+                      type="number"
+                      placeholder="e.g. 3999"
+                      value={customInr}
+                      onChange={e => setCustomInr(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted)', marginBottom: 6 }}>
+                    Custom Price (USD)
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--muted)' }}>$</span>
+                    <input
+                      className="input"
+                      type="number"
+                      placeholder="e.g. 49"
+                      value={customUsd}
+                      onChange={e => setCustomUsd(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {statusMsg && (
+              <div style={{
+                padding: '10px 14px', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                background: statusMsg.isError ? '#fef2f2' : '#f0fdf4',
+                color: statusMsg.isError ? '#b91c1c' : '#15803d',
+                border: `1px solid ${statusMsg.isError ? '#fca5a5' : '#bbf7d0'}`,
+              }}>
+                {statusMsg.msg}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={saveOverride}
+              disabled={savingPrice || loadingPrices}
+              className="btn btn-primary"
+              style={{ alignSelf: 'flex-start', padding: '8px 18px', fontSize: 13 }}
+            >
+              {savingPrice ? 'Saving Custom Price…' : 'Save Client Override'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

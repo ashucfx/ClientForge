@@ -4,7 +4,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { COUNTRIES } from '@/lib/currency';
+import { COUNTRIES, ISO2_TO_COUNTRY } from '@/lib/currency';
+import { parsePhoneNumberFromString } from 'libphonenumber-js/min';
 import { CLIENT_TYPE_LABELS, FEE_RATES, round2 } from '@/lib/pricing';
 import { PRICING, PACKAGE_COMPLEMENTARY } from '@/lib/pricing-v2';
 import type { ServiceSlug, PackageSlug } from '@/lib/pricing-v2';
@@ -431,9 +432,18 @@ export default function NewInvoicePage() {
     setLeadQuery('');
     if (lead.name)        setClientName(lead.name);
     if (lead.email)       setClientEmail(lead.email);
-    if (lead.phone)       setClientPhone(lead.phone.replace(/^\+\d{1,4}\s?/, ''));
     if (lead.companyName) setCompanyName(lead.companyName);
     if (lead.country)     setCountry(lead.country);
+
+    if (lead.phone) {
+      const parsed = parsePhoneNumberFromString(lead.phone);
+      if (parsed && parsed.country && ISO2_TO_COUNTRY[parsed.country]) {
+        setCountry(ISO2_TO_COUNTRY[parsed.country]);
+        setClientPhone(parsed.nationalNumber);
+      } else {
+        setClientPhone(lead.phone.replace(/^\+/, ''));
+      }
+    }
   };
 
   const clearLead = () => {
