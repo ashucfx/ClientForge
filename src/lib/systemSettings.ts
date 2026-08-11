@@ -74,7 +74,26 @@ export async function setSetting(
 
 // ─── Convenience typed helpers ────────────────────────────────────────────────
 
-export async function isPremiumPlusEnabled(): Promise<boolean> {
+export async function isPremiumPlusEnabled(clientId?: string): Promise<boolean> {
+  if (clientId) {
+    try {
+      const enabledKey = `CLIENT_UPGRADE_ENABLED_${clientId}`;
+      const inrKey = `CLIENT_PRICE_${clientId}_INR`;
+      const usdKey = `CLIENT_PRICE_${clientId}_USD`;
+      const rows = await prisma.systemSetting.findMany({
+        where: { key: { in: [enabledKey, inrKey, usdKey] } },
+      });
+      const enabledRow = rows.find((r: (typeof rows)[number]) => r.key === enabledKey);
+      if (enabledRow !== undefined) {
+        return Boolean(enabledRow.value);
+      }
+      const inrRow = rows.find((r: (typeof rows)[number]) => r.key === inrKey);
+      const usdRow = rows.find((r: (typeof rows)[number]) => r.key === usdKey);
+      if ((inrRow && typeof inrRow.value === 'number' && inrRow.value > 0) || (usdRow && typeof usdRow.value === 'number' && usdRow.value > 0)) {
+        return true;
+      }
+    } catch { /* fallback to global */ }
+  }
   return getSetting<boolean>('PREMIUM_PLUS_ENABLED');
 }
 

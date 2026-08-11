@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
 
   // Gate Premium Plus behind admin toggle
   if (targetUpgrade === 'PREMIUM_PLUS') {
-    const enabled = await isPremiumPlusEnabled();
+    const enabled = await isPremiumPlusEnabled(payload.clientId);
     if (!enabled) {
       return NextResponse.json({ error: 'Premium Plus upgrade is not currently available' }, { status: 403 });
     }

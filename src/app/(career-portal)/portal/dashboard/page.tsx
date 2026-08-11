@@ -1065,84 +1065,40 @@ export default function PortalDashboardPage() {
           </div>
         </div>
 
-        {/* ── Upgrade Options ── */}
+        {/* ── Selective Upgrade Option (Shown ONLY when enabled by Admin) ── */}
         {me.services && (() => {
           const slugs = me.services.map(s => s.slug);
           const hasFull      = slugs.includes('FULL_PACKAGE');
           const hasPortfolio = slugs.includes('PORTFOLIO');
 
-          const showFullPackage  = !hasFull;
-          // Gate Premium Plus behind the admin-controlled SystemSetting flag.
-          // Falls back to true when the field is absent (pre-migration data) for
-          // safety, but once the migration runs it will strictly follow the setting.
+          // Strict selective enablement: ONLY show upgrade offer if explicitly enabled for this client by Admin
           const ppAdminEnabled = me.premiumPlusEnabled ?? false;
-          const showPremiumPlus  = ppAdminEnabled && !(hasFull && hasPortfolio);
-          if (!showFullPackage && !showPremiumPlus) return null;
-
-          const UpgradeCard = ({ target, title, tagline, bullets }: {
-            target: string; title: string; tagline: string; bullets: string[];
-          }) => (
-            <div className="flex-1 min-w-0 bg-white border border-[#E8DDD0] rounded-2xl p-5 shadow-[0_1px_4px_rgba(10,11,13,0.05)] flex flex-col gap-3">
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#B8935B] animate-pulse flex-shrink-0" />
-                  <p className="text-[10px] font-bold text-[#9A7540] uppercase tracking-[0.18em]">{title}</p>
-                </div>
-                <p className="text-xs text-slate-500 leading-relaxed">{tagline}</p>
-              </div>
-              <ul className="space-y-1.5">
-                {bullets.map((b, i) => (
-                  <li key={i} className="flex items-center gap-2 text-xs text-slate-700">
-                    <svg width="11" height="11" fill="none" viewBox="0 0 24 24" className="flex-shrink-0 text-[#B8935B]">
-                      <path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    {b}
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={() => handleUpgrade(target)}
-                disabled={upgradePreviewLoading || upgrading}
-                className="mt-auto w-full py-2.5 bg-[#B8935B] text-white text-xs font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors tracking-wide"
-              >
-                {(upgradePreviewLoading || upgrading) && upgradeTarget === target
-                  ? 'Loading…'
-                  : 'View Details & Price →'}
-              </button>
-            </div>
-          );
+          const showSelectiveUpgrade = ppAdminEnabled && !(hasFull && hasPortfolio);
+          if (!showSelectiveUpgrade) return null;
 
           return (
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-3">
-                {showFullPackage && showPremiumPlus ? 'Upgrade Options Available' : 'Upgrade Available'}
-              </p>
-              <div className={`flex ${showFullPackage && showPremiumPlus ? 'flex-col sm:flex-row' : ''} gap-3`}>
-                {showFullPackage && (
-                  <UpgradeCard
-                    target="FULL_PACKAGE"
-                    title="Career Booster Package"
-                    tagline="Get all three career essentials to maximise recruiter visibility."
-                    bullets={[
-                      ...(!slugs.includes('RESUME')      ? ['Professional Resume Writing']       : []),
-                      ...(!slugs.includes('LINKEDIN')    ? ['LinkedIn Profile Optimisation']     : []),
-                      'Cover Letter Writing (included free)',
-                    ]}
-                  />
-                )}
-                {showPremiumPlus && (
-                  <UpgradeCard
-                    target="PREMIUM_PLUS"
-                    title="Premium Plus Package"
-                    tagline="Add a dedicated portfolio website to stand out with a full digital presence."
-                    bullets={[
-                      ...(!hasFull && !slugs.includes('RESUME')   ? ['Professional Resume Writing']   : []),
-                      ...(!hasFull && !slugs.includes('LINKEDIN') ? ['LinkedIn Profile Optimisation'] : []),
-                      ...(!hasFull                                 ? ['Cover Letter Writing (free)']   : []),
-                      'Portfolio Website Development',
-                    ]}
-                  />
-                )}
+            <div className="relative overflow-hidden bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#0A0B0D] border border-[#B8935B]/40 rounded-3xl p-6 sm:p-8 text-white shadow-xl">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[#B8935B]/10 rounded-full blur-3xl -translate-y-20 translate-x-20 pointer-events-none" />
+              <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#B8935B]/20 border border-[#B8935B]/40 text-[#E8DDD0] text-xs font-bold uppercase tracking-wider mb-3">
+                    <span className="w-2 h-2 rounded-full bg-[#B8935B] animate-ping" />
+                    VIP Selective Offer Assigned
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Upgrade Your Career Package</h3>
+                  <p className="text-sm text-slate-300 mt-1 max-w-lg leading-relaxed">
+                    An exclusive selective upgrade package has been made available for your account. Enhance your career assets with full digital optimization.
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleUpgrade('PREMIUM_PLUS')}
+                  disabled={upgradePreviewLoading || upgrading}
+                  className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-[#B8935B] to-[#9A7540] hover:from-[#C9A870] hover:to-[#B8935B] text-white text-xs font-extrabold uppercase tracking-widest rounded-xl shadow-lg shadow-[#B8935B]/20 transition-all disabled:opacity-50 flex-shrink-0"
+                >
+                  {(upgradePreviewLoading || upgrading) && upgradeTarget === 'PREMIUM_PLUS'
+                    ? 'Loading…'
+                    : 'View Selective Offer & Pricing →'}
+                </button>
               </div>
             </div>
           );

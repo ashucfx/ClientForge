@@ -867,19 +867,21 @@ export default function NewInvoicePage() {
                             onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--brand-light)'; }}
                             onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
                           >
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{lead.name}</div>
-                              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>
-                                {lead.email}{lead.companyName ? ` · ${lead.companyName}` : ''}{lead.country ? ` · ${lead.country}` : ''}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{lead.name}</div>
+                              <div style={{ fontSize: 11, color: '#475569', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                                {lead.email && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>📧 {lead.email}</span>}
+                                {lead.phone && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontWeight: 600, color: '#0284c7' }}>📞 {lead.phone}</span>}
+                                {lead.companyName && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>🏢 {lead.companyName}</span>}
+                                {lead.country && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontWeight: 600, color: '#059669' }}>📍 {lead.country}</span>}
                               </div>
                             </div>
                             <span style={{
-                              fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20,
-                              background: lead.sourceType === 'contact' ? '#f0f9ff' : lead.sourceType === 'career_client' ? 'var(--brand-light)' : '#f3f0ff',
-                              color: lead.sourceType === 'contact' ? '#0369a1' : lead.sourceType === 'career_client' ? 'var(--brand)' : '#7c3aed',
-                              border: '1px solid currentColor', opacity: 0.8,
-                              textTransform: 'capitalize' as const, flexShrink: 0,
-                            }}>{lead.sourceType.replace('_', ' ')}</span>
+                              fontSize: 10, fontWeight: 800, padding: '3px 9px', borderRadius: 20,
+                              background: lead.sourceType === 'contact' ? '#e0f2fe' : lead.sourceType === 'career_client' ? '#fef3c7' : '#f3e8ff',
+                              color: lead.sourceType === 'contact' ? '#0369a1' : lead.sourceType === 'career_client' ? '#92400e' : '#6b21a8',
+                              border: '1px solid currentColor', textTransform: 'uppercase' as const, letterSpacing: '0.4px', flexShrink: 0,
+                            }}>{lead.sourceType === 'contact' ? 'Contact Registry' : lead.sourceType === 'career_client' ? 'Career Client' : 'RN Client'}</span>
                           </div>
                         ))}
                       </div>

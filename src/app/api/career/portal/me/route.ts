@@ -163,7 +163,7 @@ export async function GET(req: NextRequest) {
 
   // Read Premium Plus settings from SystemSetting table (admin-configurable)
   const [ppEnabled, ppPriceInr, ppPriceUsd] = await Promise.all([
-    isPremiumPlusEnabled(),
+    isPremiumPlusEnabled(client.id),
     getPremiumPlusPrice('INR', client.id),
     getPremiumPlusPrice('USD', client.id),
   ]);
