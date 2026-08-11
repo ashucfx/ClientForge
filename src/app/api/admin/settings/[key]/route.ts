@@ -14,7 +14,7 @@ const ALLOWED_KEYS: SettingKey[] = [
 
 function isKeyAllowed(key: string): boolean {
   if (ALLOWED_KEYS.includes(key as SettingKey)) return true;
-  return /^CLIENT_PRICE_[a-zA-Z0-9_-]+_(INR|USD)$/.test(key);
+  return /^CLIENT_(?:PRICE|UPGRADE_ENABLED|INFO)_[a-zA-Z0-9_-]+(?:_(?:INR|USD))?$/.test(key);
 }
 
 export async function GET(

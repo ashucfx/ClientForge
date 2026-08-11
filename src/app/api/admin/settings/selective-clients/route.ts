@@ -40,19 +40,39 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ clients: [] });
     }
 
-    // Query CareerClient for names and emails
-    const careerClients = await prisma.careerClient.findMany({
-      where: { id: { in: clientIds } },
-      select: { id: true, name: true, email: true, phone: true, packageType: true },
-    });
+    // Query CareerClient, Contact, and RnClient for names and emails
+    const [careerClients, contacts, rnClients] = await Promise.all([
+      prisma.careerClient.findMany({
+        where: { id: { in: clientIds } },
+        select: { id: true, name: true, email: true, phone: true },
+      }),
+      prisma.contact.findMany({
+        where: { id: { in: clientIds } },
+        select: { id: true, name: true, email: true, phone: true },
+      }),
+      prisma.rnClient.findMany({
+        where: { id: { in: clientIds } },
+        select: { id: true, name: true, email: true, phone: true },
+      }),
+    ]);
 
-    const clientMap = new Map(careerClients.map(c => [c.id, c]));
+    const clientMap = new Map<string, { name: string; email: string | null; phone?: string | null }>();
+    for (const c of careerClients) clientMap.set(c.id, c);
+    for (const c of contacts) clientMap.set(c.id, c);
+    for (const c of rnClients) clientMap.set(c.id, c);
 
     const results = clientIds.map(clientId => {
       const client = clientMap.get(clientId);
       const inrRow = settings.find(s => s.key === `CLIENT_PRICE_${clientId}_INR`);
       const usdRow = settings.find(s => s.key === `CLIENT_PRICE_${clientId}_USD`);
       const enabledRow = settings.find(s => s.key === `CLIENT_UPGRADE_ENABLED_${clientId}`);
+      const infoRow = settings.find(s => s.key === `CLIENT_INFO_${clientId}`);
+
+      const infoData = (infoRow?.value && typeof infoRow.value === 'object') ? (infoRow.value as { name?: string; email?: string; phone?: string }) : null;
+
+      const clientName = client?.name ?? infoData?.name ?? 'Client #' + clientId.slice(0, 8);
+      const clientEmail = client?.email ?? infoData?.email ?? '';
+      const clientPhone = client?.phone ?? infoData?.phone ?? null;
 
       const priceInr = typeof inrRow?.value === 'number' ? inrRow.value : 0;
       const priceUsd = typeof usdRow?.value === 'number' ? usdRow.value : 0;
@@ -60,9 +80,9 @@ export async function GET(req: NextRequest) {
 
       return {
         clientId,
-        clientName: client?.name ?? 'Unknown Client',
-        clientEmail: client?.email ?? '',
-        clientPhone: client?.phone ?? null,
+        clientName,
+        clientEmail,
+        clientPhone,
         priceInr,
         priceUsd,
         enabled: isExplicitlyEnabled,
@@ -97,6 +117,7 @@ export async function DELETE(req: NextRequest) {
             `CLIENT_PRICE_${clientId}_INR`,
             `CLIENT_PRICE_${clientId}_USD`,
             `CLIENT_UPGRADE_ENABLED_${clientId}`,
+            `CLIENT_INFO_${clientId}`,
           ],
         },
       },

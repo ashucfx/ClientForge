@@ -7,75 +7,8 @@ import { useState, useEffect, useCallback } from 'react';
 import AppShell from '@/components/AppShell';
 import { useAdmin } from '@/components/AdminProvider';
 
-type SettingState = {
-  PREMIUM_PLUS_ENABLED: boolean;
-  PREMIUM_PLUS_PRICE_INR: number;
-  PREMIUM_PLUS_PRICE_USD: number;
-};
-
-const DEFAULTS: SettingState = {
-  PREMIUM_PLUS_ENABLED: false,
-  PREMIUM_PLUS_PRICE_INR: 4999,
-  PREMIUM_PLUS_PRICE_USD: 59,
-};
-
 export default function SettingsPage() {
   const { isSuperAdmin } = useAdmin();
-  const [settings, setSettings] = useState<SettingState>(DEFAULTS);
-  const [draft,    setDraft]    = useState<SettingState>(DEFAULTS);
-  const [loading,  setLoading]  = useState(true);
-  const [saving,   setSaving]   = useState(false);
-  const [saved,    setSaved]    = useState(false);
-  const [error,    setError]    = useState('');
-
-  const loadSettings = useCallback(async () => {
-    setLoading(true);
-    try {
-      const keys: (keyof SettingState)[] = ['PREMIUM_PLUS_ENABLED', 'PREMIUM_PLUS_PRICE_INR', 'PREMIUM_PLUS_PRICE_USD'];
-      const values = await Promise.all(
-        keys.map(k => fetch(`/api/admin/settings/${k}`).then(r => r.json()) as Promise<{ key: string; value: unknown }>)
-      );
-      const merged: SettingState = { ...DEFAULTS };
-      for (const { key, value } of values) {
-        if (key === 'PREMIUM_PLUS_ENABLED')   merged.PREMIUM_PLUS_ENABLED   = value as boolean;
-        if (key === 'PREMIUM_PLUS_PRICE_INR') merged.PREMIUM_PLUS_PRICE_INR = Number(value);
-        if (key === 'PREMIUM_PLUS_PRICE_USD') merged.PREMIUM_PLUS_PRICE_USD = Number(value);
-      }
-      setSettings(merged);
-      setDraft(merged);
-    } catch {
-      setError('Failed to load settings. Please refresh the page.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { loadSettings(); }, [loadSettings]);
-
-  const saveSettings = async () => {
-    setSaving(true); setError(''); setSaved(false);
-    try {
-      const entries = Object.entries(draft) as [keyof SettingState, boolean | number][];
-      await Promise.all(
-        entries.map(([key, value]) =>
-          fetch(`/api/admin/settings/${key}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ value }),
-          })
-        )
-      );
-      setSettings(draft);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch {
-      setError('Failed to save settings. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const isDirty = JSON.stringify(draft) !== JSON.stringify(settings);
 
   if (!isSuperAdmin) {
     return (
@@ -100,125 +33,13 @@ export default function SettingsPage() {
             System Settings
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--muted)' }}>
-            Admin-controlled configuration that takes effect immediately without a code deployment.
+            Configure client-selective package upgrade offers and custom pricing overrides.
           </p>
         </div>
 
-        {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--muted)', fontSize: 14 }}>
-            <span style={{ display: 'inline-flex', animation: 'spin .9s linear infinite' }}>⟳</span>
-            Loading settings…
-          </div>
-        ) : (
-          <div style={{ maxWidth: 680, display: 'flex', flexDirection: 'column', gap: 24 }}>
-
-            {/* Premium Plus Package */}
-            <div className="card" style={{ overflow: 'hidden' }}>
-              <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ width: 28, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#ede9fe', borderRadius: 8, fontSize: 15 }}>✨</span>
-                <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Premium Plus Package Upgrade</h2>
-                <span style={{
-                  fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                  background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a',
-                }}>
-                  SELECTIVE MODE ACTIVE
-                </span>
-              </div>
-              <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <div style={{ padding: '12px 16px', background: 'var(--brand-faint)', border: '1px solid var(--brand-light)', borderRadius: 10, fontSize: 13, color: 'var(--text)' }}>
-                  <strong>🔒 Selective Client Assignment Mode:</strong> Upgrade offers are <strong>NOT</strong> shown globally to all clients. They appear <em>only</em> on the dashboards of clients explicitly selected in the table below.
-                </div>
-
-                {/* INR Default Price */}
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted)', marginBottom: 6 }}>
-                    Global Default Base Price (INR)
-                  </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--muted)' }}>₹</span>
-                    <input
-                      className="input"
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={draft.PREMIUM_PLUS_PRICE_INR}
-                      onChange={e => setDraft(d => ({ ...d, PREMIUM_PLUS_PRICE_INR: Number(e.target.value) }))}
-                      style={{ maxWidth: 200 }}
-                    />
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>
-                    Current default: ₹{settings.PREMIUM_PLUS_PRICE_INR.toLocaleString('en-IN')}
-                  </div>
-                </div>
-
-                {/* USD Default Price */}
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted)', marginBottom: 6 }}>
-                    Global Default Base Price (USD)
-                  </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--muted)' }}>$</span>
-                    <input
-                      className="input"
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={draft.PREMIUM_PLUS_PRICE_USD}
-                      onChange={e => setDraft(d => ({ ...d, PREMIUM_PLUS_PRICE_USD: Number(e.target.value) }))}
-                      style={{ maxWidth: 200 }}
-                    />
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>
-                    Current default: ${settings.PREMIUM_PLUS_PRICE_USD}
-                  </div>
-                </div>
-
-                {/* Notice */}
-                <div style={{ padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, fontSize: 12, color: '#92400e' }}>
-                  <strong>⚠ Price changes only affect future upgrades.</strong>{' '}
-                  Historical invoices and completed upgrade transactions are never modified.
-                </div>
-              </div>
-            </div>
-
-            {/* Selective Client Pricing Overrides */}
-            <SelectiveClientPricingSection />
-
-            {/* Save bar */}
-            {error && (
-              <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, fontSize: 13, color: '#b91c1c' }}>
-                {error}
-              </div>
-            )}
-            {saved && (
-              <div style={{ padding: '10px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, fontSize: 13, color: '#15803d', display: 'flex', alignItems: 'center', gap: 8 }}>
-                ✓ Settings saved successfully.
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                type="button"
-                onClick={saveSettings}
-                disabled={saving || !isDirty}
-                className="btn btn-primary"
-                style={{ opacity: (saving || !isDirty) ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 22px' }}
-              >
-                {saving ? <><span style={{ animation: 'spin .9s linear infinite', display: 'inline-flex' }}>⟳</span> Saving…</> : 'Save Settings'}
-              </button>
-              {isDirty && (
-                <button
-                  type="button"
-                  onClick={() => setDraft(settings)}
-                  disabled={saving}
-                  className="btn btn-ghost"
-                  style={{ opacity: saving ? 0.5 : 1, padding: '10px 18px' }}
-                >
-                  Discard changes
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+        <div style={{ maxWidth: 840, display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <SelectiveClientPricingSection />
+        </div>
       </main>
     </AppShell>
   );
@@ -322,6 +143,11 @@ function SelectiveClientPricingSection() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ value: true }),
+        }),
+        fetch(`/api/admin/settings/CLIENT_INFO_${selectedClient.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: { name: selectedClient.name, email: selectedClient.email } }),
         }),
       ]);
 
