@@ -55,7 +55,7 @@ async function computeUpgradePricing(
   differenceBase: number,
   isIndia: boolean,
   gateway: UpgradeGateway,
-  rawCountry: string | null,
+  clientCurrency: string,
 ): Promise<UpgradePricing> {
   if (isIndia) {
     const taxRate    = 0.18;
@@ -70,8 +70,8 @@ async function computeUpgradePricing(
   }
 
   if (gateway === 'RAZORPAY') {
-    const name   = countryNameFromIso(rawCountry ?? '') ?? (rawCountry ?? '');
-    const local  = getCurrencyForCountry(name);          // USD fallback if unknown
+    const { getCurrencyByCode } = require('@/lib/currency');
+    const local  = getCurrencyByCode(clientCurrency);
     const rate   = await getExchangeRate('USD', local.code);
     const subtotal     = roundMoney(differenceBase * rate, local.code);
     const totalPayable = ceilMoney(subtotal / (1 - RAZORPAY_INTL_FEE), local.code);
@@ -205,14 +205,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'No price difference to upgrade' }, { status: 400 });
   }
 
-  const pricing = await computeUpgradePricing(differenceBase, isIndia, chosenGateway, rawCountry);
+  const pricing = await computeUpgradePricing(differenceBase, isIndia, chosenGateway, client.currency);
   const { currency, currencySymbol, taxRate, taxAmount, processingFee, processingFeeRate, totalPayable } = pricing;
 
   // For international clients, also price the alternative gateway so the modal
   // can show both options (Razorpay recommended) without another round-trip.
   const gatewayOptions = isIndia ? null : await Promise.all(
     (['RAZORPAY', 'PAYPAL'] as UpgradeGateway[]).map(async (g) => {
-      const p = await computeUpgradePricing(differenceBase, false, g, rawCountry);
+      const p = await computeUpgradePricing(differenceBase, false, g, client.currency);
       return {
         gateway: g, currency: p.currency, currencySymbol: p.currencySymbol,
         totalPayable: p.totalPayable, recommended: g === 'RAZORPAY',
@@ -348,7 +348,7 @@ export async function POST(req: NextRequest) {
     orderBy: { createdAt: 'desc' },
   });
 
-  const pricing = await computeUpgradePricing(differenceBase, isIndia, chosenGateway, rawCountry);
+  const pricing = await computeUpgradePricing(differenceBase, isIndia, chosenGateway, client.currency);
   const { currency, currencySymbol, taxRate, taxAmount, processingFee: processingFeeConverted, processingFeeRate, totalPayable } = pricing;
 
   if (existingInvoice) {
