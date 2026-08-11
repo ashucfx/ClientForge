@@ -46,6 +46,13 @@ export default async function TestimonialsPage() {
           services: {
             select: { service: { select: { slug: true } } },
           },
+          // Pull linkedin_profile form data to enrich testimonials when contact profile is sparse
+          forms: {
+            where: { formType: { in: ['linkedin_profile', 'career_profile'] } },
+            select: { formType: true, formData: true },
+            orderBy: { submittedAt: 'desc' },
+            take: 2,
+          },
         },
       },
     },
@@ -55,12 +62,24 @@ export default async function TestimonialsPage() {
     const name     = r.careerClient?.name ?? 'Anonymous';
     const contact  = r.careerClient?.contact ?? null;
     const country  = contact?.country ?? null;
-    const role     = r.designation ?? contact?.jobTitle ?? null;
-    const industry = contact?.industry ?? null;
-    const city     = contact?.city ?? null;
     const flag     = countryFlag(country);
     const slugs    = (r.careerClient?.services ?? []).map(s => s.service.slug);
     const packageLabel = pkgFromSlugs(slugs);
+
+    // Safely extract approved fields from LinkedIn/career form data (fallback enrichment)
+    // We only expose: currentJobTitle, currentIndustry — never email, phone, address etc.
+    const forms = r.careerClient?.forms ?? [];
+    const linkedinForm = forms.find(f => f.formType === 'linkedin_profile');
+    const careerForm   = forms.find(f => f.formType === 'career_profile');
+    const formData     = (linkedinForm?.formData ?? careerForm?.formData ?? {}) as Record<string, unknown>;
+    const formJobTitle   = (typeof formData.currentJobTitle   === 'string' ? formData.currentJobTitle   : null);
+    const formIndustry   = (typeof formData.currentIndustry   === 'string' ? formData.currentIndustry   : null);
+    const formJobMarket  = (typeof formData.targetJobMarket   === 'string' ? formData.targetJobMarket   : null);
+
+    const role     = r.designation ?? contact?.jobTitle ?? formJobTitle ?? null;
+    const industry = contact?.industry ?? formIndustry ?? null;
+    const city     = contact?.city ?? null;
+    const jobMarket = formJobMarket ?? null;
 
     return {
       id: r.id,
@@ -76,6 +95,7 @@ export default async function TestimonialsPage() {
       city,
       flag,
       packageLabel,
+      jobMarket,
       isCareer: true,
     };
   });

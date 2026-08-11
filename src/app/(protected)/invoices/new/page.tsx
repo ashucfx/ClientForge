@@ -403,6 +403,46 @@ export default function NewInvoicePage() {
   const [packageSlug,  setPackageSlug]  = useState<PackageSlug>('CAREER_BOOSTER');
   const [currencyOverride, setCurrencyOverride] = useState('');
 
+  // Lead search combobox
+  type LeadResult = { id: string; name: string; email: string | null; phone: string | null; companyName: string | null; country: string | null; displayId?: string | null; sourceType: string };
+  const [leadQuery,    setLeadQuery]    = useState('');
+  const [leadResults,  setLeadResults]  = useState<LeadResult[]>([]);
+  const [leadLoading,  setLeadLoading]  = useState(false);
+  const [leadOpen,     setLeadOpen]     = useState(false);
+  const [selectedLead, setSelectedLead] = useState<LeadResult | null>(null);
+  const leadDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const leadInputRef = useRef<HTMLInputElement | null>(null);
+
+  const searchLeads = useCallback(async (q: string) => {
+    if (q.trim().length < 2) { setLeadResults([]); setLeadOpen(false); return; }
+    setLeadLoading(true);
+    try {
+      const res = await fetch(`/api/admin/contacts/search?q=${encodeURIComponent(q)}&limit=8`);
+      const data = await res.json() as { results: LeadResult[] };
+      setLeadResults(data.results ?? []);
+      setLeadOpen((data.results ?? []).length > 0);
+    } catch { /* silent */ }
+    finally { setLeadLoading(false); }
+  }, []);
+
+  const applyLead = (lead: LeadResult) => {
+    setSelectedLead(lead);
+    setLeadOpen(false);
+    setLeadQuery('');
+    if (lead.name)        setClientName(lead.name);
+    if (lead.email)       setClientEmail(lead.email);
+    if (lead.phone)       setClientPhone(lead.phone.replace(/^\+\d{1,4}\s?/, ''));
+    if (lead.companyName) setCompanyName(lead.companyName);
+    if (lead.country)     setCountry(lead.country);
+  };
+
+  const clearLead = () => {
+    setSelectedLead(null);
+    setLeadQuery('');
+    setLeadResults([]);
+    setTimeout(() => leadInputRef.current?.focus(), 50);
+  };
+
   // Invoice settings
   const [lineItems,       setLineItems]       = useState<LineItem[]>([]);
   const [discountRate,    setDiscountRate]    = useState(0);
@@ -757,6 +797,91 @@ export default function NewInvoicePage() {
 
             {/* 1. Client Info */}
             <SectionCard title="Client Information" icon={<IconUser />}>
+
+              {/* ── Lead Search Combobox ─────────────────────────────────── */}
+              <div style={{ marginBottom: 18, position: 'relative' as const }}>
+                <FieldLabel label="Search existing lead / client" />
+                {selectedLead ? (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 14px', borderRadius: 10, border: '1.5px solid var(--brand)',
+                    background: 'var(--brand-light)', gap: 10,
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{selectedLead.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                        {selectedLead.email}{selectedLead.companyName ? ` · ${selectedLead.companyName}` : ''}{selectedLead.displayId ? ` · ${selectedLead.displayId}` : ''}
+                      </div>
+                    </div>
+                    <button type="button" onClick={clearLead}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 13, padding: '2px 6px', borderRadius: 6 }}
+                      title="Clear selected lead"
+                    >✕ Change</button>
+                  </div>
+                ) : (
+                  <div style={{ position: 'relative' as const }}>
+                    <input
+                      ref={leadInputRef}
+                      className="input"
+                      type="text"
+                      value={leadQuery}
+                      placeholder="Search by name, email, phone or ID…"
+                      autoComplete="off"
+                      onChange={e => {
+                        const v = e.target.value;
+                        setLeadQuery(v);
+                        if (leadDebounce.current) clearTimeout(leadDebounce.current);
+                        leadDebounce.current = setTimeout(() => searchLeads(v), 300);
+                      }}
+                      onFocus={() => { if (leadResults.length > 0) setLeadOpen(true); }}
+                      onBlur={() => setTimeout(() => setLeadOpen(false), 150)}
+                    />
+                    {leadLoading && (
+                      <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', animation: 'spin .9s linear infinite', display: 'inline-flex', color: 'var(--brand)', fontSize: 14 }}>⟳</span>
+                    )}
+                    {leadOpen && leadResults.length > 0 && (
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
+                        background: '#fff', border: '1px solid var(--border)', borderRadius: 10,
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.12)', marginTop: 4, overflow: 'hidden',
+                      }}>
+                        {leadResults.map((lead, idx) => (
+                          <div
+                            key={lead.id}
+                            onMouseDown={() => applyLead(lead)}
+                            style={{
+                              padding: '10px 14px', cursor: 'pointer', borderBottom: idx < leadResults.length - 1 ? '1px solid var(--border)' : 'none',
+                              transition: 'background .1s',
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                            }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--brand-light)'; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+                          >
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{lead.name}</div>
+                              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>
+                                {lead.email}{lead.companyName ? ` · ${lead.companyName}` : ''}{lead.country ? ` · ${lead.country}` : ''}
+                              </div>
+                            </div>
+                            <span style={{
+                              fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20,
+                              background: lead.sourceType === 'contact' ? '#f0f9ff' : lead.sourceType === 'career_client' ? 'var(--brand-light)' : '#f3f0ff',
+                              color: lead.sourceType === 'contact' ? '#0369a1' : lead.sourceType === 'career_client' ? 'var(--brand)' : '#7c3aed',
+                              border: '1px solid currentColor', opacity: 0.8,
+                              textTransform: 'capitalize' as const, flexShrink: 0,
+                            }}>{lead.sourceType.replace('_', ' ')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
+                  Optional — select an existing client to auto-fill the fields below
+                </div>
+              </div>
+              {/* ─────────────────────────────────────────────────────────── */}
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 16 }}>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <FieldLabel label="Full Name" required />

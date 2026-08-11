@@ -10,6 +10,7 @@ import { createRazorpayPaymentLink } from '@/lib/razorpay';
 import { createPaypalInvoice } from '@/lib/paypal';
 import type { CareerServiceSlug } from '@/lib/career/types';
 import { ClientType } from '@prisma/client';
+import { isPremiumPlusEnabled, getPremiumPlusPrice } from '@/lib/systemSettings';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -102,6 +103,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid upgrade target' }, { status: 400 });
   }
 
+  // Gate Premium Plus behind admin toggle
+  if (targetUpgrade === 'PREMIUM_PLUS') {
+    const enabled = await isPremiumPlusEnabled();
+    if (!enabled) {
+      return NextResponse.json({ error: 'Premium Plus upgrade is not currently available' }, { status: 403 });
+    }
+  }
+
   const client = await db.careerClient.findUnique({
     where: { id: payload.clientId },
     include: {
@@ -181,7 +190,17 @@ export async function GET(req: NextRequest) {
   }
   if (hasPortfolio) currentlyPaid += basePrices.PORTFOLIO[clientType];
 
-  const differenceBase = targetPrice - currentlyPaid;
+  let differenceBase: number;
+  if (targetUpgrade === 'PREMIUM_PLUS') {
+    // Use admin-configured price from SystemSetting for PREMIUM_PLUS.
+    // This is the flat upgrade price, not a computed diff, to make admin pricing explicit.
+    const configuredPrice = await getPremiumPlusPrice(isIndia ? 'INR' : 'USD');
+    const computedBase = targetPrice - currentlyPaid;
+    // Use configured price if set and reasonable, else fall back to computed diff
+    differenceBase = configuredPrice > 0 ? configuredPrice : (computedBase > 0 ? computedBase : 0);
+  } else {
+    differenceBase = targetPrice - currentlyPaid;
+  }
   if (differenceBase <= 0) {
     return NextResponse.json({ error: 'No price difference to upgrade' }, { status: 400 });
   }

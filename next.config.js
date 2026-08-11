@@ -2,8 +2,6 @@
 const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['@prisma/client'],
-    webpackBuildWorker: false,
-    workerThreads: true,
   },
   eslint: {
     ignoreDuringBuilds: false,

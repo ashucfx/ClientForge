@@ -58,4 +58,14 @@ const result = spawnSync(
   { stdio: 'inherit', env: process.env, shell: process.platform === 'win32' }
 );
 
-process.exit(result.status ?? 1);
+if (result.status !== 0) {
+  if (process.env.VERCEL || process.env.CI || process.env.NODE_ENV === 'production') {
+    console.error('[db-sync] Critical error: prisma db push failed in deployment environment.');
+    process.exit(result.status ?? 1);
+  } else {
+    console.warn('[db-sync] Warning: db push failed locally (e.g. network unreachable). Continuing local build.');
+    process.exit(0);
+  }
+}
+
+process.exit(0);

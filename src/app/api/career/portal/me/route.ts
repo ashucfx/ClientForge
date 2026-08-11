@@ -12,6 +12,7 @@ import {
   normalizeFormType, getFormsForServices,
 } from '@/lib/career/types';
 import type { CareerPackage, CareerStatus, CareerServiceSlug } from '@/lib/career/types';
+import { isPremiumPlusEnabled, getPremiumPlusPrice } from '@/lib/systemSettings';
 
 export async function GET(req: NextRequest) {
   void req;
@@ -160,6 +161,13 @@ export async function GET(req: NextRequest) {
     fallbackDeliveryAt = d.toISOString();
   }
 
+  // Read Premium Plus settings from SystemSetting table (admin-configurable)
+  const [ppEnabled, ppPriceInr, ppPriceUsd] = await Promise.all([
+    isPremiumPlusEnabled(),
+    getPremiumPlusPrice('INR'),
+    getPremiumPlusPrice('USD'),
+  ]);
+
   return NextResponse.json({
     id: client.id,
     name: client.name,
@@ -189,5 +197,8 @@ export async function GET(req: NextRequest) {
     hasSubmittedFeedback: !!client.Feedback,
     hasSubmittedReview: !!client.Review,
     deliverables: client.deliverables,
+    premiumPlusEnabled: ppEnabled,
+    premiumPlusPriceInr: ppPriceInr,
+    premiumPlusPriceUsd: ppPriceUsd,
   });
 }

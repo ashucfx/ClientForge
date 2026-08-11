@@ -150,6 +150,9 @@
   [data-tenant="ripple_nexus"] .desktop-sidebar {
     display: none !important;
   }
+  [data-tenant="ripple_nexus"] .mobile-drawer:not(.mobile-drawer-open) {
+    display: none !important;
+  }
 }
 
 @media (min-width: 768px) {

@@ -814,7 +814,8 @@ textarea.input { resize: vertical; min-height: 80px; }
 @media (max-width: 767px) {
 
   /* ── Layout ──────────────────────────────── */
-  .desktop-sidebar { display: none; }          /* hide fixed sidebar */
+  .desktop-sidebar { display: none !important; }          /* hide fixed sidebar */
+  .mobile-drawer:not(.mobile-drawer-open) { display: none !important; }
   .page-wrapper    { margin-left: 0 !important; padding-top: var(--topbar-h); }
 
   /* ── Mobile topbar ───────────────────────── */

@@ -186,11 +186,17 @@ export default function FormPage() {
     const payload: FormValues = { ...values };
     for (const field of (schema?.fields ?? [])) {
       if (field.type !== 'file') continue;
+      const existingVal = values[field.id] as FileAttachment | null;
+      // If already uploaded and has CDN URL, keep it!
+      if (existingVal && existingVal.dataUrl && existingVal.dataUrl.startsWith('http')) {
+        payload[field.id] = existingVal;
+        continue;
+      }
       const input = fileRefs.current[field.id];
       const file  = input?.files?.[0];
       if (file) {
-        if (file.size > 4 * 1024 * 1024) {
-          setErrors(e => ({ ...e, [field.id]: `Max 4 MB` }));
+        if (file.size > 10 * 1024 * 1024) {
+          setErrors(e => ({ ...e, [field.id]: `File size exceeds 10 MB limit.` }));
           setSubmitting(false); return;
         }
 
@@ -205,6 +211,9 @@ export default function FormPage() {
         
         const uploadData = await uploadRes.json() as { url: string; mimeType: string; size: number; name: string };
         payload[field.id] = { name: file.name, size: file.size, dataUrl: uploadData.url };
+      } else if (field.required && (!existingVal || !existingVal.dataUrl)) {
+        setErrors(e => ({ ...e, [field.id]: `Please upload a file` }));
+        setSubmitting(false); return;
       }
     }
     const res = await fetch(`/api/career/portal/forms/${type}`, {
@@ -479,6 +488,8 @@ function FieldRenderer({ field, value, error, onChange, fileRef }: {
   fileRef: (el: HTMLInputElement | null) => void;
 }) {
   const [showPassword, setShowPassword] = useState(false);
+  const [isUploading, setIsUploading]   = useState(false);
+  const [uploadErr, setUploadErr]       = useState('');
 
   const base = `w-full px-4 py-3 text-sm border rounded-xl bg-white transition-all outline-none
     focus:ring-2 focus:ring-[#9A7540] focus:border-transparent placeholder:text-slate-400
@@ -576,50 +587,93 @@ function FieldRenderer({ field, value, error, onChange, fileRef }: {
       )}
 
       {/* File upload */}
-      {field.type === 'file' && (
-        <div>
-          <div className={`border-2 border-dashed rounded-xl transition-all ${
-            error ? 'border-red-300 bg-red-50/30' : 'border-slate-200 hover:border-[#D4AF7A] hover:bg-[#FBF8F3]/20'
-          }`}>
-            <input type="file" accept={field.accept} ref={fileRef}
-              className="hidden"
-              id={`file-${field.id}`}
-              onChange={e => { const f = e.target.files?.[0]; if (f) onChange({ name: f.name, size: f.size, dataUrl: '' }); }} />
-            <label htmlFor={`file-${field.id}`} className="cursor-pointer block p-6">
-              {value && typeof value === 'object' && 'name' in value ? (
-                <div className="flex items-center justify-center gap-3 text-sm">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
-                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="#16a34a" strokeWidth="2" strokeLinecap="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      {field.type === 'file' && (() => {
+        const fileObj = value && typeof value === 'object' && 'name' in value ? (value as FileAttachment) : null;
+        return (
+          <div>
+            <div className={`border-2 border-dashed rounded-xl transition-all ${
+              error || uploadErr ? 'border-red-300 bg-red-50/30' : 'border-slate-200 hover:border-[#D4AF7A] hover:bg-[#FBF8F3]/20'
+            }`}>
+              <input type="file" accept={field.accept} ref={fileRef}
+                className="hidden"
+                id={`file-${field.id}`}
+                onChange={async e => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  setUploadErr('');
+                  if (f.size > 10 * 1024 * 1024) {
+                    setUploadErr('File size exceeds 10 MB limit.');
+                    return;
+                  }
+                  // Set temp value with name & size
+                  onChange({ name: f.name, size: f.size, dataUrl: '' });
+                  setIsUploading(true);
+                  try {
+                    const fd = new FormData();
+                    fd.append('file', f);
+                    const res = await fetch('/api/career/portal/upload', { method: 'POST', body: fd });
+                    const data = await res.json() as { url?: string; error?: string };
+                    if (!res.ok || !data.url) throw new Error(data.error ?? 'File upload failed');
+                    onChange({ name: f.name, size: f.size, dataUrl: data.url });
+                  } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : 'File upload failed';
+                    setUploadErr(msg);
+                  } finally {
+                    setIsUploading(false);
+                  }
+                }} />
+              <label htmlFor={`file-${field.id}`} className="cursor-pointer block p-6">
+                {isUploading ? (
+                  <div className="flex items-center justify-center gap-3 text-sm">
+                    <span className="w-5 h-5 border-2 border-[#B8935B] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-slate-700">Uploading file…</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Please wait a moment</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-emerald-700">{(value as FileAttachment).name}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{((value as FileAttachment).size / 1024).toFixed(0)} KB · Click to change</p>
+                ) : fileObj ? (
+                  <div className="flex items-center justify-center gap-3 text-sm">
+                    <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="#16a34a" strokeWidth="2" strokeLinecap="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-emerald-700">{fileObj.name}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {(fileObj.size / 1024).toFixed(0)} KB {fileObj.dataUrl ? '· Ready ✓' : '· Click to change'}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
-                      <path stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" d="M12 16V8m-4 4l4-4 4 4M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14"/>
-                    </svg>
+                ) : (
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+                      <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
+                        <path stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" d="M12 16V8m-4 4l4-4 4 4M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14"/>
+                      </svg>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-700">Click to upload</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {field.accept?.replace(/\./g, '').toUpperCase().replace(/,/g, ' · ')} · Max 10 MB
+                    </p>
                   </div>
-                  <p className="text-sm font-semibold text-slate-700">Click to upload</p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {field.accept?.replace(/\./g, '').toUpperCase().replace(/,/g, ' · ')} · Max 4 MB
-                  </p>
-                </div>
-              )}
-            </label>
+                )}
+              </label>
+            </div>
+            {uploadErr && (
+              <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                {uploadErr}
+              </p>
+            )}
+            {fileObj && !isUploading && (
+              <button type="button" onClick={() => { setUploadErr(''); onChange(null); }} aria-label="Remove file"
+                className="mt-1.5 text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1 transition-colors">
+                <svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                Remove file
+              </button>
+            )}
           </div>
-          {value && typeof value === 'object' && 'name' in value && (
-            <button type="button" onClick={() => onChange(null)} aria-label="Remove file"
-              className="mt-1.5 text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1 transition-colors">
-              <svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
-              Remove file
-            </button>
-          )}
-        </div>
-      )}
+        );
+      })()}
 
       {/* Text / URL */}
       {(field.type === 'text' || field.type === 'url') && (

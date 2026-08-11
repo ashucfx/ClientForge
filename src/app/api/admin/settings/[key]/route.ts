@@ -1,0 +1,55 @@
+// GET  /api/admin/settings/:key  — read a system setting
+// PUT  /api/admin/settings/:key  — write a system setting (SUPER_ADMIN only)
+
+import { NextRequest, NextResponse } from 'next/server';
+import { getAdminSession } from '@/lib/auth';
+import { getSetting, setSetting } from '@/lib/systemSettings';
+import type { SettingKey } from '@/lib/systemSettings';
+
+const ALLOWED_KEYS: SettingKey[] = [
+  'PREMIUM_PLUS_ENABLED',
+  'PREMIUM_PLUS_PRICE_INR',
+  'PREMIUM_PLUS_PRICE_USD',
+];
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { key: string } }
+) {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const key = params.key as SettingKey;
+  if (!ALLOWED_KEYS.includes(key)) {
+    return NextResponse.json({ error: 'Unknown setting key' }, { status: 400 });
+  }
+
+  const value = await getSetting(key);
+  return NextResponse.json({ key, value });
+}
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { key: string } }
+) {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Only SUPER_ADMIN can write settings
+  if (session.role !== 'SUPER_ADMIN') {
+    return NextResponse.json({ error: 'Forbidden — SUPER_ADMIN role required' }, { status: 403 });
+  }
+
+  const key = params.key as SettingKey;
+  if (!ALLOWED_KEYS.includes(key)) {
+    return NextResponse.json({ error: 'Unknown setting key' }, { status: 400 });
+  }
+
+  const body = await req.json() as { value: unknown };
+  if (body.value === undefined) {
+    return NextResponse.json({ error: '"value" field is required' }, { status: 400 });
+  }
+
+  await setSetting(key, body.value, session.adminId);
+  return NextResponse.json({ key, value: body.value });
+}

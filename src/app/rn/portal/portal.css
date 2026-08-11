@@ -59,8 +59,8 @@ h1, h2, h3, .portal-brand { font-family: 'Outfit', sans-serif; margin: 0; }
 .portal-mobile-nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10px; color: var(--rn-text-muted); text-decoration: none; position: relative; }
 .portal-mobile-nav-item.active { color: var(--rn-accent); }
 
-@media (max-width: 768px) {
-  .portal-sidebar { display: none; }
+@media (max-width: 991px) {
+  .portal-sidebar { display: none !important; }
   .portal-main { padding: 24px 16px 80px; }
   .portal-mobile-nav { display: block; }
 }

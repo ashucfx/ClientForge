@@ -1629,6 +1629,7 @@ model RnOnboardingTemplate {
   updatedAt DateTime @updatedAt
 }
 
+
 model RnEmailTemplate {
   id                 String  @id @default(cuid())
   triggerEvent       String  @unique
@@ -1640,3 +1641,20 @@ model RnEmailTemplate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SYSTEM SETTINGS — admin-configurable key/value store
+// Purely additive. Stores runtime configuration that admins can change without
+// a code deployment. Examples: PREMIUM_PLUS_ENABLED, PREMIUM_PLUS_PRICE_INR,
+// PREMIUM_PLUS_PRICE_USD.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model SystemSetting {
+  key       String   @id  // e.g. "PREMIUM_PLUS_ENABLED" | "PREMIUM_PLUS_PRICE_INR"
+  value     Json         // stored as JSON so it accepts bool, number, string, object
+  updatedAt DateTime @updatedAt
+  updatedBy String?      // soft reference to AdminUser.id
+
+  @@index([key])
+}
+

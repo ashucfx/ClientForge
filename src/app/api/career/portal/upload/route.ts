@@ -11,12 +11,13 @@ import { uploadToCloudinary } from '@/lib/career/cloudinary';
 import { validateFileContent } from '@/lib/validateFile';
 
 const ALLOWED = new Set([
-  'image/png', 'image/jpeg', 'image/webp',
-  'application/pdf',
+  'image/png', 'image/jpeg', 'image/jpg', 'image/pjpeg', 'image/x-png', 'image/webp', 'image/gif', 'image/heic', 'image/heif',
+  'application/pdf', 'application/x-pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/msword',
+  'application/octet-stream',
 ]);
-const MAX_SIZE = 4 * 1024 * 1024; // 4 MB
+const MAX_SIZE = 10 * 1024 * 1024; // 10 MB (supports high-res photos and large PDFs)
 
 export async function POST(req: NextRequest) {
   const token = cookies().get(PORTAL_COOKIE)?.value ?? '';

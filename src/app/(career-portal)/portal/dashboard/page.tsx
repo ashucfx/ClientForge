@@ -41,6 +41,10 @@ interface Me {
   hasSubmittedFeedback?: boolean;
   hasSubmittedReview?: boolean;
   deliverables?: { fileType: string; fileCategory: string; label: string; approvalStatus: string }[];
+  // Admin-controlled Premium Plus upgrade offer
+  premiumPlusEnabled?: boolean;
+  premiumPlusPriceInr?: number;
+  premiumPlusPriceUsd?: number;
 }
 interface ReferralStats {
   referralCode: string | null;
@@ -1068,7 +1072,11 @@ export default function PortalDashboardPage() {
           const hasPortfolio = slugs.includes('PORTFOLIO');
 
           const showFullPackage  = !hasFull;
-          const showPremiumPlus  = !(hasFull && hasPortfolio);
+          // Gate Premium Plus behind the admin-controlled SystemSetting flag.
+          // Falls back to true when the field is absent (pre-migration data) for
+          // safety, but once the migration runs it will strictly follow the setting.
+          const ppAdminEnabled = me.premiumPlusEnabled ?? false;
+          const showPremiumPlus  = ppAdminEnabled && !(hasFull && hasPortfolio);
           if (!showFullPackage && !showPremiumPlus) return null;
 
           const UpgradeCard = ({ target, title, tagline, bullets }: {

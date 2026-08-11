@@ -195,9 +195,9 @@ export const DEFAULT_FORM_SCHEMAS: Record<FormType, FormSchema> = {
         id: 'profile_photo',
         label: 'Professional Profile Photo (High Resolution)',
         type: 'file',
-        accept: '.jpg,.jpeg,.png',
-        required: true,
-        hint: "Please upload a professional photo you'd like to use for your LinkedIn profile.",
+        accept: '.jpg,.jpeg,.png,.webp,.heic,.heif',
+        required: false,
+        hint: "Upload a professional photo if you'd like us to update your profile picture. Optional — leave empty if you prefer keeping your current picture.",
         section: 'Profile Media',
       },
 
