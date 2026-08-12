@@ -25,16 +25,18 @@ export async function GET(req: NextRequest) {
   const fetchUrl = await getDeliveryUrl(file.fileUrl, file.mimeType);
   const upstream = await fetch(fetchUrl);
 
-  if (!upstream.ok || !upstream.body) {
+  if (!upstream.ok) {
     console.error('[portal download] fetch failed', upstream.status, fetchUrl);
     return NextResponse.json({ error: 'File unavailable' }, { status: 502 });
   }
+
+  const arrayBuffer = await upstream.arrayBuffer();
 
   const baseName = file.originalName || file.label || 'download';
   const filename = ensureExtension(baseName, file.mimeType);
   const safe     = filename.replace(/[^\w.\- ]/g, '_');
 
-  return new NextResponse(upstream.body, {
+  return new NextResponse(arrayBuffer, {
     headers: {
       'Content-Type':        file.mimeType || upstream.headers.get('content-type') || 'application/octet-stream',
       'Content-Disposition': `attachment; filename="${safe}"`,

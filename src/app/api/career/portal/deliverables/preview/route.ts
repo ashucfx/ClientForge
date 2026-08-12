@@ -36,11 +36,13 @@ export async function GET(req: NextRequest) {
   const fetchUrl = await getDeliveryUrl(file.fileUrl, file.mimeType);
   const upstream = await fetch(fetchUrl);
 
-  if (!upstream.ok || !upstream.body) {
+  if (!upstream.ok) {
     return NextResponse.json({ error: 'File unavailable' }, { status: 502 });
   }
 
-  return new NextResponse(upstream.body, {
+  const arrayBuffer = await upstream.arrayBuffer();
+
+  return new NextResponse(arrayBuffer, {
     headers: {
       'Content-Type':        file.mimeType || upstream.headers.get('content-type') || 'application/octet-stream',
       'Content-Disposition': `inline; filename="${(file.label || 'preview').replace(/[^\w.\- ]/g, '_')}"`,
