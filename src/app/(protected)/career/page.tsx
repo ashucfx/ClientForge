@@ -116,7 +116,7 @@ export default function CareerClientsPage() {
       {/* Header */}
       <div className="flex items-start sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Career Booster</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Branding Suite</h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{total} clients total</p>
         </div>
         <button

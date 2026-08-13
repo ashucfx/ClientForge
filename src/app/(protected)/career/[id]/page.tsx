@@ -223,7 +223,7 @@ export default function CareerClientDetailPage() {
   if (!client) return (
     <div className="p-8 text-center">
       <p className="text-slate-500">Client not found.</p>
-      <Link href="/career" className="mt-3 inline-block text-[#B8935B] text-sm hover:underline">← Back to Career Booster Services</Link>
+      <Link href="/career" className="mt-3 inline-block text-[#B8935B] text-sm hover:underline">← Back to Branding Suite</Link>
     </div>
   );
 
@@ -235,7 +235,7 @@ export default function CareerClientDetailPage() {
       {/* Breadcrumb + action buttons */}
       <div className="flex items-center justify-between gap-3">
         <nav className="flex items-center gap-2 text-sm">
-          <Link href="/career" className="text-slate-400 hover:text-[#B8935B] transition-colors">Career Booster Services</Link>
+          <Link href="/career" className="text-slate-400 hover:text-[#B8935B] transition-colors">Branding Suite</Link>
           <span className="text-slate-300">/</span>
           <span className="text-slate-700 font-medium truncate max-w-[200px]">{client.name}</span>
         </nav>

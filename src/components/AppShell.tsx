@@ -334,9 +334,9 @@ function SidebarContent({
             active={isActive('/analytics', pathname)} onClick={onNavigate} />
         </NavSection>
 
-        {/* Career Booster */}
+        {/* Branding Suite */}
         {hasCatalystAccess && (
-          <NavSection id="career" label="Career Booster" color="#B8935B"
+          <NavSection id="career" label="Branding Suite" color="#B8935B"
             defaultOpen={inCareer} hasActiveChild={inCareer} badge={careerUnread}>
             <NavLink href="/career" icon={<IconTarget size={16} />} label="Clients"
               active={isActive('/career', pathname)} accent="#B8935B" badge={careerUnread} onClick={onNavigate} />
