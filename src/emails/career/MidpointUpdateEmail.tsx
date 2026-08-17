@@ -54,7 +54,7 @@ export function MidpointUpdateEmail({
       {/* Milestone tracker */}
       <Section style={{ margin: '4px 0 24px' }}>
         <Text style={{ margin: '0 0 14px', fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-          What We've Done So Far
+          What We&apos;ve Done So Far
         </Text>
         {milestones.map((m, i) => (
           <Row key={i} style={{ marginBottom: '12px' }}>
