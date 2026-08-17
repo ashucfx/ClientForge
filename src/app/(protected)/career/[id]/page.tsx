@@ -1028,6 +1028,109 @@ function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetai
                   <span className="text-[9px] text-[#B8935B]/70">Sends: {autoEmailForStatus.REVISION_REQUESTED.label}</span>
                 )}
               </div>
+
+              {/* ── SLA Progress Intelligence — shown when actively processing ── */}
+              {(client.status === 'UNDER_PROCESS' || client.status === 'SUBMITTED') && (() => {
+                const earliest = client.forms.length > 0
+                  ? client.forms.reduce((a, b) => new Date(a.submittedAt) < new Date(b.submittedAt) ? a : b)
+                  : null;
+                const startMs  = earliest ? new Date(earliest.submittedAt).getTime() : new Date(client.createdAt).getTime();
+                const endMs    = client.expectedDeliveryAt ? new Date(client.expectedDeliveryAt).getTime() : null;
+                const nowMs    = Date.now();
+                const totalMs  = endMs ? Math.max(endMs - startMs, 1) : null;
+                const elapsedPct = totalMs ? Math.min(100, Math.round(((nowMs - startMs) / totalMs) * 100)) : null;
+                const daysLeft = endMs ? Math.ceil(Math.max(0, endMs - nowMs) / 86400000) : null;
+                const overdue  = endMs ? nowMs > endMs : false;
+
+                const wip = [
+                  { label: 'Project Assigned & Brief Reviewed', pct: 0.0 },
+                  { label: 'Industry Research & Strategy',       pct: 0.2 },
+                  { label: 'Drafting & Content Optimization',    pct: 0.45 },
+                  { label: 'Internal QA & Final Polish',         pct: 0.8 },
+                ];
+                const elapsedFrac = elapsedPct !== null ? elapsedPct / 100 : 0;
+                const currentMilestoneIdx = wip.reduce((acc, m, i) => elapsedFrac >= m.pct ? i : acc, 0);
+
+                const midpointSent = client.emailLogs.some(l => l.trigger === 'MIDPOINT_UPDATE');
+
+                return (
+                  <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden">
+                    <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">SLA Progress</p>
+                      {overdue
+                        ? <span className="text-[9px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded uppercase">⚠ SLA Breached</span>
+                        : daysLeft !== null && <span className="text-[9px] font-semibold text-slate-500">{daysLeft}d remaining</span>
+                      }
+                    </div>
+                    <div className="p-3 space-y-3">
+                      {/* Progress bar */}
+                      {elapsedPct !== null && (
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] text-slate-400">Time elapsed</span>
+                            <span className={`text-[10px] font-bold ${overdue ? 'text-red-600' : elapsedPct >= 80 ? 'text-amber-600' : 'text-[#B8935B]'}`}>
+                              {elapsedPct}%
+                            </span>
+                          </div>
+                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{
+                                width: `${elapsedPct}%`,
+                                background: overdue ? '#ef4444' : elapsedPct >= 80 ? 'linear-gradient(to right,#f59e0b,#d97706)' : 'linear-gradient(to right,#B8935B,#D4AF7A)',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* WIP milestones */}
+                      <div className="space-y-1">
+                        {wip.map((m, wi) => {
+                          const done    = elapsedFrac > m.pct;
+                          const active  = wi === currentMilestoneIdx && done;
+                          return (
+                            <div key={wi} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${
+                              active ? 'bg-amber-50 border border-amber-100' :
+                              done   ? 'bg-emerald-50/60 border border-emerald-100/50' :
+                                       'opacity-40'
+                            }`}>
+                              <span className={`text-[10px] font-bold flex-shrink-0 w-3 ${
+                                active ? 'text-amber-500' : done ? 'text-emerald-500' : 'text-slate-300'
+                              }`}>
+                                {done ? '✓' : '○'}
+                              </span>
+                              <p className={`text-[10px] font-semibold leading-tight flex-1 ${
+                                active ? 'text-amber-800' : done ? 'text-emerald-800' : 'text-slate-400'
+                              }`}>{m.label}</p>
+                              {active && (
+                                <span className="text-[9px] font-bold text-amber-500 flex-shrink-0 flex items-center gap-0.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
+                                  Now
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Midpoint email status */}
+                      <div className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[10px] font-semibold ${
+                        midpointSent
+                          ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                          : 'bg-slate-50 border-slate-100 text-slate-400'
+                      }`}>
+                        <svg width="11" height="11" fill="none" viewBox="0 0 24 24">
+                          <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        {midpointSent
+                          ? `Mid-process check-in email sent ✓`
+                          : `Mid-process check-in email pending (fires at 50%)`}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           );
         })()}
