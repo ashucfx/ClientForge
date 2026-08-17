@@ -27,6 +27,13 @@ export function NewProjectForm({ templatesByCat }: { templatesByCat: Record<stri
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent submitting just the country code or incomplete numbers
+    if (formData.clientPhone && formData.clientPhone.replace(/\D/g, '').length < 8) {
+      setError('Please enter a valid, complete phone number.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {

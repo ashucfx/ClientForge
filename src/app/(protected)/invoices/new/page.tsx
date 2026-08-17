@@ -413,16 +413,27 @@ export default function NewInvoicePage() {
   const [selectedLead, setSelectedLead] = useState<LeadResult | null>(null);
   const leadDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const leadInputRef = useRef<HTMLInputElement | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const searchLeads = useCallback(async (q: string) => {
     if (q.trim().length < 2) { setLeadResults([]); setLeadOpen(false); return; }
     setLeadLoading(true);
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     try {
-      const res = await fetch(`/api/admin/contacts/search?q=${encodeURIComponent(q)}&limit=8`);
+      const res = await fetch(`/api/admin/contacts/search?q=${encodeURIComponent(q)}&limit=8`, {
+        signal: abortControllerRef.current.signal
+      });
       const data = await res.json() as { results: LeadResult[] };
       setLeadResults(data.results ?? []);
       setLeadOpen((data.results ?? []).length > 0);
-    } catch { /* silent */ }
+    } catch (err: any) { 
+      if (err.name === 'AbortError') return; // ignore aborted fetches
+    }
     finally { setLeadLoading(false); }
   }, []);
 
