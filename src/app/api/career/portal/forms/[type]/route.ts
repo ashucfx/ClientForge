@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, { params }: { params: { type: strin
     where: { id: payload.clientId },
     select: {
       id: true, name: true, email: true, packageType: true,
-      expectedDeliveryAt: true, slaDeadline: true,
+      status: true, expectedDeliveryAt: true, slaDeadline: true,
       lifecycleStatus: true,
       services: { select: { service: { select: { slug: true } } } },
     },
@@ -128,10 +128,14 @@ export async function POST(req: NextRequest, { params }: { params: { type: strin
     data: { status: 'SUBMITTED' },
   });
 
-  await db.careerClient.update({
-    where: { id: client.id },
-    data: { expectedDeliveryAt: newDeadline, slaDeadline: newDeadline },
-  });
+  // Only push SLA deadline forward if we are still actively working on the initial draft.
+  // Resubmissions after drafts are sent or completed should not arbitrarily push timelines out.
+  if (['NOT_STARTED', 'SUBMITTED', 'UNDER_PROCESS'].includes(client.status)) {
+    await db.careerClient.update({
+      where: { id: client.id },
+      data: { expectedDeliveryAt: newDeadline, slaDeadline: newDeadline },
+    });
+  }
 
   await db.careerActivityLog.create({
     data: {

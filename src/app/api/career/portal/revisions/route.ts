@@ -90,48 +90,35 @@ export async function POST(req: NextRequest) {
   // Enforce 2 FREE revisions per service (global count prevents cross-slug bypass)
   const FREE_LIMIT = 2;
 
-  let revision;
-  try {
-    revision = await db.$transaction(async (tx) => {
-      // Count ALL free revisions for this service slug (including any legacy GENERAL ones)
-      const existingFreeRevisions = await tx.careerRevision.count({
-        where: {
-          clientId: client.id,
-          requestedBy: 'client',
-          chargeStatus: 'FREE',
-          serviceSlug: serviceSlugs.length <= 1
-            ? { in: [serviceSlug, 'GENERAL'] }  // single-service: treat GENERAL as same bucket
-            : serviceSlug,                        // multi-service: per-slug only
-        },
-      });
-
-      if (existingFreeRevisions >= FREE_LIMIT) {
-        throw new Error('REVISION_LIMIT_EXCEEDED');
-      }
-
-      return tx.careerRevision.create({
-        data: {
-          clientId: client.id,
-          requestedBy: 'client',
-          note,
-          fileLabel,
-          serviceSlug,
-          status: 'PENDING',
-          chargeStatus: 'FREE',
-          clientStatusBefore: client.status,
-        },
-      });
+  let isFree = true;
+  const revision = await db.$transaction(async (tx) => {
+    // Count ALL free revisions for this service slug (including any legacy GENERAL ones)
+    const existingFreeRevisions = await tx.careerRevision.count({
+      where: {
+        clientId: client.id,
+        requestedBy: 'client',
+        chargeStatus: 'FREE',
+        serviceSlug: serviceSlugs.length <= 1
+          ? { in: [serviceSlug, 'GENERAL'] }  // single-service: treat GENERAL as same bucket
+          : serviceSlug,                        // multi-service: per-slug only
+      },
     });
-  } catch (err: any) {
-    if (err.message === 'REVISION_LIMIT_EXCEEDED') {
-      return NextResponse.json({
-        error: 'You have used all 2 free revisions for this service. Contact support for a paid revision.',
-      }, { status: 403 });
-    }
-    throw err;
-  }
 
-  const isFree = true; // Hard limit ensures all successful requests here are free
+    isFree = existingFreeRevisions < FREE_LIMIT;
+
+    return tx.careerRevision.create({
+      data: {
+        clientId: client.id,
+        requestedBy: 'client',
+        note,
+        fileLabel,
+        serviceSlug,
+        status: 'PENDING',
+        chargeStatus: isFree ? 'FREE' : 'PAID',
+        clientStatusBefore: client.status,
+      },
+    });
+  });
 
   // Extend SLA by 3 working days from now to cover revised draft delivery
   const REVISION_SLA_DAYS = 3;
