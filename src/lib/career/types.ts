@@ -22,7 +22,8 @@ export type EmailTrigger =
   | 'LINKEDIN_SECURITY'
   | 'MESSAGE_NOTIFY'
   | 'DELETE_OTP'
-  | 'UPSELL_PITCH';
+  | 'UPSELL_PITCH'
+  | 'MIDPOINT_UPDATE';
 
 // New form types matching updated brief names
 export type FormType = 'career_profile' | 'linkedin_profile' | 'portfolio_website';

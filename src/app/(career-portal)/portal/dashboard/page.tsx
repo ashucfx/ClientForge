@@ -590,7 +590,7 @@ export default function PortalDashboardPage() {
         {upgradeTarget && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
             onClick={() => { if (!upgrading) { setUpgradeTarget(null); setUpgradePreview(null); } }}>
-            <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden"
+            <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[92dvh] sm:max-h-[90vh] flex flex-col"
               onClick={e => e.stopPropagation()}>
               {/* Header */}
               <div className="relative bg-gradient-to-br from-[#0A0B0D] to-[#1C1812] px-6 pt-6 pb-8 text-white overflow-hidden">
@@ -626,7 +626,7 @@ export default function PortalDashboardPage() {
               </div>
 
               {/* Body */}
-              <div className="px-6 py-5">
+              <div className="px-6 py-5 overflow-y-auto flex-1">
                 {upgradePreviewLoading ? (
                   <div className="flex items-center justify-center py-8 gap-3">
                     <span className="w-5 h-5 border-2 border-[#B8935B] border-t-transparent rounded-full animate-spin" />
@@ -791,7 +791,7 @@ export default function PortalDashboardPage() {
                   <span className="w-5 h-px bg-[#B8935B]/50 flex-shrink-0" />
                   Active Package
                 </p>
-                <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight leading-tight">
+                <h2 className="text-xl sm:text-3xl font-bold text-white tracking-tight leading-tight break-words">
                   {me.packageLabel}
                 </h2>
               </div>
@@ -928,20 +928,62 @@ export default function PortalDashboardPage() {
           {/* Delivery */}
           <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-2">Expected Delivery</p>
-            {me.expectedDeliveryAt ? (
-              <>
-                <p className="text-lg font-bold text-slate-900 leading-tight">
-                  {new Date(me.expectedDeliveryAt).toLocaleDateString('en-GB', {
-                    day: 'numeric', month: 'short', year: 'numeric',
-                  })}
-                </p>
-                <p className="text-xs text-slate-400 mt-1.5">
-                  {me.status === 'REVISION_REQUESTED'
-                    ? '3 business days from revision request'
-                    : 'Business days from brief submission · excludes weekends & public holidays'}
-                </p>
-              </>
-            ) : (
+            {me.expectedDeliveryAt ? (() => {
+              const endMs    = new Date(me.expectedDeliveryAt).getTime();
+              const nowMs    = Date.now();
+              const daysLeft = Math.ceil(Math.max(0, endMs - nowMs) / 86400000);
+              const overdue  = nowMs > endMs && me.status !== 'COMPLETED';
+              return (
+                <>
+                  <div className="flex items-end gap-2 mb-1">
+                    {!overdue && daysLeft > 0 && me.status !== 'COMPLETED' && (
+                      <>
+                        <span className="text-2xl font-bold text-slate-900 leading-none">{daysLeft}</span>
+                        <span className="text-xs text-slate-400 mb-0.5">day{daysLeft !== 1 ? 's' : ''} left</span>
+                      </>
+                    )}
+                    {(overdue || daysLeft === 0) && me.status !== 'COMPLETED' && (
+                      <span className="text-xs font-bold text-amber-600">Completing soon</span>
+                    )}
+                    {me.status === 'COMPLETED' && (
+                      <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/></svg>
+                        Delivered
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs font-semibold text-slate-600 leading-tight">
+                    {new Date(me.expectedDeliveryAt).toLocaleDateString('en-GB', {
+                      day: 'numeric', month: 'short', year: 'numeric',
+                    })}
+                  </p>
+                  {/* Progress bar toward deadline */}
+                  {me.forms.length > 0 && me.status === 'UNDER_PROCESS' && (() => {
+                    const earliest = me.forms.reduce((a: FormMeta, b: FormMeta) =>
+                      new Date(a.submittedAt) < new Date(b.submittedAt) ? a : b, me.forms[0]);
+                    const startMs  = new Date(earliest.submittedAt).getTime();
+                    const totalMs  = Math.max(endMs - startMs, 1);
+                    const elapsed  = Math.min(100, Math.round(((nowMs - startMs) / totalMs) * 100));
+                    return (
+                      <div className="mt-2.5">
+                        <div className="h-1.5 bg-[#F0EAE0] rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-1000"
+                            style={{ width: `${elapsed}%`, background: elapsed >= 80 ? 'linear-gradient(to right,#f59e0b,#d97706)' : 'linear-gradient(to right,#B8935B,#D4AF7A)' }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1">{elapsed}% of window elapsed</p>
+                      </div>
+                    );
+                  })()}
+                  <p className="text-[10px] text-slate-400 mt-1.5">
+                    {me.status === 'REVISION_REQUESTED'
+                      ? '3 business days from revision request'
+                      : 'Business days from brief submission · excludes weekends & public holidays'}
+                  </p>
+                </>
+              );
+            })() : (
               <>
                 <p className="text-sm font-semibold text-slate-300 leading-tight">Pending</p>
                 <p className="text-xs text-slate-300 mt-1.5">Submit your form to set date</p>
@@ -997,21 +1039,88 @@ export default function PortalDashboardPage() {
                     {current && me.status === 'SUBMITTED' && (
                       <p className="text-xs text-slate-500 mt-1.5">Our team is reviewing your submission</p>
                     )}
-                    {current && me.status === 'UNDER_PROCESS' && (
-                      <div className="mt-2 space-y-2">
-                        <p className="text-xs text-slate-500">Work in progress — we&apos;ll notify you when your draft is ready</p>
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-100">
-                          <svg width="11" height="11" fill="none" viewBox="0 0 24 24" style={{color:'#B8935B',flexShrink:0}}>
-                            <path stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
-                          </svg>
-                          <span className="text-xs font-semibold text-amber-800">
-                            {getPortalTierLabel(me.services?.map(s => s.slug) ?? [])}
-                          </span>
-                          <span className="text-[10px] text-amber-500 font-semibold">· In Progress</span>
+                    {current && me.status === 'UNDER_PROCESS' && (() => {
+                      // Derive elapsed % from submittedAt → expectedDeliveryAt
+                      const earliest = me.forms.reduce((a: FormMeta, b: FormMeta) =>
+                        new Date(a.submittedAt) < new Date(b.submittedAt) ? a : b, me.forms[0]);
+                      const startMs  = earliest ? new Date(earliest.submittedAt).getTime() : Date.now();
+                      const endMs    = me.expectedDeliveryAt ? new Date(me.expectedDeliveryAt).getTime() : Date.now();
+                      const totalMs  = Math.max(endMs - startMs, 1);
+                      const elapsedPct = Math.min(1, Math.max(0, (Date.now() - startMs) / totalMs));
+                      const daysLeft = Math.ceil(Math.max(0, endMs - Date.now()) / 86400000);
+
+                      // Milestones — unlock progressively based on time elapsed
+                      const wip = [
+                        { label: 'Project Assigned & Brief Reviewed', pct: 0.0, icon: '📋' },
+                        { label: 'Industry Research & Strategy',       pct: 0.2, icon: '🔍' },
+                        { label: 'Drafting & Content Optimization',    pct: 0.45, icon: '✍️' },
+                        { label: 'Internal QA & Final Polish',         pct: 0.8, icon: '✅' },
+                      ];
+
+                      return (
+                        <div className="mt-3 space-y-3">
+                          <p className="text-xs text-slate-500">Our team is actively working on your project right now.</p>
+
+                          {/* Progress bar */}
+                          <div className="relative">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Work Progress</span>
+                              <span className="text-[10px] font-bold text-[#B8935B]">{Math.round(elapsedPct * 100)}%</span>
+                            </div>
+                            <div className="h-2 bg-[#F0EAE0] rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-1000"
+                                style={{ width: `${Math.round(elapsedPct * 100)}%`, background: 'linear-gradient(to right, #B8935B, #D4AF7A)' }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Micro-milestone list */}
+                          <div className="space-y-2 pt-1">
+                            {wip.map((m, wi) => {
+                              const done    = elapsedPct > m.pct;
+                              const active  = done && (wi === wip.length - 1 || elapsedPct <= wip[wi + 1].pct);
+                              return (
+                                <div key={wi} className={`flex items-start gap-2.5 px-3 py-2 rounded-xl transition-all ${
+                                  active  ? 'bg-amber-50 border border-amber-100' :
+                                  done    ? 'bg-emerald-50/60 border border-emerald-100/50' :
+                                            'opacity-35'
+                                }`}>
+                                  <span className="text-base leading-none mt-px flex-shrink-0">{m.icon}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`text-xs font-semibold leading-snug ${
+                                      active ? 'text-amber-800' : done ? 'text-emerald-800' : 'text-slate-400'
+                                    }`}>{m.label}</p>
+                                    {active && (
+                                      <p className="text-[10px] text-amber-500 font-bold mt-0.5 flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
+                                        In Progress
+                                      </p>
+                                    )}
+                                    {done && !active && (
+                                      <p className="text-[10px] text-emerald-500 font-bold mt-0.5">✓ Complete</p>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {daysLeft > 0 && (
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#F8F5F1] border border-[#EDE6DA]">
+                              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" className="flex-shrink-0 text-[#B8935B]">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                                <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M12 6v6l4 2"/>
+                              </svg>
+                              <p className="text-xs text-slate-500">
+                                Estimated delivery in{' '}
+                                <span className="font-bold text-slate-800">{daysLeft} working day{daysLeft !== 1 ? 's' : ''}</span>
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                     {current && me.status === 'DRAFT_SENT' && (() => {
                       const drafts = portalServiceChips((me.deliverables ?? []).filter(d => d.fileCategory === 'draft'));
                       return (
@@ -1239,24 +1348,24 @@ export default function PortalDashboardPage() {
                       <p className="text-xs text-slate-400">{fmtDate(file.createdAt)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap justify-end flex-shrink-0">
                     {file.fileCategory === 'final' && file.approvalStatus === 'PENDING' && (
                       <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); approveFile(file.id); }} disabled={approvingFileId === file.id}
-                        className="px-3 py-1.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-200 transition-colors disabled:opacity-50">
-                        {approvingFileId === file.id ? 'Approving...' : 'Approve'}
+                        className="px-2.5 py-1.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-200 transition-colors disabled:opacity-50">
+                        {approvingFileId === file.id ? '…' : 'Approve'}
                       </button>
                     )}
                     {file.fileCategory === 'final' && file.approvalStatus === 'APPROVED' && (
                       <span className="px-2 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded border border-emerald-200">
-                        APPROVED ✓
+                        ✓
                       </span>
                     )}
                     <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setViewingFile(file); }}
-                      className="px-3 py-1.5 bg-white border border-[#EBE4D9] text-slate-700 text-xs font-bold rounded-lg hover:bg-[#F5F0E8] transition-colors">
+                      className="px-2.5 py-1.5 bg-white border border-[#EBE4D9] text-slate-700 text-xs font-bold rounded-lg hover:bg-[#F5F0E8] transition-colors">
                       View
                     </button>
                     <a href={file.fileUrl} target="_blank" rel="noopener noreferrer" download
-                      className="px-3 py-1.5 bg-[#B8935B] text-white text-xs font-bold rounded-lg hover:bg-[#9A7540] transition-colors"
+                      className="px-2.5 py-1.5 bg-[#B8935B] text-white text-xs font-bold rounded-lg hover:bg-[#9A7540] transition-colors"
                       onClick={e => e.stopPropagation()}>
                       ↓
                     </a>
@@ -1358,19 +1467,19 @@ export default function PortalDashboardPage() {
             </div>
           ) : (
             <form onSubmit={postComment} className="border-t border-[#EBE4D9] pt-4">
-              <div className="flex gap-2 items-end">
+              <div className="flex gap-2 items-end flex-wrap sm:flex-nowrap">
                 <textarea
                   ref={composeRef}
                   value={newComment}
                   onChange={e => { setNewComment(e.target.value); autoResize(e.target); }}
                   onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void postComment(e as unknown as React.FormEvent); } }}
-                  placeholder="Type a message for the team… (Ctrl+Enter to send)"
+                  placeholder="Type a message for the team…"
                   maxLength={4000}
                   rows={2}
-                  className="flex-1 px-3.5 py-2.5 text-sm border border-[#EBE4D9] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B]/25 bg-[#F8F5F1] hover:bg-white transition-colors resize-none overflow-hidden"
+                  className="flex-1 w-full min-w-0 px-3.5 py-2.5 text-sm border border-[#EBE4D9] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B]/25 bg-[#F8F5F1] hover:bg-white transition-colors resize-none overflow-hidden"
                   style={{ minHeight: '2.5rem' }}
                 />
-                <div className="flex flex-col gap-1.5 flex-shrink-0">
+                <div className="flex gap-1.5 flex-shrink-0">
                   <button
                     type="button"
                     disabled={uploading || pendingFiles.length >= 3}

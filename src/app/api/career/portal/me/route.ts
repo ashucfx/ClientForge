@@ -13,6 +13,8 @@ import {
 } from '@/lib/career/types';
 import type { CareerPackage, CareerStatus, CareerServiceSlug } from '@/lib/career/types';
 import { isPremiumPlusEnabled, getPremiumPlusPrice } from '@/lib/systemSettings';
+import { waitUntil } from '@vercel/functions';
+import { sendCareerEmail } from '@/lib/career/email';
 
 export async function GET(req: NextRequest) {
   void req;
@@ -61,6 +63,61 @@ export async function GET(req: NextRequest) {
       data: { lastLoginAt: new Date() },
     }).catch(err => console.error('[portal/me] failed to sync lastLoginAt:', err));
   }
+
+  // ── Lazy midpoint check-in email ─────────────────────────────────────────────
+  // Fire once when client visits their dashboard at ≥50% of their SLA elapsed.
+  // Uses CareerEmailLog unique constraint on (clientId, trigger) to prevent duplicates.
+  // No schema changes — uses existing fields only.
+  if (
+    client.status === 'UNDER_PROCESS' &&
+    client.expectedDeliveryAt &&
+    client.forms.length > 0
+  ) {
+    const earliestForm = client.forms.reduce((a: typeof client.forms[0], b: typeof client.forms[0]) =>
+      new Date(a.submittedAt) < new Date(b.submittedAt) ? a : b
+    );
+    const startMs   = new Date(earliestForm.submittedAt).getTime();
+    const endMs     = new Date(client.expectedDeliveryAt).getTime();
+    const nowMs     = Date.now();
+    const totalMs   = endMs - startMs;
+    const elapsedPct = totalMs > 0 ? (nowMs - startMs) / totalMs : 0;
+    const daysRem   = Math.ceil(Math.max(0, endMs - nowMs) / 86400000);
+
+    if (elapsedPct >= 0.5) {
+      // Fire non-blocking — CareerEmailLog unique constraint prevents double-send
+      waitUntil(
+        (async () => {
+          // Check if already sent
+          const existing = await db.careerEmailLog.findUnique({
+            where: { clientId_trigger: { clientId: client.id, trigger: 'MIDPOINT_UPDATE' } },
+          }).catch(() => null);
+          if (existing) return;
+
+          // Derive packageLabel inline (same logic used below)
+          let mpLabel = 'Career Services';
+          if (client.services.length > 0) {
+            const slugs = client.services.map((s: typeof client.services[0]) => s.service.slug);
+            if (slugs.includes('PREMIUM_PLUS')) mpLabel = 'Premium Plus Package';
+            else if (slugs.includes('FULL_PACKAGE') || ['RESUME', 'COVER_LETTER', 'LINKEDIN'].every((s: string) => slugs.includes(s))) mpLabel = 'Career Booster Package';
+            else mpLabel = slugs.map((sl: string) => sl.replace(/_/g, ' ')).join(', ');
+          }
+
+          await sendCareerEmail({
+            to:      client.email,
+            trigger: 'MIDPOINT_UPDATE',
+            clientId: client.id,
+            data: {
+              name:         client.name,
+              packageLabel: mpLabel,
+              portalUrl:    'https://catalyst.theripplenexus.com/portal/dashboard',
+              daysRemaining: daysRem,
+            },
+          });
+        })().catch((e: unknown) => console.error('[portal/me] midpoint email failed:', e))
+      );
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
 
   // Determine available forms — services first, fall back to packageType
   const pkg = client.packageType as CareerPackage | null;

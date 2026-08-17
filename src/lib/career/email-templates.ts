@@ -14,6 +14,7 @@ import { MessageNotifyEmail }    from '@/emails/career/MessageNotifyEmail';
 import { RevisionEmail }         from '@/emails/career/RevisionEmail';
 import { DeleteOtpEmail }        from '@/emails/career/DeleteOtpEmail';
 import { UpsellPitchEmail }      from '@/emails/career/UpsellPitchEmail';
+import { MidpointUpdateEmail }   from '@/emails/career/MidpointUpdateEmail';
 
 export async function buildEmail(
   trigger: EmailTrigger,
@@ -164,6 +165,17 @@ export async function buildEmail(
       return {
         subject: `Catalyst - Expand your professional brand identity`,
         html: await render(UpsellPitchEmail({ name, portalLink, targetUpgrade })),
+      };
+    }
+
+    case 'MIDPOINT_UPDATE': {
+      const { name, packageLabel, portalUrl, daysRemaining } = data as {
+        name: string; packageLabel: string; portalUrl: string; daysRemaining?: number;
+      };
+      const pkg = packageLabel ?? 'Career Services';
+      return {
+        subject: `Catalyst — A quick update on your ${pkg} project`,
+        html: await render(MidpointUpdateEmail({ name, packageLabel: pkg, portalUrl, daysRemaining })),
       };
     }
 

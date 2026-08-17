@@ -19,4 +19,5 @@ export const TRIGGER_LABELS: Record<string, string> = {
   KEEP_WARM:         'Keep Warm',
   UPSELL_PITCH:      'Upsell',
   REVISION_EXPIRING: 'Revision Expiring',
+  MIDPOINT_UPDATE:   'Mid-Process Check-In',
 };
