@@ -6,6 +6,7 @@ export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma as db } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { sendCareerEmail } from '@/lib/career/email';
 import { notifyAllAdmins } from '@/lib/notifications';
@@ -168,7 +169,7 @@ export async function DELETE(req: NextRequest) {
 
   const updated = await db.careerComment.update({
     where: { id: commentId },
-    data:  { isDeleted: true, deletedAt: new Date(), content: '', attachments: undefined },
+    data:  { isDeleted: true, deletedAt: new Date(), content: '', attachments: Prisma.JsonNull },
   });
   return NextResponse.json({ ok: true, comment: updated });
 }

@@ -1472,7 +1472,7 @@ export default function PortalDashboardPage() {
                   ref={composeRef}
                   value={newComment}
                   onChange={e => { setNewComment(e.target.value); autoResize(e.target); }}
-                  onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void postComment(e as unknown as React.FormEvent); } }}
+                  onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (!uploading) void postComment(e as unknown as React.FormEvent); } }}
                   placeholder="Type a message for the team…"
                   maxLength={4000}
                   rows={2}
@@ -1495,7 +1495,7 @@ export default function PortalDashboardPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={postingComment || (!newComment.trim() && pendingFiles.length === 0)}
+                    disabled={uploading || postingComment || (!newComment.trim() && pendingFiles.length === 0)}
                     aria-label="Send message"
                     className="p-2.5 bg-[#B8935B] text-white rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors"
                   >

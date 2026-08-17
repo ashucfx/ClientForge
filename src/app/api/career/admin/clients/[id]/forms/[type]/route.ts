@@ -105,8 +105,25 @@ export async function POST(
   const latest = await db.careerFormSubmission.findFirst({
     where: { clientId: client.id, formType: { in: allFormNames } },
     orderBy: { version: 'desc' },
-    select: { version: true },
+    select: { version: true, formData: true },
   });
+
+  // RESTORE STRIPPED FILE URLS
+  // The Admin GET API strips file dataUrl to null. If the admin submits the form
+  // without changing the file, it comes back as null. We must inject the original URL back.
+  if (latest?.formData && typeof latest.formData === 'object') {
+    const prevData = latest.formData as Record<string, any>;
+    for (const key of Object.keys(body)) {
+      const val = body[key];
+      if (typeof val === 'object' && val !== null && 'dataUrl' in val && val.dataUrl === null) {
+        const prevVal = prevData[key];
+        if (typeof prevVal === 'object' && prevVal !== null && typeof prevVal.dataUrl === 'string') {
+          val.dataUrl = prevVal.dataUrl;
+        }
+      }
+    }
+  }
+
   const nextVersion = (latest?.version ?? 0) + 1;
   const submission = await db.careerFormSubmission.create({
     data: { clientId: client.id, formType, formData: body, version: nextVersion },
