@@ -272,7 +272,8 @@ export default function CareerClientsPage() {
                   </Link>
                 </td>
               </tr>
-            ))}
+            );
+          })}
           </tbody>
         </table>
 
