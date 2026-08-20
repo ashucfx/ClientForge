@@ -33,8 +33,13 @@ export async function handleSalesFunnelPayment(invoiceId: string, clientId?: str
 /** Recalculate and persist a contact's total paid revenue into FlywheelProfile.totalRevenue */
 export async function syncContactRevenue(contactId: string) {
   try {
+    // FIX: Use subtotalConverted / exchangeRate to get the net revenue in INR.
+    // - subtotalConverted excludes Razorpay fees and taxes (legitimate transactional amount).
+    // - Dividing by exchangeRate converts the local currency amount back to INR correctly.
+    //   (e.g. RM 1628 in MYR, exchangeRate = 0.056 INR/MYR → revenue = 1628 / 0.056 ≈ ₹29,000, not 91)
+    // - Previously the query used totalPayable * exchangeRate which is backwards for INR-base rates.
     const result = await db.$queryRaw<[{ total: string }]>`
-      SELECT COALESCE(SUM(i."totalPayable" * i."exchangeRate"), 0) AS total
+      SELECT COALESCE(SUM(i."subtotalConverted" / NULLIF(i."exchangeRate", 0)), 0) AS total
       FROM "Invoice" i
       LEFT JOIN "CheckoutSession" cs ON i."checkoutSessionId" = cs.id
       LEFT JOIN "SalesInquiry" si    ON i."salesInquiryId"    = si.id

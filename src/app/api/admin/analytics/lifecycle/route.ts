@@ -29,10 +29,10 @@ export async function GET() {
     const totalArchived = archivedCareer + archivedRn;
 
     // 2. Reactivation Rate & Repeat Client Revenue
-    // Fixed SQL: use totalPayable instead of amount
+    // FIX: Use subtotalConverted / exchangeRate to get net INR revenue (excluding fees & taxes)
     const repeatRevenueQuery = await db.$queryRaw`
       SELECT 
-        SUM(i."totalPayable" * i."exchangeRate") as "totalRevenue",
+        SUM(i."subtotalConverted" / NULLIF(i."exchangeRate", 0)) as "totalRevenue",
         COUNT(DISTINCT l."clientId") as "uniqueClients"
       FROM "InvoiceClientLink" l
       JOIN "Invoice" i ON l."invoiceId" = i.id
@@ -50,8 +50,9 @@ export async function GET() {
     const reactivationRate = totalClients > 0 ? (totalReactivated / totalClients) * 100 : 0;
 
     // 3. LTV (Lifetime Value) = Average Revenue Per Client
+    // FIX: Use subtotalConverted / exchangeRate (excludes Razorpay fees and taxes)
     const currentRevenueQuery = await db.$queryRaw`
-      SELECT SUM("totalPayable" * "exchangeRate") as total
+      SELECT SUM("subtotalConverted" / NULLIF("exchangeRate", 0)) as total
       FROM "Invoice"
       WHERE "status" = 'PAID'
     `;

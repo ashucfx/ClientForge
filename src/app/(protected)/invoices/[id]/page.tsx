@@ -539,7 +539,7 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
 
-        <div className="grid gap-6" style={{ gridTemplateColumns: '1fr 300px' }}>
+        <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
           {/* ── INVOICE CARD ── */}
           <div>
             <div className="card overflow-hidden" style={{ boxShadow: '0 4px 40px rgba(31,86,212,.08)' }}>
@@ -563,7 +563,7 @@ export default function InvoiceDetailPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 mt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
                   {[
                     ['Issue Date', format(new Date(invoice.invoiceDate), 'dd MMM yyyy')],
                     ['Due Date',   format(new Date(invoice.dueDate),     'dd MMM yyyy')],
@@ -582,7 +582,7 @@ export default function InvoiceDetailPage() {
 
               {/* Client + Package */}
               <div style={{ background: '#f8faff', borderBottom: '1px solid var(--border-blue)', padding: '20px 36px' }}>
-                <div className="grid grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 10 }}>Bill To</div>
                     <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>{invoice.clientName}</div>
@@ -613,10 +613,11 @@ export default function InvoiceDetailPage() {
               </div>
 
               {/* Line Items Table */}
-              <div style={{ padding: '24px 36px' }}>
+              <div style={{ padding: '24px 20px' }} className="sm:px-9">
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 14 }}>
                   Line Items
                 </div>
+                <div className="overflow-x-auto -mx-2 px-2">
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ background: '#f0f4ff' }}>
@@ -680,6 +681,7 @@ export default function InvoiceDetailPage() {
                     )}
                   </tbody>
                 </table>
+                </div>
 
                 {/* Totals breakdown */}
                 <div style={{ maxWidth: 320, marginLeft: 'auto', marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -776,7 +778,7 @@ export default function InvoiceDetailPage() {
               {/* Terms */}
               <div style={{ background: '#f8faff', borderTop: '1px solid var(--border)', padding: '16px 36px' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 10 }}>Terms & Conditions</div>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
                   {[
                     'No refund after work commences',
                     'Delivery within 2–4 business days',
@@ -799,7 +801,6 @@ export default function InvoiceDetailPage() {
               </div>
             </div>
           </div>
-
           {/* ── RIGHT PANEL ── */}
           <div className="space-y-4">
             {/* Status */}
