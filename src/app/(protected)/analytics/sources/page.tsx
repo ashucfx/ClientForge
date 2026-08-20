@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import AppShell from '@/components/AppShell';
-import { formatCurrency } from '@/lib/pricing';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -85,35 +84,42 @@ function fmtDate(d: string | null) {
 }
 
 function fmtInr(n: number) {
-  return '₹' + n.toLocaleString('en-IN');
+  return '₹' + Math.round(n).toLocaleString('en-IN');
 }
 
-function NpsLabel({ score }: { score: number }) {
-  if (score >= 9) return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Promoter ({score})</span>;
-  if (score <= 6) return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">Detractor ({score})</span>;
-  return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">Passive ({score})</span>;
-}
-
-function SectionHeader({ title, subtitle, count }: { title: string; subtitle: string; count?: number }) {
+function NpsBadge({ score }: { score: number }) {
+  if (score >= 9) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-xs">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        Promoter ({score})
+      </span>
+    );
+  }
+  if (score <= 6) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200/60 shadow-xs">
+        <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+        Detractor ({score})
+      </span>
+    );
+  }
   return (
-    <div className="flex items-start justify-between mb-4">
-      <div>
-        <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-        <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
-      </div>
-      {count !== undefined && (
-        <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-full">{count} records</span>
-      )}
-    </div>
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/60 shadow-xs">
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+      Passive ({score})
+    </span>
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// ── Main Component ────────────────────────────────────────────────────────────
 
 export default function AnalyticsSourcesPage() {
   const [data, setData] = useState<SourcesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'revenue' | 'nps'>('revenue');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCurrency, setSelectedCurrency] = useState('ALL');
 
   useEffect(() => {
     fetch('/api/admin/analytics/sources')
@@ -122,145 +128,404 @@ export default function AnalyticsSourcesPage() {
       .catch(() => setLoading(false));
   }, []);
 
+  // Filtered invoices
+  const filteredInvoices = useMemo(() => {
+    if (!data?.invoices) return [];
+    return data.invoices.filter(inv => {
+      const matchSearch =
+        inv.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        inv.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        inv.clientEmail.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchCurrency = selectedCurrency === 'ALL' || inv.currency.toUpperCase() === selectedCurrency;
+      return matchSearch && matchCurrency;
+    });
+  }, [data?.invoices, searchQuery, selectedCurrency]);
+
+  // Filtered manual clients
+  const filteredManualClients = useMemo(() => {
+    if (!data) return [];
+    const allManual = [...data.manualCareer, ...data.manualRn];
+    return allManual.filter(c => {
+      const matchSearch =
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.email.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchCurrency = selectedCurrency === 'ALL' || (c.currency ?? 'INR').toUpperCase() === selectedCurrency;
+      return matchSearch && matchCurrency;
+    });
+  }, [data, searchQuery, selectedCurrency]);
+
+  // Unique currencies for dropdown
+  const availableCurrencies = useMemo(() => {
+    if (!data) return ['ALL'];
+    const set = new Set<string>();
+    data.invoices.forEach(i => set.add(i.currency.toUpperCase()));
+    data.manualCareer.forEach(c => set.add((c.currency || 'INR').toUpperCase()));
+    data.manualRn.forEach(c => set.add((c.currency || 'INR').toUpperCase()));
+    return ['ALL', ...Array.from(set).sort()];
+  }, [data]);
+
   return (
     <AppShell>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
+      <div className="w-full max-w-7xl 2xl:max-w-[1680px] mx-auto px-3 sm:px-6 lg:px-10 py-6 sm:py-10">
 
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-slate-400 mb-6">
-          <Link href="/analytics" className="hover:text-slate-700 transition-colors">Analytics</Link>
-          <span>/</span>
-          <span className="text-slate-700 font-semibold">Data Sources</span>
-        </div>
-
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center text-violet-600 font-black text-sm">🔍</div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Analytics Data Sources</h1>
+        {/* ── Top Bar / Breadcrumb ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+              <Link href="/analytics" className="text-[#B8935B] hover:text-[#9A7540] transition-colors flex items-center gap-1">
+                <span>←</span> Back to Analytics
+              </Link>
+              <span>/</span>
+              <span className="text-slate-600">Audit &amp; Telemetry</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+              <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#1C1812] to-[#B8935B] text-white flex items-center justify-center text-lg shadow-sm shadow-[#B8935B]/20">
+                🔍
+              </span>
+              Analytics Data Sources
+            </h1>
+            <p className="text-sm text-slate-500 mt-1 max-w-2xl">
+              100% transparent audit trail of every invoice, foreign exchange conversion, and client feedback response that powers your dashboard.
+            </p>
           </div>
-          <p className="text-slate-500 mt-1 ml-[52px]">
-            Trace exactly where every number in your analytics dashboard comes from — every invoice, every manual client, every feedback record.
-          </p>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/70 text-emerald-800 text-xs font-semibold flex items-center gap-2 shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Direct DB Sync
+            </div>
+            <button
+              onClick={() => { setLoading(true); fetch('/api/admin/analytics/sources').then(r => r.json()).then(d => { setData(d); setLoading(false); }); }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs active:scale-95"
+            >
+              <span>↻</span> Refresh
+            </button>
+          </div>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-24">
-            <div className="w-8 h-8 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin" />
+          <div className="flex flex-col items-center justify-center py-32 space-y-4">
+            <div className="w-12 h-12 border-4 border-[#B8935B]/20 border-t-[#B8935B] rounded-full animate-spin" />
+            <p className="text-sm font-medium text-slate-500">Querying transaction ledger &amp; feedback data…</p>
           </div>
         ) : !data ? (
-          <div className="card p-12 text-center text-slate-400">Failed to load source data.</div>
+          <div className="card p-12 text-center text-slate-400 bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200">
+            Failed to load source telemetry. Please refresh the page.
+          </div>
         ) : (
           <div className="space-y-8">
 
-            {/* Summary KPIs */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {[
-                { label: 'Total Revenue (INR)', value: fmtInr(data.summary.grandTotal), accent: true },
-                { label: 'Portal Invoices', value: fmtInr(data.summary.invoiceTotalInr) + ` (${data.summary.invoiceCount})` },
-                { label: 'Manual Clients', value: fmtInr(data.summary.careerManualTotalInr + data.summary.rnManualTotalInr) + ` (${data.summary.manualCareerCount + data.summary.manualRnCount})` },
-                { label: 'Feedback Responses', value: String(data.summary.feedbackCount) },
-              ].map(k => (
-                <div key={k.label} className={`rounded-2xl p-4 border ${k.accent ? 'bg-violet-600 border-violet-600 text-white' : 'bg-white border-slate-200'}`}>
-                  <div className={`text-xs font-semibold uppercase tracking-wider mb-1 ${k.accent ? 'text-violet-200' : 'text-slate-400'}`}>{k.label}</div>
-                  <div className={`text-xl font-bold ${k.accent ? 'text-white' : 'text-slate-900'}`}>{k.value}</div>
+            {/* ── KPI Summary Cards ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              {/* Grand Total Revenue */}
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#2D2418] text-white p-5 sm:p-6 shadow-md border border-[#B8935B]/30 flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#D4AF7A]">All-Time Revenue</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[#B8935B]/30 text-[#F5E6CC] border border-[#B8935B]/40">
+                    NET INR
+                  </span>
                 </div>
-              ))}
+                <div>
+                  <div className="text-2xl sm:text-3xl lg:text-3xl xl:text-4xl font-extrabold tracking-tight text-white mb-1">
+                    {fmtInr(data.summary.grandTotal)}
+                  </div>
+                  <div className="text-xs text-slate-300 flex items-center gap-1.5 flex-wrap">
+                    <span>{data.summary.invoiceCount + data.summary.manualCareerCount + data.summary.manualRnCount} total transactions</span>
+                    <span>·</span>
+                    <span className="text-[#D4AF7A]">excl. fees/tax</span>
+                  </div>
+                </div>
+                <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-[#B8935B]/10 blur-2xl pointer-events-none" />
+              </div>
+
+              {/* Portal Invoices */}
+              <div className="rounded-2xl bg-white p-5 sm:p-6 border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Source A: Invoices</span>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                    {data.summary.invoiceCount} Paid
+                  </span>
+                </div>
+                <div>
+                  <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 mb-1">
+                    {fmtInr(data.summary.invoiceTotalInr)}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Direct portal payments via Razorpay &amp; PayPal
+                  </p>
+                </div>
+              </div>
+
+              {/* Manual Onboardings */}
+              <div className="rounded-2xl bg-white p-5 sm:p-6 border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Sources B &amp; C: Manual</span>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100">
+                    {data.summary.manualCareerCount + data.summary.manualRnCount} Clients
+                  </span>
+                </div>
+                <div>
+                  <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 mb-1">
+                    {fmtInr(data.summary.careerManualTotalInr + data.summary.rnManualTotalInr)}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    External / offline clients with manual record
+                  </p>
+                </div>
+              </div>
+
+              {/* NPS & Satisfaction */}
+              <div className="rounded-2xl bg-white p-5 sm:p-6 border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Lifetime Satisfaction</span>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                    {data.summary.feedbackCount} Reviews
+                  </span>
+                </div>
+                <div>
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                      {data.summary.lifetimeNps !== null ? data.summary.lifetimeNps : '—'}
+                    </span>
+                    <span className="text-xs font-bold text-slate-500">NPS</span>
+                    {data.summary.lifetimeAvgRating && (
+                      <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full ml-auto">
+                        ★ {data.summary.lifetimeAvgRating} / 5.0
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    {data.summary.promoters} Promoters · {data.summary.passives} Passives · {data.summary.detractors} Detractors
+                  </p>
+                </div>
+              </div>
+
             </div>
 
-            {/* How revenue is counted explanation */}
-            <div className="card p-5 border-l-4 border-l-blue-500 bg-blue-50/40">
-              <h3 className="font-bold text-slate-800 mb-2">📐 How Revenue Is Calculated</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-slate-600">
-                <div>
-                  <div className="font-semibold text-slate-700 mb-1">Source A — Portal Invoices</div>
-                  <p>All invoices with <code className="bg-slate-100 px-1 rounded">status = PAID</code>. Revenue is <strong>subtotal</strong> (excludes Razorpay fees & taxes), converted to INR using the stored exchange rate.</p>
+            {/* ── Visual Computation Rule Banner ── */}
+            <div className="rounded-2xl bg-gradient-to-r from-[#FBF8F3] via-white to-[#F0EAE0] p-5 sm:p-6 border border-[#E8DDD0] shadow-xs">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-base">📐</span>
+                <h2 className="text-sm font-bold uppercase tracking-wide text-[#7A5B2E]">
+                  Revenue &amp; Analytics Normalization Engine
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs leading-relaxed text-slate-600">
+                <div className="bg-white/80 backdrop-blur-xs p-4 rounded-xl border border-[#E8DDD0]">
+                  <div className="font-bold text-slate-900 mb-1 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-[#1C1812] text-[#B8935B] text-[10px] font-black flex items-center justify-center">A</span>
+                    Portal Invoices
+                  </div>
+                  <p>
+                    Only includes invoices with <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded">status: PAID</span>. Uses the legitimate net subtotal (excluding Razorpay fees and taxes), converted via recorded exchange rate.
+                  </p>
                 </div>
-                <div>
-                  <div className="font-semibold text-slate-700 mb-1">Source B — Manual Career Clients</div>
-                  <p>Career clients onboarded directly (no portal invoice). Uses the <code className="bg-slate-100 px-1 rounded">amountPaid</code> field and their recorded currency, converted to INR.</p>
+                <div className="bg-white/80 backdrop-blur-xs p-4 rounded-xl border border-[#E8DDD0]">
+                  <div className="font-bold text-slate-900 mb-1 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-[#1C1812] text-[#B8935B] text-[10px] font-black flex items-center justify-center">B</span>
+                    Manual Career Clients
+                  </div>
+                  <p>
+                    Clients onboarded without a portal invoice (<span className="font-mono text-slate-600">invoiceId IS NULL</span>). Uses their stored <span className="font-mono text-slate-800 font-semibold">amountPaid</span> normalized to INR via live/approximate rates.
+                  </p>
                 </div>
-                <div>
-                  <div className="font-semibold text-slate-700 mb-1">Source C — Manual RN Clients</div>
-                  <p>Same logic as Source B, for Ripple Nexus clients onboarded outside the portal.</p>
+                <div className="bg-white/80 backdrop-blur-xs p-4 rounded-xl border border-[#E8DDD0]">
+                  <div className="font-bold text-slate-900 mb-1 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-[#1C1812] text-[#B8935B] text-[10px] font-black flex items-center justify-center">C</span>
+                    Manual Ripple Nexus Clients
+                  </div>
+                  <p>
+                    RN agency engagements tracked directly. Excludes duplicate invoices by linking records to prevent double-counting across the flywheel.
+                  </p>
                 </div>
               </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
-              {(['revenue', 'nps'] as const).map(tab => (
+            {/* ── Tab Switcher & Search Bar ── */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-2">
+              
+              {/* Segmented Control */}
+              <div className="inline-flex p-1 rounded-xl bg-slate-100/90 border border-slate-200/80 shadow-inner w-fit">
                 <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                    activeTab === tab ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
+                  onClick={() => setActiveTab('revenue')}
+                  className={`px-4 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
+                    activeTab === 'revenue'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  {tab === 'revenue' ? '💰 Revenue Sources' : '⭐ NPS & Feedback'}
+                  <span>💰</span>
+                  <span>Revenue Records</span>
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600">
+                    {data.summary.invoiceCount + data.summary.manualCareerCount + data.summary.manualRnCount}
+                  </span>
                 </button>
-              ))}
+
+                <button
+                  onClick={() => setActiveTab('nps')}
+                  className={`px-4 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
+                    activeTab === 'nps'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <span>⭐</span>
+                  <span>NPS &amp; Feedback</span>
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600">
+                    {data.summary.feedbackCount}
+                  </span>
+                </button>
+              </div>
+
+              {/* Filters (only for revenue tab) */}
+              {activeTab === 'revenue' && (
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  {/* Search box */}
+                  <div className="relative min-w-[220px] flex-1 sm:flex-initial">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
+                    <input
+                      type="text"
+                      placeholder="Search client, email, invoice #…"
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#B8935B] focus:border-transparent transition-all shadow-xs"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Currency selector */}
+                  <select
+                    value={selectedCurrency}
+                    onChange={e => setSelectedCurrency(e.target.value)}
+                    className="py-2 px-3 text-xs sm:text-sm rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#B8935B] shadow-xs"
+                  >
+                    {availableCurrencies.map(c => (
+                      <option key={c} value={c}>{c === 'ALL' ? 'All Currencies' : c}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
+            {/* ── TAB 1: REVENUE SOURCES ── */}
             {activeTab === 'revenue' && (
               <div className="space-y-8">
-                {/* Portal Invoices Table */}
-                <div className="card p-0 overflow-hidden">
-                  <div className="px-6 py-4 border-b border-slate-100">
-                    <SectionHeader
-                      title="Source A — Portal Invoices (Paid)"
-                      subtitle="Every paid invoice from the portal, showing the net transactional amount (excl. fees & taxes) used for analytics."
-                      count={data.summary.invoiceCount}
-                    />
+                
+                {/* 1. Portal Invoices Table */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                  <div className="px-5 sm:px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-slate-50/50">
+                    <div>
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                        <span>📄</span> Source A: Portal Invoices (PAID)
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Invoices generated and settled through the client portal checkout.
+                      </p>
+                    </div>
+                    <span className="text-xs font-bold text-slate-500 bg-white px-2.5 py-1 rounded-full border border-slate-200 w-fit">
+                      Showing {filteredInvoices.length} of {data.summary.invoiceCount}
+                    </span>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+
+                  <div className="overflow-x-auto w-full">
+                    <table className="w-full text-left border-collapse min-w-[760px] lg:min-w-full">
                       <thead>
-                        <tr className="bg-slate-50 text-left">
-                          {['Invoice', 'Client', 'Currency', 'Total Paid', 'Net (excl fees)', '≈ INR (net)', 'Paid On', 'Gateway'].map(h => (
-                            <th key={h} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                          ))}
+                        <tr className="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                          <th className="px-4 sm:px-6 py-3.5">Invoice #</th>
+                          <th className="px-4 py-3.5">Client &amp; Contact</th>
+                          <th className="px-4 py-3.5">Currency</th>
+                          <th className="px-4 py-3.5 text-right">Total Paid</th>
+                          <th className="px-4 py-3.5 text-right">Net Subtotal</th>
+                          <th className="px-4 py-3.5 text-right">Net in INR</th>
+                          <th className="px-4 py-3.5">Date Paid</th>
+                          <th className="px-4 sm:px-6 py-3.5 text-center">Gateway</th>
                         </tr>
                       </thead>
-                      <tbody>
-                        {data.invoices.map(inv => (
-                          <tr key={inv.id} className={`border-t border-slate-50 hover:bg-slate-50 transition-colors ${inv.isRecent ? 'bg-emerald-50/30' : ''}`}>
-                            <td className="px-4 py-3">
-                              <Link href={`/invoices/${inv.id}`} className="font-mono text-blue-600 hover:underline text-xs">{inv.invoiceNumber}</Link>
-                              {inv.isRecent && <span className="ml-2 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded">NEW</span>}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="font-medium text-slate-800">{inv.clientName}</div>
-                              <div className="text-xs text-slate-400">{inv.clientEmail}</div>
-                            </td>
-                            <td className="px-4 py-3 font-mono text-xs text-slate-600">{inv.currency}</td>
-                            <td className="px-4 py-3 font-bold text-slate-900 whitespace-nowrap">
-                              {inv.currencySymbol}{inv.totalPayable.toLocaleString()}
-                            </td>
-                            <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                              {inv.currencySymbol}{inv.subtotalConverted.toLocaleString()}
-                              {inv.processingFeeConverted > 0 && (
-                                <div className="text-[10px] text-slate-400">fee: {inv.currencySymbol}{inv.processingFeeConverted.toLocaleString()}</div>
+                      <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
+                        {filteredInvoices.map((inv) => (
+                          <tr key={inv.id} className="hover:bg-[#FBF8F3]/50 transition-colors group">
+                            <td className="px-4 sm:px-6 py-3.5 whitespace-nowrap">
+                              <Link
+                                href={`/invoices/${inv.id}`}
+                                className="font-mono font-bold text-[#B8935B] hover:text-[#9A7540] hover:underline flex items-center gap-1.5"
+                              >
+                                {inv.invoiceNumber}
+                                <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px]">↗</span>
+                              </Link>
+                              {inv.isRecent && (
+                                <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-100 text-emerald-800">
+                                  LAST 30D
+                                </span>
                               )}
                             </td>
-                            <td className="px-4 py-3 font-bold text-emerald-700 whitespace-nowrap">{fmtInr(inv.netInr)}</td>
-                            <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{fmtDate(inv.paidAt)}</td>
-                            <td className="px-4 py-3">
-                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${inv.paymentGateway === 'PAYPAL' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
+                            <td className="px-4 py-3.5">
+                              <div className="font-bold text-slate-900">{inv.clientName}</div>
+                              <div className="text-xs text-slate-400 truncate max-w-[200px]">{inv.clientEmail}</div>
+                            </td>
+                            <td className="px-4 py-3.5 whitespace-nowrap">
+                              <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-xs">
+                                {inv.currency}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5 text-right font-medium text-slate-600 whitespace-nowrap">
+                              {inv.currencySymbol}{inv.totalPayable.toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                              <div className="font-semibold text-slate-800">
+                                {inv.currencySymbol}{inv.subtotalConverted.toLocaleString()}
+                              </div>
+                              {inv.processingFeeConverted > 0 && (
+                                <div className="text-[10px] text-slate-400">
+                                  fee: {inv.currencySymbol}{inv.processingFeeConverted.toLocaleString()}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                              <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">
+                                {fmtInr(inv.netInr)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5 text-slate-500 whitespace-nowrap text-xs">
+                              {fmtDate(inv.paidAt)}
+                            </td>
+                            <td className="px-4 sm:px-6 py-3.5 text-center whitespace-nowrap">
+                              <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${
+                                inv.paymentGateway === 'PAYPAL'
+                                  ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                                  : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                              }`}>
                                 {inv.paymentGateway ?? 'RAZORPAY'}
                               </span>
                             </td>
                           </tr>
                         ))}
-                        {data.invoices.length === 0 && (
-                          <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400">No paid invoices yet.</td></tr>
+
+                        {filteredInvoices.length === 0 && (
+                          <tr>
+                            <td colSpan={8} className="py-12 text-center text-slate-400">
+                              No paid invoices match your current search or currency filter.
+                            </td>
+                          </tr>
                         )}
                       </tbody>
-                      {data.invoices.length > 0 && (
+
+                      {filteredInvoices.length > 0 && (
                         <tfoot>
-                          <tr className="bg-slate-100 border-t-2 border-slate-200">
-                            <td colSpan={5} className="px-4 py-3 font-bold text-slate-700">Total (showing latest 50)</td>
-                            <td className="px-4 py-3 font-black text-emerald-700">{fmtInr(data.summary.invoiceTotalInr)}</td>
+                          <tr className="bg-slate-50 font-bold border-t-2 border-slate-200 text-xs sm:text-sm text-slate-800">
+                            <td colSpan={5} className="px-4 sm:px-6 py-3.5">
+                              Filtered Total ({filteredInvoices.length} invoices)
+                            </td>
+                            <td className="px-4 py-3.5 text-right font-black text-emerald-700 text-sm sm:text-base">
+                              {fmtInr(filteredInvoices.reduce((s, i) => s + i.netInr, 0))}
+                            </td>
                             <td colSpan={2} />
                           </tr>
                         </tfoot>
@@ -269,143 +534,213 @@ export default function AnalyticsSourcesPage() {
                   </div>
                 </div>
 
-                {/* Manual Clients */}
+                {/* 2. Manual Onboarding Clients Table */}
                 {(data.manualCareer.length > 0 || data.manualRn.length > 0) && (
-                  <div className="card p-0 overflow-hidden">
-                    <div className="px-6 py-4 border-b border-slate-100">
-                      <SectionHeader
-                        title="Sources B & C — Manual Clients (No Portal Invoice)"
-                        subtitle="Clients onboarded outside the portal with manually recorded payments."
-                        count={data.summary.manualCareerCount + data.summary.manualRnCount}
-                      />
+                  <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                    <div className="px-5 sm:px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-slate-50/50">
+                      <div>
+                        <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                          <span>👤</span> Sources B &amp; C: Manual Direct Onboardings
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Clients registered directly without a portal invoice ID.
+                        </p>
+                      </div>
+                      <span className="text-xs font-bold text-slate-500 bg-white px-2.5 py-1 rounded-full border border-slate-200 w-fit">
+                        {filteredManualClients.length} Records
+                      </span>
                     </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full text-left border-collapse min-w-[640px] lg:min-w-full">
                         <thead>
-                          <tr className="bg-slate-50 text-left">
-                            {['Client', 'Source', 'Amount Paid', '≈ INR', 'Onboarded'].map(h => (
-                              <th key={h} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">{h}</th>
-                            ))}
+                          <tr className="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                            <th className="px-4 sm:px-6 py-3.5">Client Name</th>
+                            <th className="px-4 py-3.5">Service Stream</th>
+                            <th className="px-4 py-3.5 text-right">Amount Recorded</th>
+                            <th className="px-4 py-3.5 text-right">Net in INR</th>
+                            <th className="px-4 sm:px-6 py-3.5">Onboarding Date</th>
                           </tr>
                         </thead>
-                        <tbody>
-                          {[...data.manualCareer, ...data.manualRn].map(c => (
-                            <tr key={c.id} className="border-t border-slate-50 hover:bg-slate-50 transition-colors">
-                              <td className="px-4 py-3">
-                                <div className="font-medium text-slate-800">{c.name}</div>
+                        <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
+                          {filteredManualClients.map((c) => (
+                            <tr key={c.id} className="hover:bg-[#FBF8F3]/50 transition-colors">
+                              <td className="px-4 sm:px-6 py-3.5">
+                                <div className="font-bold text-slate-900">{c.name}</div>
                                 <div className="text-xs text-slate-400">{c.email}</div>
                               </td>
-                              <td className="px-4 py-3">
-                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${c.source === 'career_manual' ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
-                                  {c.source === 'career_manual' ? 'Career' : 'Ripple Nexus'}
+                              <td className="px-4 py-3.5">
+                                <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                                  c.source === 'career_manual'
+                                    ? 'bg-[#F0EAE0] text-[#9A7540] border border-[#E8DDD0]'
+                                    : 'bg-blue-50 text-blue-700 border border-blue-100'
+                                }`}>
+                                  {c.source === 'career_manual' ? 'Career Boost' : 'Ripple Nexus'}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 font-bold text-slate-900">{c.currency} {c.amountPaid.toLocaleString()}</td>
-                              <td className="px-4 py-3 font-bold text-emerald-700">{fmtInr(c.inrEquivalent)}</td>
-                              <td className="px-4 py-3 text-slate-500">{fmtDate(c.createdAt)}</td>
+                              <td className="px-4 py-3.5 text-right font-medium text-slate-700 whitespace-nowrap">
+                                {c.currency} {c.amountPaid.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                                <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">
+                                  {fmtInr(c.inrEquivalent)}
+                                </span>
+                              </td>
+                              <td className="px-4 sm:px-6 py-3.5 text-slate-500 whitespace-nowrap text-xs">
+                                {fmtDate(c.createdAt)}
+                              </td>
                             </tr>
                           ))}
+
+                          {filteredManualClients.length === 0 && (
+                            <tr>
+                              <td colSpan={5} className="py-10 text-center text-slate-400">
+                                No manual clients match your filter.
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
-                        <tfoot>
-                          <tr className="bg-slate-100 border-t-2 border-slate-200">
-                            <td colSpan={3} className="px-4 py-3 font-bold text-slate-700">Total</td>
-                            <td className="px-4 py-3 font-black text-emerald-700">{fmtInr(data.summary.careerManualTotalInr + data.summary.rnManualTotalInr)}</td>
-                            <td />
-                          </tr>
-                        </tfoot>
                       </table>
                     </div>
                   </div>
                 )}
+
               </div>
             )}
 
+            {/* ── TAB 2: NPS & CLIENT SATISFACTION ── */}
             {activeTab === 'nps' && (
               <div className="space-y-6">
-                {/* NPS Breakdown Summary */}
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  {[
-                    { label: 'Lifetime NPS', value: data.summary.lifetimeNps !== null ? data.summary.lifetimeNps : '—', desc: '−100 to +100 · above 50 = excellent', accent: true },
-                    { label: 'Promoters (9–10)', value: data.summary.promoters, desc: 'Likely to recommend' },
-                    { label: 'Passives (7–8)', value: data.summary.passives, desc: 'Satisfied but not enthusiastic' },
-                    { label: 'Detractors (0–6)', value: data.summary.detractors, desc: 'Unhappy, churn risk' },
-                  ].map(k => (
-                    <div key={k.label} className={`rounded-2xl p-4 border ${k.accent ? 'bg-violet-600 border-violet-600 text-white' : 'bg-white border-slate-200'}`}>
-                      <div className={`text-xs font-semibold uppercase tracking-wider mb-1 ${k.accent ? 'text-violet-200' : 'text-slate-400'}`}>{k.label}</div>
-                      <div className={`text-2xl font-black mb-1 ${k.accent ? 'text-white' : 'text-slate-900'}`}>{String(k.value)}</div>
-                      <div className={`text-xs ${k.accent ? 'text-violet-200' : 'text-slate-400'}`}>{k.desc}</div>
-                    </div>
-                  ))}
-                </div>
 
-                {/* NPS Formula Explanation */}
-                <div className="card p-5 border-l-4 border-l-violet-500 bg-violet-50/40">
-                  <h3 className="font-bold text-slate-800 mb-2">📐 How NPS Is Calculated</h3>
-                  <p className="text-sm text-slate-600 mb-2">
-                    NPS = <strong>% Promoters</strong> (score 9–10) − <strong>% Detractors</strong> (score 0–6). Passives (7–8) are ignored.
-                  </p>
+                {/* NPS Computation Breakdown Bar */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">Net Promoter Score (NPS) Distribution</h3>
+                      <p className="text-xs text-slate-400">Formula: % Promoters (9–10) minus % Detractors (0–6)</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl font-black text-slate-900">{data.summary.lifetimeNps ?? '—'}</span>
+                      <span className="text-xs text-slate-400 font-bold">/ 100</span>
+                    </div>
+                  </div>
+
                   {data.summary.feedbackCount > 0 ? (
-                    <div className="text-sm text-slate-600 font-mono bg-white rounded-lg p-3 border border-violet-100">
-                      ({data.summary.promoters}/{data.summary.feedbackCount} − {data.summary.detractors}/{data.summary.feedbackCount}) × 100
-                      {' = '}
-                      <strong>{data.summary.lifetimeNps}</strong>
+                    <div>
+                      {/* Segmented multi-color bar */}
+                      <div className="w-full h-4 rounded-full overflow-hidden flex bg-slate-100 shadow-inner">
+                        <div
+                          style={{ width: `${(data.summary.promoters / data.summary.feedbackCount) * 100}%` }}
+                          className="bg-emerald-500 h-full transition-all"
+                          title={`Promoters: ${data.summary.promoters}`}
+                        />
+                        <div
+                          style={{ width: `${(data.summary.passives / data.summary.feedbackCount) * 100}%` }}
+                          className="bg-amber-400 h-full transition-all"
+                          title={`Passives: ${data.summary.passives}`}
+                        />
+                        <div
+                          style={{ width: `${(data.summary.detractors / data.summary.feedbackCount) * 100}%` }}
+                          className="bg-rose-500 h-full transition-all"
+                          title={`Detractors: ${data.summary.detractors}`}
+                        />
+                      </div>
+
+                      {/* Legend */}
+                      <div className="grid grid-cols-3 gap-2 mt-4 text-center text-xs">
+                        <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-100">
+                          <div className="font-extrabold text-emerald-800 text-sm">{data.summary.promoters}</div>
+                          <div className="text-emerald-700 font-medium text-[11px]">Promoters (9–10)</div>
+                        </div>
+                        <div className="p-2 rounded-xl bg-amber-50 border border-amber-100">
+                          <div className="font-extrabold text-amber-800 text-sm">{data.summary.passives}</div>
+                          <div className="text-amber-700 font-medium text-[11px]">Passives (7–8)</div>
+                        </div>
+                        <div className="p-2 rounded-xl bg-rose-50 border border-rose-100">
+                          <div className="font-extrabold text-rose-800 text-sm">{data.summary.detractors}</div>
+                          <div className="text-rose-700 font-medium text-[11px]">Detractors (0–6)</div>
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-slate-400">No feedback collected yet — NPS is calculated once clients submit the post-project form.</p>
+                    <div className="py-8 text-center text-slate-400 text-sm">
+                      No feedback submitted yet.
+                    </div>
                   )}
                 </div>
 
-                {/* Feedback Table */}
-                <div className="card p-0 overflow-hidden">
-                  <div className="px-6 py-4 border-b border-slate-100">
-                    <SectionHeader
-                      title="All Feedback Responses"
-                      subtitle="Individual feedback records from clients who completed the post-project satisfaction form."
-                      count={data.summary.feedbackCount}
-                    />
+                {/* Feedback Ledger Table */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                  <div className="px-5 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                      All Client Reviews &amp; Category Scores ({data.feedbacks.length})
+                    </h3>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+
+                  <div className="overflow-x-auto w-full">
+                    <table className="w-full text-left border-collapse min-w-[700px] lg:min-w-full">
                       <thead>
-                        <tr className="bg-slate-50 text-left">
-                          {['Date', 'Service', 'NPS Score', 'Rating', 'Communication', 'Quality', 'Turnaround', 'Comments'].map(h => (
-                            <th key={h} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                          ))}
+                        <tr className="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                          <th className="px-4 sm:px-6 py-3.5">Date</th>
+                          <th className="px-4 py-3.5">Service</th>
+                          <th className="px-4 py-3.5">NPS Status</th>
+                          <th className="px-4 py-3.5">Overall Rating</th>
+                          <th className="px-4 py-3.5 text-center">Comm.</th>
+                          <th className="px-4 py-3.5 text-center">Quality</th>
+                          <th className="px-4 py-3.5 text-center">Speed</th>
+                          <th className="px-4 sm:px-6 py-3.5">Comments</th>
                         </tr>
                       </thead>
-                      <tbody>
-                        {data.feedbacks.map(fb => (
-                          <tr key={fb.id} className="border-t border-slate-50 hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{fmtDate(fb.createdAt)}</td>
-                            <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fb.serviceType}</td>
-                            <td className="px-4 py-3"><NpsLabel score={fb.npsScore} /></td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-1">
-                                <span className="font-bold text-amber-600">{fb.rating}</span>
-                                <span className="text-amber-400">{'★'.repeat(fb.rating)}{'☆'.repeat(5 - fb.rating)}</span>
-                              </div>
+                      <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
+                        {data.feedbacks.map((fb) => (
+                          <tr key={fb.id} className="hover:bg-[#FBF8F3]/50 transition-colors">
+                            <td className="px-4 sm:px-6 py-3.5 whitespace-nowrap text-slate-500">
+                              {fmtDate(fb.createdAt)}
                             </td>
-                            <td className="px-4 py-3 text-center text-slate-600">{fb.communication}/5</td>
-                            <td className="px-4 py-3 text-center text-slate-600">{fb.deliveryQuality}/5</td>
-                            <td className="px-4 py-3 text-center text-slate-600">{fb.turnaroundTime}/5</td>
-                            <td className="px-4 py-3 max-w-xs">
+                            <td className="px-4 py-3.5 font-semibold text-slate-800 whitespace-nowrap">
+                              {fb.serviceType}
+                            </td>
+                            <td className="px-4 py-3.5 whitespace-nowrap">
+                              <NpsBadge score={fb.npsScore} />
+                            </td>
+                            <td className="px-4 py-3.5 whitespace-nowrap">
+                              <span className="font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/50">
+                                ★ {fb.rating}.0
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5 text-center font-semibold text-slate-700">{fb.communication}/5</td>
+                            <td className="px-4 py-3.5 text-center font-semibold text-slate-700">{fb.deliveryQuality}/5</td>
+                            <td className="px-4 py-3.5 text-center font-semibold text-slate-700">{fb.turnaroundTime}/5</td>
+                            <td className="px-4 sm:px-6 py-3.5 max-w-sm">
                               {fb.comments ? (
-                                <p className="text-xs text-slate-500 truncate" title={fb.comments}>{fb.comments}</p>
-                              ) : <span className="text-slate-300 text-xs">—</span>}
+                                <p className="text-slate-600 italic bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100 line-clamp-2">
+                                  &ldquo;{fb.comments}&rdquo;
+                                </p>
+                              ) : (
+                                <span className="text-slate-300 text-xs">—</span>
+                              )}
                             </td>
                           </tr>
                         ))}
+
                         {data.feedbacks.length === 0 && (
-                          <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-400">No feedback submissions yet.</td></tr>
+                          <tr>
+                            <td colSpan={8} className="py-12 text-center text-slate-400">
+                              No client feedback submissions recorded in database.
+                            </td>
+                          </tr>
                         )}
                       </tbody>
                     </table>
                   </div>
                 </div>
+
               </div>
             )}
+
           </div>
         )}
+
       </div>
     </AppShell>
   );
