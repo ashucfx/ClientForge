@@ -519,11 +519,6 @@ export default function NewInvoicePage() {
     return () => clearTimeout(t);
   }, [fetchRate]);
 
-  // Lock to Razorpay when country is India (INR enforced server-side too)
-  useEffect(() => {
-    if ((currencyInfo?.code ?? 'INR') === 'INR') setPaymentGateway('RAZORPAY');
-  }, [currencyInfo?.code]);
-
   useEffect(() => {
     setRnEnabled(isRnModuleEnabledClient());
     if (isRnModuleEnabledClient()) {
@@ -905,63 +900,81 @@ export default function NewInvoicePage() {
               </div>
               {/* ─────────────────────────────────────────────────────────── */}
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 16 }}>
-                <div style={{ gridColumn: '1 / -1' }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
                   <FieldLabel label="Full Name" required />
-                  <input className="input" type="text" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="e.g. Priya Sharma" />
+                  <input
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-white transition-all shadow-xs"
+                    type="text"
+                    value={clientName}
+                    onChange={e => setClientName(e.target.value)}
+                    placeholder="e.g. Priya Sharma"
+                  />
                 </div>
                 <div>
                   <FieldLabel label="Email Address" required />
-                  <input className="input" type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="priya@example.com" />
+                  <input
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-white transition-all shadow-xs"
+                    type="email"
+                    value={clientEmail}
+                    onChange={e => setClientEmail(e.target.value)}
+                    placeholder="priya@example.com"
+                  />
                 </div>
                 <div>
                   <FieldLabel label="Phone Number" required />
-                  <div style={{ display: 'flex', gap: 10 }}>
+                  <div className="flex gap-2">
                     <div
-                      className="input"
-                      style={{
-                        width: 96,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 800,
-                        color: 'var(--text)',
-                        background: '#f8fafc',
-                      }}
+                      className="px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs font-black flex items-center justify-center shrink-0 min-w-[70px] shadow-xs"
                       aria-label="Country calling code"
                       title="Country calling code (based on selected country)"
                     >
                       {callingCode ? `+${callingCode}` : '—'}
                     </div>
                     <input
-                      className="input"
-                      style={{ flex: 1 }}
+                      className="flex-1 w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-white transition-all shadow-xs"
                       type="tel"
                       inputMode="tel"
                       value={clientPhone}
                       onChange={e => setClientPhone(e.target.value)}
-                      placeholder={country === 'India' ? 'e.g. 9876543210' : 'e.g. 4155552671 (or +country code)'}
+                      placeholder={country === 'India' ? '9876543210' : '4155552671 (or +code)'}
                     />
                   </div>
-                  <div style={{ marginTop: 6, fontSize: 11, color: phonePreview ? 'var(--muted)' : '#ef4444' }}>
-                    {clientPhone.trim()
-                      ? (phonePreview
-                        ? ((currencyInfo?.code ?? 'INR') !== 'INR' && paymentGateway === 'PAYPAL'
-                            ? `Formatted: ${phonePreview.e164} (stored for records)`
-                            : `Will be sent to Razorpay as: ${phonePreview.e164}`)
-                        : 'Invalid phone number for the selected country.'
+                  <div className="mt-1.5 text-xs">
+                    {clientPhone.trim() ? (
+                      phonePreview ? (
+                        <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-semibold text-[11px]">
+                          <span>✓</span>
+                          <span>Format: {phonePreview.e164}</span>
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200/60 font-semibold text-[11px]">
+                          <span>⚠</span>
+                          <span>Invalid phone number for {country || 'selected country'}</span>
+                        </div>
                       )
-                      : 'Enter a mobile number (we format it for international SMS).'
-                    }
+                    ) : (
+                      <span className="text-slate-400 text-[11px]">Enter mobile number for payment link SMS &amp; updates</span>
+                    )}
                   </div>
                 </div>
-                <div style={{ gridColumn: '1 / -1' }}>
+                <div className="sm:col-span-2">
                   <FieldLabel label="Company / Organisation (optional)" />
-                  <input className="input" type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Google Inc." />
+                  <input
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-white transition-all shadow-xs"
+                    type="text"
+                    value={companyName}
+                    onChange={e => setCompanyName(e.target.value)}
+                    placeholder="Google Inc."
+                  />
                 </div>
                 <div>
                   <FieldLabel label="Country" required />
-                  <select className="input" value={country} onChange={e => { setCountry(e.target.value); setCurrencyOverride(''); }}>
+                  <select
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-white transition-all shadow-xs"
+                    value={country}
+                    onChange={e => { setCountry(e.target.value); setCurrencyOverride(''); }}
+                  >
                     <option value="">Select country…</option>
                     {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
@@ -969,7 +982,7 @@ export default function NewInvoicePage() {
                 <div>
                   <FieldLabel label="Currency Override" />
                   <input
-                    className="input"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-white transition-all shadow-xs"
                     type="text"
                     value={currencyOverride}
                     onChange={e => setCurrencyOverride(e.target.value.toUpperCase())}
@@ -1220,72 +1233,71 @@ export default function NewInvoicePage() {
               </div>
             </SectionCard>
 
-            {/* 5. Payment Gateway — only shown for non-INR */}
-            {(currencyInfo?.code ?? 'INR') !== 'INR' && (
-              <SectionCard title="Payment Gateway" icon={<IconCreditCard />}>
-                <div style={{ marginBottom: 10, fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
-                  Razorpay supports multi-currency — invoice is created in the client&apos;s local currency.
-                  PayPal is also available if the client prefers it.
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
-                  {([
-                    {
-                      value: 'RAZORPAY' as const,
-                      label: 'Razorpay',
-                      sub: 'Charges in local currency',
-                      fee: '3.54% intl fee (incl. GST on fee)',
-                      color: '#B8935B',
-                      badge: 'Default',
-                    },
-                    {
-                      value: 'PAYPAL' as const,
-                      label: 'PayPal',
-                      sub: 'USD or supported currencies',
-                      fee: '3.49% + fixed fee',
-                      color: '#003087',
-                      badge: null,
-                    },
-                  ] as const).map(opt => {
-                    const sel = paymentGateway === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setPaymentGateway(opt.value)}
-                        style={{
-                          border: `2px solid ${sel ? opt.color : 'var(--border)'}`,
-                          background: sel ? `${opt.color}10` : '#fff',
-                          borderRadius: 12, padding: '14px 16px',
-                          cursor: 'pointer', textAlign: 'left', transition: 'all .15s',
-                          position: 'relative',
-                        }}
-                      >
-                        {opt.badge && (
-                          <span style={{
-                            position: 'absolute', top: 8, right: 8,
-                            background: '#dcfce7', color: '#15803d',
-                            fontSize: 10, fontWeight: 700, borderRadius: 20,
-                            padding: '2px 7px', letterSpacing: '.3px',
-                          }}>
-                            {opt.badge}
-                          </span>
-                        )}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                          <span style={{ fontSize: 14, fontWeight: 800, color: sel ? opt.color : 'var(--text)' }}>
-                            {opt.label}
-                          </span>
-                          <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${sel ? opt.color : '#d1d5db'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {sel && <div style={{ width: 8, height: 8, borderRadius: '50%', background: opt.color }} />}
-                          </div>
+            {/* 5. Payment Gateway — always accessible */}
+            <SectionCard title="Payment Gateway" icon={<IconCreditCard />}>
+              <div style={{ marginBottom: 12, fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
+                Choose your checkout provider. Razorpay handles domestic UPI, cards &amp; international multi-currency. PayPal handles global cards &amp; wallets.
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 12 }}>
+                {([
+                  {
+                    value: 'RAZORPAY' as const,
+                    label: 'Razorpay',
+                    sub: 'Cards, UPI & Multi-currency',
+                    fee: 'Direct Local Settlement',
+                    color: '#B8935B',
+                    badge: 'Instant Links',
+                  },
+                  {
+                    value: 'PAYPAL' as const,
+                    label: 'PayPal',
+                    sub: 'Global PayPal & Cards (USD)',
+                    fee: 'Global Checkout',
+                    color: '#003087',
+                    badge: 'International',
+                  },
+                ] as const).map(opt => {
+                  const sel = paymentGateway === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setPaymentGateway(opt.value)}
+                      style={{
+                        border: `2px solid ${sel ? opt.color : 'var(--border)'}`,
+                        background: sel ? `${opt.color}12` : '#fff',
+                        borderRadius: 12, padding: '14px 16px',
+                        cursor: 'pointer', textAlign: 'left', transition: 'all .15s',
+                        position: 'relative',
+                        touchAction: 'manipulation',
+                      }}
+                    >
+                      {opt.badge && (
+                        <span style={{
+                          position: 'absolute', top: 8, right: 8,
+                          background: sel ? opt.color : '#f1f5f9',
+                          color: sel ? '#fff' : '#475569',
+                          fontSize: 10, fontWeight: 700, borderRadius: 20,
+                          padding: '2px 7px', letterSpacing: '.3px',
+                        }}>
+                          {opt.badge}
+                        </span>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontSize: 14, fontWeight: 800, color: sel ? opt.color : 'var(--text)' }}>
+                          {opt.label}
+                        </span>
+                        <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${sel ? opt.color : '#d1d5db'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {sel && <div style={{ width: 8, height: 8, borderRadius: '50%', background: opt.color }} />}
                         </div>
-                        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{opt.sub}</div>
-                        <div style={{ fontSize: 11, color: opt.color, fontWeight: 600 }}>Fee: {opt.fee}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </SectionCard>
-            )}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{opt.sub}</div>
+                      <div style={{ fontSize: 11, color: opt.color, fontWeight: 700 }}>{opt.fee}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </SectionCard>
 
             {/* PayPal unsupported currency warning */}
             {paypalWillConvertToUsd && (

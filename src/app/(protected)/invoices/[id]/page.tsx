@@ -697,30 +697,43 @@ export default function InvoiceDetailPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                   
                   {/* Bill To */}
-                  <div className="bg-white/80 p-4 rounded-xl border border-[#E8DDD0]/80">
-                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#7A5B2E] mb-1.5 flex items-center gap-1.5">
+                  <div className="bg-white/95 p-4 sm:p-5 rounded-2xl border border-[#E8DDD0] shadow-2xs space-y-3">
+                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#7A5B2E] flex items-center gap-1.5">
                       <span>👤</span> Billed To Client
                     </div>
-                    <div className="text-base font-extrabold text-slate-900">
-                      {invoice.clientName}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0A0B0D] to-[#B8935B] text-white flex items-center justify-center font-extrabold text-sm shrink-0 shadow-xs">
+                        {invoice.clientName.charAt(0).toUpperCase() || 'C'}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-base font-extrabold text-slate-900 truncate">
+                          {invoice.clientName}
+                        </div>
+                        {invoice.companyName && (
+                          <div className="text-xs text-slate-500 font-medium truncate">{invoice.companyName}</div>
+                        )}
+                      </div>
                     </div>
-                    <div className="space-y-1 mt-1 text-xs text-slate-600">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-slate-400">✉</span>
-                        <a href={`mailto:${invoice.clientEmail}`} className="hover:text-[#B8935B] underline truncate">
+
+                    <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] shrink-0">✉</span>
+                        <a href={`mailto:${invoice.clientEmail}`} className="text-slate-800 font-semibold hover:text-[#B8935B] underline truncate">
                           {invoice.clientEmail}
                         </a>
                       </div>
                       {invoice.clientPhone && (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-slate-400">📞</span>
-                          <span>{invoice.clientPhone}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] shrink-0">📞</span>
+                          <a href={`tel:${invoice.clientPhone}`} className="text-slate-800 font-semibold hover:text-[#B8935B]">
+                            {invoice.clientPhone}
+                          </a>
                         </div>
                       )}
                       {invoice.country && (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-slate-400">📍</span>
-                          <span>{invoice.country}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] shrink-0">📍</span>
+                          <span className="text-slate-600 font-medium">{invoice.country}</span>
                         </div>
                       )}
                     </div>
