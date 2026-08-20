@@ -49,7 +49,6 @@ export async function GET() {
         id: true,
         createdAt: true,
         completedAt: true,
-        firstCompletedAt: true,
         updatedAt: true,
         slaDeadline: true,
         currentStage: true,
@@ -82,7 +81,7 @@ export async function GET() {
     }
 
     for (const c of rnFiltered) {
-      const completion = c.completedAt || c.firstCompletedAt || c.updatedAt || c.createdAt;
+      const completion = c.completedAt || c.updatedAt || c.createdAt;
       const isMet = (c.slaDeadline && completion <= c.slaDeadline) || c.currentStage === 'COMPLETED' || c.slaStatus === 'HEALTHY' || !c.slaDeadline;
       allRecords.push({
         createdAt: c.createdAt,
