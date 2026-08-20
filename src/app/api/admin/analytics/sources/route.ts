@@ -113,6 +113,20 @@ export async function GET() {
       createdAt: true,
       careerClientId: true,
       rnClientId: true,
+      careerClient: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      rnClient: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
     },
     orderBy: { createdAt: 'desc' },
     take: 50,

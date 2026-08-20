@@ -462,12 +462,12 @@ export default function InvoiceDetailPage() {
 
   return (
     <AppShell>
-      <div className="w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
+      <div className="w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-5 sm:space-y-6">
 
         {/* Success Banner */}
         {showBanner && (
-          <div className="mb-6 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 sm:p-5 flex items-center gap-3.5 shadow-xs">
-            <span className="text-2xl sm:text-3xl">✅</span>
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 sm:p-5 flex items-center gap-3.5 shadow-xs animate-fade-in">
+            <span className="text-2xl">✅</span>
             <div className="flex-1 min-w-0">
               <div className="font-bold text-sm sm:text-base text-emerald-900">Invoice Created Successfully!</div>
               <div className="text-xs text-emerald-700 mt-0.5">Email notification dispatched to {invoice.clientEmail} · Payment gateway active</div>
@@ -475,59 +475,59 @@ export default function InvoiceDetailPage() {
           </div>
         )}
 
-        {/* ── Top Bar: Breadcrumbs + Responsive Action Buttons ── */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 sm:mb-8">
+        {/* ── Top Bar: Navigation & Primary Actions ── */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
           <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-              <Link href="/" className="text-[#B8935B] hover:text-[#9A7540] transition-colors">Invoices</Link>
+            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              <Link href="/" className="text-[#B8935B] hover:text-[#9A7540] transition-colors flex items-center gap-1">
+                <span>←</span> Invoices
+              </Link>
               <span>/</span>
               <span className="text-slate-600 font-mono">{invoice.invoiceNumber}</span>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight font-mono">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-mono">
                 {invoice.invoiceNumber}
               </h1>
               <StatusBadge status={invoice.status} />
             </div>
           </div>
 
-          {/* Action buttons (Grid on mobile, flex row on tablet/desktop) */}
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full md:w-auto">
+          {/* Desktop & Tablet Top Action Buttons */}
+          <div className="hidden sm:flex items-center gap-2 flex-wrap">
             {canEdit && (
               <button
-                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95"
                 onClick={() => setShowEditPricing(true)}
               >
                 <span>✏️</span> Edit Pricing
               </button>
             )}
             <button
-              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95"
               onClick={() => setShowRevision(true)}
             >
               <span>🔄</span> Revision
             </button>
             <button
-              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
               onClick={handleResend}
               disabled={resending}
             >
               <span>{resending ? '⏳' : '📧'}</span>
-              <span>{resending ? 'Sending…' : 'Resend'}</span>
+              <span>{resending ? 'Sending…' : 'Resend Email'}</span>
             </button>
 
             {invoice.status === 'PENDING' && (
               (() => {
                 const isPayPal = invoice.paymentGateway === 'PAYPAL';
-                const payUrl   = isPayPal
-                  ? (invoice.paypalPaymentUrl ?? undefined)
-                  : (invoice.razorpayLinkUrl ?? undefined);
+                const payUrl   = isPayPal ? invoice.paypalPaymentUrl : invoice.razorpayLinkUrl;
                 return payUrl ? (
                   <a
                     href={payUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="col-span-2 sm:col-span-1 px-4 py-2 rounded-xl bg-gradient-to-r from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white text-xs font-bold transition-all shadow-sm shadow-[#B8935B]/20 flex items-center justify-center gap-1.5 active:scale-95"
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white text-xs font-bold transition-all shadow-sm shadow-[#B8935B]/20 flex items-center gap-1.5 active:scale-95 hover:opacity-95"
                   >
                     <span>💳</span>
                     <span>{isPayPal ? 'PayPal Link ↗' : 'Payment Link ↗'}</span>
@@ -538,7 +538,7 @@ export default function InvoiceDetailPage() {
 
             {invoice.status !== 'PAID' && (
               <button
-                className="col-span-2 sm:col-span-1 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
                 onClick={handleMarkPaid}
                 disabled={markingPaid}
               >
@@ -549,7 +549,7 @@ export default function InvoiceDetailPage() {
 
             {invoice.razorpayLinkId && invoice.status !== 'PAID' && (
               <button
-                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
                 onClick={handleSyncRazorpay}
                 disabled={syncing}
               >
@@ -559,7 +559,7 @@ export default function InvoiceDetailPage() {
             )}
 
             <button
-              className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
+              className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95"
               onClick={() => setShowDelete(true)}
             >
               <span>🗑️</span> Delete
@@ -567,7 +567,80 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
 
-        {/* ── Main Responsive Grid (1 Column on Mobile, 2 Columns on LG/XL) ── */}
+        {/* ── Mobile Quick Actions Card (< sm screens) ── */}
+        <div className="block sm:hidden bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2.5">
+          {/* Primary Mobile Action */}
+          {invoice.status === 'PENDING' && (
+            (() => {
+              const isPayPal = invoice.paymentGateway === 'PAYPAL';
+              const payUrl   = isPayPal ? invoice.paypalPaymentUrl : invoice.razorpayLinkUrl;
+              return payUrl ? (
+                <a
+                  href={payUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white text-sm font-bold shadow-md shadow-[#B8935B]/20 flex items-center justify-center gap-2 active:scale-98 text-center"
+                >
+                  <span>💳</span>
+                  <span>Open {isPayPal ? 'PayPal' : 'Razorpay'} Payment Portal ↗</span>
+                </a>
+              ) : null;
+            })()
+          )}
+
+          {invoice.status !== 'PAID' && (
+            <button
+              className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50"
+              onClick={handleMarkPaid}
+              disabled={markingPaid}
+            >
+              <span>✓</span>
+              <span>{markingPaid ? 'Updating Status…' : 'Mark as Paid'}</span>
+            </button>
+          )}
+
+          {/* Secondary Mobile Buttons Grid */}
+          <div className="grid grid-cols-3 gap-1.5 pt-1">
+            {canEdit && (
+              <button
+                className="py-2 px-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold text-center truncate flex items-center justify-center gap-1"
+                onClick={() => setShowEditPricing(true)}
+              >
+                <span>✏️</span> Edit
+              </button>
+            )}
+            <button
+              className="py-2 px-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold text-center truncate flex items-center justify-center gap-1"
+              onClick={() => setShowRevision(true)}
+            >
+              <span>🔄</span> Revision
+            </button>
+            <button
+              className="py-2 px-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold text-center truncate flex items-center justify-center gap-1 disabled:opacity-50"
+              onClick={handleResend}
+              disabled={resending}
+            >
+              <span>📧</span> Resend
+            </button>
+            {invoice.razorpayLinkId && invoice.status !== 'PAID' && (
+              <button
+                className="py-2 px-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold text-center truncate flex items-center justify-center gap-1 disabled:opacity-50"
+                onClick={handleSyncRazorpay}
+                disabled={syncing}
+              >
+                <span>↻</span> Sync
+              </button>
+            )}
+            <button
+              className="py-2 px-1 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[11px] font-bold text-center truncate flex items-center justify-center gap-1"
+              onClick={() => setShowDelete(true)}
+            >
+              <span>🗑️</span> Delete
+            </button>
+          </div>
+        </div>
+
+        {/* ── Main Layout: Invoice Card + Desktop Sidebar ── */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_340px] gap-6 sm:gap-8 items-start">
           
           {/* ── INVOICE CARD ── */}
@@ -575,46 +648,43 @@ export default function InvoiceDetailPage() {
             <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-md overflow-hidden">
 
               {/* 1. Header with Obsidian Gradient */}
-              <div className="bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#2D2418] text-white p-5 sm:p-8">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
+              <div className="bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#2D2418] text-white p-4 sm:p-8">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div>
-                    <Logo variant="horizontal" size={36} dark />
-                    <div className="text-slate-400 text-xs mt-3 flex items-center gap-1">
+                    <Logo variant="horizontal" size={32} dark />
+                    <div className="text-slate-400 text-[11px] sm:text-xs mt-2 flex items-center gap-1">
                       <span>catalyst@theripplenexus.com</span>
-                    </div>
-                    <div className="text-slate-400 text-xs">
-                      <span>catalyst.theripplenexus.com</span>
                     </div>
                   </div>
 
-                  <div className="sm:text-right">
-                    <div className="inline-block sm:block bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4 sm:p-5">
-                      <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#D4AF7A] mb-1">
-                        Invoice Document
+                  <div className="flex items-center justify-between sm:block sm:text-right">
+                    <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl sm:rounded-2xl p-3 sm:p-4 inline-block">
+                      <div className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-[#D4AF7A] mb-0.5">
+                        Invoice
                       </div>
-                      <div className="font-mono text-xl sm:text-2xl font-black text-white tracking-tight break-all">
+                      <div className="font-mono text-base sm:text-xl font-black text-white tracking-tight">
                         {invoice.invoiceNumber}
                       </div>
-                      <div className="mt-2.5">
-                        <StatusBadge status={invoice.status} />
-                      </div>
+                    </div>
+                    <div className="block sm:hidden">
+                      <StatusBadge status={invoice.status} />
                     </div>
                   </div>
                 </div>
 
-                {/* 3 Meta Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 mt-6">
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-3.5">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Issue Date</div>
-                    <div className="text-white font-semibold text-xs sm:text-sm mt-1">{format(new Date(invoice.invoiceDate), 'dd MMM yyyy')}</div>
+                {/* 3 Compact Meta Pills */}
+                <div className="grid grid-cols-3 gap-2 mt-4 sm:mt-6">
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 sm:p-3 text-center sm:text-left">
+                    <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">Issue Date</div>
+                    <div className="text-white font-semibold text-xs sm:text-sm mt-0.5 sm:mt-1">{format(new Date(invoice.invoiceDate), 'dd MMM yyyy')}</div>
                   </div>
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-3.5">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Due Date</div>
-                    <div className="text-white font-semibold text-xs sm:text-sm mt-1">{format(new Date(invoice.dueDate), 'dd MMM yyyy')}</div>
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 sm:p-3 text-center sm:text-left">
+                    <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">Due Date</div>
+                    <div className="text-white font-semibold text-xs sm:text-sm mt-0.5 sm:mt-1">{format(new Date(invoice.dueDate), 'dd MMM yyyy')}</div>
                   </div>
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-3.5">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Settlement Currency</div>
-                    <div className="text-white font-semibold text-xs sm:text-sm mt-1">{invoice.currency} ({invoice.currencySymbol})</div>
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 sm:p-3 text-center sm:text-left">
+                    <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">Currency</div>
+                    <div className="text-white font-semibold text-xs sm:text-sm mt-0.5 sm:mt-1">{invoice.currency} ({invoice.currencySymbol})</div>
                   </div>
                 </div>
               </div>
@@ -623,18 +693,18 @@ export default function InvoiceDetailPage() {
               <div className="h-1 bg-gradient-to-r from-[#B8935B] via-[#D4AF7A] to-[#B8935B]" />
 
               {/* 2. Client & Service Package Info */}
-              <div className="bg-[#FBF8F3]/70 border-b border-[#E8DDD0] p-5 sm:p-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-[#FBF8F3]/70 border-b border-[#E8DDD0] p-4 sm:p-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                   
                   {/* Bill To */}
-                  <div>
-                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#7A5B2E] mb-2.5">
-                      Billed To Client
+                  <div className="bg-white/80 p-4 rounded-xl border border-[#E8DDD0]/80">
+                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#7A5B2E] mb-1.5 flex items-center gap-1.5">
+                      <span>👤</span> Billed To Client
                     </div>
-                    <div className="text-base sm:text-lg font-extrabold text-slate-900">
+                    <div className="text-base font-extrabold text-slate-900">
                       {invoice.clientName}
                     </div>
-                    <div className="space-y-1 mt-1.5 text-xs sm:text-sm text-slate-600">
+                    <div className="space-y-1 mt-1 text-xs text-slate-600">
                       <div className="flex items-center gap-1.5">
                         <span className="text-slate-400">✉</span>
                         <a href={`mailto:${invoice.clientEmail}`} className="hover:text-[#B8935B] underline truncate">
@@ -657,17 +727,17 @@ export default function InvoiceDetailPage() {
                   </div>
 
                   {/* Package & Pricing Strategy */}
-                  <div>
-                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#7A5B2E] mb-2.5">
-                      Package &amp; Pricing Details
+                  <div className="bg-white/80 p-4 rounded-xl border border-[#E8DDD0]/80">
+                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#7A5B2E] mb-1.5 flex items-center gap-1.5">
+                      <span>💼</span> Scope &amp; Deliverables
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap mb-2">
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#B8935B]/15 text-[#7A5B2E] border border-[#B8935B]/30">
+                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#B8935B]/15 text-[#7A5B2E] border border-[#B8935B]/30">
                         {CLIENT_TYPE_LABELS[invoice.clientType]}
                       </span>
                       {invoice.customPricing && (
                         <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                          Custom Pricing Applied
+                          Custom Pricing
                         </span>
                       )}
                     </div>
@@ -677,8 +747,8 @@ export default function InvoiceDetailPage() {
                     </div>
 
                     {invoice.notes && (
-                      <div className="mt-2.5 text-xs text-slate-600 bg-white p-3 rounded-xl border border-[#E8DDD0]">
-                        <span className="font-bold text-slate-700">Internal Memo:</span> {invoice.notes}
+                      <div className="mt-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                        <span className="font-bold text-slate-700">Memo:</span> {invoice.notes}
                       </div>
                     )}
                   </div>
@@ -687,21 +757,21 @@ export default function InvoiceDetailPage() {
               </div>
 
               {/* 3. Line Items Section */}
-              <div className="p-5 sm:p-8">
-                <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-4">
-                  Service Deliverables &amp; Line Items
+              <div className="p-4 sm:p-8">
+                <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3 sm:mb-4">
+                  Itemized Deliverables &amp; Services
                 </div>
 
-                {/* 3a. Mobile Card View (< sm screens) */}
-                <div className="block sm:hidden space-y-3">
+                {/* 3a. Mobile Receipt Card View (< sm screens) */}
+                <div className="block sm:hidden space-y-2.5">
                   {((typeof invoice.lineItems === 'string' ? JSON.parse(invoice.lineItems) : invoice.lineItems) as unknown as import('@/types').LineItem[]).map((item, idx) => {
                     const lt = round2(item.qty * item.unitPrice);
                     const isFree = lt === 0;
                     return (
-                      <div key={item.id ?? idx} className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+                      <div key={item.id ?? idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-1.5">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="font-bold text-sm text-slate-900 flex-1">
-                            <span className="text-[#B8935B] font-mono mr-1.5">#{idx + 1}</span>
+                          <div className="font-bold text-xs text-slate-900 flex-1 leading-snug">
+                            <span className="text-[#B8935B] font-mono mr-1">#{idx + 1}</span>
                             {item.description}
                           </div>
                           {isFree ? (
@@ -714,23 +784,23 @@ export default function InvoiceDetailPage() {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-200/50">
-                          <span>Qty: <strong className="text-slate-700">{item.qty}</strong></span>
-                          <span>Unit: <strong className="text-slate-700">{isFree ? 'FREE' : fmt(item.unitPrice)}</strong></span>
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200/50">
+                          <span>Quantity: <strong className="text-slate-700">{item.qty}</strong></span>
+                          <span>Unit Price: <strong className="text-slate-700">{isFree ? 'FREE' : fmt(item.unitPrice)}</strong></span>
                         </div>
                       </div>
                     );
                   })}
 
                   {(invoice.revisionCharge ?? 0) > 0 && (
-                    <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 space-y-1.5">
+                    <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm text-rose-900">🔄 Extra Revision #{invoice.revisionCount}</span>
-                        <span className="font-mono font-extrabold text-sm text-rose-700">
+                        <span className="font-bold text-xs text-rose-900">🔄 Extra Revision #{invoice.revisionCount}</span>
+                        <span className="font-mono font-extrabold text-xs text-rose-700">
                           {fmt(round2((invoice.revisionCharge ?? 0) / invoice.exchangeRate))}
                         </span>
                       </div>
-                      <div className="text-xs text-rose-600">Qty: 1 · Charged revision outside free allowance</div>
+                      <div className="text-[10px] text-rose-600">Charged revision outside free 2-round allowance</div>
                     </div>
                   )}
                 </div>
@@ -741,7 +811,7 @@ export default function InvoiceDetailPage() {
                     <thead>
                       <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                         <th className="px-4 py-3 text-center w-12">#</th>
-                        <th className="px-4 py-3">Service / Description</th>
+                        <th className="px-4 py-3">Service / Deliverable</th>
                         <th className="px-4 py-3 text-center w-20">Qty</th>
                         <th className="px-4 py-3 text-right w-36">Unit Price</th>
                         <th className="px-4 py-3 text-right w-36">Total</th>
@@ -798,7 +868,7 @@ export default function InvoiceDetailPage() {
                 </div>
 
                 {/* 4. Financials Summary / Totals Box */}
-                <div className="mt-6 flex flex-col sm:items-end">
+                <div className="mt-5 flex flex-col sm:items-end">
                   <div className="w-full sm:w-80 space-y-2 text-xs sm:text-sm bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80">
                     <div className="flex justify-between items-center text-slate-600">
                       <span>Subtotal</span>
@@ -838,7 +908,7 @@ export default function InvoiceDetailPage() {
 
               {/* 5. Payment Gateways / Settlement CTAs */}
               {invoice.status === 'PENDING' && (
-                <div className="p-5 sm:p-8 bg-slate-50/70 border-t border-slate-200 text-center">
+                <div className="p-4 sm:p-8 bg-slate-50/70 border-t border-slate-200 text-center">
                   {invoice.paymentGateway !== 'PAYPAL' && invoice.razorpayLinkUrl && (
                     <div className="max-w-md mx-auto space-y-3">
                       <div className="text-xs text-slate-500">
@@ -880,7 +950,7 @@ export default function InvoiceDetailPage() {
               )}
 
               {invoice.status === 'PAID' && (
-                <div className="p-5 sm:p-7 bg-emerald-50 border-t border-emerald-200 text-center space-y-1">
+                <div className="p-4 sm:p-7 bg-emerald-50 border-t border-emerald-200 text-center space-y-1">
                   <div className="text-2xl">✅</div>
                   <div className="font-extrabold text-emerald-900 text-base">Payment Settled &amp; Verified</div>
                   {invoice.paidAt && (
@@ -892,8 +962,8 @@ export default function InvoiceDetailPage() {
               )}
 
               {/* 6. Terms & Conditions */}
-              <div className="p-5 sm:p-8 bg-slate-50/50 border-t border-slate-200">
-                <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">
+              <div className="p-4 sm:p-8 bg-slate-50/50 border-t border-slate-200">
+                <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-2 sm:mb-3">
                   Terms &amp; Operational Guarantee
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-slate-500">
@@ -914,8 +984,8 @@ export default function InvoiceDetailPage() {
               </div>
 
               {/* 7. Footer */}
-              <div className="p-4 sm:p-6 bg-[#0A0B0D] text-white flex flex-col sm:flex-row items-center justify-between gap-2">
-                <Logo variant="horizontal" size={28} dark />
+              <div className="p-3.5 sm:p-6 bg-[#0A0B0D] text-white flex flex-col sm:flex-row items-center justify-between gap-2">
+                <Logo variant="horizontal" size={26} dark />
                 <div className="font-mono text-xs text-slate-400">
                   Doc ID: {invoice.invoiceNumber}
                 </div>
@@ -924,15 +994,16 @@ export default function InvoiceDetailPage() {
             </div>
           </div>
 
-          {/* ── RIGHT PANEL (Status & Quick Telemetry) ── */}
+          {/* ── RIGHT PANEL (Desktop & Collapsible Mobile Telemetry) ── */}
           <div className="space-y-4 w-full">
             
-            {/* Status Card */}
-            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
-              <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-4">
-                Invoice Telemetry
+            {/* Status & Telemetry Card */}
+            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs">
+              <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3 sm:mb-4 flex items-center justify-between">
+                <span>Invoice Telemetry</span>
+                <span className="text-xs font-normal text-slate-400 lg:hidden">Details</span>
               </div>
-              <div className="space-y-3 text-xs sm:text-sm">
+              <div className="space-y-2.5 text-xs sm:text-sm">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500">Status</span>
                   <StatusBadge status={invoice.status} />
@@ -955,7 +1026,7 @@ export default function InvoiceDetailPage() {
                 )}
                 {invoice.razorpayLinkId && (
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Razorpay ID</span>
+                    <span className="text-slate-500">Gateway ID</span>
                     <span className="font-mono text-xs font-bold text-blue-600 truncate max-w-[140px]">
                       {invoice.razorpayLinkId}
                     </span>
@@ -970,8 +1041,8 @@ export default function InvoiceDetailPage() {
               </div>
             </div>
 
-            {/* Financials Quick Card */}
-            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
+            {/* Desktop Only: Financials Quick Card (hidden on mobile to avoid duplication) */}
+            <div className="hidden lg:block bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
               <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-4">
                 Financial Summary
               </div>
@@ -997,25 +1068,11 @@ export default function InvoiceDetailPage() {
               </div>
             </div>
 
-            {/* Quick Actions Card */}
-            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-2">
+            {/* Desktop Quick Actions Card */}
+            <div className="hidden sm:block bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-2">
               <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">
-                Quick Actions
+                Quick Shortcuts
               </div>
-              {canEdit && (
-                <button
-                  className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5"
-                  onClick={() => setShowEditPricing(true)}
-                >
-                  ✏️ Edit Pricing
-                </button>
-              )}
-              <button
-                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5"
-                onClick={() => setShowRevision(true)}
-              >
-                🔄 Log Revision
-              </button>
               <Link
                 href="/invoices/new"
                 className="block w-full py-2.5 rounded-xl bg-[#B8935B] hover:bg-[#9A7540] text-white text-xs font-bold transition-all text-center shadow-xs"

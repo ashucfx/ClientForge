@@ -52,6 +52,8 @@ interface FeedbackRow {
   createdAt: string;
   careerClientId: string | null;
   rnClientId: string | null;
+  careerClient?: { id: string; name: string; email: string } | null;
+  rnClient?: { id: string; name: string; email: string } | null;
 }
 
 interface SourcesData {
@@ -575,7 +577,7 @@ export default function AnalyticsSourcesPage() {
                                     ? 'bg-[#F0EAE0] text-[#9A7540] border border-[#E8DDD0]'
                                     : 'bg-blue-50 text-blue-700 border border-blue-100'
                                 }`}>
-                                  {c.source === 'career_manual' ? 'Career Boost' : 'Ripple Nexus'}
+                                  {c.source === 'career_manual' ? 'Career Booster Package' : 'Ripple Nexus'}
                                 </span>
                               </td>
                               <td className="px-4 py-3.5 text-right font-medium text-slate-700 whitespace-nowrap">
@@ -669,63 +671,157 @@ export default function AnalyticsSourcesPage() {
                   )}
                 </div>
 
-                {/* Feedback Ledger Table */}
+                {/* Feedback Ledger */}
                 <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
                   <div className="px-5 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                    <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                      All Client Reviews &amp; Category Scores ({data.feedbacks.length})
-                    </h3>
+                    <div>
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                        All Client Reviews &amp; Category Scores ({data.feedbacks.length})
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Client names, IDs, ratings, and multi-line feedback comments.
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="overflow-x-auto w-full">
-                    <table className="w-full text-left border-collapse min-w-[700px] lg:min-w-full">
+                  {/* 1. Mobile Cards View (< md screens) */}
+                  <div className="block md:hidden divide-y divide-slate-100 p-3 sm:p-4 space-y-4">
+                    {data.feedbacks.map((fb) => {
+                      const clientName = fb.careerClient?.name || fb.rnClient?.name || 'Client';
+                      const clientEmail = fb.careerClient?.email || fb.rnClient?.email || '';
+                      const clientId = fb.careerClientId || fb.rnClientId || fb.id;
+
+                      return (
+                        <div key={fb.id} className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-3">
+                          {/* Header: Client info + Rating */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="font-bold text-sm text-slate-900">{clientName}</div>
+                              {clientEmail && (
+                                <div className="text-xs text-slate-500 truncate max-w-[200px]">{clientEmail}</div>
+                              )}
+                              <div className="text-[10px] text-slate-400 font-mono mt-0.5 truncate max-w-[200px]">
+                                ID: {clientId}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/50 text-xs">
+                                ★ {fb.rating}.0
+                              </span>
+                              <div className="mt-1">
+                                <NpsBadge score={fb.npsScore} />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Service & Date */}
+                          <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-200/60">
+                            <span className="font-medium text-slate-700">{fb.serviceType}</span>
+                            <span>{fmtDate(fb.createdAt)}</span>
+                          </div>
+
+                          {/* Category Scores */}
+                          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                            <div className="bg-white p-1.5 rounded-lg border border-slate-200/70">
+                              <div className="text-[10px] text-slate-400">Comm.</div>
+                              <div className="font-bold text-slate-800">{fb.communication}/5</div>
+                            </div>
+                            <div className="bg-white p-1.5 rounded-lg border border-slate-200/70">
+                              <div className="text-[10px] text-slate-400">Quality</div>
+                              <div className="font-bold text-slate-800">{fb.deliveryQuality}/5</div>
+                            </div>
+                            <div className="bg-white p-1.5 rounded-lg border border-slate-200/70">
+                              <div className="text-[10px] text-slate-400">Speed</div>
+                              <div className="font-bold text-slate-800">{fb.turnaroundTime}/5</div>
+                            </div>
+                          </div>
+
+                          {/* Comment box */}
+                          {fb.comments ? (
+                            <div className="p-3 bg-white rounded-xl border border-slate-200/70 text-xs text-slate-700 leading-relaxed max-h-40 overflow-y-auto">
+                              <span className="font-bold text-[#B8935B] mr-1">Comment:</span>
+                              &ldquo;{fb.comments}&rdquo;
+                            </div>
+                          ) : (
+                            <div className="text-xs text-slate-400 italic">No text comment provided</div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {data.feedbacks.length === 0 && (
+                      <div className="py-12 text-center text-slate-400 text-sm">
+                        No client feedback submissions recorded in database.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2. Desktop Table View (>= md screens) */}
+                  <div className="hidden md:block overflow-x-auto w-full">
+                    <table className="w-full text-left border-collapse min-w-[850px] lg:min-w-full">
                       <thead>
                         <tr className="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100">
-                          <th className="px-4 sm:px-6 py-3.5">Date</th>
+                          <th className="px-4 sm:px-6 py-3.5">Client &amp; ID</th>
+                          <th className="px-4 py-3.5">Date</th>
                           <th className="px-4 py-3.5">Service</th>
                           <th className="px-4 py-3.5">NPS Status</th>
                           <th className="px-4 py-3.5">Overall Rating</th>
                           <th className="px-4 py-3.5 text-center">Comm.</th>
                           <th className="px-4 py-3.5 text-center">Quality</th>
                           <th className="px-4 py-3.5 text-center">Speed</th>
-                          <th className="px-4 sm:px-6 py-3.5">Comments</th>
+                          <th className="px-4 sm:px-6 py-3.5 min-w-[280px]">Client Feedback Comment</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
-                        {data.feedbacks.map((fb) => (
-                          <tr key={fb.id} className="hover:bg-[#FBF8F3]/50 transition-colors">
-                            <td className="px-4 sm:px-6 py-3.5 whitespace-nowrap text-slate-500">
-                              {fmtDate(fb.createdAt)}
-                            </td>
-                            <td className="px-4 py-3.5 font-semibold text-slate-800 whitespace-nowrap">
-                              {fb.serviceType}
-                            </td>
-                            <td className="px-4 py-3.5 whitespace-nowrap">
-                              <NpsBadge score={fb.npsScore} />
-                            </td>
-                            <td className="px-4 py-3.5 whitespace-nowrap">
-                              <span className="font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/50">
-                                ★ {fb.rating}.0
-                              </span>
-                            </td>
-                            <td className="px-4 py-3.5 text-center font-semibold text-slate-700">{fb.communication}/5</td>
-                            <td className="px-4 py-3.5 text-center font-semibold text-slate-700">{fb.deliveryQuality}/5</td>
-                            <td className="px-4 py-3.5 text-center font-semibold text-slate-700">{fb.turnaroundTime}/5</td>
-                            <td className="px-4 sm:px-6 py-3.5 max-w-sm">
-                              {fb.comments ? (
-                                <p className="text-slate-600 italic bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100 line-clamp-2">
-                                  &ldquo;{fb.comments}&rdquo;
-                                </p>
-                              ) : (
-                                <span className="text-slate-300 text-xs">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
+                        {data.feedbacks.map((fb) => {
+                          const clientName = fb.careerClient?.name || fb.rnClient?.name || 'Anonymous Client';
+                          const clientEmail = fb.careerClient?.email || fb.rnClient?.email || '';
+                          const clientId = fb.careerClientId || fb.rnClientId || fb.id;
+
+                          return (
+                            <tr key={fb.id} className="hover:bg-[#FBF8F3]/50 transition-colors">
+                              <td className="px-4 sm:px-6 py-3.5">
+                                <div className="font-bold text-slate-900">{clientName}</div>
+                                {clientEmail && (
+                                  <div className="text-xs text-slate-500">{clientEmail}</div>
+                                )}
+                                <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                  ID: {clientId.slice(0, 16)}…
+                                </div>
+                              </td>
+                              <td className="px-4 py-3.5 whitespace-nowrap text-slate-500">
+                                {fmtDate(fb.createdAt)}
+                              </td>
+                              <td className="px-4 py-3.5 font-semibold text-slate-800 whitespace-nowrap">
+                                {fb.serviceType}
+                              </td>
+                              <td className="px-4 py-3.5 whitespace-nowrap">
+                                <NpsBadge score={fb.npsScore} />
+                              </td>
+                              <td className="px-4 py-3.5 whitespace-nowrap">
+                                <span className="font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/50">
+                                  ★ {fb.rating}.0
+                                </span>
+                              </td>
+                              <td className="px-4 py-3.5 text-center font-semibold text-slate-700">{fb.communication}/5</td>
+                              <td className="px-4 py-3.5 text-center font-semibold text-slate-700">{fb.deliveryQuality}/5</td>
+                              <td className="px-4 py-3.5 text-center font-semibold text-slate-700">{fb.turnaroundTime}/5</td>
+                              <td className="px-4 sm:px-6 py-3.5 max-w-md">
+                                {fb.comments ? (
+                                  <div className="text-slate-700 italic bg-slate-50/90 px-3 py-2 rounded-xl border border-slate-200/80 leading-relaxed max-h-32 overflow-y-auto">
+                                    &ldquo;{fb.comments}&rdquo;
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-300 text-xs">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
 
                         {data.feedbacks.length === 0 && (
                           <tr>
-                            <td colSpan={8} className="py-12 text-center text-slate-400">
+                            <td colSpan={9} className="py-12 text-center text-slate-400">
                               No client feedback submissions recorded in database.
                             </td>
                           </tr>
