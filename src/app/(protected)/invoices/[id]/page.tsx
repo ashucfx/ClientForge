@@ -462,43 +462,60 @@ export default function InvoiceDetailPage() {
 
   return (
     <AppShell>
-      <main className="page-wrapper" style={{ maxWidth: 1280, margin: '0 auto' }}>
+      <div className="w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
 
         {/* Success Banner */}
         {showBanner && (
-          <div style={{ background: 'var(--green-light)', border: '1px solid #86efac', color: '#166534', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-            <span style={{ fontSize: 22 }}>✅</span>
-            <div>
-              <div style={{ fontWeight: 700 }}>Invoice Created Successfully!</div>
-              <div style={{ fontSize: 13, opacity: .8 }}>Email sent to {invoice.clientEmail} · Payment link ready</div>
+          <div className="mb-6 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 sm:p-5 flex items-center gap-3.5 shadow-xs">
+            <span className="text-2xl sm:text-3xl">✅</span>
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-sm sm:text-base text-emerald-900">Invoice Created Successfully!</div>
+              <div className="text-xs text-emerald-700 mt-0.5">Email notification dispatched to {invoice.clientEmail} · Payment gateway active</div>
             </div>
           </div>
         )}
 
-        {/* Breadcrumb + Actions */}
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-          <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--muted)' }}>
-            <Link href="/" style={{ color: 'var(--muted)' }}>Dashboard</Link>
-            <span>/</span>
-            <span className="mono font-bold" style={{ color: 'var(--blue)' }}>{invoice.invoiceNumber}</span>
+        {/* ── Top Bar: Breadcrumbs + Responsive Action Buttons ── */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 sm:mb-8">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              <Link href="/" className="text-[#B8935B] hover:text-[#9A7540] transition-colors">Invoices</Link>
+              <span>/</span>
+              <span className="text-slate-600 font-mono">{invoice.invoiceNumber}</span>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight font-mono">
+                {invoice.invoiceNumber}
+              </h1>
+              <StatusBadge status={invoice.status} />
+            </div>
           </div>
-          <div className="flex gap-2 flex-wrap">
+
+          {/* Action buttons (Grid on mobile, flex row on tablet/desktop) */}
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full md:w-auto">
             {canEdit && (
-              <button className="btn btn-secondary" style={{ fontSize: 13, padding: '8px 14px' }} onClick={() => setShowEditPricing(true)}>
-                ✏️ Edit Pricing
+              <button
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
+                onClick={() => setShowEditPricing(true)}
+              >
+                <span>✏️</span> Edit Pricing
               </button>
             )}
-            <button className="btn btn-ghost" style={{ fontSize: 13, padding: '8px 14px' }} onClick={() => setShowRevision(true)}>
-              🔄 Log Revision
+            <button
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
+              onClick={() => setShowRevision(true)}
+            >
+              <span>🔄</span> Revision
             </button>
             <button
-              className="btn btn-ghost"
-              style={{ fontSize: 13, padding: '8px 14px' }}
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
               onClick={handleResend}
               disabled={resending}
             >
-              {resending ? '⏳ Sending…' : '📧 Resend Email'}
+              <span>{resending ? '⏳' : '📧'}</span>
+              <span>{resending ? 'Sending…' : 'Resend'}</span>
             </button>
+
             {invoice.status === 'PENDING' && (
               (() => {
                 const isPayPal = invoice.paymentGateway === 'PAYPAL';
@@ -506,395 +523,512 @@ export default function InvoiceDetailPage() {
                   ? (invoice.paypalPaymentUrl ?? undefined)
                   : (invoice.razorpayLinkUrl ?? undefined);
                 return payUrl ? (
-                  <a href={payUrl} target="_blank" rel="noopener noreferrer"
-                     className="btn btn-primary" style={{ fontSize: 13, padding: '8px 14px' }}>
-                    {isPayPal ? 'PayPal Link ↗' : 'Payment Link ↗'}
+                  <a
+                    href={payUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="col-span-2 sm:col-span-1 px-4 py-2 rounded-xl bg-gradient-to-r from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white text-xs font-bold transition-all shadow-sm shadow-[#B8935B]/20 flex items-center justify-center gap-1.5 active:scale-95"
+                  >
+                    <span>💳</span>
+                    <span>{isPayPal ? 'PayPal Link ↗' : 'Payment Link ↗'}</span>
                   </a>
                 ) : null;
               })()
             )}
+
             {invoice.status !== 'PAID' && (
               <button
-                className="btn"
-                style={{ fontSize: 13, padding: '8px 14px', background: '#16a34a', color: '#fff', border: 'none' }}
+                className="col-span-2 sm:col-span-1 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
                 onClick={handleMarkPaid}
                 disabled={markingPaid}
               >
-                {markingPaid ? 'Updating…' : 'Mark as Paid'}
+                <span>✓</span>
+                <span>{markingPaid ? 'Updating…' : 'Mark as Paid'}</span>
               </button>
             )}
+
             {invoice.razorpayLinkId && invoice.status !== 'PAID' && (
               <button
-                className="btn btn-ghost"
-                style={{ fontSize: 13, padding: '8px 14px' }}
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
                 onClick={handleSyncRazorpay}
                 disabled={syncing}
               >
-                {syncing ? 'Syncing…' : 'Sync Razorpay'}
+                <span>↻</span>
+                <span>{syncing ? 'Syncing…' : 'Sync Gateway'}</span>
               </button>
             )}
-            <button className="btn btn-danger" style={{ fontSize: 13, padding: '8px 14px' }} onClick={() => setShowDelete(true)}>
-              🗑️ Delete
+
+            <button
+              className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
+              onClick={() => setShowDelete(true)}
+            >
+              <span>🗑️</span> Delete
             </button>
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+        {/* ── Main Responsive Grid (1 Column on Mobile, 2 Columns on LG/XL) ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_340px] gap-6 sm:gap-8 items-start">
+          
           {/* ── INVOICE CARD ── */}
-          <div>
-            <div className="card overflow-hidden" style={{ boxShadow: '0 4px 40px rgba(31,86,212,.08)' }}>
+          <div className="w-full">
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-md overflow-hidden">
 
-              {/* Invoice Header */}
-              <div style={{ background: 'var(--brand-gradient)' }} className="px-4 sm:px-9 py-6 sm:py-8">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              {/* 1. Header with Obsidian Gradient */}
+              <div className="bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#2D2418] text-white p-5 sm:p-8">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
                   <div>
-                    <Logo variant="horizontal" size={38} dark />
-                    <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 16 }}>catalyst@theripplenexus.com</div>
-                    <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>catalyst.theripplenexus.com</div>
+                    <Logo variant="horizontal" size={36} dark />
+                    <div className="text-slate-400 text-xs mt-3 flex items-center gap-1">
+                      <span>catalyst@theripplenexus.com</span>
+                    </div>
+                    <div className="text-slate-400 text-xs">
+                      <span>catalyst.theripplenexus.com</span>
+                    </div>
                   </div>
-                  <div>
-                    <div style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '12px 18px' }}>
-                      <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1.5 }}>Invoice</div>
-                      <div className="mono" style={{ color: '#fff', fontSize: 20, fontWeight: 800, marginTop: 2, wordBreak: 'break-all' }}>{invoice.invoiceNumber}</div>
-                      <div style={{ marginTop: 8 }}>
+
+                  <div className="sm:text-right">
+                    <div className="inline-block sm:block bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4 sm:p-5">
+                      <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#D4AF7A] mb-1">
+                        Invoice Document
+                      </div>
+                      <div className="font-mono text-xl sm:text-2xl font-black text-white tracking-tight break-all">
+                        {invoice.invoiceNumber}
+                      </div>
+                      <div className="mt-2.5">
                         <StatusBadge status={invoice.status} />
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
-                  {[
-                    ['Issue Date', format(new Date(invoice.invoiceDate), 'dd MMM yyyy')],
-                    ['Due Date',   format(new Date(invoice.dueDate),     'dd MMM yyyy')],
-                    ['Currency',   `${invoice.currency} (${invoice.currencySymbol})`],
-                  ].map(([label, value]) => (
-                    <div key={label} style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 14px' }}>
-                      <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
-                      <div style={{ color: '#fff', fontWeight: 600, fontSize: 13, marginTop: 3 }}>{value}</div>
-                    </div>
-                  ))}
+                {/* 3 Meta Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 mt-6">
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-3.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Issue Date</div>
+                    <div className="text-white font-semibold text-xs sm:text-sm mt-1">{format(new Date(invoice.invoiceDate), 'dd MMM yyyy')}</div>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-3.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Due Date</div>
+                    <div className="text-white font-semibold text-xs sm:text-sm mt-1">{format(new Date(invoice.dueDate), 'dd MMM yyyy')}</div>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-3.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Settlement Currency</div>
+                    <div className="text-white font-semibold text-xs sm:text-sm mt-1">{invoice.currency} ({invoice.currencySymbol})</div>
+                  </div>
                 </div>
               </div>
 
-              {/* Accent bar */}
-              <div style={{ height: 3, background: 'linear-gradient(90deg,#B8935B,#D4AF7A,#B8935B)' }} />
+              {/* Accent Divider */}
+              <div className="h-1 bg-gradient-to-r from-[#B8935B] via-[#D4AF7A] to-[#B8935B]" />
 
-              {/* Client + Package */}
-              <div style={{ background: '#f8faff', borderBottom: '1px solid var(--border-blue)' }} className="px-4 sm:px-9 py-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {/* 2. Client & Service Package Info */}
+              <div className="bg-[#FBF8F3]/70 border-b border-[#E8DDD0] p-5 sm:p-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  {/* Bill To */}
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 10 }}>Bill To</div>
-                    <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>{invoice.clientName}</div>
-                    <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3 }}>{invoice.clientEmail}</div>
-                    <div style={{ fontSize: 13, color: 'var(--muted)' }}>{invoice.clientPhone}</div>
-                    <div style={{ fontSize: 13, color: 'var(--muted)' }}>{invoice.country}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 10 }}>Package</div>
-                    <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700 }}>
-                      {CLIENT_TYPE_LABELS[invoice.clientType]}
-                    </span>
-                    {invoice.customPricing && (
-                      <div style={{ fontSize: 11, background: '#fef9c3', color: '#92400e', borderRadius: 6, padding: '3px 8px', display: 'inline-block', marginLeft: 8 }}>
-                        Custom Pricing
-                      </div>
-                    )}
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>
-                      Exchange Rate: 1 INR = {invoice.exchangeRate.toFixed(5)} {invoice.currency}
+                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#7A5B2E] mb-2.5">
+                      Billed To Client
                     </div>
+                    <div className="text-base sm:text-lg font-extrabold text-slate-900">
+                      {invoice.clientName}
+                    </div>
+                    <div className="space-y-1 mt-1.5 text-xs sm:text-sm text-slate-600">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-400">✉</span>
+                        <a href={`mailto:${invoice.clientEmail}`} className="hover:text-[#B8935B] underline truncate">
+                          {invoice.clientEmail}
+                        </a>
+                      </div>
+                      {invoice.clientPhone && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-400">📞</span>
+                          <span>{invoice.clientPhone}</span>
+                        </div>
+                      )}
+                      {invoice.country && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-400">📍</span>
+                          <span>{invoice.country}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Package & Pricing Strategy */}
+                  <div>
+                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#7A5B2E] mb-2.5">
+                      Package &amp; Pricing Details
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#B8935B]/15 text-[#7A5B2E] border border-[#B8935B]/30">
+                        {CLIENT_TYPE_LABELS[invoice.clientType]}
+                      </span>
+                      {invoice.customPricing && (
+                        <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                          Custom Pricing Applied
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-xs text-slate-500 font-mono">
+                      FX Normalization: 1 INR = {invoice.exchangeRate.toFixed(5)} {invoice.currency}
+                    </div>
+
                     {invoice.notes && (
-                      <div style={{ fontSize: 12, color: 'var(--muted)', background: '#f1f5f9', borderRadius: 8, padding: '8px 10px', marginTop: 8 }}>
-                        📝 {invoice.notes}
+                      <div className="mt-2.5 text-xs text-slate-600 bg-white p-3 rounded-xl border border-[#E8DDD0]">
+                        <span className="font-bold text-slate-700">Internal Memo:</span> {invoice.notes}
                       </div>
                     )}
                   </div>
+
                 </div>
               </div>
 
-              {/* Line Items Table */}
-              <div className="px-4 sm:px-9 py-5">
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 14 }}>
-                  Line Items
+              {/* 3. Line Items Section */}
+              <div className="p-5 sm:p-8">
+                <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-4">
+                  Service Deliverables &amp; Line Items
                 </div>
-                <div className="overflow-x-auto -mx-2 px-2">
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: '#f0f4ff' }}>
-                      {[
-                        { label: '#',          align: 'center', w: 40  },
-                        { label: 'Description', align: 'left',  w: undefined },
-                        { label: 'Qty',         align: 'center', w: 56  },
-                        { label: 'Unit Price',  align: 'right',  w: 120 },
-                        { label: 'Total',       align: 'right',  w: 120 },
-                      ].map(h => (
-                        <th key={h.label} style={{
-                          textAlign: h.align as React.CSSProperties['textAlign'],
-                          padding: '10px 12px', fontSize: 11, fontWeight: 700,
-                          color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8,
-                          width: h.w,
-                        }}>{h.label}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {((typeof invoice.lineItems === 'string' ? JSON.parse(invoice.lineItems) : invoice.lineItems) as unknown as import('@/types').LineItem[]).map((item, idx) => {
-                      const lt = round2(item.qty * item.unitPrice);
-                      const isFree = lt === 0;
-                      return (
-                        <tr key={item.id ?? idx} style={{ borderBottom: '1px solid #f0f4ff' }}>
-                          <td style={{ padding: '13px 12px', textAlign: 'center', fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>
-                            {idx + 1}
-                          </td>
-                          <td style={{ padding: '13px 12px', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
+
+                {/* 3a. Mobile Card View (< sm screens) */}
+                <div className="block sm:hidden space-y-3">
+                  {((typeof invoice.lineItems === 'string' ? JSON.parse(invoice.lineItems) : invoice.lineItems) as unknown as import('@/types').LineItem[]).map((item, idx) => {
+                    const lt = round2(item.qty * item.unitPrice);
+                    const isFree = lt === 0;
+                    return (
+                      <div key={item.id ?? idx} className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="font-bold text-sm text-slate-900 flex-1">
+                            <span className="text-[#B8935B] font-mono mr-1.5">#{idx + 1}</span>
                             {item.description}
+                          </div>
+                          {isFree ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              FREE
+                            </span>
+                          ) : (
+                            <span className="font-mono font-extrabold text-sm text-slate-900">
+                              {fmt(lt)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-200/50">
+                          <span>Qty: <strong className="text-slate-700">{item.qty}</strong></span>
+                          <span>Unit: <strong className="text-slate-700">{isFree ? 'FREE' : fmt(item.unitPrice)}</strong></span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {(invoice.revisionCharge ?? 0) > 0 && (
+                    <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm text-rose-900">🔄 Extra Revision #{invoice.revisionCount}</span>
+                        <span className="font-mono font-extrabold text-sm text-rose-700">
+                          {fmt(round2((invoice.revisionCharge ?? 0) / invoice.exchangeRate))}
+                        </span>
+                      </div>
+                      <div className="text-xs text-rose-600">Qty: 1 · Charged revision outside free allowance</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3b. Desktop / Tablet Table View (>= sm screens) */}
+                <div className="hidden sm:block overflow-x-auto rounded-xl border border-slate-200/80">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                        <th className="px-4 py-3 text-center w-12">#</th>
+                        <th className="px-4 py-3">Service / Description</th>
+                        <th className="px-4 py-3 text-center w-20">Qty</th>
+                        <th className="px-4 py-3 text-right w-36">Unit Price</th>
+                        <th className="px-4 py-3 text-right w-36">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
+                      {((typeof invoice.lineItems === 'string' ? JSON.parse(invoice.lineItems) : invoice.lineItems) as unknown as import('@/types').LineItem[]).map((item, idx) => {
+                        const lt = round2(item.qty * item.unitPrice);
+                        const isFree = lt === 0;
+                        return (
+                          <tr key={item.id ?? idx} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="px-4 py-3.5 text-center font-mono text-xs text-slate-400 font-bold">
+                              {idx + 1}
+                            </td>
+                            <td className="px-4 py-3.5 font-semibold text-slate-800">
+                              {item.description}
+                            </td>
+                            <td className="px-4 py-3.5 text-center text-slate-600 font-mono">
+                              {item.qty}
+                            </td>
+                            <td className="px-4 py-3.5 text-right text-slate-600 font-mono">
+                              {isFree ? '—' : fmt(item.unitPrice)}
+                            </td>
+                            <td className="px-4 py-3.5 text-right font-mono font-bold">
+                              {isFree ? (
+                                <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800">
+                                  FREE
+                                </span>
+                              ) : (
+                                <span className="text-slate-900 font-extrabold">{fmt(lt)}</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+
+                      {(invoice.revisionCharge ?? 0) > 0 && (
+                        <tr className="bg-rose-50/50">
+                          <td className="px-4 py-3 text-center text-rose-500 font-bold">+</td>
+                          <td className="px-4 py-3 font-semibold text-rose-900">
+                            🔄 Extra Revision #{invoice.revisionCount}
                           </td>
-                          <td style={{ padding: '13px 12px', textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>
-                            {item.qty}
+                          <td className="px-4 py-3 text-center font-mono text-rose-700">1</td>
+                          <td className="px-4 py-3 text-right font-mono text-rose-700">
+                            {fmt(round2((invoice.revisionCharge ?? 0) / invoice.exchangeRate))}
                           </td>
-                          <td style={{ padding: '13px 12px', textAlign: 'right', fontSize: 13, color: 'var(--muted)' }}>
-                            {isFree ? '—' : fmt(item.unitPrice)}
-                          </td>
-                          <td style={{ padding: '13px 12px', textAlign: 'right', fontWeight: 700, fontSize: 14 }}>
-                            {isFree
-                              ? <span style={{ background: 'var(--green-light)', color: '#15803d', borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>FREE</span>
-                              : <span style={{ color: 'var(--text)' }}>{fmt(lt)}</span>
-                            }
+                          <td className="px-4 py-3 text-right font-mono font-extrabold text-rose-700">
+                            {fmt(round2((invoice.revisionCharge ?? 0) / invoice.exchangeRate))}
                           </td>
                         </tr>
-                      );
-                    })}
-                    {(invoice.revisionCharge ?? 0) > 0 && (
-                      <tr style={{ borderTop: '2px solid #f0f4ff' }}>
-                        <td style={{ padding: '13px 12px', textAlign: 'center', fontSize: 12, color: '#dc2626' }}>+</td>
-                        <td style={{ padding: '13px 12px', fontWeight: 600, fontSize: 14, color: '#dc2626' }}>
-                          🔄 Extra Revision #{invoice.revisionCount}
-                        </td>
-                        <td style={{ padding: '13px 12px', textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>1</td>
-                        <td style={{ padding: '13px 12px', textAlign: 'right', fontSize: 13, color: 'var(--muted)' }}>
-                          {fmt(round2((invoice.revisionCharge ?? 0) / invoice.exchangeRate))}
-                        </td>
-                        <td style={{ padding: '13px 12px', textAlign: 'right', fontWeight: 700, fontSize: 14, color: '#dc2626' }}>
-                          {fmt(round2((invoice.revisionCharge ?? 0) / invoice.exchangeRate))}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
 
-                {/* Totals breakdown */}
-                <div className="ml-auto mt-5" style={{ maxWidth: 340, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--muted)', paddingBottom: 8, borderBottom: '1px dashed var(--border)' }}>
-                    <span>Subtotal</span>
-                    <span style={{ fontWeight: 600 }}>{fmt(invoice.subtotalConverted)}</span>
-                  </div>
-                  {(invoice.discountRate ?? 0) > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#16a34a' }}>
-                      <span>Discount ({invoice.discountRate}%)</span>
-                      <span style={{ fontWeight: 600 }}>−{fmt(invoice.discountAmount)}</span>
+                {/* 4. Financials Summary / Totals Box */}
+                <div className="mt-6 flex flex-col sm:items-end">
+                  <div className="w-full sm:w-80 space-y-2 text-xs sm:text-sm bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80">
+                    <div className="flex justify-between items-center text-slate-600">
+                      <span>Subtotal</span>
+                      <span className="font-mono font-bold text-slate-800">{fmt(invoice.subtotalConverted)}</span>
                     </div>
-                  )}
-                  {(invoice.taxRate ?? 0) > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--muted)' }}>
-                      <span>Tax ({invoice.taxRate}%)</span>
-                      <span style={{ fontWeight: 600 }}>+{fmt(invoice.taxAmount)}</span>
+
+                    {(invoice.discountRate ?? 0) > 0 && (
+                      <div className="flex justify-between items-center text-emerald-700 font-medium">
+                        <span>Discount ({invoice.discountRate}%)</span>
+                        <span className="font-mono font-bold">−{fmt(invoice.discountAmount)}</span>
+                      </div>
+                    )}
+
+                    {(invoice.taxRate ?? 0) > 0 && (
+                      <div className="flex justify-between items-center text-slate-600">
+                        <span>Tax ({invoice.taxRate}%)</span>
+                        <span className="font-mono font-bold">+{fmt(invoice.taxAmount)}</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center text-slate-600 pb-2 border-b border-slate-200">
+                      <span>Processing Fee ({(invoice.processingFeeRate * 100).toFixed(1)}%)</span>
+                      <span className="font-mono font-bold text-slate-800">{fmt(invoice.processingFeeConverted)}</span>
                     </div>
-                  )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--muted)' }}>
-                    <span>Processing Fee ({(invoice.processingFeeRate * 100).toFixed(1)}%)</span>
-                    <span style={{ fontWeight: 600 }}>{fmt(invoice.processingFeeConverted)}</span>
-                  </div>
-                  <div style={{ background: 'var(--brand-gradient)', borderRadius: 10, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                    <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: 13 }}>Total ({invoice.currency})</span>
-                    <span style={{ color: '#fff', fontWeight: 900, fontSize: 18 }}>{fmt(invoice.totalPayable)}</span>
+
+                    {/* Total Grand Card */}
+                    <div className="bg-gradient-to-r from-[#0A0B0D] to-[#1C1812] text-white p-3.5 rounded-xl flex items-center justify-between shadow-xs">
+                      <span className="text-xs font-bold text-[#D4AF7A]">Total Payable ({invoice.currency})</span>
+                      <span className="font-mono text-base sm:text-lg font-black text-white">
+                        {fmt(invoice.totalPayable)}
+                      </span>
+                    </div>
                   </div>
                 </div>
+
               </div>
 
-              {/* CTA / Paid state */}
+              {/* 5. Payment Gateways / Settlement CTAs */}
               {invoice.status === 'PENDING' && (
-                <>
-                  {/* Razorpay CTA */}
+                <div className="p-5 sm:p-8 bg-slate-50/70 border-t border-slate-200 text-center">
                   {invoice.paymentGateway !== 'PAYPAL' && invoice.razorpayLinkUrl && (
-                    <div className="px-4 sm:px-9 py-6" style={{ background: '#f8faff', borderTop: '1px solid var(--border-blue)', textAlign: 'center' }}>
-                      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
-                        Secure payment via <strong>Razorpay</strong> &mdash; UPI · Cards · Net Banking
+                    <div className="max-w-md mx-auto space-y-3">
+                      <div className="text-xs text-slate-500">
+                        Official Payment Portal &mdash; UPI · Cards · Net Banking via <strong>Razorpay</strong>
                       </div>
-                      <a href={invoice.razorpayLinkUrl} target="_blank" rel="noopener noreferrer"
-                         className="btn btn-primary" style={{ fontSize: 15, padding: '12px 24px', boxShadow: '0 4px 20px rgba(31,86,212,.35)' }}>
-                        Pay {fmt(invoice.totalPayable)} Now
+                      <a
+                        href={invoice.razorpayLinkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center w-full px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white text-sm font-extrabold shadow-md shadow-[#B8935B]/20 hover:opacity-95 transition-all active:scale-98"
+                      >
+                        Pay {fmt(invoice.totalPayable)} Now ↗
                       </a>
-                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 10, wordBreak: 'break-all' }}>
+                      <div className="text-[10px] text-slate-400 font-mono break-all">
                         {invoice.razorpayLinkUrl}
                       </div>
                     </div>
                   )}
-                  {/* PayPal CTA */}
+
                   {invoice.paymentGateway === 'PAYPAL' && invoice.paypalPaymentUrl && (
-                    <div className="px-4 sm:px-9 py-6" style={{ background: '#f0f4ff', borderTop: '1px solid #c7d2fe', textAlign: 'center' }}>
-                      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
-                        Secure payment via <strong style={{ color: '#003087' }}>PayPal</strong> &mdash; Cards · PayPal Balance · Bank Transfer
+                    <div className="max-w-md mx-auto space-y-3">
+                      <div className="text-xs text-slate-500">
+                        International Settlement via <strong className="text-[#003087]">PayPal</strong>
                       </div>
-                      <a href={invoice.paypalPaymentUrl!}
-                         target="_blank" rel="noopener noreferrer"
-                         style={{
-                           display: 'inline-block',
-                           background: 'linear-gradient(135deg,#003087 0%,#009cde 100%)',
-                           color: '#fff', textDecoration: 'none',
-                           padding: '14px 36px', borderRadius: 8,
-                           fontWeight: 800, fontSize: 16,
-                           boxShadow: '0 4px 20px rgba(0,48,135,.35)',
-                         }}>
-                        Pay {fmt(invoice.totalPayable)} via PayPal
+                      <a
+                        href={invoice.paypalPaymentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center w-full px-6 py-3.5 rounded-xl bg-[#003087] hover:bg-[#002566] text-white text-sm font-extrabold shadow-md transition-all active:scale-98"
+                      >
+                        Pay {fmt(invoice.totalPayable)} via PayPal ↗
                       </a>
-                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 10, wordBreak: 'break-all' }}>
-                        {invoice.paypalPaymentUrl!}
+                      <div className="text-[10px] text-slate-400 font-mono break-all">
+                        {invoice.paypalPaymentUrl}
                       </div>
                     </div>
                   )}
-                </>
+                </div>
               )}
 
               {invoice.status === 'PAID' && (
-                <div className="px-4 sm:px-9 py-5" style={{ background: 'var(--green-light)', borderTop: '1px solid #86efac', textAlign: 'center' }}>
-                  <div style={{ fontSize: 28, marginBottom: 6 }}>✅</div>
-                  <div style={{ fontWeight: 700, color: '#166534', fontSize: 16 }}>Payment Received</div>
+                <div className="p-5 sm:p-7 bg-emerald-50 border-t border-emerald-200 text-center space-y-1">
+                  <div className="text-2xl">✅</div>
+                  <div className="font-extrabold text-emerald-900 text-base">Payment Settled &amp; Verified</div>
                   {invoice.paidAt && (
-                    <div style={{ fontSize: 13, color: '#15803d', marginTop: 4 }}>
+                    <div className="text-xs text-emerald-700">
                       Paid on {format(new Date(invoice.paidAt), 'dd MMM yyyy, h:mm a')}
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Value prop */}
-              <div className="px-4 sm:px-9 py-4" style={{ borderTop: '1px solid #f0f4ff' }}>
-                <blockquote style={{ borderLeft: '3px solid var(--green)', background: '#f0fff8', borderRadius: '0 8px 8px 0', padding: '12px 16px', fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', lineHeight: 1.7, margin: 0 }}>
-                  &ldquo;This investment is designed to improve recruiter visibility and interview conversion — giving your career the competitive edge it deserves.&rdquo;
-                </blockquote>
-              </div>
-
-              {/* Terms */}
-              <div className="px-4 sm:px-9 py-4" style={{ background: '#f8faff', borderTop: '1px solid var(--border)' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 10 }}>Terms & Conditions</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+              {/* 6. Terms & Conditions */}
+              <div className="p-5 sm:p-8 bg-slate-50/50 border-t border-slate-200">
+                <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">
+                  Terms &amp; Operational Guarantee
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-slate-500">
                   {[
-                    'No refund after work commences',
+                    'No refund once strategy drafting commences',
                     'Delivery within 2–4 business days',
-                    '2 free revisions included',
-                    'Additional revisions are chargeable',
-                    'No job placement guarantee',
-                    'All data kept strictly confidential',
-                  ].map(t => (
-                    <div key={t} style={{ fontSize: 11, color: '#94a3b8', display: 'flex', gap: 6 }}>
-                      <span style={{ color: 'var(--green)' }}>•</span>{t}
+                    '2 complimentary revision rounds included',
+                    'Scope extensions are chargeable',
+                    'Confidentiality strictly maintained',
+                    'Official invoice valid for tax record',
+                  ].map((t) => (
+                    <div key={t} className="flex items-center gap-2">
+                      <span className="text-[#B8935B] font-black">•</span>
+                      <span>{t}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="px-4 sm:px-9 py-4 flex items-center justify-between" style={{ background: 'var(--navy)' }}>
+              {/* 7. Footer */}
+              <div className="p-4 sm:p-6 bg-[#0A0B0D] text-white flex flex-col sm:flex-row items-center justify-between gap-2">
                 <Logo variant="horizontal" size={28} dark />
-                <div className="mono" style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>{invoice.invoiceNumber}</div>
+                <div className="font-mono text-xs text-slate-400">
+                  Doc ID: {invoice.invoiceNumber}
+                </div>
               </div>
+
             </div>
           </div>
-          {/* ── RIGHT PANEL ── */}
-          <div className="space-y-4">
-            {/* Status */}
-            <div className="card p-5">
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 14 }}>Invoice Status</div>
-              <div className="space-y-3">
-                {[
-                  ['Status',   <StatusBadge key="s" status={invoice.status} />],
-                  ['Gateway',  <span key="gw" style={{
-                    background: invoice.paymentGateway === 'PAYPAL' ? '#e0f0ff' : '#eef2ff',
-                    color:      invoice.paymentGateway === 'PAYPAL' ? '#003087' : '#B8935B',
-                    borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700,
-                  }}>{invoice.paymentGateway ?? 'RAZORPAY'}</span>],
-                  ['Email',    invoice.emailSentAt ? `Sent ${format(new Date(invoice.emailSentAt), 'dd MMM')}` : 'Not sent'],
-                  ...(invoice.emailResendCount > 0 ? [['Resends', `${invoice.emailResendCount}×`]] : []),
-                  ...(invoice.razorpayLinkId ? [['Razorpay ID', <span key="r" className="mono text-xs truncate" style={{ color: 'var(--blue)', maxWidth: 120, display: 'block' }}>{invoice.razorpayLinkId}</span>]] : []),
-                  ['Revisions', `${invoice.revisionCount ?? 0} (${Math.max(0, (invoice.revisionCount ?? 0) - 2)} chargeable)`],
-                ].map(([label, value], i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <span style={{ fontSize: 13, color: 'var(--muted)' }}>{label}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Financials */}
-            <div className="card p-5">
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 14 }}>Financials</div>
-              <div className="space-y-2.5">
-                {[
-                  ['Base (INR)', `₹${(invoice.resumeBaseInr + invoice.linkedinBaseInr).toLocaleString()}`],
-                  ['Converted', fmt(invoice.subtotalConverted)],
-                  ['Processing Fee', fmt(invoice.processingFeeConverted)],
-                  ...(invoice.revisionCharge > 0 ? [['Revision Charge', fmt(round2((invoice.revisionCharge ?? 0) / invoice.exchangeRate))]] : []),
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between text-sm">
-                    <span style={{ color: 'var(--muted)' }}>{label}</span>
-                    <span style={{ fontWeight: 600 }} className="mono">{value}</span>
+          {/* ── RIGHT PANEL (Status & Quick Telemetry) ── */}
+          <div className="space-y-4 w-full">
+            
+            {/* Status Card */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
+              <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-4">
+                Invoice Telemetry
+              </div>
+              <div className="space-y-3 text-xs sm:text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Status</span>
+                  <StatusBadge status={invoice.status} />
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Gateway</span>
+                  <span className="font-bold text-slate-800">{invoice.paymentGateway ?? 'RAZORPAY'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Email Status</span>
+                  <span className="font-semibold text-slate-800">
+                    {invoice.emailSentAt ? `Sent ${format(new Date(invoice.emailSentAt), 'dd MMM')}` : 'Not sent'}
+                  </span>
+                </div>
+                {invoice.emailResendCount > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Resend Count</span>
+                    <span className="font-mono font-bold text-slate-800">{invoice.emailResendCount}×</span>
                   </div>
-                ))}
-                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 700, color: 'var(--blue)' }}>Total</span>
-                  <span style={{ fontWeight: 900, fontSize: 18, color: 'var(--blue)' }}>{fmt(invoice.totalPayable)}</span>
+                )}
+                {invoice.razorpayLinkId && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Razorpay ID</span>
+                    <span className="font-mono text-xs font-bold text-blue-600 truncate max-w-[140px]">
+                      {invoice.razorpayLinkId}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Revisions Logged</span>
+                  <span className="font-mono font-bold text-slate-800">
+                    {invoice.revisionCount ?? 0} ({Math.max(0, (invoice.revisionCount ?? 0) - 2)} chargeable)
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="card p-5 space-y-2">
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 10 }}>Quick Actions</div>
+            {/* Financials Quick Card */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
+              <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-4">
+                Financial Summary
+              </div>
+              <div className="space-y-2.5 text-xs sm:text-sm">
+                <div className="flex justify-between text-slate-500">
+                  <span>Base (INR)</span>
+                  <span className="font-mono font-bold text-slate-800">
+                    ₹{(invoice.resumeBaseInr + invoice.linkedinBaseInr).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-500">
+                  <span>Net Subtotal</span>
+                  <span className="font-mono font-bold text-slate-800">{fmt(invoice.subtotalConverted)}</span>
+                </div>
+                <div className="flex justify-between text-slate-500">
+                  <span>Processing Fee</span>
+                  <span className="font-mono font-bold text-slate-800">{fmt(invoice.processingFeeConverted)}</span>
+                </div>
+                <div className="pt-2.5 border-t border-slate-200 flex justify-between items-center">
+                  <span className="font-bold text-slate-900">Total Payable</span>
+                  <span className="font-mono font-black text-base text-[#B8935B]">{fmt(invoice.totalPayable)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions Card */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-2">
+              <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">
+                Quick Actions
+              </div>
               {canEdit && (
-                <button className="btn btn-secondary w-full" style={{ justifyContent: 'center' }} onClick={() => setShowEditPricing(true)}>
+                <button
+                  className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5"
+                  onClick={() => setShowEditPricing(true)}
+                >
                   ✏️ Edit Pricing
                 </button>
               )}
-              <button className="btn btn-ghost w-full" style={{ justifyContent: 'center' }} onClick={() => setShowRevision(true)}>
+              <button
+                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5"
+                onClick={() => setShowRevision(true)}
+              >
                 🔄 Log Revision
               </button>
-              <button className="btn btn-ghost w-full" style={{ justifyContent: 'center' }} onClick={handleResend} disabled={resending}>
-                {resending ? 'Sending…' : 'Resend Email'}
-              </button>
-              {invoice.status !== 'PAID' && (
-                <>
-                  <button
-                    className="btn w-full"
-                    style={{ justifyContent: 'center', background: '#16a34a', color: '#fff', border: 'none' }}
-                    onClick={handleMarkPaid}
-                    disabled={markingPaid}
-                  >
-                    {markingPaid ? 'Updating…' : 'Mark as Paid'}
-                  </button>
-                  {invoice.razorpayLinkId && (
-                    <button
-                      className="btn btn-ghost w-full"
-                      style={{ justifyContent: 'center' }}
-                      onClick={handleSyncRazorpay}
-                      disabled={syncing}
-                    >
-                      {syncing ? 'Syncing…' : `Sync ${invoice.paymentGateway === 'PAYPAL' ? 'PayPal' : 'Razorpay'}`}
-                    </button>
-                  )}
-                </>
-              )}
-              <Link href="/invoices/new" className="btn btn-primary w-full" style={{ justifyContent: 'center' }}>
-                + New Invoice
+              <Link
+                href="/invoices/new"
+                className="block w-full py-2.5 rounded-xl bg-[#B8935B] hover:bg-[#9A7540] text-white text-xs font-bold transition-all text-center shadow-xs"
+              >
+                + Create New Invoice
               </Link>
-              <button className="btn btn-danger w-full" style={{ justifyContent: 'center' }} onClick={() => setShowDelete(true)}>
-                🗑️ Delete Invoice
-              </button>
             </div>
+
           </div>
+
         </div>
-      </main>
+
+      </div>
 
       {/* ── MODALS ── */}
       {showEditPricing && invoice && (

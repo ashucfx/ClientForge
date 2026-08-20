@@ -151,66 +151,75 @@ export default function RnInvoiceDetailPage() {
 
   return (
     <RippleNexusShell>
-      <main className="page-wrapper" style={{ maxWidth: 1000, margin: '0 auto' }}>
+      <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
         {showBanner && (
-          <div style={{ background: 'var(--success-bg)', border: '1px solid #86efac', color: 'var(--success)', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-            <span style={{ fontSize: 22 }}>✅</span>
-            <div>
-              <div style={{ fontWeight: 700 }}>Invoice Created Successfully!</div>
-              <div style={{ fontSize: 13, opacity: .8 }}>Email sent to {invoice.clientEmail} · Payment link ready</div>
+          <div className="mb-6 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 sm:p-5 flex items-center gap-3.5 shadow-xs">
+            <span className="text-2xl sm:text-3xl">✅</span>
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-sm sm:text-base text-emerald-900">Invoice Created Successfully!</div>
+              <div className="text-xs text-emerald-700 mt-0.5">Email notification dispatched to {invoice.clientEmail} · Payment gateway active</div>
             </div>
           </div>
         )}
 
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-          <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--muted)' }}>
-            <Link href="/rn/invoices" style={{ color: 'var(--muted)', textDecoration: 'none' }}>Invoices</Link>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <Link href="/rn/invoices" className="text-[#7C5CFF] hover:underline">Invoices</Link>
             <span>/</span>
-            <span style={{ color: '#7C5CFF', fontWeight: 700 }}>{invoice.invoiceNumber}</span>
+            <span className="text-slate-700 font-mono font-bold">{invoice.invoiceNumber}</span>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <button className="btn btn-ghost" style={{ fontSize: 13, padding: '8px 14px' }} onClick={handleResend} disabled={resending}>
-              {resending ? '⏳ Sending…' : '📧 Resend Email'}
+
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
+            <button className="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5" onClick={handleResend} disabled={resending}>
+              <span>{resending ? '⏳' : '📧'}</span>
+              <span>{resending ? 'Sending…' : 'Resend'}</span>
             </button>
             {invoice.status === 'PENDING' && (
               (() => {
                 const isPayPal = invoice.paymentGateway === 'PAYPAL';
                 const payUrl   = isPayPal ? invoice.paypalPaymentUrl : invoice.razorpayLinkUrl;
                 return payUrl ? (
-                  <a href={payUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ fontSize: 13, padding: '8px 14px', background: '#7C5CFF', borderColor: '#7C5CFF' }}>
-                    {isPayPal ? 'PayPal Link ↗' : 'Payment Link ↗'}
+                  <a href={payUrl} target="_blank" rel="noopener noreferrer" className="col-span-2 sm:col-span-1 px-4 py-2 rounded-xl bg-[#7C5CFF] hover:bg-[#6A48F5] text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5">
+                    <span>💳</span>
+                    <span>{isPayPal ? 'PayPal Link ↗' : 'Payment Link ↗'}</span>
                   </a>
                 ) : null;
               })()
             )}
             {invoice.status !== 'PAID' && (
-              <button className="btn" style={{ fontSize: 13, padding: '8px 14px', background: '#10b981', color: '#fff', border: 'none' }} onClick={handleMarkPaid} disabled={markingPaid}>
-                {markingPaid ? 'Updating…' : 'Mark as Paid'}
+              <button className="col-span-2 sm:col-span-1 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5" onClick={handleMarkPaid} disabled={markingPaid}>
+                <span>✓</span>
+                <span>{markingPaid ? 'Updating…' : 'Mark as Paid'}</span>
               </button>
             )}
             {invoice.razorpayLinkId && invoice.status !== 'PAID' && (
-              <button className="btn btn-ghost" style={{ fontSize: 13, padding: '8px 14px' }} onClick={handleSyncRazorpay} disabled={syncing}>
-                {syncing ? 'Syncing…' : 'Sync Razorpay'}
+              <button className="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5" onClick={handleSyncRazorpay} disabled={syncing}>
+                <span>↻</span>
+                <span>{syncing ? 'Syncing…' : 'Sync Gateway'}</span>
               </button>
             )}
-            <button className="btn" style={{ fontSize: 13, padding: '8px 14px', color: '#dc2626', borderColor: '#fca5a5' }} onClick={() => setShowDelete(true)}>
-              🗑️ Delete
+            <button className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5" onClick={() => setShowDelete(true)}>
+              <span>🗑️</span> Delete
             </button>
           </div>
         </div>
 
-        <div className="card overflow-hidden" style={{ boxShadow: '0 4px 40px rgba(124,92,255,.08)' }}>
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-md overflow-hidden">
           {/* Tabs */}
-          <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+          <div className="flex border-b border-slate-200 bg-slate-50/80">
             <button 
               onClick={() => setActiveTab('details')}
-              style={{ flex: 1, padding: '16px', background: 'transparent', border: 'none', borderBottom: activeTab === 'details' ? '2px solid #7C5CFF' : '2px solid transparent', color: activeTab === 'details' ? '#7C5CFF' : 'var(--text-secondary)', fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s' }}
+              className={`flex-1 py-3.5 sm:py-4 text-xs sm:text-sm font-bold transition-all border-b-2 ${
+                activeTab === 'details' ? 'border-[#7C5CFF] text-[#7C5CFF] bg-white' : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
             >
               🧾 Invoice Details
             </button>
             <button 
               onClick={() => setActiveTab('preview')}
-              style={{ flex: 1, padding: '16px', background: 'transparent', border: 'none', borderBottom: activeTab === 'preview' ? '2px solid #7C5CFF' : '2px solid transparent', color: activeTab === 'preview' ? '#7C5CFF' : 'var(--text-secondary)', fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s' }}
+              className={`flex-1 py-3.5 sm:py-4 text-xs sm:text-sm font-bold transition-all border-b-2 ${
+                activeTab === 'preview' ? 'border-[#7C5CFF] text-[#7C5CFF] bg-white' : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
             >
               📧 Email Preview
             </button>
@@ -219,160 +228,184 @@ export default function RnInvoiceDetailPage() {
           {activeTab === 'details' ? (
             <>
               {/* Header */}
-          <div style={{ background: 'linear-gradient(135deg, #7C5CFF, #22D3EE)', padding: '32px 36px' }}>
-            <div className="flex items-start justify-between">
-              <div>
-                <Logo variant="horizontal" size={38} brandId="ripple_nexus" dark />
-                <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 16 }}>hello@theripplenexus.com</div>
-                <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>theripplenexus.com</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ background: 'rgba(0,0,0,0.15)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 18px' }}>
-                  <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1.5 }}>Invoice</div>
-                  <div style={{ color: '#fff', fontSize: 22, fontWeight: 800, marginTop: 2 }}>{invoice.invoiceNumber}</div>
-                  <div style={{ marginTop: 8 }}><StatusBadge status={invoice.status} /></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 mt-6">
-              {[
-                ['Issue Date', format(new Date(invoice.invoiceDate), 'dd MMM yyyy')],
-                ['Due Date',   format(new Date(invoice.dueDate),     'dd MMM yyyy')],
-                ['Currency',   `${invoice.currency} (${invoice.currencySymbol})`],
-              ].map(([label, value]) => (
-                <div key={label} style={{ background: 'rgba(0,0,0,0.1)', borderRadius: 10, padding: '10px 14px' }}>
-                  <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
-                  <div style={{ color: '#fff', fontWeight: 600, fontSize: 13, marginTop: 3 }}>{value}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Client Details */}
-          <div style={{ background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', padding: '20px 36px' }}>
-            <div className="grid grid-cols-2 gap-5">
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 10 }}>Bill To</div>
-                <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>{invoice.clientName}</div>
-                {invoice.companyName && <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{invoice.companyName}</div>}
-                <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{invoice.clientEmail}</div>
-                <div style={{ fontSize: 13, color: 'var(--muted)' }}>{invoice.clientPhone}</div>
-                <div style={{ fontSize: 13, color: 'var(--muted)' }}>{invoice.country}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 10 }}>Details</div>
-                <span style={{ background: 'var(--brand-light)', color: '#7C5CFF', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700 }}>B2B Client</span>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>
-                  Exchange Rate: 1 INR = {invoice.exchangeRate.toFixed(5)} {invoice.currency}
-                </div>
-                {invoice.notes && (
-                  <div style={{ fontSize: 12, color: 'var(--muted)', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', marginTop: 8 }}>
-                    📝 {invoice.notes}
+              <div className="bg-gradient-to-br from-[#7C5CFF] via-[#5B3CF5] to-[#22D3EE] text-white p-5 sm:p-8">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
+                  <div>
+                    <Logo variant="horizontal" size={36} brandId="ripple_nexus" dark />
+                    <div className="text-white/80 text-xs mt-3">hello@theripplenexus.com</div>
+                    <div className="text-white/80 text-xs">theripplenexus.com</div>
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
+                  <div className="sm:text-right">
+                    <div className="inline-block sm:block bg-black/20 backdrop-blur-md border border-white/20 rounded-2xl p-4 sm:p-5">
+                      <div className="text-[10px] font-extrabold uppercase tracking-widest text-white/80 mb-1">Invoice</div>
+                      <div className="font-mono text-xl sm:text-2xl font-black text-white">{invoice.invoiceNumber}</div>
+                      <div className="mt-2.5"><StatusBadge status={invoice.status} /></div>
+                    </div>
+                  </div>
+                </div>
 
-          {/* Line Items */}
-          <div style={{ padding: '24px 36px' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 14 }}>Line Items</div>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: 'var(--surface-3)' }}>
-                  <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8 }}>Description</th>
-                  <th style={{ textAlign: 'center', padding: '10px 12px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, width: 60 }}>Qty</th>
-                  <th style={{ textAlign: 'right', padding: '10px 12px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, width: 120 }}>Unit Price</th>
-                  <th style={{ textAlign: 'right', padding: '10px 12px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, width: 120 }}>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {((typeof invoice.lineItems === 'string' ? JSON.parse(invoice.lineItems) : invoice.lineItems) as unknown as import('@/types').LineItem[]).map((item, idx) => (
-                  <tr key={item.id ?? idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '13px 12px', fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{item.description}</td>
-                    <td style={{ padding: '13px 12px', textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>{item.qty}</td>
-                    <td style={{ padding: '13px 12px', textAlign: 'right', fontSize: 13, color: 'var(--muted)' }}>{item.lineTotal === 0 ? '—' : fmt(item.unitPrice)}</td>
-                    <td style={{ padding: '13px 12px', textAlign: 'right', fontWeight: 700, fontSize: 14 }}>
-                      {item.lineTotal === 0 ? <span style={{ color: '#10b981' }}>FREE</span> : fmt(item.lineTotal)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* Totals breakdown */}
-            <div style={{ maxWidth: 320, marginLeft: 'auto', marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--muted)', paddingBottom: 8, borderBottom: '1px dashed var(--border)' }}>
-                <span>Subtotal</span>
-                <span style={{ fontWeight: 600 }}>{fmt(invoice.subtotalConverted)}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-6">
+                  <div className="bg-black/15 border border-white/15 rounded-xl p-3">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-white/70">Issue Date</div>
+                    <div className="text-white font-semibold text-xs sm:text-sm mt-1">{format(new Date(invoice.invoiceDate), 'dd MMM yyyy')}</div>
+                  </div>
+                  <div className="bg-black/15 border border-white/15 rounded-xl p-3">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-white/70">Due Date</div>
+                    <div className="text-white font-semibold text-xs sm:text-sm mt-1">{format(new Date(invoice.dueDate), 'dd MMM yyyy')}</div>
+                  </div>
+                  <div className="bg-black/15 border border-white/15 rounded-xl p-3">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-white/70">Currency</div>
+                    <div className="text-white font-semibold text-xs sm:text-sm mt-1">{invoice.currency} ({invoice.currencySymbol})</div>
+                  </div>
+                </div>
               </div>
-              {(invoice.discountRate ?? 0) > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#16a34a' }}>
-                  <span>Discount ({invoice.discountRate}%)</span>
-                  <span style={{ fontWeight: 600 }}>−{fmt(invoice.discountAmount)}</span>
+
+              {/* Client Details */}
+              <div className="bg-slate-50/80 border-b border-slate-200 p-5 sm:p-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-2">Bill To</div>
+                    <div className="text-base sm:text-lg font-extrabold text-slate-900">{invoice.clientName}</div>
+                    {invoice.companyName && <div className="text-xs sm:text-sm text-slate-600 font-semibold mt-0.5">{invoice.companyName}</div>}
+                    <div className="text-xs sm:text-sm text-slate-500 mt-1">{invoice.clientEmail}</div>
+                    {invoice.clientPhone && <div className="text-xs sm:text-sm text-slate-500">{invoice.clientPhone}</div>}
+                    {invoice.country && <div className="text-xs sm:text-sm text-slate-500">{invoice.country}</div>}
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-2">Details</div>
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#7C5CFF]/10 text-[#7C5CFF] border border-[#7C5CFF]/20">
+                      B2B Client
+                    </span>
+                    <div className="text-xs text-slate-500 font-mono mt-3">
+                      Exchange Rate: 1 INR = {invoice.exchangeRate.toFixed(5)} {invoice.currency}
+                    </div>
+                    {invoice.notes && (
+                      <div className="mt-2.5 text-xs text-slate-600 bg-white p-3 rounded-xl border border-slate-200">
+                        📝 {invoice.notes}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Line Items */}
+              <div className="p-5 sm:p-8">
+                <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-4">Line Items</div>
+                
+                {/* Mobile list */}
+                <div className="block sm:hidden space-y-3">
+                  {((typeof invoice.lineItems === 'string' ? JSON.parse(invoice.lineItems) : invoice.lineItems) as unknown as import('@/types').LineItem[]).map((item, idx) => (
+                    <div key={item.id ?? idx} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                      <div className="font-bold text-sm text-slate-900">{item.description}</div>
+                      <div className="flex justify-between items-center text-xs text-slate-500 pt-1 border-t border-slate-200">
+                        <span>Qty: <strong>{item.qty}</strong></span>
+                        <span className="font-mono font-bold text-slate-800">{item.lineTotal === 0 ? 'FREE' : fmt(item.lineTotal)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Table */}
+                <div className="hidden sm:block overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                        <th className="px-4 py-3">Description</th>
+                        <th className="px-4 py-3 text-center w-20">Qty</th>
+                        <th className="px-4 py-3 text-right w-36">Unit Price</th>
+                        <th className="px-4 py-3 text-right w-36">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
+                      {((typeof invoice.lineItems === 'string' ? JSON.parse(invoice.lineItems) : invoice.lineItems) as unknown as import('@/types').LineItem[]).map((item, idx) => (
+                        <tr key={item.id ?? idx} className="hover:bg-slate-50/60">
+                          <td className="px-4 py-3.5 font-semibold text-slate-800">{item.description}</td>
+                          <td className="px-4 py-3.5 text-center text-slate-600 font-mono">{item.qty}</td>
+                          <td className="px-4 py-3.5 text-right text-slate-600 font-mono">{item.lineTotal === 0 ? '—' : fmt(item.unitPrice)}</td>
+                          <td className="px-4 py-3.5 text-right font-mono font-extrabold text-slate-900">
+                            {item.lineTotal === 0 ? <span className="text-emerald-600 font-black">FREE</span> : fmt(item.lineTotal)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Totals */}
+                <div className="mt-6 flex flex-col sm:items-end">
+                  <div className="w-full sm:w-80 space-y-2 text-xs sm:text-sm bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Subtotal</span>
+                      <span className="font-mono font-bold text-slate-800">{fmt(invoice.subtotalConverted)}</span>
+                    </div>
+                    {(invoice.discountRate ?? 0) > 0 && (
+                      <div className="flex justify-between text-emerald-700 font-medium">
+                        <span>Discount ({invoice.discountRate}%)</span>
+                        <span className="font-mono font-bold">−{fmt(invoice.discountAmount)}</span>
+                      </div>
+                    )}
+                    {(invoice.taxRate ?? 0) > 0 && (
+                      <div className="flex justify-between text-slate-600">
+                        <span>Tax ({invoice.taxRate}%)</span>
+                        <span className="font-mono font-bold">+{fmt(invoice.taxAmount)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-slate-600 pb-2 border-b border-slate-200">
+                      <span>Processing Fee ({(invoice.processingFeeRate * 100).toFixed(1)}%)</span>
+                      <span className="font-mono font-bold text-slate-800">{fmt(invoice.processingFeeConverted)}</span>
+                    </div>
+                    <div className="bg-gradient-to-r from-[#7C5CFF] to-[#22D3EE] text-white p-3.5 rounded-xl flex items-center justify-between shadow-xs">
+                      <span className="text-xs font-bold">Total Payable ({invoice.currency})</span>
+                      <span className="font-mono text-base sm:text-lg font-black">{fmt(invoice.totalPayable)}</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Payment CTA */}
+              {invoice.status === 'PENDING' && (
+                <div className="p-5 sm:p-8 bg-slate-50/70 border-t border-slate-200 text-center">
+                  {invoice.paymentGateway !== 'PAYPAL' && invoice.razorpayLinkUrl && (
+                    <div className="max-w-md mx-auto space-y-3">
+                      <a href={invoice.razorpayLinkUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center w-full px-6 py-3.5 rounded-xl bg-[#7C5CFF] hover:bg-[#6A48F5] text-white text-sm font-extrabold shadow-md transition-all">
+                        Pay {fmt(invoice.totalPayable)} Now ↗
+                      </a>
+                      <div className="text-[10px] text-slate-400 font-mono break-all">{invoice.razorpayLinkUrl}</div>
+                    </div>
+                  )}
+                  {invoice.paymentGateway === 'PAYPAL' && invoice.paypalPaymentUrl && (
+                    <div className="max-w-md mx-auto space-y-3">
+                      <a href={invoice.paypalPaymentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center w-full px-6 py-3.5 rounded-xl bg-[#003087] hover:bg-[#002566] text-white text-sm font-extrabold shadow-md transition-all">
+                        Pay {fmt(invoice.totalPayable)} via PayPal ↗
+                      </a>
+                      <div className="text-[10px] text-slate-400 font-mono break-all">{invoice.paypalPaymentUrl}</div>
+                    </div>
+                  )}
                 </div>
               )}
-              {(invoice.taxRate ?? 0) > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--muted)' }}>
-                  <span>Tax ({invoice.taxRate}%)</span>
-                  <span style={{ fontWeight: 600 }}>+{fmt(invoice.taxAmount)}</span>
-                </div>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--muted)' }}>
-                <span>Processing Fee ({(invoice.processingFeeRate * 100).toFixed(1)}%)</span>
-                <span style={{ fontWeight: 600 }}>{fmt(invoice.processingFeeConverted)}</span>
-              </div>
-              <div style={{ background: 'linear-gradient(135deg, #7C5CFF, #22D3EE)', borderRadius: 10, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                <span style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: 13 }}>Total Payable ({invoice.currency})</span>
-                <span style={{ color: '#fff', fontWeight: 900, fontSize: 20 }}>{fmt(invoice.totalPayable)}</span>
-              </div>
-            </div>
-          </div>
 
-          {/* Payment CTA */}
-          {invoice.status === 'PENDING' && (
-            <>
-              {invoice.paymentGateway !== 'PAYPAL' && invoice.razorpayLinkUrl && (
-                <div style={{ background: 'var(--surface-3)', borderTop: '1px solid var(--border)', padding: '24px 36px', textAlign: 'center' }}>
-                  <a href={invoice.razorpayLinkUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ fontSize: 16, padding: '14px 36px', background: '#7C5CFF', borderColor: '#7C5CFF' }}>
-                    Pay {fmt(invoice.totalPayable)} Now
-                  </a>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 10 }}>{invoice.razorpayLinkUrl}</div>
+              {invoice.status === 'PAID' && (
+                <div className="p-5 sm:p-7 bg-emerald-50 border-t border-emerald-200 text-center space-y-1">
+                  <div className="text-2xl">✅</div>
+                  <div className="font-extrabold text-emerald-900 text-base">Payment Received</div>
+                  {invoice.paidAt && <div className="text-xs text-emerald-700">Paid on {format(new Date(invoice.paidAt), 'dd MMM yyyy, h:mm a')}</div>}
                 </div>
               )}
-              {invoice.paymentGateway === 'PAYPAL' && invoice.paypalPaymentUrl && (
-                <div style={{ background: 'var(--surface-3)', borderTop: '1px solid var(--border)', padding: '24px 36px', textAlign: 'center' }}>
-                  <a href={invoice.paypalPaymentUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', background: '#003087', color: '#fff', textDecoration: 'none', padding: '14px 36px', borderRadius: 8, fontWeight: 800, fontSize: 16 }}>
-                    Pay {fmt(invoice.totalPayable)} via PayPal
-                  </a>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 10 }}>{invoice.paypalPaymentUrl}</div>
-                </div>
-              )}
-            </>
-          )}
-
-          {invoice.status === 'PAID' && (
-            <div style={{ background: 'var(--success-bg)', borderTop: '1px solid #86efac', padding: '20px 36px', textAlign: 'center' }}>
-              <div style={{ fontSize: 28, marginBottom: 6 }}>✅</div>
-              <div style={{ fontWeight: 700, color: 'var(--success)', fontSize: 16 }}>Payment Received</div>
-              {invoice.paidAt && <div style={{ fontSize: 13, color: 'var(--success)', marginTop: 4 }}>Paid on {format(new Date(invoice.paidAt), 'dd MMM yyyy, h:mm a')}</div>}
-            </div>
-          )}
             </>
           ) : (
-            <div style={{ padding: 0, background: '#F8FAFC', display: 'flex', justifyContent: 'center', minHeight: 600 }}>
-              <div style={{ width: '100%', maxWidth: 600, boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+            <div className="p-0 bg-slate-100 flex justify-center min-h-[600px]">
+              <div className="w-full max-w-2xl bg-white shadow-lg">
                 <iframe 
                   src={`/api/invoices/${invoice.id}/preview`} 
-                  style={{ width: '100%', height: '100%', minHeight: 600, border: 'none', display: 'block' }} 
+                  className="w-full h-full min-h-[600px] border-none"
                   title="Email Preview"
                 />
               </div>
             </div>
           )}
         </div>
-      </main>
+      </div>
 
       {/* Delete Modal */}
       {showDelete && (
