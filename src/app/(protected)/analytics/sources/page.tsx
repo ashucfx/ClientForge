@@ -685,65 +685,81 @@ export default function AnalyticsSourcesPage() {
                   </div>
 
                   {/* 1. Mobile Cards View (< md screens) */}
-                  <div className="block md:hidden divide-y divide-slate-100 p-3 sm:p-4 space-y-4">
+                  <div className="block md:hidden divide-y divide-slate-100 p-3.5 sm:p-4 space-y-4">
                     {data.feedbacks.map((fb) => {
-                      const clientName = fb.careerClient?.name || fb.rnClient?.name || 'Client';
+                      const clientName = fb.careerClient?.name || fb.rnClient?.name || 'Anonymous Client';
                       const clientEmail = fb.careerClient?.email || fb.rnClient?.email || '';
                       const clientId = fb.careerClientId || fb.rnClientId || fb.id;
+                      const initial = clientName.charAt(0).toUpperCase() || 'C';
 
                       return (
-                        <div key={fb.id} className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-3">
-                          {/* Header: Client info + Rating */}
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <div className="font-bold text-sm text-slate-900">{clientName}</div>
-                              {clientEmail && (
-                                <div className="text-xs text-slate-500 truncate max-w-[200px]">{clientEmail}</div>
-                              )}
-                              <div className="text-[10px] text-slate-400 font-mono mt-0.5 truncate max-w-[200px]">
-                                ID: {clientId}
+                        <div key={fb.id} className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-3">
+                          {/* Header: Client info with Avatar + Rating */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                                {initial}
+                              </div>
+                              <div>
+                                <div className="font-extrabold text-sm text-slate-900">{clientName}</div>
+                                {clientEmail && (
+                                  <a href={`mailto:${clientEmail}`} className="text-xs text-slate-500 hover:text-[#B8935B] truncate block max-w-[180px]">
+                                    {clientEmail}
+                                  </a>
+                                )}
+                                <div className="inline-flex items-center gap-1 font-mono text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 mt-0.5">
+                                  <span>ID:</span>
+                                  <span className="truncate max-w-[120px]">{clientId}</span>
+                                </div>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <span className="font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/50 text-xs">
+
+                            <div className="text-right shrink-0">
+                              <span className="font-extrabold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/70 text-xs shadow-xs">
                                 ★ {fb.rating}.0
                               </span>
-                              <div className="mt-1">
+                              <div className="mt-1.5">
                                 <NpsBadge score={fb.npsScore} />
                               </div>
                             </div>
                           </div>
 
                           {/* Service & Date */}
-                          <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-200/60">
-                            <span className="font-medium text-slate-700">{fb.serviceType}</span>
-                            <span>{fmtDate(fb.createdAt)}</span>
+                          <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#B8935B]/10 text-[#7A5B2E] border border-[#B8935B]/25">
+                              {fb.serviceType}
+                            </span>
+                            <span className="text-slate-400 font-medium">{fmtDate(fb.createdAt)}</span>
                           </div>
 
                           {/* Category Scores */}
                           <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                            <div className="bg-white p-1.5 rounded-lg border border-slate-200/70">
-                              <div className="text-[10px] text-slate-400">Comm.</div>
-                              <div className="font-bold text-slate-800">{fb.communication}/5</div>
+                            <div className="bg-slate-50/90 p-2 rounded-xl border border-slate-200/60">
+                              <div className="text-[10px] text-slate-400 font-medium">Comm.</div>
+                              <div className="font-mono font-bold text-slate-800 mt-0.5">{fb.communication}/5</div>
                             </div>
-                            <div className="bg-white p-1.5 rounded-lg border border-slate-200/70">
-                              <div className="text-[10px] text-slate-400">Quality</div>
-                              <div className="font-bold text-slate-800">{fb.deliveryQuality}/5</div>
+                            <div className="bg-slate-50/90 p-2 rounded-xl border border-slate-200/60">
+                              <div className="text-[10px] text-slate-400 font-medium">Quality</div>
+                              <div className="font-mono font-bold text-slate-800 mt-0.5">{fb.deliveryQuality}/5</div>
                             </div>
-                            <div className="bg-white p-1.5 rounded-lg border border-slate-200/70">
-                              <div className="text-[10px] text-slate-400">Speed</div>
-                              <div className="font-bold text-slate-800">{fb.turnaroundTime}/5</div>
+                            <div className="bg-slate-50/90 p-2 rounded-xl border border-slate-200/60">
+                              <div className="text-[10px] text-slate-400 font-medium">Speed</div>
+                              <div className="font-mono font-bold text-slate-800 mt-0.5">{fb.turnaroundTime}/5</div>
                             </div>
                           </div>
 
                           {/* Comment box */}
                           {fb.comments ? (
-                            <div className="p-3 bg-white rounded-xl border border-slate-200/70 text-xs text-slate-700 leading-relaxed max-h-40 overflow-y-auto">
-                              <span className="font-bold text-[#B8935B] mr-1">Comment:</span>
-                              &ldquo;{fb.comments}&rdquo;
+                            <div className="p-3.5 bg-[#FDFBF7] rounded-xl border border-[#EBE3D5] text-xs text-slate-800 leading-relaxed shadow-xs">
+                              <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-[#7A5B2E] mb-1">
+                                <span>💬</span> Client Feedback
+                              </div>
+                              <div className="italic text-slate-700 max-h-36 overflow-y-auto pr-1">
+                                &ldquo;{fb.comments}&rdquo;
+                              </div>
                             </div>
                           ) : (
-                            <div className="text-xs text-slate-400 italic">No text comment provided</div>
+                            <div className="text-xs text-slate-400 italic py-1">No written testimonial provided</div>
                           )}
                         </div>
                       );
@@ -756,20 +772,20 @@ export default function AnalyticsSourcesPage() {
                     )}
                   </div>
 
-                  {/* 2. Desktop Table View (>= md screens) */}
+                  {/* 2. Desktop & Big Screen Table View (>= md screens) */}
                   <div className="hidden md:block overflow-x-auto w-full">
-                    <table className="w-full text-left border-collapse min-w-[850px] lg:min-w-full">
+                    <table className="w-full text-left border-collapse min-w-[960px] lg:min-w-full">
                       <thead>
-                        <tr className="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100">
-                          <th className="px-4 sm:px-6 py-3.5">Client &amp; ID</th>
-                          <th className="px-4 py-3.5">Date</th>
-                          <th className="px-4 py-3.5">Service</th>
-                          <th className="px-4 py-3.5">NPS Status</th>
-                          <th className="px-4 py-3.5">Overall Rating</th>
-                          <th className="px-4 py-3.5 text-center">Comm.</th>
-                          <th className="px-4 py-3.5 text-center">Quality</th>
-                          <th className="px-4 py-3.5 text-center">Speed</th>
-                          <th className="px-4 sm:px-6 py-3.5 min-w-[280px]">Client Feedback Comment</th>
+                        <tr className="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
+                          <th className="px-5 py-3.5 min-w-[220px]">Client &amp; ID</th>
+                          <th className="px-4 py-3.5 whitespace-nowrap">Date</th>
+                          <th className="px-4 py-3.5 whitespace-nowrap">Service</th>
+                          <th className="px-4 py-3.5 whitespace-nowrap">NPS Status</th>
+                          <th className="px-4 py-3.5 whitespace-nowrap text-center">Overall Rating</th>
+                          <th className="px-3 py-3.5 text-center whitespace-nowrap">Comm.</th>
+                          <th className="px-3 py-3.5 text-center whitespace-nowrap">Quality</th>
+                          <th className="px-3 py-3.5 text-center whitespace-nowrap">Speed</th>
+                          <th className="px-5 py-3.5 min-w-[320px] xl:min-w-[420px]">Client Feedback Comment</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
@@ -777,42 +793,75 @@ export default function AnalyticsSourcesPage() {
                           const clientName = fb.careerClient?.name || fb.rnClient?.name || 'Anonymous Client';
                           const clientEmail = fb.careerClient?.email || fb.rnClient?.email || '';
                           const clientId = fb.careerClientId || fb.rnClientId || fb.id;
+                          const initial = clientName.charAt(0).toUpperCase() || 'C';
 
                           return (
                             <tr key={fb.id} className="hover:bg-[#FBF8F3]/50 transition-colors">
-                              <td className="px-4 sm:px-6 py-3.5">
-                                <div className="font-bold text-slate-900">{clientName}</div>
-                                {clientEmail && (
-                                  <div className="text-xs text-slate-500">{clientEmail}</div>
-                                )}
-                                <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                                  ID: {clientId.slice(0, 16)}…
+                              {/* Client Avatar + Details */}
+                              <td className="px-5 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white flex items-center justify-center font-extrabold text-xs shadow-xs shrink-0">
+                                    {initial}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="font-extrabold text-slate-900 text-sm truncate max-w-[200px]">{clientName}</div>
+                                    {clientEmail && (
+                                      <a href={`mailto:${clientEmail}`} className="text-xs text-slate-500 hover:text-[#B8935B] truncate block max-w-[200px]">
+                                        {clientEmail}
+                                      </a>
+                                    )}
+                                    <div className="inline-flex items-center gap-1 font-mono text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/80 mt-0.5">
+                                      <span>ID:</span>
+                                      <span className="truncate max-w-[130px]">{clientId}</span>
+                                    </div>
+                                  </div>
                                 </div>
                               </td>
-                              <td className="px-4 py-3.5 whitespace-nowrap text-slate-500">
+
+                              <td className="px-4 py-4 whitespace-nowrap text-slate-500 text-xs">
                                 {fmtDate(fb.createdAt)}
                               </td>
-                              <td className="px-4 py-3.5 font-semibold text-slate-800 whitespace-nowrap">
-                                {fb.serviceType}
+
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-[#B8935B]/10 text-[#7A5B2E] border border-[#B8935B]/25">
+                                  {fb.serviceType}
+                                </span>
                               </td>
-                              <td className="px-4 py-3.5 whitespace-nowrap">
+
+                              <td className="px-4 py-4 whitespace-nowrap">
                                 <NpsBadge score={fb.npsScore} />
                               </td>
-                              <td className="px-4 py-3.5 whitespace-nowrap">
-                                <span className="font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/50">
+
+                              <td className="px-4 py-4 whitespace-nowrap text-center">
+                                <span className="font-extrabold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/70 text-xs shadow-xs inline-block">
                                   ★ {fb.rating}.0
                                 </span>
                               </td>
-                              <td className="px-4 py-3.5 text-center font-semibold text-slate-700">{fb.communication}/5</td>
-                              <td className="px-4 py-3.5 text-center font-semibold text-slate-700">{fb.deliveryQuality}/5</td>
-                              <td className="px-4 py-3.5 text-center font-semibold text-slate-700">{fb.turnaroundTime}/5</td>
-                              <td className="px-4 sm:px-6 py-3.5 max-w-md">
+
+                              <td className="px-3 py-4 text-center">
+                                <span className="inline-block px-2 py-0.5 rounded bg-slate-100/90 text-slate-800 font-mono font-bold text-xs border border-slate-200/60">
+                                  {fb.communication}/5
+                                </span>
+                              </td>
+                              <td className="px-3 py-4 text-center">
+                                <span className="inline-block px-2 py-0.5 rounded bg-slate-100/90 text-slate-800 font-mono font-bold text-xs border border-slate-200/60">
+                                  {fb.deliveryQuality}/5
+                                </span>
+                              </td>
+                              <td className="px-3 py-4 text-center">
+                                <span className="inline-block px-2 py-0.5 rounded bg-slate-100/90 text-slate-800 font-mono font-bold text-xs border border-slate-200/60">
+                                  {fb.turnaroundTime}/5
+                                </span>
+                              </td>
+
+                              {/* Comment Quote Block */}
+                              <td className="px-5 py-4">
                                 {fb.comments ? (
-                                  <div className="text-slate-700 italic bg-slate-50/90 px-3 py-2 rounded-xl border border-slate-200/80 leading-relaxed max-h-32 overflow-y-auto">
+                                  <div className="text-slate-800 italic bg-[#FDFBF7] px-3.5 py-2.5 rounded-xl border border-[#EBE3D5] leading-relaxed max-h-28 overflow-y-auto shadow-xs text-xs">
                                     &ldquo;{fb.comments}&rdquo;
                                   </div>
                                 ) : (
-                                  <span className="text-slate-300 text-xs">—</span>
+                                  <span className="text-slate-300 text-xs italic">— No comment —</span>
                                 )}
                               </td>
                             </tr>

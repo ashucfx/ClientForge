@@ -74,19 +74,19 @@ export default function MergeQueuePage() {
 
   return (
     <AppShell>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
-        <div className="flex items-center justify-between mb-8">
+      <div className="max-w-6xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Duplicate Merge Queue</h1>
-            <p className="text-slate-500 mt-1">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">Duplicate Merge Queue</h1>
+            <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
               {loading ? 'Loading...' : `${reviews.length} pending review${reviews.length !== 1 ? 's' : ''}`}
             </p>
           </div>
           <button
             onClick={fetchQueue}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold shadow-xs hover:bg-slate-50 transition-all self-start sm:self-auto"
           >
-            <IconRefresh size={15} /> Refresh
+            <IconRefresh size={14} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
         </div>
 

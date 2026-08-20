@@ -313,35 +313,35 @@ export default function FlywheelLeadsPage() {
 
   return (
     <AppShell>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 sm:mb-8 gap-4">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-xs" style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}>
                 <IconUser size={20} style={{ color: '#fff' }} />
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">Audience & Leads</h1>
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">Audience &amp; Leads</h1>
             </div>
-            <p className="text-slate-500 mt-1 ml-[52px]">
+            <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:ml-[52px]">
               {pagination.total} contacts · Page {pagination.page} of {pagination.totalPages || 1}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
             {selectedIds.size > 0 && (
-              <button onClick={handleBulkDelete} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-50 text-red-600 font-medium text-sm shadow-sm hover:bg-red-100 transition-colors">
-                <IconX size={15} /> Delete Selected ({selectedIds.size})
+              <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-50 text-red-600 font-bold text-xs shadow-xs hover:bg-red-100 transition-all">
+                <IconX size={14} /> Delete Selected ({selectedIds.size})
               </button>
             )}
-            <button onClick={handleAutoAssign} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 font-medium text-sm shadow-sm hover:bg-indigo-100 transition-colors">
-              <IconRefresh size={15} /> Smart Assign
+            <button onClick={handleAutoAssign} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold text-xs shadow-xs hover:bg-indigo-100 transition-all">
+              <IconRefresh size={14} /> Smart Assign
             </button>
-            <button onClick={() => setIsCreateModalOpen(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-medium text-sm shadow-sm hover:bg-slate-50 transition-colors">
-              <IconPlus size={15} /> Create Lead
+            <button onClick={() => setIsCreateModalOpen(true)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-xs shadow-xs hover:bg-slate-50 transition-all">
+              <IconPlus size={14} /> Create Lead
             </button>
-            <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium text-sm shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5" style={{ background: brand.gradient }}>
-              <IconInbox size={16} /> Import Excel / CSV
+            <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white font-bold text-xs shadow-xs transition-all hover:opacity-95" style={{ background: brand.gradient }}>
+              <IconInbox size={15} /> Import CSV
             </button>
           </div>
         </div>

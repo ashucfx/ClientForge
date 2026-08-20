@@ -42,21 +42,21 @@ export default function FlywheelAnalytics() {
 
   return (
     <AppShell>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 sm:mb-8 gap-4">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-xs" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
                 <IconTrendUp size={20} style={{ color: '#fff' }} />
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">Growth Analytics</h1>
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">Growth Analytics</h1>
             </div>
-            <p className="text-slate-500 mt-1 ml-[52px]">Deep dive into your funnel conversion and campaign performance.</p>
+            <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:ml-[52px]">Deep dive into your funnel conversion and campaign performance.</p>
           </div>
-          <button onClick={fetchAnalytics} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-600 font-medium text-sm shadow-sm hover:bg-slate-50 transition-colors">
-            <IconRefresh size={15} /> Refresh
+          <button onClick={fetchAnalytics} className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-xs shadow-xs hover:bg-slate-50 transition-all self-start sm:self-auto">
+            <IconRefresh size={14} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
         </div>
 

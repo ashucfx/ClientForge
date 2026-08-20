@@ -54,6 +54,8 @@ export default function FlywheelPipeline() {
   const [editStage, setEditStage] = useState('');
   const [editStatus, setEditStatus] = useState('');
 
+  const [mobileStage, setMobileStage] = useState<string>('ALL');
+
   const fetchPipeline = useCallback(async () => {
     try {
       setLoading(true);
@@ -85,60 +87,98 @@ export default function FlywheelPipeline() {
     setEditStatus(contact.leadStatus);
   };
 
-  const handleStageChange = async () => {
+  const handleSaveContact = async () => {
     if (!selectedContact) return;
-    setSaving(true);
     try {
-      await fetch(`/api/admin/flywheel/leads/${selectedContact.id}`, {
+      setSaving(true);
+      const res = await fetch(`/api/admin/flywheel/pipeline/${selectedContact.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lifecycleStage: editStage, leadStatus: editStatus })
+        body: JSON.stringify({
+          lifecycleStage: editStage,
+          leadStatus: editStatus,
+        }),
       });
-      setSelectedContact(null);
-      fetchPipeline();
+
+      if (res.ok) {
+        setSelectedContact(null);
+        fetchPipeline();
+      }
     } catch (e) {
-      console.error(e);
+      console.error('Failed to update contact', e);
     } finally {
       setSaving(false);
     }
   };
 
-  const totalInPipeline = Object.values(stageCounts).reduce((s, n) => s + n, 0);
+  const totalInPipeline = Object.values(stageCounts).reduce((a, b) => a + b, 0);
+
+  const displayedStages = mobileStage === 'ALL' ? STAGES : STAGES.filter(s => s === mobileStage);
 
   return (
     <AppShell>
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
+      <div className="max-w-[1600px] mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 sm:mb-8 gap-4">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)' }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-xs" style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)' }}>
                 <IconTarget size={20} style={{ color: '#fff' }} />
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">Pipeline & CRM</h1>
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">Pipeline &amp; CRM</h1>
             </div>
-            <p className="text-slate-500 mt-1 ml-[52px]">{totalInPipeline} contacts across {Object.keys(stageCounts).filter(k => (stageCounts[k] || 0) > 0).length} stages</p>
+            <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:ml-[52px]">
+              {totalInPipeline} contacts across {Object.keys(stageCounts).filter(k => (stageCounts[k] || 0) > 0).length} stages
+            </p>
           </div>
 
-          <form onSubmit={handleSearch} className="flex items-center gap-3">
-            <div className="relative">
+          <form onSubmit={handleSearch} className="flex items-center gap-2 w-full md:w-auto">
+            <div className="relative flex-1 md:w-64">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><IconSearch size={15} /></span>
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search contacts..."
-                className="pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm w-64 focus:ring-2 focus:border-transparent outline-none"
-                style={{ '--tw-ring-color': brand.primaryColor } as any}
+                className="pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm w-full focus:ring-2 focus:border-transparent outline-none shadow-xs"
               />
             </div>
-            <button type="submit" className="px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-600 font-medium text-sm shadow-sm hover:bg-slate-50 transition-colors">
-              <IconFilter size={15} />
+            <button type="submit" className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-xs shadow-xs hover:bg-slate-50 transition-all">
+              <IconFilter size={14} />
             </button>
-            <button type="button" onClick={fetchPipeline} className="px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-600 font-medium text-sm shadow-sm hover:bg-slate-50 transition-colors">
-              <IconRefresh size={15} />
+            <button type="button" onClick={fetchPipeline} className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-xs shadow-xs hover:bg-slate-50 transition-all">
+              <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
             </button>
           </form>
+        </div>
+
+        {/* Mobile Stage Selector Tabs (< md screens) */}
+        <div className="flex md:hidden gap-1.5 overflow-x-auto pb-2 mb-4">
+          <button
+            onClick={() => setMobileStage('ALL')}
+            className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+              mobileStage === 'ALL' ? 'bg-slate-900 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200'
+            }`}
+          >
+            All Stages ({totalInPipeline})
+          </button>
+          {STAGES.map(s => {
+            const meta = STAGE_META[s];
+            const cnt = stageCounts[s] || 0;
+            return (
+              <button
+                key={s}
+                onClick={() => setMobileStage(s)}
+                className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                  mobileStage === s ? 'text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200'
+                }`}
+                style={mobileStage === s ? { background: meta.color } : {}}
+              >
+                <span>{meta.label}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${mobileStage === s ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'}`}>{cnt}</span>
+              </button>
+            );
+          })}
         </div>
 
         {loading ? (
@@ -148,7 +188,7 @@ export default function FlywheelPipeline() {
         ) : (
           /* Pipeline Board */
           <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2" style={{ minHeight: '65vh' }}>
-            {STAGES.map(stage => {
+            {displayedStages.map(stage => {
               const meta = STAGE_META[stage];
               const contacts = pipeline[stage] || [];
               return (
