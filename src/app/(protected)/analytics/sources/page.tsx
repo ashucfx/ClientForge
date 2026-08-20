@@ -180,13 +180,11 @@ export default function AnalyticsSourcesPage() {
               <span>/</span>
               <span className="text-slate-600">Audit &amp; Telemetry</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
-              <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#1C1812] to-[#B8935B] text-white flex items-center justify-center text-lg shadow-sm shadow-[#B8935B]/20">
-                🔍
-              </span>
-              Analytics Data Sources
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2.5">
+              <span>🔍</span>
+              <span>Analytics Data Sources</span>
             </h1>
-            <p className="text-sm text-slate-500 mt-1 max-w-2xl">
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl">
               100% transparent audit trail of every invoice, foreign exchange conversion, and client feedback response that powers your dashboard.
             </p>
           </div>
@@ -198,7 +196,7 @@ export default function AnalyticsSourcesPage() {
             </div>
             <button
               onClick={() => { setLoading(true); fetch('/api/admin/analytics/sources').then(r => r.json()).then(d => { setData(d); setLoading(false); }); }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs active:scale-95"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold transition-colors shadow-xs active:scale-95"
             >
               <span>↻</span> Refresh
             </button>
@@ -224,12 +222,12 @@ export default function AnalyticsSourcesPage() {
               <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#2D2418] text-white p-5 sm:p-6 shadow-md border border-[#B8935B]/30 flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#D4AF7A]">All-Time Revenue</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[#B8935B]/30 text-[#F5E6CC] border border-[#B8935B]/40">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#B8935B]/30 text-[#F5E6CC] border border-[#B8935B]/40">
                     NET INR
                   </span>
                 </div>
                 <div>
-                  <div className="text-2xl sm:text-3xl lg:text-3xl xl:text-4xl font-extrabold tracking-tight text-white mb-1">
+                  <div className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-1">
                     {fmtInr(data.summary.grandTotal)}
                   </div>
                   <div className="text-xs text-slate-300 flex items-center gap-1.5 flex-wrap">

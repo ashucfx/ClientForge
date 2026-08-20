@@ -1,7 +1,7 @@
 'use client';
 // src/app/(protected)/settings/page.tsx
 // Admin System Settings — visible to SUPER_ADMIN only
-// Controls things like Premium Plus package toggle and pricing.
+// Controls client-selective package upgrade offers and custom pricing overrides.
 
 import { useState, useEffect, useCallback } from 'react';
 import AppShell from '@/components/AppShell';
@@ -13,34 +13,34 @@ export default function SettingsPage() {
   if (!isSuperAdmin) {
     return (
       <AppShell>
-        <main className="page-body">
-          <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--muted)' }}>
-            <div style={{ fontSize: 40, marginBottom: 16 }}>🔒</div>
-            <h2 style={{ margin: 0, color: 'var(--text)', fontSize: 18 }}>Access Restricted</h2>
-            <p style={{ marginTop: 8, fontSize: 14 }}>System settings are only accessible to Super Admins.</p>
-          </div>
-        </main>
+        <div className="w-full max-w-4xl mx-auto px-4 py-24 text-center">
+          <div className="text-4xl mb-4">🔒</div>
+          <h2 className="text-lg font-bold text-slate-900">Access Restricted</h2>
+          <p className="text-sm text-slate-500 mt-1">System settings are only accessible to Super Admins.</p>
+        </div>
       </AppShell>
     );
   }
 
   return (
     <AppShell>
-      <main className="page-body">
+      <div className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 pb-16">
         {/* Header */}
-        <div style={{ marginBottom: 28 }}>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.5px' }}>
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span>Configuration Hub</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
             System Settings
           </h1>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--muted)' }}>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Configure client-selective package upgrade offers and custom pricing overrides.
           </p>
         </div>
 
-        <div style={{ maxWidth: 840, display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <SelectiveClientPricingSection />
-        </div>
-      </main>
+        <SelectiveClientPricingSection />
+      </div>
     </AppShell>
   );
 }
@@ -179,56 +179,49 @@ function SelectiveClientPricingSection() {
   };
 
   return (
-    <div className="card" style={{ overflow: 'hidden', marginTop: 24 }}>
-      <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#dbeafe', borderRadius: 10, fontSize: 16 }}>🎯</span>
-          <div>
-            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Selective Client Upgrade Offers & Pricing</h2>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>Only clients listed below will see a selective upgrade offer on their dashboard.</div>
-          </div>
-        </div>
-        <div style={{ fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 20, background: 'var(--brand-light)', color: 'var(--brand)' }}>
-          {activeClients.length} Active VIP Offers
-        </div>
-      </div>
-
-      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
-
-        {/* Client Search & Editor */}
-        <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 12, padding: 18 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>➕ Assign Upgrade Offer to Client</span>
-          </div>
-
-          {!selectedClient ? (
+    <div className="space-y-6">
+      {/* ── Assign Offer Card ── */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2.5">
+            <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-sm font-bold">🎯</span>
             <div>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted)', marginBottom: 6 }}>
+              <h2 className="text-sm font-bold text-slate-900">Selective Client Upgrade Offers &amp; Pricing</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Only clients assigned below will receive custom upgrade prompts.</p>
+            </div>
+          </div>
+          <div className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#B8935B]/10 text-[#B8935B] border border-[#B8935B]/20">
+            {activeClients.length} Active VIP Offers
+          </div>
+        </div>
+
+        <div className="p-4 sm:p-6 space-y-5">
+          {!selectedClient ? (
+            <div className="max-w-xl">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                 Search Client by Name or Email
               </label>
-              <div style={{ position: 'relative' }}>
+              <div className="relative">
                 <input
-                  className="input"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
                   type="text"
                   value={query}
                   onChange={e => { setQuery(e.target.value); searchClients(e.target.value); }}
                   placeholder="Type client name or email (e.g. Rahul Verma)…"
                 />
                 {searching && (
-                  <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', animation: 'spin .9s linear infinite', fontSize: 14 }}>⟳</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs animate-spin">⟳</span>
                 )}
                 {results.length > 0 && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: '#fff', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 12px 36px rgba(0,0,0,0.14)', marginTop: 4, overflow: 'hidden' }}>
+                  <div className="absolute top-full left-0 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-xl mt-1 overflow-hidden max-h-60 overflow-y-auto">
                     {results.map((c, idx) => (
                       <div
                         key={c.id}
                         onClick={() => selectClient(c)}
-                        style={{ padding: '12px 16px', cursor: 'pointer', borderBottom: idx < results.length - 1 ? '1px solid var(--border)' : 'none' }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--brand-light)'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = '#fff'; }}
+                        className={`p-3 cursor-pointer hover:bg-slate-50 transition-colors ${idx < results.length - 1 ? 'border-b border-slate-100' : ''}`}
                       >
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{c.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>{c.email}</div>
+                        <div className="text-sm font-semibold text-slate-900">{c.name}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">{c.email}</div>
                       </div>
                     ))}
                   </div>
@@ -236,68 +229,60 @@ function SelectiveClientPricingSection() {
               </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface-2)', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--border)' }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{selectedClient.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>{selectedClient.email}</div>
+            <div className="space-y-4 max-w-xl">
+              <div className="flex items-center justify-between bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-slate-900 truncate">{selectedClient.name}</div>
+                  <div className="text-xs text-slate-500 truncate">{selectedClient.email}</div>
                 </div>
                 <button
                   type="button"
-                  className="btn btn-ghost"
                   onClick={() => setSelectedClient(null)}
-                  style={{ fontSize: 12, padding: '4px 10px' }}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors shrink-0 ml-3"
                 >
-                  ✕ Change Client
+                  ✕ Change
                 </button>
               </div>
 
               {loadingPrices ? (
-                <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading client settings…</div>
+                <div className="text-xs text-slate-400 py-2">Loading client settings…</div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div className="space-y-3">
                   <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted)', marginBottom: 6 }}>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                       Custom Upgrade Price
                     </label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
-                        <span style={{ position: 'absolute', left: 12, fontSize: 15, fontWeight: 800, color: 'var(--muted)' }}>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
                           {baseCurrency === 'INR' ? '₹' : '$'}
                         </span>
                         <input
-                          className="input"
+                          className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
                           type="number"
                           placeholder="e.g. 59"
                           value={basePrice}
                           onChange={e => setBasePrice(e.target.value)}
-                          style={{ paddingLeft: 30, width: '100%' }}
                         />
                       </div>
                       <select
-                        className="input"
+                        className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B8935B] shrink-0"
                         value={baseCurrency}
                         onChange={e => setBaseCurrency(e.target.value as 'INR' | 'USD')}
-                        style={{ width: 100, flexShrink: 0 }}
                       >
                         <option value="USD">USD</option>
                         <option value="INR">INR</option>
                       </select>
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
-                      The system will automatically calculate the equivalent {baseCurrency === 'USD' ? 'INR' : 'USD'} price using live exchange rates.
-                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      System automatically synchronizes equivalent currency price in real-time.
+                    </p>
                   </div>
                 </div>
               )}
 
               {statusMsg && (
-                <div style={{
-                  padding: '10px 14px', borderRadius: 10, fontSize: 12, fontWeight: 600,
-                  background: statusMsg.isError ? '#fef2f2' : '#f0fdf4',
-                  color: statusMsg.isError ? '#b91c1c' : '#15803d',
-                  border: `1px solid ${statusMsg.isError ? '#fca5a5' : '#bbf7d0'}`,
-                }}>
+                <div className={`p-3 rounded-xl text-xs font-semibold border ${statusMsg.isError ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
                   {statusMsg.msg}
                 </div>
               )}
@@ -306,79 +291,127 @@ function SelectiveClientPricingSection() {
                 type="button"
                 onClick={saveOverride}
                 disabled={savingPrice || loadingPrices}
-                className="btn btn-primary"
-                style={{ alignSelf: 'flex-start', padding: '8px 18px', fontSize: 13 }}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-[#B8935B] hover:bg-[#9A7540] text-white text-xs sm:text-sm font-semibold transition-colors shadow-sm disabled:opacity-50"
               >
                 {savingPrice ? 'Saving…' : 'Save & Enable Offer for Client'}
               </button>
             </div>
           )}
         </div>
+      </div>
 
-        {/* Active Selective Clients List / Table */}
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span>Active Client Selective Upgrade List</span>
-            <button
-              type="button"
-              onClick={fetchActiveClients}
-              className="btn btn-ghost"
-              style={{ fontSize: 11, padding: '2px 8px' }}
-            >
-              ⟳ Refresh List
-            </button>
+      {/* ── Active VIP Offers List ── */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between flex-wrap gap-2">
+          <h2 className="text-sm font-bold text-slate-900">Active Client Selective Upgrade List</h2>
+          <button
+            type="button"
+            onClick={fetchActiveClients}
+            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+          >
+            ⟳ Refresh
+          </button>
+        </div>
+
+        {loadingActiveClients ? (
+          <div className="p-12 text-center text-slate-400 text-sm">Loading selective clients…</div>
+        ) : activeClients.length === 0 ? (
+          <div className="p-8 sm:p-12 text-center text-slate-400 text-sm">
+            No selective upgrade offers configured yet. Use the search box above to assign upgrade pricing to specific clients.
           </div>
+        ) : (
+          <>
+            {/* Mobile Cards (< md screens) */}
+            <div className="block md:hidden divide-y divide-slate-100">
+              {activeClients.map(item => (
+                <div key={item.clientId} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-900 truncate">{item.clientName}</div>
+                      <div className="text-xs text-slate-500 truncate">{item.clientEmail}</div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                      ✓ Active
+                    </span>
+                  </div>
 
-          {loadingActiveClients ? (
-            <div style={{ padding: 24, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Loading selective clients…</div>
-          ) : activeClients.length === 0 ? (
-            <div style={{ padding: 32, textAlign: 'center', background: 'var(--surface-2)', border: '1px border var(--border)', borderRadius: 12, color: 'var(--muted)', fontSize: 13 }}>
-              No selective upgrade offers configured yet. Use the search box above to assign upgrade pricing to specific clients.
+                  <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                      <div className="text-slate-400 text-[10px] font-semibold uppercase">INR Price</div>
+                      <div className="font-semibold text-slate-800 mt-0.5">
+                        {item.priceInr > 0 ? `₹${item.priceInr.toLocaleString('en-IN')}` : 'Global Default'}
+                      </div>
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                      <div className="text-slate-400 text-[10px] font-semibold uppercase">USD Price</div>
+                      <div className="font-semibold text-slate-800 mt-0.5">
+                        {item.priceUsd > 0 ? `$${item.priceUsd}` : 'Global Default'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => selectClient({ id: item.clientId, name: item.clientName, email: item.clientEmail, sourceType: 'career_client' })}
+                      className="flex-1 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors text-center"
+                    >
+                      ✏ Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteOverride(item.clientId, item.clientName)}
+                      className="flex-1 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold transition-colors border border-rose-200 text-center"
+                    >
+                      🗑 Revoke
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ) : (
-            <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 12 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
+
+            {/* Desktop Table (>= md screens) */}
+            <div className="hidden md:block overflow-x-auto w-full">
+              <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead>
-                  <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted)' }}>
-                    <th style={{ padding: '12px 16px' }}>Client</th>
-                    <th style={{ padding: '12px 16px' }}>Selective Price (INR)</th>
-                    <th style={{ padding: '12px 16px' }}>Selective Price (USD)</th>
-                    <th style={{ padding: '12px 16px' }}>Status</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <th className="px-5 py-3">Client</th>
+                    <th className="px-4 py-3">Selective Price (INR)</th>
+                    <th className="px-4 py-3">Selective Price (USD)</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-5 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {activeClients.map((item, idx) => (
-                    <tr key={item.clientId} style={{ borderBottom: idx < activeClients.length - 1 ? '1px solid var(--border)' : 'none', background: '#fff' }}>
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text)' }}>{item.clientName}</div>
-                        <div style={{ fontSize: 11, color: 'var(--muted)' }}>{item.clientEmail}</div>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {activeClients.map(item => (
+                    <tr key={item.clientId} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <div className="font-semibold text-slate-900">{item.clientName}</div>
+                        <div className="text-xs text-slate-500">{item.clientEmail}</div>
                       </td>
-                      <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text)' }}>
-                        {item.priceInr > 0 ? `₹${item.priceInr.toLocaleString('en-IN')}` : <span style={{ color: 'var(--muted)' }}>Global Default</span>}
+                      <td className="px-4 py-3.5 font-semibold text-slate-800">
+                        {item.priceInr > 0 ? `₹${item.priceInr.toLocaleString('en-IN')}` : <span className="text-slate-400 font-normal">Global Default</span>}
                       </td>
-                      <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text)' }}>
-                        {item.priceUsd > 0 ? `$${item.priceUsd}` : <span style={{ color: 'var(--muted)' }}>Global Default</span>}
+                      <td className="px-4 py-3.5 font-semibold text-slate-800">
+                        {item.priceUsd > 0 ? `$${item.priceUsd}` : <span className="text-slate-400 font-normal">Global Default</span>}
                       </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' }}>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           ✓ ENABLED
                         </span>
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                      <td className="px-5 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
                           <button
                             type="button"
-                            className="btn btn-ghost"
-                            style={{ fontSize: 11, padding: '4px 8px' }}
+                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors"
                             onClick={() => selectClient({ id: item.clientId, name: item.clientName, email: item.clientEmail, sourceType: 'career_client' })}
                           >
                             ✏ Edit
                           </button>
                           <button
                             type="button"
-                            className="btn btn-ghost"
-                            style={{ fontSize: 11, padding: '4px 8px', color: '#b91c1c' }}
+                            className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium transition-colors border border-rose-200"
                             onClick={() => deleteOverride(item.clientId, item.clientName)}
                           >
                             🗑 Revoke
@@ -390,9 +423,8 @@ function SelectiveClientPricingSection() {
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
-
+          </>
+        )}
       </div>
     </div>
   );
