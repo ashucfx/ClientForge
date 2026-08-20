@@ -9,6 +9,11 @@ import type { InvoiceData, InvoiceStatus } from '@/types';
 import { CLIENT_TYPE_LABELS, formatCurrency, BASE_PRICING, REVISION_FEE, round2 } from '@/lib/pricing';
 import { Logo } from '@/components/Logo';
 import AppShell from '@/components/AppShell';
+import {
+  IconUser, IconMail, IconPhone, IconPin, IconBriefcase,
+  IconCreditCard, IconCheck, IconEdit, IconRefresh, IconTrash,
+  IconDocument, IconSend, IconChevronRight
+} from '@/components/Icons';
 
 // ─── Toast ────────────────────────────────────
 type Toast = { id: number; msg: string; type: 'success' | 'error' };
@@ -497,24 +502,26 @@ export default function InvoiceDetailPage() {
           <div className="hidden sm:flex items-center gap-2 flex-wrap">
             {canEdit && (
               <button
-                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95"
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-2 active:scale-95"
                 onClick={() => setShowEditPricing(true)}
               >
-                <span>✏️</span> Edit Pricing
+                <IconEdit size={14} className="text-[#B8935B]" />
+                <span>Edit Pricing</span>
               </button>
             )}
             <button
-              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95"
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-2 active:scale-95"
               onClick={() => setShowRevision(true)}
             >
-              <span>🔄</span> Revision
+              <IconRefresh size={14} className="text-[#B8935B]" />
+              <span>Revision</span>
             </button>
             <button
-              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-2 active:scale-95 disabled:opacity-50"
               onClick={handleResend}
               disabled={resending}
             >
-              <span>{resending ? '⏳' : '📧'}</span>
+              <IconMail size={14} className="text-[#B8935B]" />
               <span>{resending ? 'Sending…' : 'Resend Email'}</span>
             </button>
 
@@ -527,9 +534,9 @@ export default function InvoiceDetailPage() {
                     href={payUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white text-xs font-bold transition-all shadow-sm shadow-[#B8935B]/20 flex items-center gap-1.5 active:scale-95 hover:opacity-95"
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white text-xs font-bold transition-all shadow-sm shadow-[#B8935B]/20 flex items-center gap-2 active:scale-95 hover:opacity-95"
                   >
-                    <span>💳</span>
+                    <IconCreditCard size={14} className="text-[#D4AF7A]" />
                     <span>{isPayPal ? 'PayPal Link ↗' : 'Payment Link ↗'}</span>
                   </a>
                 ) : null;
@@ -538,31 +545,32 @@ export default function InvoiceDetailPage() {
 
             {invoice.status !== 'PAID' && (
               <button
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2 active:scale-95 disabled:opacity-50"
                 onClick={handleMarkPaid}
                 disabled={markingPaid}
               >
-                <span>✓</span>
+                <IconCheck size={14} className="text-white" />
                 <span>{markingPaid ? 'Updating…' : 'Mark as Paid'}</span>
               </button>
             )}
 
             {invoice.razorpayLinkId && invoice.status !== 'PAID' && (
               <button
-                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-2 active:scale-95 disabled:opacity-50"
                 onClick={handleSyncRazorpay}
                 disabled={syncing}
               >
-                <span>↻</span>
+                <IconRefresh size={14} className="text-[#B8935B]" />
                 <span>{syncing ? 'Syncing…' : 'Sync Gateway'}</span>
               </button>
             )}
 
             <button
-              className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-95"
+              className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition-all shadow-xs flex items-center gap-2 active:scale-95"
               onClick={() => setShowDelete(true)}
             >
-              <span>🗑️</span> Delete
+              <IconTrash size={14} className="text-rose-600" />
+              <span>Delete</span>
             </button>
           </div>
         </div>
@@ -581,7 +589,7 @@ export default function InvoiceDetailPage() {
                   rel="noopener noreferrer"
                   className="w-full py-3 rounded-xl bg-gradient-to-r from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white text-sm font-bold shadow-md shadow-[#B8935B]/20 flex items-center justify-center gap-2 active:scale-98 text-center"
                 >
-                  <span>💳</span>
+                  <IconCreditCard size={16} className="text-[#D4AF7A]" />
                   <span>Open {isPayPal ? 'PayPal' : 'Razorpay'} Payment Portal ↗</span>
                 </a>
               ) : null;
@@ -594,7 +602,7 @@ export default function InvoiceDetailPage() {
               onClick={handleMarkPaid}
               disabled={markingPaid}
             >
-              <span>✓</span>
+              <IconCheck size={15} className="text-white" />
               <span>{markingPaid ? 'Updating Status…' : 'Mark as Paid'}</span>
             </button>
           )}
@@ -603,39 +611,44 @@ export default function InvoiceDetailPage() {
           <div className="grid grid-cols-3 gap-1.5 pt-1">
             {canEdit && (
               <button
-                className="py-2 px-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold text-center truncate flex items-center justify-center gap-1"
+                className="py-2 px-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold text-center truncate flex items-center justify-center gap-1.5"
                 onClick={() => setShowEditPricing(true)}
               >
-                <span>✏️</span> Edit
+                <IconEdit size={13} className="text-[#B8935B]" />
+                <span>Edit</span>
               </button>
             )}
             <button
-              className="py-2 px-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold text-center truncate flex items-center justify-center gap-1"
+              className="py-2 px-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold text-center truncate flex items-center justify-center gap-1.5"
               onClick={() => setShowRevision(true)}
             >
-              <span>🔄</span> Revision
+              <IconRefresh size={13} className="text-[#B8935B]" />
+              <span>Revision</span>
             </button>
             <button
-              className="py-2 px-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold text-center truncate flex items-center justify-center gap-1 disabled:opacity-50"
+              className="py-2 px-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold text-center truncate flex items-center justify-center gap-1.5 disabled:opacity-50"
               onClick={handleResend}
               disabled={resending}
             >
-              <span>📧</span> Resend
+              <IconMail size={13} className="text-[#B8935B]" />
+              <span>Resend</span>
             </button>
             {invoice.razorpayLinkId && invoice.status !== 'PAID' && (
               <button
-                className="py-2 px-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold text-center truncate flex items-center justify-center gap-1 disabled:opacity-50"
+                className="py-2 px-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold text-center truncate flex items-center justify-center gap-1.5 disabled:opacity-50"
                 onClick={handleSyncRazorpay}
                 disabled={syncing}
               >
-                <span>↻</span> Sync
+                <IconRefresh size={13} className="text-[#B8935B]" />
+                <span>Sync</span>
               </button>
             )}
             <button
-              className="py-2 px-1 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[11px] font-bold text-center truncate flex items-center justify-center gap-1"
+              className="py-2 px-1 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[11px] font-bold text-center truncate flex items-center justify-center gap-1.5"
               onClick={() => setShowDelete(true)}
             >
-              <span>🗑️</span> Delete
+              <IconTrash size={13} className="text-rose-600" />
+              <span>Delete</span>
             </button>
           </div>
         </div>
@@ -699,7 +712,10 @@ export default function InvoiceDetailPage() {
                   {/* Bill To */}
                   <div className="bg-white/95 p-4 sm:p-5 rounded-2xl border border-[#E8DDD0] shadow-2xs space-y-3">
                     <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#7A5B2E] flex items-center gap-1.5">
-                      <span>👤</span> Billed To Client
+                      <span className="w-4 h-4 text-[#B8935B] flex items-center justify-center">
+                        <IconUser size={15} />
+                      </span>
+                      <span>Billed To Client</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0A0B0D] to-[#B8935B] text-white flex items-center justify-center font-extrabold text-sm shrink-0 shadow-xs">
@@ -715,37 +731,46 @@ export default function InvoiceDetailPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] shrink-0">✉</span>
+                    <div className="space-y-2 pt-2.5 border-t border-slate-100 text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-6 h-6 rounded-lg bg-[#B8935B]/10 text-[#7A5B2E] flex items-center justify-center shrink-0">
+                          <IconMail size={13} />
+                        </span>
                         <a href={`mailto:${invoice.clientEmail}`} className="text-slate-800 font-semibold hover:text-[#B8935B] underline truncate">
                           {invoice.clientEmail}
                         </a>
                       </div>
                       {invoice.clientPhone && (
-                        <div className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] shrink-0">📞</span>
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-6 h-6 rounded-lg bg-[#B8935B]/10 text-[#7A5B2E] flex items-center justify-center shrink-0">
+                            <IconPhone size={13} />
+                          </span>
                           <a href={`tel:${invoice.clientPhone}`} className="text-slate-800 font-semibold hover:text-[#B8935B]">
                             {invoice.clientPhone}
                           </a>
                         </div>
                       )}
                       {invoice.country && (
-                        <div className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] shrink-0">📍</span>
-                          <span className="text-slate-600 font-medium">{invoice.country}</span>
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-6 h-6 rounded-lg bg-[#B8935B]/10 text-[#7A5B2E] flex items-center justify-center shrink-0">
+                            <IconPin size={13} />
+                          </span>
+                          <span className="text-slate-700 font-semibold">{invoice.country}</span>
                         </div>
                       )}
                     </div>
                   </div>
 
                   {/* Package & Pricing Strategy */}
-                  <div className="bg-white/80 p-4 rounded-xl border border-[#E8DDD0]/80">
-                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#7A5B2E] mb-1.5 flex items-center gap-1.5">
-                      <span>💼</span> Scope &amp; Deliverables
+                  <div className="bg-white/95 p-4 sm:p-5 rounded-2xl border border-[#E8DDD0] shadow-2xs space-y-3">
+                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#7A5B2E] flex items-center gap-1.5">
+                      <span className="w-4 h-4 text-[#B8935B] flex items-center justify-center">
+                        <IconBriefcase size={15} />
+                      </span>
+                      <span>Scope &amp; Deliverables</span>
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#B8935B]/15 text-[#7A5B2E] border border-[#B8935B]/30">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-[#B8935B]/15 text-[#7A5B2E] border border-[#B8935B]/30">
                         {CLIENT_TYPE_LABELS[invoice.clientType]}
                       </span>
                       {invoice.customPricing && (
@@ -964,10 +989,12 @@ export default function InvoiceDetailPage() {
 
               {invoice.status === 'PAID' && (
                 <div className="p-4 sm:p-7 bg-emerald-50 border-t border-emerald-200 text-center space-y-1">
-                  <div className="text-2xl">✅</div>
+                  <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-1 shadow-xs">
+                    <IconCheck size={20} />
+                  </div>
                   <div className="font-extrabold text-emerald-900 text-base">Payment Settled &amp; Verified</div>
                   {invoice.paidAt && (
-                    <div className="text-xs text-emerald-700">
+                    <div className="text-xs text-emerald-700 font-medium">
                       Paid on {format(new Date(invoice.paidAt), 'dd MMM yyyy, h:mm a')}
                     </div>
                   )}
@@ -1000,7 +1027,7 @@ export default function InvoiceDetailPage() {
               <div className="p-3.5 sm:p-6 bg-[#0A0B0D] text-white flex flex-col sm:flex-row items-center justify-between gap-2">
                 <Logo variant="horizontal" size={26} dark />
                 <div className="font-mono text-xs text-slate-400">
-                  Doc ID: {invoice.invoiceNumber}
+                  Invoice ID: {invoice.invoiceNumber}
                 </div>
               </div>
 
