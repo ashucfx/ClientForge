@@ -114,49 +114,44 @@ export default function CareerClientsPage() {
   return (
     <AppShell>
       <main className="page-body">
-        <div className="w-full max-w-7xl 2xl:max-w-[1680px] mx-auto space-y-6 pb-12">
-          {/* ── Page Header ── */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-1">
+        <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5 pb-12">
+          {/* Header */}
+          <div className="flex items-start sm:items-center justify-between gap-3 mb-5">
             <div>
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span>Catalyst Suite</span>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Career Branding Clients</h1>
-              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{total} active &amp; completed client profiles</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Career Branding Clients</h1>
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{total} clients total</p>
             </div>
             <button
               onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center justify-center gap-1.5 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-[#B8935B]/15 hover:opacity-95 active:scale-95 transition-all self-start sm:self-auto"
+              className="flex-shrink-0 px-4 py-2 bg-[#B8935B] text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-[#9A7540] transition-colors shadow-sm"
             >
-              <span>+</span>
-              <span>Add Client</span>
+              + Add Client
             </button>
           </div>
 
-          {/* ── Filters ── */}
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4">
             <input
               type="text"
               placeholder="Search name or email…"
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
-              className="w-full sm:w-72 px-3.5 py-2.5 text-xs sm:text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#B8935B] shadow-xs"
+              className="w-full sm:w-64 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
             />
             <div className="flex gap-2">
               <select
                 value={filterLifecycle}
                 onChange={e => { setFilterLifecycle(e.target.value); setPage(1); }}
-                className="flex-1 sm:flex-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 outline-none focus:border-[#B8935B] shadow-xs"
+                className="flex-1 sm:flex-none px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-[#B8935B]"
               >
-                <option value="ALL">All Lifecycles</option>
+                <option value="ALL">All</option>
                 <option value="ACTIVE">Active</option>
                 <option value="ARCHIVED">Archived</option>
               </select>
               <select
                 value={filterStatus}
                 onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
-                className="flex-1 sm:flex-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 outline-none focus:border-[#B8935B] shadow-xs"
+                className="flex-1 sm:flex-none px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-[#B8935B]"
               >
                 <option value="">All Statuses</option>
                 {Object.entries(STATUS_LABELS).map(([key, label]) => (
@@ -167,121 +162,102 @@ export default function CareerClientsPage() {
           </div>
 
           {/* ── Mobile card list (< md) ─────────────────────────────────── */}
-          <div className="md:hidden space-y-3.5 my-3">
+          <div className="md:hidden space-y-2.5">
             {loading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 animate-pulse space-y-3">
-                  <div className="h-4 bg-slate-100 rounded w-2/3" />
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="bg-white border border-slate-200 rounded-xl p-4 animate-pulse">
+                  <div className="h-4 bg-slate-100 rounded w-2/3 mb-2" />
                   <div className="h-3 bg-slate-100 rounded w-1/2" />
                 </div>
               ))
             ) : clients.length === 0 ? (
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-12 text-center text-slate-400 text-sm">
+              <div className="bg-white border border-slate-200 rounded-xl py-12 text-center text-slate-400 text-sm">
                 No clients found
               </div>
-            ) : clients.map(c => {
-              const initial = c.name.charAt(0).toUpperCase() || 'C';
-              return (
-                <Link key={c.id} href={`/career/${c.id}`} className="block bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[#B8935B]/40 hover:shadow-md transition-all active:scale-[0.99] space-y-3.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0A0B0D] to-[#B8935B] text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-xs">
-                        {initial}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-extrabold text-slate-900 text-sm truncate">{c.name}</span>
-                          {c.ConversationReadState && c.ConversationReadState.unreadByAdmin > 0 && (
-                            <span className="flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse">
-                              {c.ConversationReadState.unreadByAdmin}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-slate-400 truncate">{c.email}</div>
-                      </div>
+            ) : clients.map(c => (
+              <Link key={c.id} href={`/career/${c.id}`} className="block bg-white border border-slate-200 rounded-xl p-4 hover:border-[#E8DDD0] hover:bg-[#FBF8F3]/30 transition-colors active:bg-[#FBF8F3]">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold text-slate-900 text-sm">{c.name}</span>
+                      {c.ConversationReadState && c.ConversationReadState.unreadByAdmin > 0 && (
+                        <span className="flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse">
+                          {c.ConversationReadState.unreadByAdmin}
+                        </span>
+                      )}
                     </div>
-                    <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold ${STATUS_COLORS[c.status]}`}>
-                      {STATUS_LABELS[c.status]}
-                    </span>
+                    <div className="text-xs text-slate-400 mt-0.5 truncate">{c.email}</div>
                   </div>
-                  <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-100 flex-wrap text-xs">
-                    <span className="text-slate-600 font-medium truncate max-w-[65%]">{clientServiceLabel(c)}</span>
-                    <SlaChip c={c} />
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    Enrolled: {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </div>
-                </Link>
-              );
-            })}
+                  <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLORS[c.status]}`}>
+                    {STATUS_LABELS[c.status]}
+                  </span>
+                </div>
+                <div className="mt-2.5 flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-xs text-slate-500 truncate max-w-[60%]">{clientServiceLabel(c)}</span>
+                  <SlaChip c={c} />
+                </div>
+                <div className="mt-1.5 text-[11px] text-slate-400">
+                  {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </div>
+              </Link>
+            ))}
           </div>
 
           {/* ── Desktop table (≥ md) ────────────────────────────────────── */}
-          <div className="hidden md:block bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-xs my-4">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[900px]">
-                <thead className="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <tr>
-                    <th className="text-left px-6 py-4">Client</th>
-                    <th className="text-left px-4 py-4">Status</th>
-                    <th className="text-left px-4 py-4">Services</th>
-                    <th className="text-left px-4 py-4">SLA Status</th>
-                    <th className="text-left px-4 py-4">Joined</th>
-                    <th className="text-right px-6 py-4">Action</th>
+          <div className="hidden md:block bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  {['Client', 'Status', 'Services', 'SLA Status', 'Joined', ''].map(h => (
+                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr><td colSpan={6} className="text-center py-12 text-slate-400">Loading…</td></tr>
+                ) : clients.length === 0 ? (
+                  <tr><td colSpan={6} className="text-center py-12 text-slate-400">No clients found</td></tr>
+                ) : clients.map(c => (
+                  <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col">
+                        <Link href={`/career/${c.id}`} className="font-semibold text-slate-900 hover:text-[#B8935B] transition-colors flex items-center gap-2">
+                          {c.name}
+                          {c.ConversationReadState && c.ConversationReadState.unreadByAdmin > 0 && (
+                            <span className="flex items-center justify-center w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full animate-pulse shadow-sm shadow-red-500/50">
+                              {c.ConversationReadState.unreadByAdmin}
+                            </span>
+                          )}
+                        </Link>
+                        <span className="text-sm text-slate-500">{c.email}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[c.status]}`}>
+                        {STATUS_LABELS[c.status]}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      <span className="text-sm text-slate-900 line-clamp-2" title={clientServiceLabel(c)}>
+                        {clientServiceLabel(c)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3"><SlaChip c={c} /></td>
+                    <td className="px-4 py-3 text-slate-500 text-xs">
+                      {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link href={`/career/${c.id}`} className="px-3 py-1 text-xs font-semibold text-[#B8935B] border border-[#E8DDD0] rounded-lg hover:bg-[#FBF8F3] transition-colors">
+                        Manage →
+                      </Link>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {loading ? (
-                    <tr><td colSpan={6} className="text-center py-16 text-slate-400">Loading clients…</td></tr>
-                  ) : clients.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center py-16 text-slate-400">No clients found</td></tr>
-                  ) : clients.map(c => {
-                    const initial = c.name.charAt(0).toUpperCase() || 'C';
-                    return (
-                      <tr key={c.id} className="hover:bg-[#FBF8F3]/50 transition-colors">
-                        <td className="px-6 py-4.5">
-                          <div className="flex items-center gap-3.5">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0A0B0D] to-[#B8935B] text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-xs">
-                              {initial}
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                              <Link href={`/career/${c.id}`} className="font-bold text-slate-900 hover:text-[#B8935B] transition-colors flex items-center gap-2">
-                                <span className="truncate">{c.name}</span>
-                                {c.ConversationReadState && c.ConversationReadState.unreadByAdmin > 0 && (
-                                  <span className="flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse">
-                                    {c.ConversationReadState.unreadByAdmin}
-                                  </span>
-                                )}
-                              </Link>
-                              <span className="text-xs text-slate-400 truncate">{c.email}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4.5 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-extrabold ${STATUS_COLORS[c.status]}`}>
-                            {STATUS_LABELS[c.status]}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4.5 text-slate-700 font-medium max-w-[280px]">
-                          <span className="line-clamp-2" title={clientServiceLabel(c)}>
-                            {clientServiceLabel(c)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4.5 whitespace-nowrap"><SlaChip c={c} /></td>
-                        <td className="px-4 py-4.5 text-slate-400 text-xs whitespace-nowrap">
-                          {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </td>
-                        <td className="px-6 py-4.5 text-right whitespace-nowrap">
-                          <Link href={`/career/${c.id}`} className="inline-flex items-center px-3.5 py-1.5 text-xs font-bold text-[#B8935B] bg-[#FBF8F3] border border-[#E8DDD0] rounded-xl hover:bg-[#F0EAE0] transition-colors shadow-2xs">
-                            Manage →
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
 
             {total > 20 && (
               <div className="px-6 py-3.5 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
