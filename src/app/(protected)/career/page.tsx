@@ -112,7 +112,6 @@ export default function CareerClientsPage() {
   }
 
   return (
-  return (
     <AppShell>
       <main className="page-body">
         <div className="w-full max-w-7xl 2xl:max-w-[1680px] mx-auto space-y-6 pb-12">
