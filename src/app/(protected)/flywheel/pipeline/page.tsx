@@ -426,7 +426,7 @@ export default function FlywheelPipeline() {
                     <button className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg text-sm transition-colors">Cancel</button>
                   </Dialog.Close>
                   <button
-                    onClick={handleStageChange}
+                    onClick={handleSaveContact}
                     disabled={saving || (editStage === selectedContact.lifecycleStage && editStatus === selectedContact.leadStatus)}
                     className="px-5 py-2 text-white font-medium rounded-lg shadow-sm text-sm disabled:opacity-50 transition-all hover:shadow-md"
                     style={{ background: brand.primaryColor }}
