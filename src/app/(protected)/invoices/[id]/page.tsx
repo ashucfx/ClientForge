@@ -545,17 +545,17 @@ export default function InvoiceDetailPage() {
             <div className="card overflow-hidden" style={{ boxShadow: '0 4px 40px rgba(31,86,212,.08)' }}>
 
               {/* Invoice Header */}
-              <div style={{ background: 'var(--brand-gradient)', padding: '32px 36px' }}>
-                <div className="flex items-start justify-between">
+              <div style={{ background: 'var(--brand-gradient)' }} className="px-4 sm:px-9 py-6 sm:py-8">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div>
                     <Logo variant="horizontal" size={38} dark />
                     <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 16 }}>catalyst@theripplenexus.com</div>
                     <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>catalyst.theripplenexus.com</div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div>
                     <div style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '12px 18px' }}>
                       <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1.5 }}>Invoice</div>
-                      <div className="mono" style={{ color: '#fff', fontSize: 22, fontWeight: 800, marginTop: 2 }}>{invoice.invoiceNumber}</div>
+                      <div className="mono" style={{ color: '#fff', fontSize: 20, fontWeight: 800, marginTop: 2, wordBreak: 'break-all' }}>{invoice.invoiceNumber}</div>
                       <div style={{ marginTop: 8 }}>
                         <StatusBadge status={invoice.status} />
                       </div>
@@ -581,7 +581,7 @@ export default function InvoiceDetailPage() {
               <div style={{ height: 3, background: 'linear-gradient(90deg,#B8935B,#D4AF7A,#B8935B)' }} />
 
               {/* Client + Package */}
-              <div style={{ background: '#f8faff', borderBottom: '1px solid var(--border-blue)', padding: '20px 36px' }}>
+              <div style={{ background: '#f8faff', borderBottom: '1px solid var(--border-blue)' }} className="px-4 sm:px-9 py-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 10 }}>Bill To</div>
@@ -613,7 +613,7 @@ export default function InvoiceDetailPage() {
               </div>
 
               {/* Line Items Table */}
-              <div style={{ padding: '24px 20px' }} className="sm:px-9">
+              <div className="px-4 sm:px-9 py-5">
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 14 }}>
                   Line Items
                 </div>
@@ -684,7 +684,7 @@ export default function InvoiceDetailPage() {
                 </div>
 
                 {/* Totals breakdown */}
-                <div style={{ maxWidth: 320, marginLeft: 'auto', marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="ml-auto mt-5" style={{ maxWidth: 340, display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--muted)', paddingBottom: 8, borderBottom: '1px dashed var(--border)' }}>
                     <span>Subtotal</span>
                     <span style={{ fontWeight: 600 }}>{fmt(invoice.subtotalConverted)}</span>
@@ -706,8 +706,8 @@ export default function InvoiceDetailPage() {
                     <span style={{ fontWeight: 600 }}>{fmt(invoice.processingFeeConverted)}</span>
                   </div>
                   <div style={{ background: 'var(--brand-gradient)', borderRadius: 10, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                    <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: 13 }}>Total Payable ({invoice.currency})</span>
-                    <span style={{ color: '#fff', fontWeight: 900, fontSize: 20 }}>{fmt(invoice.totalPayable)}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: 13 }}>Total ({invoice.currency})</span>
+                    <span style={{ color: '#fff', fontWeight: 900, fontSize: 18 }}>{fmt(invoice.totalPayable)}</span>
                   </div>
                 </div>
               </div>
@@ -717,12 +717,12 @@ export default function InvoiceDetailPage() {
                 <>
                   {/* Razorpay CTA */}
                   {invoice.paymentGateway !== 'PAYPAL' && invoice.razorpayLinkUrl && (
-                    <div style={{ background: '#f8faff', borderTop: '1px solid var(--border-blue)', padding: '24px 36px', textAlign: 'center' }}>
+                    <div className="px-4 sm:px-9 py-6" style={{ background: '#f8faff', borderTop: '1px solid var(--border-blue)', textAlign: 'center' }}>
                       <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
                         Secure payment via <strong>Razorpay</strong> &mdash; UPI · Cards · Net Banking
                       </div>
                       <a href={invoice.razorpayLinkUrl} target="_blank" rel="noopener noreferrer"
-                         className="btn btn-primary" style={{ fontSize: 16, padding: '14px 36px', boxShadow: '0 4px 20px rgba(31,86,212,.35)' }}>
+                         className="btn btn-primary" style={{ fontSize: 15, padding: '12px 24px', boxShadow: '0 4px 20px rgba(31,86,212,.35)' }}>
                         Pay {fmt(invoice.totalPayable)} Now
                       </a>
                       <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 10, wordBreak: 'break-all' }}>
@@ -732,7 +732,7 @@ export default function InvoiceDetailPage() {
                   )}
                   {/* PayPal CTA */}
                   {invoice.paymentGateway === 'PAYPAL' && invoice.paypalPaymentUrl && (
-                    <div style={{ background: '#f0f4ff', borderTop: '1px solid #c7d2fe', padding: '24px 36px', textAlign: 'center' }}>
+                    <div className="px-4 sm:px-9 py-6" style={{ background: '#f0f4ff', borderTop: '1px solid #c7d2fe', textAlign: 'center' }}>
                       <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
                         Secure payment via <strong style={{ color: '#003087' }}>PayPal</strong> &mdash; Cards · PayPal Balance · Bank Transfer
                       </div>
@@ -757,7 +757,7 @@ export default function InvoiceDetailPage() {
               )}
 
               {invoice.status === 'PAID' && (
-                <div style={{ background: 'var(--green-light)', borderTop: '1px solid #86efac', padding: '20px 36px', textAlign: 'center' }}>
+                <div className="px-4 sm:px-9 py-5" style={{ background: 'var(--green-light)', borderTop: '1px solid #86efac', textAlign: 'center' }}>
                   <div style={{ fontSize: 28, marginBottom: 6 }}>✅</div>
                   <div style={{ fontWeight: 700, color: '#166534', fontSize: 16 }}>Payment Received</div>
                   {invoice.paidAt && (
@@ -769,14 +769,14 @@ export default function InvoiceDetailPage() {
               )}
 
               {/* Value prop */}
-              <div style={{ borderTop: '1px solid #f0f4ff', padding: '16px 36px' }}>
+              <div className="px-4 sm:px-9 py-4" style={{ borderTop: '1px solid #f0f4ff' }}>
                 <blockquote style={{ borderLeft: '3px solid var(--green)', background: '#f0fff8', borderRadius: '0 8px 8px 0', padding: '12px 16px', fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', lineHeight: 1.7, margin: 0 }}>
                   &ldquo;This investment is designed to improve recruiter visibility and interview conversion — giving your career the competitive edge it deserves.&rdquo;
                 </blockquote>
               </div>
 
               {/* Terms */}
-              <div style={{ background: '#f8faff', borderTop: '1px solid var(--border)', padding: '16px 36px' }}>
+              <div className="px-4 sm:px-9 py-4" style={{ background: '#f8faff', borderTop: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 10 }}>Terms & Conditions</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
                   {[
@@ -795,7 +795,7 @@ export default function InvoiceDetailPage() {
               </div>
 
               {/* Footer */}
-              <div style={{ background: 'var(--navy)', padding: '16px 36px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="px-4 sm:px-9 py-4 flex items-center justify-between" style={{ background: 'var(--navy)' }}>
                 <Logo variant="horizontal" size={28} dark />
                 <div className="mono" style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>{invoice.invoiceNumber}</div>
               </div>
