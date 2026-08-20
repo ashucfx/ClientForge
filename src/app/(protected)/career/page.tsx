@@ -111,45 +111,49 @@ export default function CareerClientsPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-
-      {/* Header */}
-      <div className="flex items-start sm:items-center justify-between gap-3 mb-5">
+    <div className="w-full max-w-7xl 2xl:max-w-[1680px] mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6">
+      {/* ── Page Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Branding Suite</h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{total} clients total</p>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span>Catalyst Suite</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Career Branding Clients</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{total} active &amp; completed client profiles</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex-shrink-0 px-3 py-2 sm:px-4 bg-[#B8935B] text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-[#9A7540] transition-colors"
+          className="inline-flex items-center justify-center gap-1.5 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-[#B8935B]/15 hover:opacity-95 active:scale-95 transition-all self-start sm:self-auto"
         >
-          + Add Client
+          <span>+</span>
+          <span>Add Client</span>
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4">
+      {/* ── Filters ── */}
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
         <input
           type="text"
           placeholder="Search name or email…"
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1); }}
-          className="w-full sm:w-64 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
+          className="w-full sm:w-72 px-3.5 py-2.5 text-xs sm:text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#B8935B] shadow-xs"
         />
         <div className="flex gap-2">
           <select
             value={filterLifecycle}
             onChange={e => { setFilterLifecycle(e.target.value); setPage(1); }}
-            className="flex-1 sm:flex-none px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-[#B8935B]"
+            className="flex-1 sm:flex-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 outline-none focus:border-[#B8935B] shadow-xs"
           >
-            <option value="ALL">All</option>
+            <option value="ALL">All Lifecycles</option>
             <option value="ACTIVE">Active</option>
             <option value="ARCHIVED">Archived</option>
           </select>
           <select
             value={filterStatus}
             onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
-            className="flex-1 sm:flex-none px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-[#B8935B]"
+            className="flex-1 sm:flex-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 outline-none focus:border-[#B8935B] shadow-xs"
           >
             <option value="">All Statuses</option>
             {Object.entries(STATUS_LABELS).map(([key, label]) => (
@@ -160,54 +164,62 @@ export default function CareerClientsPage() {
       </div>
 
       {/* ── Mobile card list (< md) ─────────────────────────────────── */}
-      <div className="md:hidden space-y-2">
+      <div className="md:hidden space-y-3">
         {loading ? (
-          Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="bg-white border border-slate-200 rounded-xl p-4 animate-pulse">
-              <div className="h-4 bg-slate-100 rounded w-2/3 mb-2" />
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white border border-slate-200/90 rounded-2xl p-4 animate-pulse space-y-3">
+              <div className="h-4 bg-slate-100 rounded w-2/3" />
               <div className="h-3 bg-slate-100 rounded w-1/2" />
             </div>
           ))
         ) : clients.length === 0 ? (
-          <div className="bg-white border border-slate-200 rounded-xl py-12 text-center text-slate-400 text-sm">
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-12 text-center text-slate-400 text-sm">
             No clients found
           </div>
-        ) : clients.map(c => (
-          <Link key={c.id} href={`/career/${c.id}`} className="block bg-white border border-slate-200 rounded-xl p-4 hover:border-[#E8DDD0] hover:bg-[#FBF8F3]/30 transition-colors active:bg-[#FBF8F3]">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-semibold text-slate-900 text-sm">{c.name}</span>
-                  {c.ConversationReadState && c.ConversationReadState.unreadByAdmin > 0 && (
-                    <span className="flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse">
-                      {c.ConversationReadState.unreadByAdmin}
-                    </span>
-                  )}
+        ) : clients.map(c => {
+          const initial = c.name.charAt(0).toUpperCase() || 'C';
+          return (
+            <Link key={c.id} href={`/career/${c.id}`} className="block bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs hover:border-[#B8935B]/40 hover:shadow-md transition-all active:scale-[0.99] space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0A0B0D] to-[#B8935B] text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-xs">
+                    {initial}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-extrabold text-slate-900 text-sm truncate">{c.name}</span>
+                      {c.ConversationReadState && c.ConversationReadState.unreadByAdmin > 0 && (
+                        <span className="flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse">
+                          {c.ConversationReadState.unreadByAdmin}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-400 truncate">{c.email}</div>
+                  </div>
                 </div>
-                <div className="text-xs text-slate-400 mt-0.5 truncate">{c.email}</div>
+                <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold ${STATUS_COLORS[c.status]}`}>
+                  {STATUS_LABELS[c.status]}
+                </span>
               </div>
-              <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLORS[c.status]}`}>
-                {STATUS_LABELS[c.status]}
-              </span>
-            </div>
-            <div className="mt-2.5 flex items-center justify-between gap-2 flex-wrap">
-              <span className="text-xs text-slate-500 truncate max-w-[60%]">{clientServiceLabel(c)}</span>
-              <SlaChip c={c} />
-            </div>
-            <div className="mt-1.5 text-[11px] text-slate-400">
-              {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </div>
-          </Link>
-        ))}
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 flex-wrap text-xs">
+                <span className="text-slate-600 font-medium truncate max-w-[65%]">{clientServiceLabel(c)}</span>
+                <SlaChip c={c} />
+              </div>
+              <div className="text-[11px] text-slate-400">
+                Enrolled: {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </div>
+            </Link>
+          );
+        })}
       </div>
 
       {/* ── Desktop table (≥ md) ────────────────────────────────────── */}
-      <div className="hidden md:block bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      <div className="hidden md:block bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-xs">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
+          <thead className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             <tr>
               {['Client', 'Status', 'Services', 'SLA Status', 'Joined', ''].map(h => (
-                <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <th key={h} className="text-left px-5 py-3.5">
                   {h}
                 </th>
               ))}
@@ -218,36 +230,43 @@ export default function CareerClientsPage() {
               <tr><td colSpan={6} className="text-center py-12 text-slate-400">Loading…</td></tr>
             ) : clients.length === 0 ? (
               <tr><td colSpan={6} className="text-center py-12 text-slate-400">No clients found</td></tr>
-            ) : clients.map(c => (
-              <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-4 py-3">
-                  <div className="flex flex-col">
-                    <Link href={`/career/${c.id}`} className="font-semibold text-slate-900 hover:text-indigo-600 transition-colors flex items-center gap-2">
-                      {c.name}
-                      {c.ConversationReadState && c.ConversationReadState.unreadByAdmin > 0 && (
-                        <span className="flex items-center justify-center w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full animate-pulse shadow-sm shadow-red-500/50">
-                          {c.ConversationReadState.unreadByAdmin}
-                        </span>
-                      )}
-                    </Link>
-                    <span className="text-sm text-slate-500">{c.email}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[c.status]}`}>
-                    {STATUS_LABELS[c.status]}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-slate-600">
-                  <span className="text-sm text-slate-900 line-clamp-2" title={clientServiceLabel(c)}>
-                    {clientServiceLabel(c)}
-                  </span>
-                </td>
-                <td className="px-4 py-3"><SlaChip c={c} /></td>
-                <td className="px-4 py-3 text-slate-500 text-xs">
-                  {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </td>
-                <td className="px-4 py-3 text-right">
+            ) : clients.map(c => {
+              const initial = c.name.charAt(0).toUpperCase() || 'C';
+              return (
+                <tr key={c.id} className="hover:bg-[#FBF8F3]/50 transition-colors">
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#0A0B0D] to-[#B8935B] text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-xs">
+                        {initial}
+                      </div>
+                      <div className="flex flex-col">
+                        <Link href={`/career/${c.id}`} className="font-bold text-slate-900 hover:text-[#B8935B] transition-colors flex items-center gap-2">
+                          {c.name}
+                          {c.ConversationReadState && c.ConversationReadState.unreadByAdmin > 0 && (
+                            <span className="flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse">
+                              {c.ConversationReadState.unreadByAdmin}
+                            </span>
+                          )}
+                        </Link>
+                        <span className="text-xs text-slate-400">{c.email}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-extrabold ${STATUS_COLORS[c.status]}`}>
+                      {STATUS_LABELS[c.status]}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5 text-slate-700 font-medium">
+                    <span className="line-clamp-2" title={clientServiceLabel(c)}>
+                      {clientServiceLabel(c)}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5"><SlaChip c={c} /></td>
+                  <td className="px-5 py-3.5 text-slate-400 text-xs">
+                    {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </td>
+                  <td className="px-5 py-3.5 text-right">
                   <Link href={`/career/${c.id}`} className="px-3 py-1 text-xs font-semibold text-[#B8935B] border border-[#E8DDD0] rounded-lg hover:bg-[#FBF8F3] transition-colors">
                     View →
                   </Link>

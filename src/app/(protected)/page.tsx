@@ -81,11 +81,21 @@ function KpiCard({ label, value, sub, icon, bg, accent }: {
   icon: React.ReactNode; bg: string; accent?: boolean;
 }) {
   return (
-    <div className="kpi-card" style={accent ? { borderColor: '#bfdbfe', boxShadow: '0 0 0 1px #bfdbfe, 0 4px 12px rgba(31,86,212,.08)' } : {}}>
-      <div className="kpi-icon" style={{ background: bg }}>{icon}</div>
-      <div className="kpi-label">{label}</div>
-      <div className="kpi-value" style={accent ? { color: 'var(--brand)' } : {}}>{value}</div>
-      {sub && <div className="kpi-sub">{sub}</div>}
+    <div className={`bg-white rounded-2xl p-5 sm:p-6 border transition-all duration-200 shadow-xs hover:shadow-md hover:border-slate-300 flex flex-col justify-between ${
+      accent ? 'border-[#B8935B]/40 ring-1 ring-[#B8935B]/20' : 'border-slate-200/80'
+    }`}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-xs" style={{ background: bg }}>
+          {icon}
+        </div>
+      </div>
+      <div>
+        <div className={`text-2xl sm:text-3xl font-extrabold tracking-tight mb-1 ${accent ? 'text-[#B8935B]' : 'text-slate-900'}`}>
+          {value}
+        </div>
+        {sub && <div className="text-xs text-slate-400 font-medium truncate">{sub}</div>}
+      </div>
     </div>
   );
 }
@@ -149,7 +159,7 @@ function RevenueBar({ invoices }: { invoices: InvoiceData[] }) {
               <div style={{ flex: 1, height: 6, background: 'var(--surface-3)', borderRadius: 99 }}>
                 <div style={{ height: '100%', background: 'var(--brand)', borderRadius: 99, width: '100%' }} />
               </div>
-              <span style={{ minWidth: 80, textAlign: 'right', fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>
+              <span style={{ minWidth: 80, textAlign: 'right', fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
                 {formatCurrency(total, sym)}
               </span>
             </div>
@@ -160,62 +170,49 @@ function RevenueBar({ invoices }: { invoices: InvoiceData[] }) {
   );
 }
 
-// ═══════════════════════════════════════════════
-// DASHBOARD PAGE
-// ═══════════════════════════════════════════════
+// ─── Main Component ───────────────────────────────────────────────
 export default function Dashboard() {
+  const { show, toasts } = useToast();
   const router = useRouter();
-  const { toasts, show } = useToast();
   const { activeBrand } = useBrand();
-  const [invoices, setInvoices]         = useState<InvoiceData[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [search, setSearch]             = useState('');
-  const [statusFilter, setStatus]       = useState('');
-  const [typeFilter, setType]           = useState('');
+  const { hasRnAccess } = useAdmin();
+
+  const [invoices, setInvoices] = useState<InvoiceData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatus] = useState<string>('');
+  const [typeFilter, setType] = useState<string>('');
   const [deleteTarget, setDeleteTarget] = useState<InvoiceData | null>(null);
-  const [deleting, setDeleting]         = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const fetchInvoices = useCallback(async () => {
+    try {
+      const res = await fetch('/api/invoices', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        setInvoices(data.invoices ?? []);
+      }
+    } catch {
+      show('Failed to load invoices', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [show]);
+
+  useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
 
   const stats = {
-    total:      invoices.length,
-    pending:    invoices.filter(i => i.status === 'PENDING').length,
-    paid:       invoices.filter(i => i.status === 'PAID').length,
-    cancelled:  invoices.filter(i => i.status === 'CANCELLED' || i.status === 'EXPIRED').length,
+    total: invoices.length,
+    paid: invoices.filter(i => i.status === 'PAID').length,
+    pending: invoices.filter(i => i.status === 'PENDING').length,
     conversion: invoices.length ? Math.round((invoices.filter(i => i.status === 'PAID').length / invoices.length) * 100) : 0,
   };
 
-  const fetchInvoices = useCallback(async () => {
-    setLoading(true);
-    const p = new URLSearchParams({ limit: '200' });
-    if (statusFilter) p.set('status', statusFilter);
-    if (typeFilter)   p.set('clientType', typeFilter);
-
-    // Phase 5C: Use tenant-namespaced API endpoints — no brandId param needed
-    // brandId is enforced server-side via JWT activeTenant claim
-    let apiUrl: string;
-    if (activeBrand === 'ripple_nexus') {
-      apiUrl = `/api/rn/invoices?${p}`;
-    } else if (activeBrand === 'catalyst') {
-      apiUrl = `/api/catalyst/invoices?${p}`;
-    } else {
-      // 'all' — SUPER_ADMIN cross-brand view: use legacy shared endpoint
-      apiUrl = `/api/invoices?${p}`;
-    }
-
-    const res  = await fetch(apiUrl);
-    const data = await res.json();
-    setInvoices(data.invoices ?? []);
-    setLoading(false);
-  }, [statusFilter, typeFilter, activeBrand]);
-
-  useEffect(() => { 
-    fetchInvoices(); 
-  }, [fetchInvoices]);
-
-
-  // Client-side search
   const visible = invoices.filter(inv => {
-    if (!search) return true;
+    if (statusFilter && inv.status !== statusFilter) return false;
+    if (typeFilter && inv.clientType !== typeFilter) return false;
     const q = search.toLowerCase();
+    if (!q) return true;
     return (
       inv.invoiceNumber.toLowerCase().includes(q) ||
       inv.clientName.toLowerCase().includes(q) ||
@@ -246,23 +243,31 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <div className="page-header pb-6 sm:pb-10">
+      <div className="w-full max-w-7xl 2xl:max-w-[1680px] mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6">
 
         {/* Page title row */}
-        <div className="flex items-center justify-between flex-wrap gap-3 mb-6 sm:mb-10">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-display font-semibold" style={{ color: 'var(--text-primary)' }}>Mission Control</h1>
-            <p className="text-subheading mt-1 sm:mt-2" style={{ color: 'var(--text-secondary)' }}>
-              {activeBrand === 'ripple_nexus' ? 'Ripple Nexus Operations Overview' : 'Catalyst Operations Overview'}
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Operations Live</span>
+            </div>
+            <h1 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight">Mission Control</h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+              {activeBrand === 'ripple_nexus' ? 'Ripple Nexus Operations Overview' : 'Catalyst Operations & Revenue Overview'}
             </p>
           </div>
-          <Link href="/invoices/new" className="btn btn-primary hover-lift" style={{ padding: '10px 20px', fontSize: 14 }}>
+          <Link 
+            href="/invoices/new" 
+            className="inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-[#B8935B]/15 hover:opacity-95 active:scale-95 transition-all self-start sm:self-auto"
+          >
+            <span>+</span>
             <span>New Invoice</span>
           </Link>
         </div>
 
         {/* KPI Row - Matches Active Brand Style */}
-        <div className="grid-4 mb-6 sm:mb-10">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {activeBrand === 'ripple_nexus' ? (
             <>
               <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: '#7C5CFF' }} />} bg="#f3f0ff" accent />
@@ -272,32 +277,33 @@ export default function Dashboard() {
             </>
           ) : (
             <>
-              <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: 'var(--brand)' }} />} bg="#eff6ff" accent />
-              <KpiCard label="Pending Payment" value={stats.pending} icon={<IconPending style={{ color: 'var(--brand)' }} />} bg="#e0f2fe" sub="Action Required" />
+              <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: '#B8935B' }} />} bg="#eff6ff" accent />
+              <KpiCard label="Pending Payment" value={stats.pending} icon={<IconPending style={{ color: '#B8935B' }} />} bg="#e0f2fe" sub="Action Required" />
               <KpiCard label="Completed" value={stats.paid} icon={<IconCheck style={{ color: '#3FBD8B' }} />} bg="#d1fae5" sub="Paid in full" />
-              <KpiCard label="Collection Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: 'var(--brand)' }} />} bg="#eef2ff" sub={`${stats.paid} of ${stats.total} paid`} />
+              <KpiCard label="Collection Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: '#B8935B' }} />} bg="#eef2ff" sub={`${stats.paid} of ${stats.total} paid`} />
             </>
           )}
         </div>
 
         {/* Action Center & Revenue */}
-        <div className="grid-2 mb-4" style={{ gap: 24 }}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Action Center */}
-          <div className="card hover-lift" style={{ padding: '24px 32px' }}>
-            <div className="text-heading font-semibold" style={{ color: 'var(--text-primary)', marginBottom: 16 }}>
-              Action Required
+          <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-xs flex flex-col justify-between">
+            <div className="text-sm font-bold text-slate-900 mb-3 flex items-center justify-between">
+              <span>Action Required</span>
+              {stats.pending > 0 && <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-bold border border-amber-200">{stats.pending} Pending</span>}
             </div>
             {stats.pending > 0 ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                 <div>
-                  <div className="text-body font-semibold">{stats.pending} Invoices Awaiting Payment</div>
-                  <div className="text-metadata text-secondary mt-1">Review outstanding invoices and send reminders.</div>
+                  <div className="text-sm font-semibold text-slate-800">{stats.pending} Invoices Awaiting Payment</div>
+                  <div className="text-xs text-slate-400 mt-0.5">Review outstanding invoices and send reminders.</div>
                 </div>
-                <button className="btn btn-secondary btn-sm" onClick={() => setStatus('PENDING')}>Review</button>
+                <button className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all" onClick={() => setStatus('PENDING')}>Review</button>
               </div>
             ) : (
-              <div style={{ padding: '24px 0', color: 'var(--text-tertiary)', textAlign: 'center' }}>
-                <span style={{ fontSize: 24, display: 'block', marginBottom: 8 }}>🎉</span>
+              <div className="py-6 text-slate-400 text-center text-xs">
+                <span className="text-2xl block mb-1">🎉</span>
                 All caught up! No pending actions.
               </div>
             )}

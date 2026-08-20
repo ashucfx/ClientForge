@@ -408,8 +408,116 @@ export default function FlywheelLeadsPage() {
           </div>
         )}
 
-        {/* Data Table */}
-        <div className="card overflow-hidden">
+        {/* ── Mobile Leads Cards View (< md screens) ── */}
+        <div className="block md:hidden space-y-3 mb-6">
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs animate-pulse space-y-3">
+                <div className="h-4 bg-slate-200 rounded w-1/3" />
+                <div className="h-3 bg-slate-100 rounded w-2/3" />
+              </div>
+            ))
+          ) : contacts.length === 0 ? (
+            <div className="p-10 text-center bg-white rounded-2xl border border-slate-200/90 shadow-xs">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-50 text-slate-300 mb-3 border border-slate-100">
+                <IconUser size={24} />
+              </div>
+              <h3 className="text-base font-bold text-slate-900 mb-1">{hasActiveFilters ? 'No contacts found' : 'Audience is empty'}</h3>
+              <p className="text-slate-500 text-xs mb-4">{hasActiveFilters ? 'Adjust filters' : 'Import contacts to get started.'}</p>
+              {!hasActiveFilters && (
+                <button onClick={() => setIsImportModalOpen(true)} className="px-4 py-2 text-white rounded-xl text-xs font-bold shadow-xs" style={{ background: brand.gradient }}>
+                  Import Contacts
+                </button>
+              )}
+            </div>
+          ) : (
+            contacts.map((contact) => {
+              const stage = contact.flywheelProfile?.lifecycleStage || 'LEAD';
+              const stageStyle = STAGE_COLORS[stage] || STAGE_COLORS.LEAD;
+              const engScore = contact.flywheelProfile?.engagementScore || 0;
+              const revenue = Number(contact.flywheelProfile?.totalRevenue || 0);
+
+              return (
+                <div 
+                  key={contact.id} 
+                  className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-3 cursor-pointer hover:border-slate-300 transition-all"
+                  onClick={() => openEditSlideOver(contact)}
+                >
+                  {/* Top Row: Checkbox + Avatar + Name + Stage Pill */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(contact.id)}
+                          onChange={() => toggleSelect(contact.id)}
+                          className="rounded border-slate-300 text-[#B8935B]"
+                        />
+                      </div>
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-white font-extrabold text-xs shrink-0 shadow-xs"
+                        style={{ background: stageStyle.color }}
+                      >
+                        {contact.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-extrabold text-slate-900 text-sm truncate">{contact.name}</div>
+                        <div className="text-[11px] text-slate-400 truncate">{contact.email || contact.phone || 'No contact info'}</div>
+                      </div>
+                    </div>
+
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0" style={{ background: stageStyle.bg, color: stageStyle.color }}>
+                      {stage}
+                    </span>
+                  </div>
+
+                  {/* Company & Role */}
+                  <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 text-slate-600">
+                    <span className="truncate max-w-[160px] font-medium">{contact.jobTitle || 'No title'}</span>
+                    <span className="text-slate-400 truncate max-w-[140px]">{contact.companyName || contact.industry || '—'}</span>
+                  </div>
+
+                  {/* Metrics: Score, Revenue & Quick Buttons */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-3 text-xs">
+                      {engScore > 0 && (
+                        <span className="inline-flex items-center gap-1 font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">
+                          ⚡ {engScore}
+                        </span>
+                      )}
+                      {revenue > 0 && (
+                        <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                          ₹{revenue.toLocaleString()}
+                        </span>
+                      )}
+                      {contact.displayId && (
+                        <span className="font-mono text-[10px] text-slate-400">#{contact.displayId}</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => openEditSlideOver(contact)}
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => deleteLead(contact.id)}
+                        className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold transition-all border border-rose-200"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* ── Desktop Data Table (>= md screens) ── */}
+        <div className="hidden md:block card overflow-hidden mb-6">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50/80 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
@@ -499,29 +607,29 @@ export default function FlywheelLeadsPage() {
               </tbody>
             </table>
           </div>
-
-          {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
-              <span className="text-sm text-slate-500">
-                Showing {((pagination.page - 1) * pagination.pageSize) + 1}–{Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total}
-              </span>
-              <div className="flex gap-1.5">
-                <button disabled={pagination.page <= 1} onClick={() => fetchContacts(pagination.page - 1)} className="px-3 py-1.5 rounded-md text-sm font-medium bg-white border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors">Previous</button>
-                {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
-                  const p = i + Math.max(1, pagination.page - 2);
-                  if (p > pagination.totalPages) return null;
-                  return (
-                    <button key={p} onClick={() => fetchContacts(p)} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${p === pagination.page ? 'text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`} style={p === pagination.page ? { background: brand.primaryColor } : {}}>
-                      {p}
-                    </button>
-                  );
-                })}
-                <button disabled={pagination.page >= pagination.totalPages} onClick={() => fetchContacts(pagination.page + 1)} className="px-3 py-1.5 rounded-md text-sm font-medium bg-white border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors">Next</button>
-              </div>
-            </div>
-          )}
         </div>
+
+        {/* Pagination (both mobile & desktop) */}
+        {pagination.totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 py-4 rounded-2xl bg-white border border-slate-200 shadow-xs mb-8">
+            <span className="text-xs sm:text-sm text-slate-500 text-center sm:text-left">
+              Showing {((pagination.page - 1) * pagination.pageSize) + 1}–{Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button disabled={pagination.page <= 1} onClick={() => fetchContacts(pagination.page - 1)} className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 disabled:opacity-40 hover:bg-slate-50 transition-all shadow-xs">Previous</button>
+              {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
+                const p = i + Math.max(1, pagination.page - 2);
+                if (p > pagination.totalPages) return null;
+                return (
+                  <button key={p} onClick={() => fetchContacts(p)} className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs ${p === pagination.page ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
+                    {p}
+                  </button>
+                );
+              })}
+              <button disabled={pagination.page >= pagination.totalPages} onClick={() => fetchContacts(pagination.page + 1)} className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 disabled:opacity-40 hover:bg-slate-50 transition-all shadow-xs">Next</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── IMPORT MODAL ── */}
