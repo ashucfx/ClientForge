@@ -472,6 +472,8 @@ export default function NewInvoicePage() {
   const [dueDays,         setDueDays]         = useState(7);
   const [paymentGateway,  setPaymentGateway]  = useState<'RAZORPAY' | 'PAYPAL'>('RAZORPAY');
   const [installmentCount, setInstallmentCount] = useState<1 | 2 | 3>(1);
+  const [sourceChannel,   setSourceChannel]   = useState<'CLIENTFORGE_INVOICE' | 'MANUAL_PORTAL' | 'PAYMENT_GATEWAY_DIRECT' | 'CLIENT_REFERRAL'>('CLIENTFORGE_INVOICE');
+  const [referralId,      setReferralId]      = useState('');
 
   // Currency state
   const [currencyInfo,    setCurrencyInfo]    = useState<CurrencyInfo | null>({ code: 'INR', symbol: '₹', name: 'Indian Rupee' });
@@ -626,6 +628,8 @@ export default function NewInvoicePage() {
           // INR always uses Razorpay (enforced server-side too)
           paymentGateway: effectiveCurrency === 'INR' ? 'RAZORPAY' : paymentGateway,
           installmentCount,
+          sourceChannel,
+          referralId: sourceChannel === 'CLIENT_REFERRAL' ? referralId.trim() : undefined,
           lineItems: validItems,
           discountRate,
           taxRate,
@@ -980,16 +984,55 @@ export default function NewInvoicePage() {
                   </select>
                 </div>
                 <div>
-                  <FieldLabel label="Currency Override" />
-                  <input
+                  <FieldLabel label="Acquisition Channel" />
+                  <select
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-white transition-all shadow-xs"
-                    type="text"
-                    value={currencyOverride}
-                    onChange={e => setCurrencyOverride(e.target.value.toUpperCase())}
-                    placeholder={rateLoading ? 'Fetching…' : `Auto: ${currencyInfo?.code ?? 'INR'}`}
-                    maxLength={3}
-                  />
+                    value={sourceChannel}
+                    onChange={e => setSourceChannel(e.target.value as any)}
+                  >
+                    <option value="CLIENTFORGE_INVOICE">ClientForge Invoice Portal</option>
+                    <option value="MANUAL_PORTAL">Manual Portal Onboarding</option>
+                    <option value="PAYMENT_GATEWAY_DIRECT">Payment Gateway Direct</option>
+                    <option value="CLIENT_REFERRAL">Client Referral</option>
+                  </select>
                 </div>
+                {sourceChannel === 'CLIENT_REFERRAL' ? (
+                  <div>
+                    <FieldLabel label="Referral ID / Referred By" required />
+                    <input
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#B8935B]/50 bg-[#FBF8F3]/50 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B8935B] transition-all shadow-xs"
+                      type="text"
+                      value={referralId}
+                      onChange={e => setReferralId(e.target.value)}
+                      placeholder="e.g. Abdullah Albaiz / cmr8swjzw0002wau..."
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <FieldLabel label="Currency Override" />
+                    <input
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-white transition-all shadow-xs"
+                      type="text"
+                      value={currencyOverride}
+                      onChange={e => setCurrencyOverride(e.target.value.toUpperCase())}
+                      placeholder={rateLoading ? 'Fetching…' : `Auto: ${currencyInfo?.code ?? 'INR'}`}
+                      maxLength={3}
+                    />
+                  </div>
+                )}
+                {sourceChannel === 'CLIENT_REFERRAL' && (
+                  <div className="sm:col-span-2">
+                    <FieldLabel label="Currency Override" />
+                    <input
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-white transition-all shadow-xs"
+                      type="text"
+                      value={currencyOverride}
+                      onChange={e => setCurrencyOverride(e.target.value.toUpperCase())}
+                      placeholder={rateLoading ? 'Fetching…' : `Auto: ${currencyInfo?.code ?? 'INR'}`}
+                      maxLength={3}
+                    />
+                  </div>
+                )}
               </div>
             </SectionCard>
 

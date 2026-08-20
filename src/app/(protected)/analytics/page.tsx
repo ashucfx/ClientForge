@@ -587,12 +587,23 @@ export default function AnalyticsDashboard() {
                     <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">By Acquisition Channel</div>
                     {chartData?.byChannel && chartData.byChannel.length > 0 ? (
                       <div className="space-y-2.5">
-                        {chartData.byChannel.map(c => (
-                          <div key={c.channel} className="flex justify-between items-center text-xs">
-                            <span className="font-semibold text-slate-600">{c.channel}</span>
-                            <span className="font-mono font-bold text-slate-900">{formatCurrency(c.revenue, '₹')}</span>
-                          </div>
-                        ))}
+                        {chartData.byChannel.map(c => {
+                          const channelMap: Record<string, string> = {
+                            CLIENTFORGE_INVOICE: 'ClientForge Invoice Portal',
+                            DIRECT: 'ClientForge Invoice Portal',
+                            MANUAL_PORTAL: 'Manual Portal Onboarding',
+                            PAYMENT_GATEWAY_DIRECT: 'Payment Gateway Direct',
+                            CLIENT_REFERRAL: 'Client Referral Network',
+                            REFERRAL: 'Client Referral Network',
+                          };
+                          const label = channelMap[c.channel] || c.channel.replace(/_/g, ' ');
+                          return (
+                            <div key={c.channel} className="flex justify-between items-center text-xs">
+                              <span className="font-semibold text-slate-600">{label}</span>
+                              <span className="font-mono font-bold text-slate-900">{formatCurrency(c.revenue, '₹')}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="text-xs text-slate-400">No channel attribution recorded.</div>

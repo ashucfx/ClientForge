@@ -55,6 +55,16 @@ export async function GET() {
     e.count += 1;
   };
 
+  const normalizeChannel = (channel?: string | null): string => {
+    if (!channel) return 'CLIENTFORGE_INVOICE';
+    const c = channel.toUpperCase();
+    if (c.includes('REFERRAL')) return 'CLIENT_REFERRAL';
+    if (c.includes('GATEWAY')) return 'PAYMENT_GATEWAY_DIRECT';
+    if (c.includes('PORTAL') || c.includes('MANUAL')) return 'MANUAL_PORTAL';
+    if (c === 'DIRECT' || c === 'INVOICE') return 'CLIENTFORGE_INVOICE';
+    return c;
+  };
+
   // Convert invoices
   await Promise.all(
     invoices.map(async (inv) => {
@@ -67,12 +77,12 @@ export async function GET() {
       mEntry.invoiceCount += 1;
 
       addDrill(brandMap, inv.brandId || 'catalyst', inr);
-      addDrill(channelMap, inv.sourceChannel || 'DIRECT', inr);
+      addDrill(channelMap, normalizeChannel(inv.sourceChannel), inr);
       addDrill(tierMap, inv.clientType || 'MID_SENIOR', inr);
     })
   );
 
-  // Convert manual Career clients
+  // Convert manual Career clients (Client Portal Onboardings)
   await Promise.all(
     manualCareer.map(async (c) => {
       const inr = await amountToInr(c.amountPaid, c.currency);
@@ -82,12 +92,12 @@ export async function GET() {
       mEntry.externalInr += inr;
 
       addDrill(brandMap, 'catalyst', inr);
-      addDrill(channelMap, 'DIRECT', inr);
+      addDrill(channelMap, 'MANUAL_PORTAL', inr);
       addDrill(tierMap, 'CAREER_BOOSTER', inr);
     })
   );
 
-  // Convert manual RN clients
+  // Convert manual RN clients (Client Portal Onboardings)
   await Promise.all(
     manualRn.map(async (c) => {
       const inr = await amountToInr(c.amountPaid, c.currency);
@@ -97,7 +107,7 @@ export async function GET() {
       mEntry.externalInr += inr;
 
       addDrill(brandMap, 'ripple_nexus', inr);
-      addDrill(channelMap, 'DIRECT', inr);
+      addDrill(channelMap, 'MANUAL_PORTAL', inr);
       addDrill(tierMap, 'B2B_AGENCY', inr);
     })
   );

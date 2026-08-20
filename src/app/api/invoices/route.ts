@@ -43,6 +43,8 @@ const CreateInvoiceSchema = z.object({
   currencyOverride: z.string().optional(),
   paymentGateway:   z.enum(['RAZORPAY', 'PAYPAL']).optional(),
   installmentCount: z.number().int().min(1).max(3).default(1), // 1 = full, 2 = split 2, 3 = split 3
+  sourceChannel:    z.string().optional(),
+  referralId:       z.string().optional(),
   lineItems:        z.array(LineItemSchema).min(1),
   discountRate:     z.number().min(0).max(100).default(0),
   taxRate:          z.number().min(0).max(100).default(0),
@@ -135,6 +137,8 @@ export async function POST(request: NextRequest) {
       country, clientType, currencyOverride,
       paymentGateway: requestedGateway,
       installmentCount,
+      sourceChannel: requestedSourceChannel,
+      referralId,
       lineItems, discountRate, taxRate, notes, dueDays,
     } = parsed.data;
 
@@ -185,6 +189,8 @@ export async function POST(request: NextRequest) {
     const dueDate        = addDays(invoiceDate, dueDays);
     const isSplit        = installmentCount > 1;
     const gateway: 'RAZORPAY' | 'PAYPAL' = requestedGateway ?? 'RAZORPAY';
+    const finalSourceChannel = requestedSourceChannel || (referralId ? 'CLIENT_REFERRAL' : 'CLIENTFORGE_INVOICE');
+    const finalNotes = referralId ? `${notes ? notes + '\n' : ''}Referral ID: ${referralId}` : notes;
 
     // ── Create invoice record (draft) ──
     let invoice;
@@ -212,7 +218,9 @@ export async function POST(request: NextRequest) {
             },
             discountRate, taxRate, discountAmount, taxAmount,
             subtotalConverted, processingFeeRate, processingFeeConverted, totalPayable,
-            notes, invoiceDate, dueDate,
+            notes: finalNotes,
+            sourceChannel: finalSourceChannel,
+            invoiceDate, dueDate,
             installmentPlan:  isSplit,
             installmentCount: installmentCount,
           },
