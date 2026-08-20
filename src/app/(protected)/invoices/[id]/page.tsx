@@ -491,7 +491,7 @@ export default function InvoiceDetailPage() {
               <span className="text-slate-600 font-mono">{invoice.invoiceNumber}</span>
             </div>
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-mono">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-mono">
                 {invoice.invoiceNumber}
               </h1>
               <StatusBadge status={invoice.status} />

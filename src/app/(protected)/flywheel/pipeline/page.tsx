@@ -126,7 +126,7 @@ export default function FlywheelPipeline() {
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-xs" style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)' }}>
                 <IconTarget size={20} style={{ color: '#fff' }} />
               </div>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">Pipeline &amp; CRM</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Pipeline &amp; CRM</h1>
             </div>
             <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:ml-[52px]">
               {totalInPipeline} contacts across {Object.keys(stageCounts).filter(k => (stageCounts[k] || 0) > 0).length} stages

@@ -51,7 +51,7 @@ export default function FlywheelAnalytics() {
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-xs" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
                 <IconTrendUp size={20} style={{ color: '#fff' }} />
               </div>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">Growth Analytics</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Growth Analytics</h1>
             </div>
             <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:ml-[52px]">Deep dive into your funnel conversion and campaign performance.</p>
           </div>

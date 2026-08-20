@@ -252,17 +252,16 @@ export default function Dashboard() {
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>Operations Live</span>
             </div>
-            <h1 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight">Mission Control</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Mission Control</h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
               {activeBrand === 'ripple_nexus' ? 'Ripple Nexus Operations Overview' : 'Catalyst Operations & Revenue Overview'}
             </p>
           </div>
           <Link 
             href="/invoices/new" 
-            className="inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-[#B8935B]/15 hover:opacity-95 active:scale-95 transition-all self-start sm:self-auto"
+            className="flex-shrink-0 px-4 py-2 bg-[#B8935B] text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-[#9A7540] transition-colors shadow-sm self-start sm:self-auto"
           >
-            <span>+</span>
-            <span>New Invoice</span>
+            + New Invoice
           </Link>
         </div>
 

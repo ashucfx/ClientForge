@@ -54,7 +54,7 @@ export default function FlywheelActionFeed() {
           <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 shadow-xl" style={{ background: brand.gradient }}>
             <IconZap size={28} style={{ color: '#fff' }} />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">Founder OS</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Founder OS</h1>
           <p className="text-slate-500 mt-1 sm:mt-2 text-sm sm:text-base">Intelligent growth triggers and high-leverage client actions.</p>
           <div className="mt-4 sm:mt-6">
             <button 

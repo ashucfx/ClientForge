@@ -322,7 +322,7 @@ export default function FlywheelLeadsPage() {
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-xs" style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}>
                 <IconUser size={20} style={{ color: '#fff' }} />
               </div>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">Audience &amp; Leads</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Audience &amp; Leads</h1>
             </div>
             <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:ml-[52px]">
               {pagination.total} contacts · Page {pagination.page} of {pagination.totalPages || 1}
