@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import AppShell from '@/components/AppShell';
 import { STATUS_LABELS, SERVICE_LABELS, PACKAGE_LABELS } from '@/lib/career/types';
 import type { CareerStatus, CareerServiceSlug, CareerPackage } from '@/lib/career/types';
 
@@ -111,200 +112,208 @@ export default function CareerClientsPage() {
   }
 
   return (
-    <div className="w-full max-w-7xl 2xl:max-w-[1680px] mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6">
-      {/* ── Page Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>Catalyst Suite</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Career Branding Clients</h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{total} active &amp; completed client profiles</p>
-        </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center justify-center gap-1.5 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-[#B8935B]/15 hover:opacity-95 active:scale-95 transition-all self-start sm:self-auto"
-        >
-          <span>+</span>
-          <span>Add Client</span>
-        </button>
-      </div>
-
-      {/* ── Filters ── */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-        <input
-          type="text"
-          placeholder="Search name or email…"
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1); }}
-          className="w-full sm:w-72 px-3.5 py-2.5 text-xs sm:text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#B8935B] shadow-xs"
-        />
-        <div className="flex gap-2">
-          <select
-            value={filterLifecycle}
-            onChange={e => { setFilterLifecycle(e.target.value); setPage(1); }}
-            className="flex-1 sm:flex-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 outline-none focus:border-[#B8935B] shadow-xs"
-          >
-            <option value="ALL">All Lifecycles</option>
-            <option value="ACTIVE">Active</option>
-            <option value="ARCHIVED">Archived</option>
-          </select>
-          <select
-            value={filterStatus}
-            onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
-            className="flex-1 sm:flex-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 outline-none focus:border-[#B8935B] shadow-xs"
-          >
-            <option value="">All Statuses</option>
-            {Object.entries(STATUS_LABELS).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* ── Mobile card list (< md) ─────────────────────────────────── */}
-      <div className="md:hidden space-y-3">
-        {loading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-white border border-slate-200/90 rounded-2xl p-4 animate-pulse space-y-3">
-              <div className="h-4 bg-slate-100 rounded w-2/3" />
-              <div className="h-3 bg-slate-100 rounded w-1/2" />
+  return (
+    <AppShell>
+      <main className="page-body">
+        <div className="w-full max-w-7xl 2xl:max-w-[1680px] mx-auto space-y-6 pb-12">
+          {/* ── Page Header ── */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-1">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>Catalyst Suite</span>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Career Branding Clients</h1>
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{total} active &amp; completed client profiles</p>
             </div>
-          ))
-        ) : clients.length === 0 ? (
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-12 text-center text-slate-400 text-sm">
-            No clients found
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center justify-center gap-1.5 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-[#B8935B]/15 hover:opacity-95 active:scale-95 transition-all self-start sm:self-auto"
+            >
+              <span>+</span>
+              <span>Add Client</span>
+            </button>
           </div>
-        ) : clients.map(c => {
-          const initial = c.name.charAt(0).toUpperCase() || 'C';
-          return (
-            <Link key={c.id} href={`/career/${c.id}`} className="block bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs hover:border-[#B8935B]/40 hover:shadow-md transition-all active:scale-[0.99] space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0A0B0D] to-[#B8935B] text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-xs">
-                    {initial}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-extrabold text-slate-900 text-sm truncate">{c.name}</span>
-                      {c.ConversationReadState && c.ConversationReadState.unreadByAdmin > 0 && (
-                        <span className="flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse">
-                          {c.ConversationReadState.unreadByAdmin}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-slate-400 truncate">{c.email}</div>
-                  </div>
-                </div>
-                <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold ${STATUS_COLORS[c.status]}`}>
-                  {STATUS_LABELS[c.status]}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 flex-wrap text-xs">
-                <span className="text-slate-600 font-medium truncate max-w-[65%]">{clientServiceLabel(c)}</span>
-                <SlaChip c={c} />
-              </div>
-              <div className="text-[11px] text-slate-400">
-                Enrolled: {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </div>
-            </Link>
-          );
-        })}
-      </div>
 
-      {/* ── Desktop table (≥ md) ────────────────────────────────────── */}
-      <div className="hidden md:block bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-xs">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            <tr>
-              {['Client', 'Status', 'Services', 'SLA Status', 'Joined', ''].map(h => (
-                <th key={h} className="text-left px-5 py-3.5">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+          {/* ── Filters ── */}
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <input
+              type="text"
+              placeholder="Search name or email…"
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
+              className="w-full sm:w-72 px-3.5 py-2.5 text-xs sm:text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#B8935B] shadow-xs"
+            />
+            <div className="flex gap-2">
+              <select
+                value={filterLifecycle}
+                onChange={e => { setFilterLifecycle(e.target.value); setPage(1); }}
+                className="flex-1 sm:flex-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 outline-none focus:border-[#B8935B] shadow-xs"
+              >
+                <option value="ALL">All Lifecycles</option>
+                <option value="ACTIVE">Active</option>
+                <option value="ARCHIVED">Archived</option>
+              </select>
+              <select
+                value={filterStatus}
+                onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
+                className="flex-1 sm:flex-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 outline-none focus:border-[#B8935B] shadow-xs"
+              >
+                <option value="">All Statuses</option>
+                {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* ── Mobile card list (< md) ─────────────────────────────────── */}
+          <div className="md:hidden space-y-3.5 my-3">
             {loading ? (
-              <tr><td colSpan={6} className="text-center py-12 text-slate-400">Loading…</td></tr>
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 animate-pulse space-y-3">
+                  <div className="h-4 bg-slate-100 rounded w-2/3" />
+                  <div className="h-3 bg-slate-100 rounded w-1/2" />
+                </div>
+              ))
             ) : clients.length === 0 ? (
-              <tr><td colSpan={6} className="text-center py-12 text-slate-400">No clients found</td></tr>
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-12 text-center text-slate-400 text-sm">
+                No clients found
+              </div>
             ) : clients.map(c => {
               const initial = c.name.charAt(0).toUpperCase() || 'C';
               return (
-                <tr key={c.id} className="hover:bg-[#FBF8F3]/50 transition-colors">
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#0A0B0D] to-[#B8935B] text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-xs">
+                <Link key={c.id} href={`/career/${c.id}`} className="block bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs hover:border-[#B8935B]/40 hover:shadow-md transition-all active:scale-[0.99] space-y-3.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0A0B0D] to-[#B8935B] text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-xs">
                         {initial}
                       </div>
-                      <div className="flex flex-col">
-                        <Link href={`/career/${c.id}`} className="font-bold text-slate-900 hover:text-[#B8935B] transition-colors flex items-center gap-2">
-                          {c.name}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-extrabold text-slate-900 text-sm truncate">{c.name}</span>
                           {c.ConversationReadState && c.ConversationReadState.unreadByAdmin > 0 && (
                             <span className="flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse">
                               {c.ConversationReadState.unreadByAdmin}
                             </span>
                           )}
-                        </Link>
-                        <span className="text-xs text-slate-400">{c.email}</span>
+                        </div>
+                        <div className="text-xs text-slate-400 truncate">{c.email}</div>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-extrabold ${STATUS_COLORS[c.status]}`}>
+                    <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold ${STATUS_COLORS[c.status]}`}>
                       {STATUS_LABELS[c.status]}
                     </span>
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-700 font-medium">
-                    <span className="line-clamp-2" title={clientServiceLabel(c)}>
-                      {clientServiceLabel(c)}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5"><SlaChip c={c} /></td>
-                  <td className="px-5 py-3.5 text-slate-400 text-xs">
-                    {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </td>
-                  <td className="px-5 py-3.5 text-right">
-                  <Link href={`/career/${c.id}`} className="px-3 py-1 text-xs font-semibold text-[#B8935B] border border-[#E8DDD0] rounded-lg hover:bg-[#FBF8F3] transition-colors">
-                    View →
-                  </Link>
-                </td>
-              </tr>
-            );
-          })}
-          </tbody>
-        </table>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-100 flex-wrap text-xs">
+                    <span className="text-slate-600 font-medium truncate max-w-[65%]">{clientServiceLabel(c)}</span>
+                    <SlaChip c={c} />
+                  </div>
+                  <div className="text-[11px] text-slate-400">
+                    Enrolled: {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
 
-        {total > 20 && (
-          <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
-            <p className="text-xs text-slate-400">Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total}</p>
-            <div className="flex gap-2">
-              <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
-                className="px-3 py-1 text-xs border border-slate-200 rounded disabled:opacity-40 hover:bg-slate-50">← Prev</button>
-              <button disabled={page * 20 >= total} onClick={() => setPage(p => p + 1)}
-                className="px-3 py-1 text-xs border border-slate-200 rounded disabled:opacity-40 hover:bg-slate-50">Next →</button>
+          {/* ── Desktop table (≥ md) ────────────────────────────────────── */}
+          <div className="hidden md:block bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-xs my-4">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[900px]">
+                <thead className="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  <tr>
+                    <th className="text-left px-6 py-4">Client</th>
+                    <th className="text-left px-4 py-4">Status</th>
+                    <th className="text-left px-4 py-4">Services</th>
+                    <th className="text-left px-4 py-4">SLA Status</th>
+                    <th className="text-left px-4 py-4">Joined</th>
+                    <th className="text-right px-6 py-4">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {loading ? (
+                    <tr><td colSpan={6} className="text-center py-16 text-slate-400">Loading clients…</td></tr>
+                  ) : clients.length === 0 ? (
+                    <tr><td colSpan={6} className="text-center py-16 text-slate-400">No clients found</td></tr>
+                  ) : clients.map(c => {
+                    const initial = c.name.charAt(0).toUpperCase() || 'C';
+                    return (
+                      <tr key={c.id} className="hover:bg-[#FBF8F3]/50 transition-colors">
+                        <td className="px-6 py-4.5">
+                          <div className="flex items-center gap-3.5">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0A0B0D] to-[#B8935B] text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-xs">
+                              {initial}
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <Link href={`/career/${c.id}`} className="font-bold text-slate-900 hover:text-[#B8935B] transition-colors flex items-center gap-2">
+                                <span className="truncate">{c.name}</span>
+                                {c.ConversationReadState && c.ConversationReadState.unreadByAdmin > 0 && (
+                                  <span className="flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse">
+                                    {c.ConversationReadState.unreadByAdmin}
+                                  </span>
+                                )}
+                              </Link>
+                              <span className="text-xs text-slate-400 truncate">{c.email}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4.5 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-extrabold ${STATUS_COLORS[c.status]}`}>
+                            {STATUS_LABELS[c.status]}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4.5 text-slate-700 font-medium max-w-[280px]">
+                          <span className="line-clamp-2" title={clientServiceLabel(c)}>
+                            {clientServiceLabel(c)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4.5 whitespace-nowrap"><SlaChip c={c} /></td>
+                        <td className="px-4 py-4.5 text-slate-400 text-xs whitespace-nowrap">
+                          {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td className="px-6 py-4.5 text-right whitespace-nowrap">
+                          <Link href={`/career/${c.id}`} className="inline-flex items-center px-3.5 py-1.5 text-xs font-bold text-[#B8935B] bg-[#FBF8F3] border border-[#E8DDD0] rounded-xl hover:bg-[#F0EAE0] transition-colors shadow-2xs">
+                            Manage →
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          </div>
-        )}
-      </div>
 
-      {/* Mobile pagination */}
-      {total > 20 && (
-        <div className="md:hidden flex items-center justify-between mt-3 px-1">
-          <p className="text-xs text-slate-400">{(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total}</p>
-          <div className="flex gap-2">
-            <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
-              className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg disabled:opacity-40 bg-white">← Prev</button>
-            <button disabled={page * 20 >= total} onClick={() => setPage(p => p + 1)}
-              className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg disabled:opacity-40 bg-white">Next →</button>
+            {total > 20 && (
+              <div className="px-6 py-3.5 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <p className="text-xs text-slate-500">Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total}</p>
+                <div className="flex gap-2">
+                  <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
+                    className="px-3.5 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-white bg-white shadow-2xs">← Prev</button>
+                  <button disabled={page * 20 >= total} onClick={() => setPage(p => p + 1)}
+                    className="px-3.5 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-white bg-white shadow-2xs">Next →</button>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Mobile pagination */}
+          {total > 20 && (
+            <div className="md:hidden flex items-center justify-between mt-4 px-1">
+              <p className="text-xs text-slate-500">{(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total}</p>
+              <div className="flex gap-2">
+                <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
+                  className="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg disabled:opacity-40 bg-white shadow-2xs">← Prev</button>
+                <button disabled={page * 20 >= total} onClick={() => setPage(p => p + 1)}
+                  className="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg disabled:opacity-40 bg-white shadow-2xs">Next →</button>
+              </div>
+            </div>
+          )}
+
+          {showAddModal && <AddClientModal onClose={() => setShowAddModal(false)} onAdded={fetchClients} />}
         </div>
-      )}
-
-      {showAddModal && <AddClientModal onClose={() => setShowAddModal(false)} onAdded={fetchClients} />}
-    </div>
+      </main>
+    </AppShell>
   );
 }
 
