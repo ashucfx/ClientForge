@@ -55,8 +55,8 @@ const SERVICE_LABELS: Record<ServiceSlug, string> = {
 };
 
 const PKG_META: Record<PackageSlug, { label: string; sub: string; color: string }> = {
-  CAREER_BOOSTER: { label: 'Career Booster',  sub: 'Resume + LinkedIn + Cover Letter (15% off)', color: '#B8935B' },
-  PREMIUM_PLUS:   { label: 'Premium Plus',     sub: 'All four services (20% off)',                color: '#8b5cf6' },
+  CAREER_BOOSTER: { label: 'Career Booster',  sub: 'Resume + LinkedIn + Cover Letter', color: '#B8935B' },
+  PREMIUM_PLUS:   { label: 'Premium Plus',     sub: 'All four services',                color: '#8b5cf6' },
   CUSTOM:         { label: 'Custom',           sub: 'Build your own line items manually',         color: '#64748b' },
 };
 
@@ -576,7 +576,8 @@ export default function NewInvoicePage() {
     if (brandId !== 'catalyst') return;
     if (packageSlug === 'CUSTOM') return; // user is building manually
     setLineItems(defaultItemsForPackage(packageSlug, clientType, currencyInfo?.code ?? 'INR', exchangeRate, usdExchangeRate));
-    setDiscountRate(PRICING.packageDiscounts[packageSlug] ?? 0);
+    // Discount is now entirely manual based on user request
+    setDiscountRate(0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientType, packageSlug, exchangeRate]);
 

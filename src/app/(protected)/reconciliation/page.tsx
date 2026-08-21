@@ -32,6 +32,7 @@ interface Summary {
   totalNetInr: number;
   totalSettledInr: number;
   totalGapInr: number;
+  allTimeTotalGapInr?: number;
   avgGapPct: number | null;
   byGateway: { gateway: string; netInr: number; settledInr: number; gapInr: number; effectiveFeeRate: number; count: number }[];
 }
@@ -379,9 +380,11 @@ export default function ReconciliationPage() {
               icon: '🏦'
             },
             {
-              label: 'Gateway Fee Leakage',
+              label: (from || to) ? 'Period Fee Leakage' : 'All-Time Fee Leakage',
               value: summary.reconciledCount > 0 ? fmt(summary.totalGapInr) : '—',
-              sub: summary.avgGapPct !== null ? `avg ${summary.avgGapPct}% leakage rate` : 'No data yet',
+              sub: (from || to) && summary.allTimeTotalGapInr !== undefined
+                ? `All-Time Leak: ${fmt(summary.allTimeTotalGapInr)}`
+                : summary.avgGapPct !== null ? `avg ${summary.avgGapPct}% leakage rate` : 'No data yet',
               gradient: 'from-[#7F1D1D] to-[#B91C1C]',
               text: 'text-white',
               subText: 'text-red-200/70',
@@ -454,17 +457,34 @@ export default function ReconciliationPage() {
           />
         </div>
         <input
-          type="date"
-          value={from}
-          onChange={e => setFrom(e.target.value)}
-          className="px-3 py-2.5 bg-slate-50 border-transparent rounded-xl text-sm font-medium focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-600"
+          type="month"
+          onChange={e => {
+            const val = e.target.value;
+            if (!val) { setFrom(''); setTo(''); return; }
+            const [y, m] = val.split('-');
+            setFrom(new Date(parseInt(y), parseInt(m) - 1, 1).toISOString().slice(0, 10));
+            setTo(new Date(parseInt(y), parseInt(m), 0).toISOString().slice(0, 10));
+          }}
+          className="px-3 py-2.5 bg-slate-100 border-transparent rounded-xl text-sm font-medium focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-700"
+          title="Quick Month Select"
         />
-        <input
-          type="date"
-          value={to}
-          onChange={e => setTo(e.target.value)}
-          className="px-3 py-2.5 bg-slate-50 border-transparent rounded-xl text-sm font-medium focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-600"
-        />
+        <div className="flex items-center gap-1">
+          <input
+            type="date"
+            value={from}
+            onChange={e => setFrom(e.target.value)}
+            className="px-3 py-2.5 bg-slate-50 border-transparent rounded-xl text-sm font-medium focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-600 w-full sm:w-auto"
+            title="Start Date"
+          />
+          <span className="text-slate-300">-</span>
+          <input
+            type="date"
+            value={to}
+            onChange={e => setTo(e.target.value)}
+            className="px-3 py-2.5 bg-slate-50 border-transparent rounded-xl text-sm font-medium focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-600 w-full sm:w-auto"
+            title="End Date"
+          />
+        </div>
         <select
           value={filter}
           onChange={e => setFilter(e.target.value as 'all' | 'reconciled' | 'unreconciled')}

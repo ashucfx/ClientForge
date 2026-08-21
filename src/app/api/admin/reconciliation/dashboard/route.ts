@@ -243,6 +243,44 @@ export async function GET(req: NextRequest) {
     count: v.count,
   }));
 
+  // ── 6. All-Time Leakage (if filtered by date) ──────────────────────────────
+  let allTimeTotalGapInr = Math.round(totalGapInr);
+  
+  if (fromDate || toDate) {
+    // We need to quickly calculate all-time leakage without re-fetching everything
+    // For performance, we can run a separate quick calculation for invoices and manual entries
+    const allReconciledInvoices = await db.invoice.findMany({
+      where: { status: 'PAID', amountSettledInr: { not: null } },
+      select: { subtotalConverted: true, currency: true, amountSettledInr: true }
+    });
+    const allReconciledCareer = await db.careerClient.findMany({
+      where: { amountPaid: { gt: 0 }, amountSettledInr: { not: null } },
+      select: { amountPaid: true, currency: true, amountSettledInr: true }
+    });
+    const allReconciledRn = await db.rnClient.findMany({
+      where: { amountPaid: { gt: 0 }, amountSettledInr: { not: null } },
+      select: { amountPaid: true, currency: true, amountSettledInr: true }
+    });
+
+    let allTimeNet = 0;
+    for (const inv of allReconciledInvoices) {
+      allTimeNet += await amountToInr(inv.subtotalConverted, inv.currency);
+    }
+    for (const c of allReconciledCareer) {
+      allTimeNet += await amountToInr(c.amountPaid, c.currency ?? 'INR');
+    }
+    for (const c of allReconciledRn) {
+      allTimeNet += await amountToInr(c.amountPaid, c.currency ?? 'INR');
+    }
+    
+    const allTimeSettled = 
+      allReconciledInvoices.reduce((s, i) => s + (i.amountSettledInr ?? 0), 0) +
+      allReconciledCareer.reduce((s, i) => s + (i.amountSettledInr ?? 0), 0) +
+      allReconciledRn.reduce((s, i) => s + (i.amountSettledInr ?? 0), 0);
+      
+    allTimeTotalGapInr = Math.round(allTimeNet - allTimeSettled);
+  }
+
   return NextResponse.json({
     rows: allRows,
     summary: {
@@ -253,6 +291,7 @@ export async function GET(req: NextRequest) {
       totalNetInr: Math.round(totalNetInr),
       totalSettledInr: Math.round(totalSettledInr),
       totalGapInr: Math.round(totalGapInr),
+      allTimeTotalGapInr,
       avgGapPct,
       byGateway,
     },

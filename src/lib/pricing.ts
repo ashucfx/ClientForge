@@ -111,9 +111,9 @@ export const SERVICE_DESCRIPTIONS: Record<ClientType, {
 // FEE RATES (BLENDED ZERO-LOSS RATES)
 // ─────────────────────────────────────────────
 export const FEE_RATES = {
-  RAZORPAY_DOMESTIC: 0.025, // Covers 2.36% + rounding
-  RAZORPAY_INTL:     0.060, // Covers 3.54% fee + ~2.46% FX spread
-  PAYPAL_INTL:       0.090, // Covers 5.19% fee + ~3.81% FX spread
+  RAZORPAY_DOMESTIC: 0.0295, // 2.5% Gateway Fee + 18% GST (2.5 * 1.18)
+  RAZORPAY_INTL:     0.0554, // 3.54% Gateway Fee + ~2.00% FX spread
+  PAYPAL_INTL:       0.090,  // 5.19% Gateway Fee + ~3.81% FX spread
 };
 
 // ─────────────────────────────────────────────
