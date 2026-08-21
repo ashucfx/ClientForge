@@ -251,7 +251,7 @@ async function generateDocx(fromStr?: string, toStr?: string) {
     children: [new Paragraph({ children: [new TextRun({ text, bold, size: 16, color })] })],
   });
 
-  const doc = new Document({
+  const doc = new DocxDocument({
     sections: [{
       children: [
         new Paragraph({ text: 'Revenue Reconciliation Report', heading: HeadingLevel.HEADING_1 }),
