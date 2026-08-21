@@ -111,7 +111,7 @@ function SettlementEditor({
     <div>
       <button
         onClick={() => setOpen(true)}
-        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 shadow-2xs hover:shadow-xs active:scale-95 ${
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 shadow-2xs hover:shadow-xs active:scale-95 ${
           row.isReconciled
             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 hover:bg-emerald-100 hover:border-emerald-300'
             : 'bg-amber-500 text-white hover:bg-amber-600 border border-amber-600'
@@ -798,19 +798,19 @@ export default function ReconciliationPage() {
             <>
               {/* Desktop Table View */}
               <div className="hidden lg:block overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                <table className="w-full min-w-[1000px] text-left border-collapse text-xs sm:text-sm">
                   <thead>
                     <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                      <th className="px-5 py-3.5">Reference</th>
-                      <th className="px-5 py-3.5">Client</th>
-                      <th className="px-5 py-3.5">Date</th>
-                      <th className="px-5 py-3.5">Gateway</th>
-                      <th className="px-5 py-3.5 text-right">Gross</th>
-                      <th className="px-5 py-3.5 text-right">Expected Net</th>
-                      <th className="px-5 py-3.5 text-right">Bank Settled</th>
-                      <th className="px-5 py-3.5 text-right">Fee Gap</th>
-                      <th className="px-5 py-3.5 text-center">Fee %</th>
-                      <th className="px-5 py-3.5 text-center">Action</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Reference</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Client</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Date</th>
+                      <th className="px-4 py-3.5 whitespace-nowrap">Gateway</th>
+                      <th className="px-4 py-3.5 text-right whitespace-nowrap">Gross</th>
+                      <th className="px-4 py-3.5 text-right whitespace-nowrap">Expected Net</th>
+                      <th className="px-4 py-3.5 text-right whitespace-nowrap">Bank Settled</th>
+                      <th className="px-4 py-3.5 text-right whitespace-nowrap">Fee Gap</th>
+                      <th className="px-4 py-3.5 text-center whitespace-nowrap">Fee %</th>
+                      <th className="px-4 py-3.5 text-center whitespace-nowrap">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -821,10 +821,10 @@ export default function ReconciliationPage() {
                           !row.isReconciled ? 'bg-amber-50/20' : ''
                         }`}
                       >
-                        <td className="px-5 py-4">
+                        <td className="px-4 py-3.5 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-xs font-bold text-slate-900">{row.ref}</span>
-                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 ${
                               row.type === 'invoice'
                                 ? 'bg-blue-50 text-blue-700 border border-blue-200/60'
                                 : row.type === 'career_manual'
@@ -835,28 +835,28 @@ export default function ReconciliationPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-4 py-3.5 whitespace-nowrap">
                           <div className="font-bold text-slate-900 text-xs">{row.clientName}</div>
-                          <div className="text-slate-400 text-[11px]">{row.clientEmail}</div>
+                          <div className="text-slate-400 text-[11px] truncate max-w-[180px]">{row.clientEmail}</div>
                         </td>
-                        <td className="px-5 py-4 text-xs font-semibold text-slate-600">
+                        <td className="px-4 py-3.5 text-xs font-semibold text-slate-600 whitespace-nowrap">
                           {fmtDate(row.date)}
                         </td>
-                        <td className="px-5 py-4">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold uppercase bg-slate-100 text-slate-700">
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase bg-slate-100 text-slate-700 whitespace-nowrap">
                             {row.gateway}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-right font-medium text-slate-500">
+                        <td className="px-4 py-3.5 text-right font-medium text-slate-500 whitespace-nowrap">
                           {fmt(row.grossInr)}
                         </td>
-                        <td className="px-5 py-4 text-right font-bold text-slate-900">
+                        <td className="px-4 py-3.5 text-right font-bold text-slate-900 whitespace-nowrap">
                           {fmt(row.netInr)}
                         </td>
-                        <td className="px-5 py-4 text-right font-bold text-emerald-600">
+                        <td className="px-4 py-3.5 text-right font-bold text-emerald-600 whitespace-nowrap">
                           {row.settledInr !== null ? fmt(row.settledInr) : <span className="text-slate-300">—</span>}
                         </td>
-                        <td className="px-5 py-4 text-right font-bold">
+                        <td className="px-4 py-3.5 text-right font-bold whitespace-nowrap">
                           {row.gapInr !== null ? (
                             <span className={row.gapInr > 0 ? 'text-rose-600' : 'text-emerald-600'}>
                               {row.gapInr > 0 ? '-' : '+'}{fmt(Math.abs(row.gapInr))}
@@ -865,9 +865,9 @@ export default function ReconciliationPage() {
                             <span className="text-slate-300">—</span>
                           )}
                         </td>
-                        <td className="px-5 py-4 text-center">
+                        <td className="px-4 py-3.5 text-center whitespace-nowrap">
                           {row.gapPct !== null ? (
-                            <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                            <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full whitespace-nowrap ${
                               row.gapPct > 3
                                 ? 'bg-rose-50 text-rose-700 border border-rose-200'
                                 : row.gapPct > 0
@@ -880,7 +880,7 @@ export default function ReconciliationPage() {
                             <span className="text-slate-300 text-xs">—</span>
                           )}
                         </td>
-                        <td className="px-5 py-4 text-center">
+                        <td className="px-4 py-3.5 text-center whitespace-nowrap">
                           <SettlementEditor row={row} onSaved={handleSaved} />
                         </td>
                       </tr>
