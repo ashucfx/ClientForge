@@ -299,6 +299,25 @@ export default function AnalyticsSourcesPage() {
                     {data.summary.promoters} Promoters · {data.summary.passives} Passives · {data.summary.detractors} Detractors
                   </p>
                 </div>
+
+            {/* ── Revenue Leakage Banner ── */}
+            <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-100 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+              <div>
+                <h3 className="text-sm font-bold text-red-900 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  Zero-Loss Revenue Reconciliation Active
+                </h3>
+                <p className="text-xs text-red-700 mt-1 max-w-2xl">
+                  We're now strictly tracking the gap between invoiced amounts and actual bank settlements to eliminate fee leakage. Review un-reconciled transactions and export reports in the new dashboard.
+                </p>
+              </div>
+              <Link
+                href="/reconciliation"
+                className="whitespace-nowrap px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
+              >
+                Go to Reconciliation →
+              </Link>
+            </div>
               </div>
 
             </div>

@@ -317,6 +317,215 @@ function DeleteModal({
   );
 }
 
+// ─── Settlement Reconciliation Panel ───────────────
+function SettlementPanel({
+  invoice,
+  onSaved,
+}: {
+  invoice: InvoiceData;
+  onSaved: (updated: { amountSettledInr: number | null; settlementNote: string | null; settledAt: Date | null }) => void;
+}) {
+  const [open, setOpen] = useState(invoice.amountSettledInr !== null);
+  const [amount, setAmount] = useState(invoice.amountSettledInr?.toString() ?? '');
+  const [note, setNote] = useState(invoice.settlementNote ?? '');
+  const [settledAt, setSettledAt] = useState(
+    invoice.settledAt
+      ? new Date(invoice.settledAt).toISOString().slice(0, 10)
+      : invoice.paidAt
+      ? new Date(invoice.paidAt).toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10)
+  );
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+
+  // Net INR reference — subtotalConverted is already in invoice.currency units; we show in currency
+  const netAmount = invoice.subtotalConverted;
+  const grossAmount = invoice.totalPayable;
+  const parsedAmount = amount !== '' ? parseFloat(amount) : null;
+
+  // Gap relative to net subtotal — shown in invoice currency
+  const gap = parsedAmount !== null ? netAmount - parsedAmount : null;
+  const gapPct = gap !== null && netAmount > 0 ? (gap / netAmount * 100).toFixed(2) : null;
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    if (parsedAmount !== null && (isNaN(parsedAmount) || parsedAmount < 0)) {
+      setError('Enter a valid non-negative amount');
+      setSaving(false);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/invoices/${invoice.id}/settle`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amountSettledInr: parsedAmount,
+          settlementNote: note || null,
+          settledAt: settledAt || null,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      onSaved({
+        amountSettledInr: parsedAmount,
+        settlementNote: note || null,
+        settledAt: settledAt ? new Date(settledAt) : null,
+      });
+    } catch {
+      setError('Could not save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const sym = invoice.currencySymbol;
+
+  return (
+    <div className="border-t border-slate-200">
+      {/* Toggle header */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 sm:px-7 py-3.5 hover:bg-slate-50 transition-colors text-left"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-sm">💰</span>
+          <div>
+            <div className="text-xs font-semibold text-slate-800">Settlement Reconciliation</div>
+            <div className="text-[10px] text-slate-400">
+              {invoice.amountSettledInr !== null
+                ? `Settled: ${sym}${invoice.amountSettledInr.toLocaleString()} · Gap: ${gap !== null ? `${sym}${Math.abs(gap).toLocaleString()} (${gapPct}%)` : '—'}`
+                : 'Click to enter actual amount received in your bank'}
+            </div>
+          </div>
+        </div>
+        <span className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+      </button>
+
+      {open && (
+        <div className="px-4 sm:px-7 pb-5 bg-slate-50/60 border-t border-slate-100">
+          {/* Reference table */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-4 text-xs">
+            {[
+              { label: 'Invoiced (gross)', val: `${sym}${grossAmount.toLocaleString()}`, sub: 'incl. fees & tax' },
+              { label: 'Net Revenue', val: `${sym}${netAmount.toLocaleString()}`, sub: 'your subtotal' },
+              { label: 'Processing Fee', val: `${sym}${invoice.processingFeeConverted.toLocaleString()}`, sub: 'in invoice currency' },
+              { label: 'Gateway', val: invoice.paymentGateway, sub: 'payment processor' },
+            ].map(item => (
+              <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-3">
+                <div className="text-slate-400">{item.label}</div>
+                <div className="font-semibold text-slate-800 mt-0.5">{item.val}</div>
+                <div className="text-[10px] text-slate-300 mt-0.5">{item.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Form */}
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Actual Amount Received ({invoice.currency}) <span className="text-red-500">*</span>
+              </label>
+              <p className="text-[10px] text-slate-400 mb-1.5">Enter the exact amount that was credited to your bank account (after gateway deductions)</p>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-medium text-sm">{sym}</span>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={e => { setAmount(e.target.value); setSaved(false); }}
+                  className="w-full pl-8 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  placeholder={`e.g. ${(netAmount * 0.98).toFixed(0)}`}
+                  step="0.01"
+                  min={0}
+                />
+              </div>
+
+              {/* Live gap indicator */}
+              {gap !== null && (
+                <div className={`mt-2 flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg ${
+                  gap > 0 ? 'bg-red-50 text-red-700' : gap < 0 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'
+                }`}>
+                  {gap > 0 ? '⚠️' : gap < 0 ? '⚡' : '✓'}
+                  {gap > 0
+                    ? `Fee leakage: ${sym}${gap.toLocaleString()} (${gapPct}% lost to ${invoice.paymentGateway})`
+                    : gap < 0
+                    ? `Amount entered is ${sym}${Math.abs(gap).toLocaleString()} MORE than net — double-check`
+                    : 'Zero fee gap — perfect match!'}
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Settlement Date</label>
+                <input
+                  type="date"
+                  value={settledAt}
+                  onChange={e => setSettledAt(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Note (optional)</label>
+                <input
+                  type="text"
+                  value={note}
+                  onChange={e => setNote(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  placeholder="e.g. Razorpay batch #RZP-20260820"
+                />
+              </div>
+            </div>
+
+            {error && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className={`flex-1 py-2.5 text-white text-sm font-semibold rounded-xl transition-all ${
+                  saved
+                    ? 'bg-emerald-600'
+                    : 'bg-blue-600 hover:bg-blue-700 disabled:opacity-50'
+                }`}
+              >
+                {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Settlement'}
+              </button>
+              {invoice.amountSettledInr !== null && (
+                <button
+                  onClick={() => {
+                    setAmount('');
+                    setNote('');
+                    setSaved(false);
+                  }}
+                  className="px-4 py-2.5 text-slate-500 border border-slate-200 hover:bg-slate-100 text-sm rounded-xl transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Reconciliation Dashboard link */}
+          <div className="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between">
+            <p className="text-[10px] text-slate-400">
+              All settlements are tracked in the Revenue Reconciliation dashboard
+            </p>
+            <a
+              href="/reconciliation"
+              className="text-[10px] text-blue-600 hover:underline font-medium"
+            >
+              View Dashboard →
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────
@@ -999,6 +1208,11 @@ export default function InvoiceDetailPage() {
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* Settlement Reconciliation Panel — only shown for PAID invoices */}
+              {invoice.status === 'PAID' && (
+                <SettlementPanel invoice={invoice} onSaved={(updated) => setInvoice(i => i ? { ...i, ...updated } : i)} />
               )}
 
               {/* 6. Terms & Conditions */}

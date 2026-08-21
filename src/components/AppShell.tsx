@@ -300,7 +300,7 @@ function SidebarContent({
   pathname, activeBrand, hasCatalystAccess, hasRnAccess,
   careerUnread, onNavigate, onLogout, onSwitchTenant, switching, isSuperAdmin,
 }: SidebarProps) {
-  const inFinance = ['/invoices', '/analytics'].some(p => pathname.startsWith(p));
+  const inFinance = ['/invoices', '/analytics', '/reconciliation'].some(p => pathname.startsWith(p));
   const inCareer  = pathname.startsWith('/career');
   const inGrowth  = pathname.startsWith('/flywheel') || pathname.startsWith('/sales');
   const inTools   = pathname.startsWith('/bugs') || pathname.startsWith('/referrals') || pathname.startsWith('/team') || pathname.startsWith('/reviews') || pathname.startsWith('/settings');
@@ -332,6 +332,8 @@ function SidebarContent({
             active={isActive('/invoices', pathname)} onClick={onNavigate} />
           <NavLink href="/analytics" icon={<IconAnalytics size={16} />} label="Analytics"
             active={isActive('/analytics', pathname)} onClick={onNavigate} />
+          <NavLink href="/reconciliation" icon={<IconTrendUp size={16} />} label="Reconciliation"
+            active={isActive('/reconciliation', pathname)} onClick={onNavigate} />
         </NavSection>
 
         {/* Branding Suite */}
