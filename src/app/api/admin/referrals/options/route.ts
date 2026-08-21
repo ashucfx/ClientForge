@@ -36,7 +36,6 @@ export async function GET(req: NextRequest) {
         id: true,
         name: true,
         email: true,
-        flywheelProfileId: true,
       },
       orderBy: { createdAt: 'desc' },
       take: 200,
@@ -47,22 +46,26 @@ export async function GET(req: NextRequest) {
 
     for (const p of profiles) {
       if (p.contact?.name) {
-        map.set(p.contact.email.toLowerCase(), {
+        const key = p.contact.email ? p.contact.email.toLowerCase() : p.id;
+        map.set(key, {
           id: p.id,
           name: p.contact.name,
-          email: p.contact.email,
+          email: p.contact.email || '',
           referralCode: p.referralCode || undefined,
         });
       }
     }
 
     for (const c of careerClients) {
-      if (c.name && c.email && !map.has(c.email.toLowerCase())) {
-        map.set(c.email.toLowerCase(), {
-          id: c.id,
-          name: c.name,
-          email: c.email,
-        });
+      if (c.name) {
+        const key = c.email ? c.email.toLowerCase() : c.id;
+        if (!map.has(key)) {
+          map.set(key, {
+            id: c.id,
+            name: c.name,
+            email: c.email || '',
+          });
+        }
       }
     }
 
