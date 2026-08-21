@@ -85,54 +85,60 @@ export async function GET(request: Request) {
 
   for (const inv of allInvoices) {
     // Only count as revenue if it is settled!
-    if (inv.amountSettledInr !== null && inv.settledAt) {
+    if (inv.amountSettledInr !== null) {
       const settledAmt = inv.amountSettledInr;
       lifetimeRevenue += settledAmt;
       addBreakdown(inv.currency, inv.subtotalConverted);
 
-      if (inv.settledAt >= currentStart && inv.settledAt <= currentEnd) currentPeriodRevenue += settledAmt;
-      if (inv.settledAt >= prevStart && inv.settledAt <= prevEnd) prevPeriodRevenue += settledAmt;
+      const effectiveDate = inv.paidAt || inv.settledAt || new Date(0);
+
+      if (effectiveDate >= currentStart && effectiveDate <= currentEnd) currentPeriodRevenue += settledAmt;
+      if (effectiveDate >= prevStart && effectiveDate <= prevEnd) prevPeriodRevenue += settledAmt;
 
       // Leakage calculation
       const expectedInr = await amountToInr(inv.subtotalConverted, inv.currency);
       const gap = Math.max(0, expectedInr - settledAmt);
       
-      if (inv.settledAt >= currentStart && inv.settledAt <= currentEnd) monthlyLeakage += gap;
-      if (inv.settledAt >= yearStart && inv.settledAt <= yearEnd) annualLeakage += gap;
+      if (effectiveDate >= currentStart && effectiveDate <= currentEnd) monthlyLeakage += gap;
+      if (effectiveDate >= yearStart && effectiveDate <= yearEnd) annualLeakage += gap;
     }
   }
 
   // Same for Career
   for (const c of allCareer) {
-    if (c.amountSettledInr !== null && c.settledAt) {
+    if (c.amountSettledInr !== null) {
       const settledAmt = c.amountSettledInr;
       lifetimeRevenue += settledAmt;
       addBreakdown(c.currency, c.amountPaid);
+      
+      const effectiveDate = c.createdAt || c.settledAt || new Date(0);
 
-      if (c.settledAt >= currentStart && c.settledAt <= currentEnd) currentPeriodRevenue += settledAmt;
-      if (c.settledAt >= prevStart && c.settledAt <= prevEnd) prevPeriodRevenue += settledAmt;
+      if (effectiveDate >= currentStart && effectiveDate <= currentEnd) currentPeriodRevenue += settledAmt;
+      if (effectiveDate >= prevStart && effectiveDate <= prevEnd) prevPeriodRevenue += settledAmt;
 
-      const expectedInr = await amountToInr(c.amountPaid, c.currency ?? 'INR');
+      const expectedInr = await amountToInr(c.amountPaid, c.currency || 'INR');
       const gap = Math.max(0, expectedInr - settledAmt);
-      if (c.settledAt >= currentStart && c.settledAt <= currentEnd) monthlyLeakage += gap;
-      if (c.settledAt >= yearStart && c.settledAt <= yearEnd) annualLeakage += gap;
+      if (effectiveDate >= currentStart && effectiveDate <= currentEnd) monthlyLeakage += gap;
+      if (effectiveDate >= yearStart && effectiveDate <= yearEnd) annualLeakage += gap;
     }
   }
 
   // Same for RN
   for (const c of allRn) {
-    if (c.amountSettledInr !== null && c.settledAt) {
+    if (c.amountSettledInr !== null) {
       const settledAmt = c.amountSettledInr;
       lifetimeRevenue += settledAmt;
       addBreakdown(c.currency, c.amountPaid);
+      
+      const effectiveDate = c.createdAt || c.settledAt || new Date(0);
 
-      if (c.settledAt >= currentStart && c.settledAt <= currentEnd) currentPeriodRevenue += settledAmt;
-      if (c.settledAt >= prevStart && c.settledAt <= prevEnd) prevPeriodRevenue += settledAmt;
+      if (effectiveDate >= currentStart && effectiveDate <= currentEnd) currentPeriodRevenue += settledAmt;
+      if (effectiveDate >= prevStart && effectiveDate <= prevEnd) prevPeriodRevenue += settledAmt;
 
-      const expectedInr = await amountToInr(c.amountPaid, c.currency ?? 'INR');
+      const expectedInr = await amountToInr(c.amountPaid, c.currency || 'INR');
       const gap = Math.max(0, expectedInr - settledAmt);
-      if (c.settledAt >= currentStart && c.settledAt <= currentEnd) monthlyLeakage += gap;
-      if (c.settledAt >= yearStart && c.settledAt <= yearEnd) annualLeakage += gap;
+      if (effectiveDate >= currentStart && effectiveDate <= currentEnd) monthlyLeakage += gap;
+      if (effectiveDate >= yearStart && effectiveDate <= yearEnd) annualLeakage += gap;
     }
   }
 

@@ -35,6 +35,8 @@ export async function GET(request: Request) {
       sourceChannel: true,
       clientType: true,
       settledAt: true,
+      paidAt: true,
+      createdAt: true,
     },
   });
 
@@ -42,11 +44,11 @@ export async function GET(request: Request) {
   const [manualCareer, manualRn] = await Promise.all([
     db.careerClient.findMany({
       where: { invoiceId: null, amountPaid: { gt: 0 }, amountSettledInr: { not: null } },
-      select: { id: true, amountSettledInr: true, settledAt: true },
+      select: { id: true, amountSettledInr: true, settledAt: true, createdAt: true },
     }),
     db.rnClient.findMany({
       where: { invoiceId: null, amountPaid: { gt: 0 }, amountSettledInr: { not: null } },
-      select: { id: true, amountSettledInr: true, settledAt: true },
+      select: { id: true, amountSettledInr: true, settledAt: true, createdAt: true },
     }),
   ]);
 
@@ -86,7 +88,7 @@ export async function GET(request: Request) {
 
   invoices.forEach(inv => {
     const inr = inv.amountSettledInr ?? 0;
-    const date = inv.settledAt;
+    const date = inv.paidAt || inv.settledAt || inv.createdAt;
     if (!date) return;
     
     // Always build the monthly chart data (maybe up to the selected month)
@@ -107,7 +109,7 @@ export async function GET(request: Request) {
 
   manualCareer.forEach(c => {
     const inr = c.amountSettledInr ?? 0;
-    const date = c.settledAt;
+    const date = c.createdAt || c.settledAt;
     if (!date) return;
 
     if (!currentEnd || date <= currentEnd) {
@@ -125,7 +127,7 @@ export async function GET(request: Request) {
 
   manualRn.forEach(c => {
     const inr = c.amountSettledInr ?? 0;
-    const date = c.settledAt;
+    const date = c.createdAt || c.settledAt;
     if (!date) return;
 
     if (!currentEnd || date <= currentEnd) {
