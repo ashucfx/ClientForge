@@ -199,8 +199,8 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     revenue: {
-      value: Math.round(currentPeriodRevenue),
-      lifetimeValue: Math.round(lifetimeRevenue),
+      value: Math.round(lifetimeRevenue),
+      periodValue: Math.round(currentPeriodRevenue),
       monthlyLeakageInr: Math.round(monthlyLeakage),
       annualLeakageInr: Math.round(annualLeakage),
       trendPct: revenueTrendPct,
