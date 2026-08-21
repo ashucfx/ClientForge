@@ -92,6 +92,13 @@ model Invoice {
   revisionCount  Int   @default(0)
   revisionCharge Float @default(0)
 
+  // ── Settlement Reconciliation (additive, nullable — legacy rows unaffected) ──
+  // Enter the actual INR amount that landed in your bank after all gateway deductions.
+  // Gap = subtotalConverted − amountSettledInr → fees lost to payment gateway.
+  amountSettledInr Float?   // actual INR credited to bank after Razorpay/PayPal deductions
+  settlementNote   String?  // e.g. "Razorpay batch settled on 2026-08-20, TXN#xxx"
+  settledAt        DateTime? // date funds were credited to bank account
+
   // Meta
   notes         String?
   customPricing Boolean @default(false)
@@ -244,6 +251,11 @@ model CareerClient {
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   waitingOn          String         @default("AGENCY") // "AGENCY" | "CLIENT"
+
+  // ── Settlement Reconciliation (additive, nullable) ──
+  amountSettledInr Float?    // actual INR received in bank after UPI/cash/gateway deductions
+  settlementNote   String?   // optional note
+  settledAt        DateTime? // date received
 
   // Phase 4: Lifecycle & Archival
   lifecycleStatus  String    @default("ACTIVE") // ACTIVE | ARCHIVED | EXPIRED | CANCELLED
@@ -598,6 +610,11 @@ model RnClient {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   waitingOn          String    @default("AGENCY") // "AGENCY" | "CLIENT"
+
+  // ── Settlement Reconciliation (additive, nullable) ──
+  amountSettledInr Float?    // actual INR received in bank after deductions
+  settlementNote   String?   // optional note
+  settledAt        DateTime? // date received
 
   // Phase 4: Lifecycle & Archival
   lifecycleStatus  String    @default("ACTIVE") // ACTIVE | ARCHIVED | EXPIRED | CANCELLED

@@ -151,6 +151,11 @@ export interface InvoiceData {
 
   createdAt: Date;
   updatedAt: Date;
+
+  // ── Settlement Reconciliation (nullable — not present on all invoices) ──
+  amountSettledInr: number | null;
+  settlementNote:   string | null;
+  settledAt:        Date | null;
 }
 
 // ─── Pricing calculation ───────────────────────────────────────
