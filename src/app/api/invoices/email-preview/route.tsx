@@ -137,6 +137,9 @@ export async function POST(req: NextRequest) {
       emailResendCount: 0,
       createdAt: now,
       updatedAt: now,
+      amountSettledInr: null,
+      settlementNote:   null,
+      settledAt:        null,
     };
 
     const html = await render(React.createElement(InvoiceEmail, { invoice: invoiceData }));
