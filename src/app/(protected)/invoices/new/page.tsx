@@ -1117,11 +1117,6 @@ export default function NewInvoicePage() {
                           {sel && <div style={{ width: 7, height: 7, borderRadius: '50%', background: meta.color, flexShrink: 0 }} />}
                         </div>
                         <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.4 }}>{meta.sub}</div>
-                        {pkg !== 'CUSTOM' && (
-                          <div style={{ fontSize: 10, fontWeight: 600, color: meta.color, marginTop: 6 }}>
-                            {(PRICING.packageDiscounts[pkg] ?? 0) * 100}% off
-                          </div>
-                        )}
                       </button>
                     );
                   })}
