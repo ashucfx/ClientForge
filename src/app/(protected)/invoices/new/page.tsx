@@ -1001,7 +1001,6 @@ export default function NewInvoicePage() {
                   >
                     <option value="CLIENTFORGE_INVOICE">ClientForge Invoice Portal</option>
                     <option value="MANUAL_PORTAL">Manual Portal Onboarding</option>
-                    <option value="PAYMENT_GATEWAY_DIRECT">Payment Gateway Direct</option>
                     <option value="CLIENT_REFERRAL">Client Referral</option>
                   </select>
                 </div>
