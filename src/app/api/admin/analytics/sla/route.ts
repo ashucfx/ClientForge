@@ -9,13 +9,30 @@ function calculateTrend(current: number, previous: number) {
   return Math.round(((current - previous) / previous) * 100);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+  const { searchParams } = new URL(request.url);
+  const monthParam = searchParams.get('month');
+
+  let currentStart: Date;
+  let currentEnd: Date;
+  let prevStart: Date;
+
+  if (monthParam) {
+    const [y, m] = monthParam.split('-');
+    const year = parseInt(y);
+    const month = parseInt(m) - 1;
+    currentStart = new Date(year, month, 1);
+    currentEnd = new Date(year, month + 1, 0, 23, 59, 59, 999);
+    prevStart = new Date(year, month - 1, 1);
+  } else {
+    const now = new Date();
+    currentEnd = now;
+    currentStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    prevStart = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+  }
 
   // Fetch all completed clients with full timestamps
   const [careerClients, rnClients] = await Promise.all([
@@ -113,8 +130,8 @@ export async function GET() {
   };
 
   const lifetime = computeSlaForList();
-  let currentPeriod = computeSlaForList(thirtyDaysAgo, now);
-  const prevPeriod = computeSlaForList(sixtyDaysAgo, thirtyDaysAgo);
+  let currentPeriod = computeSlaForList(currentStart, currentEnd);
+  const prevPeriod = computeSlaForList(prevStart, currentStart);
 
   // If 30-day window has few/no completions, fallback to lifetime average to display meaningful operational metrics
   if (currentPeriod.totalCompleted === 0) {
@@ -125,8 +142,8 @@ export async function GET() {
     };
   }
 
-  const totalCareerRevisions = await db.careerRevision.count({ where: { createdAt: { gte: thirtyDaysAgo } } });
-  const totalRnRevisions = await db.rnRevision.count({ where: { createdAt: { gte: thirtyDaysAgo } } });
+  const totalCareerRevisions = await db.careerRevision.count({ where: { createdAt: { gte: currentStart, lte: currentEnd } } });
+  const totalRnRevisions = await db.rnRevision.count({ where: { createdAt: { gte: currentStart, lte: currentEnd } } });
   const currentRevisions = totalCareerRevisions + totalRnRevisions;
   const revisionRate = (currentPeriod.totalCompleted || lifetime.totalCompleted) > 0
     ? Number((currentRevisions / (currentPeriod.totalCompleted || lifetime.totalCompleted)).toFixed(1))

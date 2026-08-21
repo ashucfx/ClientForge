@@ -9,13 +9,30 @@ function calculateTrend(current: number, previous: number) {
   return Math.round(((current - previous) / previous) * 100);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+  const { searchParams } = new URL(request.url);
+  const monthParam = searchParams.get('month');
+
+  let currentStart: Date;
+  let currentEnd: Date;
+  let prevStart: Date;
+
+  if (monthParam) {
+    const [y, m] = monthParam.split('-');
+    const year = parseInt(y);
+    const month = parseInt(m) - 1;
+    currentStart = new Date(year, month, 1);
+    currentEnd = new Date(year, month + 1, 0, 23, 59, 59, 999);
+    prevStart = new Date(year, month - 1, 1);
+  } else {
+    const now = new Date();
+    currentEnd = now;
+    currentStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    prevStart = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+  }
 
   // Helper for satisfaction period
   const getSatisfactionMetrics = async (startDate: Date, endDate: Date) => {
@@ -40,9 +57,9 @@ export async function GET() {
     return { nps, avgRating, totalResponses };
   };
 
-  const currentPeriod = await getSatisfactionMetrics(thirtyDaysAgo, now);
-  const prevPeriod = await getSatisfactionMetrics(sixtyDaysAgo, thirtyDaysAgo);
-  const lifetime = await getSatisfactionMetrics(new Date(0), now);
+  const currentPeriod = await getSatisfactionMetrics(currentStart, currentEnd);
+  const prevPeriod = await getSatisfactionMetrics(prevStart, currentStart);
+  const lifetime = await getSatisfactionMetrics(new Date(0), new Date());
 
   // 2. Service Ratings GroupBy
   const serviceStats = await db.feedback.groupBy({
@@ -73,8 +90,8 @@ export async function GET() {
 
   const [reviewsCount, reviewsCountCurrent, reviewsCountPrev] = await Promise.all([
     db.review.count(),
-    db.review.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
-    db.review.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
+    db.review.count({ where: { createdAt: { gte: currentStart, lte: currentEnd } } }),
+    db.review.count({ where: { createdAt: { gte: prevStart, lt: currentStart } } }),
   ]);
   const reviewsTrend = calculateTrend(reviewsCountCurrent, reviewsCountPrev);
   

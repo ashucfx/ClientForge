@@ -10,14 +10,31 @@ function calculateTrend(current: number, previous: number) {
   return Math.round(((current - previous) / previous) * 100);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const { searchParams } = new URL(request.url);
+    const monthParam = searchParams.get('month');
+  
+    let currentStart: Date;
+    let currentEnd: Date;
+    let prevStart: Date;
+  
+    if (monthParam) {
+      const [y, m] = monthParam.split('-');
+      const year = parseInt(y);
+      const month = parseInt(m) - 1;
+      currentStart = new Date(year, month, 1);
+      currentEnd = new Date(year, month + 1, 0, 23, 59, 59, 999);
+      prevStart = new Date(year, month - 1, 1);
+    } else {
+      const now = new Date();
+      currentEnd = now;
+      currentStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      prevStart = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    }
 
     // 1. Total Archived Clients
     const archivedCareer = await db.careerClient.count({
@@ -60,18 +77,18 @@ export async function GET() {
     const totalRevenue = Number((currentRevenueQuery as any[])[0]?.total || 0);
     const ltv = totalClients > 0 ? totalRevenue / totalClients : 0;
 
-    // Calculate Reactivation Trend (last 30 days vs previous 30 days)
+    // Calculate Reactivation Trend
     const currentReactivatedQuery = await db.$queryRaw`
       SELECT COUNT(DISTINCT l."clientId") as count
       FROM "InvoiceClientLink" l
       JOIN "Invoice" i ON l."invoiceId" = i.id
-      WHERE l."purpose" IN ('UPGRADE', 'REVISION', 'ADDON') AND i."status" = 'PAID' AND i."paidAt" >= ${thirtyDaysAgo} AND i."paidAt" < ${now}
+      WHERE l."purpose" IN ('UPGRADE', 'REVISION', 'ADDON') AND i."status" = 'PAID' AND i."paidAt" >= ${currentStart} AND i."paidAt" <= ${currentEnd}
     `;
     const prevReactivatedQuery = await db.$queryRaw`
       SELECT COUNT(DISTINCT l."clientId") as count
       FROM "InvoiceClientLink" l
       JOIN "Invoice" i ON l."invoiceId" = i.id
-      WHERE l."purpose" IN ('UPGRADE', 'REVISION', 'ADDON') AND i."status" = 'PAID' AND i."paidAt" >= ${sixtyDaysAgo} AND i."paidAt" < ${thirtyDaysAgo}
+      WHERE l."purpose" IN ('UPGRADE', 'REVISION', 'ADDON') AND i."status" = 'PAID' AND i."paidAt" >= ${prevStart} AND i."paidAt" < ${currentStart}
     `;
 
     const currentReactivatedCount = Number((currentReactivatedQuery as any[])[0]?.count || 0);

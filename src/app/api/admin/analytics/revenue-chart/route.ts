@@ -6,35 +6,47 @@ import { amountToInr } from '@/lib/fx';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // 1. Fetch all paid invoices
+  const { searchParams } = new URL(request.url);
+  const monthParam = searchParams.get('month');
+  
+  let currentStart: Date | null = null;
+  let currentEnd: Date | null = null;
+
+  if (monthParam) {
+    const [y, m] = monthParam.split('-');
+    const year = parseInt(y);
+    const month = parseInt(m) - 1; // 0-indexed
+    currentStart = new Date(year, month, 1);
+    currentEnd = new Date(year, month + 1, 0, 23, 59, 59, 999);
+  }
+
+  // 1. Fetch all settled invoices
   const invoices = await db.invoice.findMany({
-    where: { status: 'PAID' },
+    where: { status: 'PAID', amountSettledInr: { not: null } },
     select: {
       id: true,
-      totalPayable: true,
-      subtotalConverted: true,  // net revenue (excl. processing fees)
+      amountSettledInr: true,
       currency: true,
       brandId: true,
       sourceChannel: true,
       clientType: true,
-      paidAt: true,
-      createdAt: true,
+      settledAt: true,
     },
   });
 
-  // 2. Fetch manual Career & RN clients (no invoiceId linked)
+  // 2. Fetch settled Career & RN clients (no invoiceId linked)
   const [manualCareer, manualRn] = await Promise.all([
     db.careerClient.findMany({
-      where: { invoiceId: null, amountPaid: { gt: 0 } },
-      select: { id: true, amountPaid: true, currency: true, createdAt: true },
+      where: { invoiceId: null, amountPaid: { gt: 0 }, amountSettledInr: { not: null } },
+      select: { id: true, amountSettledInr: true, settledAt: true },
     }),
     db.rnClient.findMany({
-      where: { invoiceId: null, amountPaid: { gt: 0 } },
-      select: { id: true, amountPaid: true, currency: true, createdAt: true },
+      where: { invoiceId: null, amountPaid: { gt: 0 }, amountSettledInr: { not: null } },
+      select: { id: true, amountSettledInr: true, settledAt: true },
     }),
   ]);
 
@@ -66,53 +78,68 @@ export async function GET() {
     return c;
   };
 
-  // Convert invoices
-  await Promise.all(
-    invoices.map(async (inv) => {
-      // Use subtotalConverted (net revenue) — excludes processing fees collected by gateway
-      const inr = await amountToInr(inv.subtotalConverted ?? inv.totalPayable, inv.currency);
-      const paidDate = inv.paidAt || inv.createdAt;
-      const month = paidDate.toISOString().slice(0, 7);
+  const isWithinFilter = (date: Date | null) => {
+    if (!date) return false;
+    if (!currentStart || !currentEnd) return true;
+    return date >= currentStart && date <= currentEnd;
+  };
 
+  invoices.forEach(inv => {
+    const inr = inv.amountSettledInr ?? 0;
+    const date = inv.settledAt;
+    if (!date) return;
+    
+    // Always build the monthly chart data (maybe up to the selected month)
+    if (!currentEnd || date <= currentEnd) {
+      const month = date.toISOString().slice(0, 7);
       const mEntry = ensureMonth(month);
       mEntry.invoiceInr += inr;
       mEntry.invoiceCount += 1;
+    }
 
+    // Only build drilldowns for the selected filter period
+    if (isWithinFilter(date)) {
       addDrill(brandMap, inv.brandId || 'catalyst', inr);
       addDrill(channelMap, normalizeChannel(inv.sourceChannel), inr);
       addDrill(tierMap, inv.clientType || 'MID_SENIOR', inr);
-    })
-  );
+    }
+  });
 
-  // Convert manual Career clients (Client Portal Onboardings)
-  await Promise.all(
-    manualCareer.map(async (c) => {
-      const inr = await amountToInr(c.amountPaid, c.currency);
-      const month = c.createdAt.toISOString().slice(0, 7);
+  manualCareer.forEach(c => {
+    const inr = c.amountSettledInr ?? 0;
+    const date = c.settledAt;
+    if (!date) return;
 
+    if (!currentEnd || date <= currentEnd) {
+      const month = date.toISOString().slice(0, 7);
       const mEntry = ensureMonth(month);
       mEntry.externalInr += inr;
-
+    }
+    
+    if (isWithinFilter(date)) {
       addDrill(brandMap, 'catalyst', inr);
       addDrill(channelMap, 'MANUAL_PORTAL', inr);
       addDrill(tierMap, 'CAREER_BOOSTER', inr);
-    })
-  );
+    }
+  });
 
-  // Convert manual RN clients (Client Portal Onboardings)
-  await Promise.all(
-    manualRn.map(async (c) => {
-      const inr = await amountToInr(c.amountPaid, c.currency);
-      const month = c.createdAt.toISOString().slice(0, 7);
+  manualRn.forEach(c => {
+    const inr = c.amountSettledInr ?? 0;
+    const date = c.settledAt;
+    if (!date) return;
 
+    if (!currentEnd || date <= currentEnd) {
+      const month = date.toISOString().slice(0, 7);
       const mEntry = ensureMonth(month);
       mEntry.externalInr += inr;
-
+    }
+    
+    if (isWithinFilter(date)) {
       addDrill(brandMap, 'ripple_nexus', inr);
       addDrill(channelMap, 'MANUAL_PORTAL', inr);
       addDrill(tierMap, 'B2B_AGENCY', inr);
-    })
-  );
+    }
+  });
 
   const monthly = Array.from(monthMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))

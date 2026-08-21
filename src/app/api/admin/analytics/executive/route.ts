@@ -17,108 +17,128 @@ async function groupsToInr(rows: CurrencyGroup[]): Promise<number> {
   return amounts.reduce((a, b) => a + b, 0);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const sixtyDaysAgo  = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+  const { searchParams } = new URL(request.url);
+  const monthParam = searchParams.get('month');
 
-  // ── 1. Revenue from all three sources ──────────────────────────────────────
-  // Source A: Portal invoices (marked PAID)
-  // Source B: Career clients onboarded outside the portal (invoiceId IS NULL + amountPaid > 0)
-  // Source C: RN clients onboarded outside the portal (same logic)
-  const [
-    invoiceLifetime, invoiceCurrent, invoicePrev,
-    careerLifetime,  careerCurrent,  careerPrev,
-    rnLifetime,      rnCurrent,      rnPrev,
-  ] = await Promise.all([
-    // Use subtotalConverted (net revenue) not totalPayable (gross incl. fees)
-    db.$queryRaw<CurrencyGroup[]>`
-      SELECT "currency", COALESCE(SUM("subtotalConverted"), 0)::text AS total
-      FROM "Invoice" WHERE "status" = 'PAID'
-      GROUP BY "currency"
-    `,
-    db.$queryRaw<CurrencyGroup[]>`
-      SELECT "currency", COALESCE(SUM("subtotalConverted"), 0)::text AS total
-      FROM "Invoice" WHERE "status" = 'PAID' AND "paidAt" >= ${thirtyDaysAgo}
-      GROUP BY "currency"
-    `,
-    db.$queryRaw<CurrencyGroup[]>`
-      SELECT "currency", COALESCE(SUM("subtotalConverted"), 0)::text AS total
-      FROM "Invoice" WHERE "status" = 'PAID' AND "paidAt" >= ${sixtyDaysAgo} AND "paidAt" < ${thirtyDaysAgo}
-      GROUP BY "currency"
-    `,
-    // Career clients manually onboarded (no portal invoice)
-    db.$queryRaw<CurrencyGroup[]>`
-      SELECT "currency", COALESCE(SUM("amountPaid"), 0)::text AS total
-      FROM "CareerClient" WHERE "invoiceId" IS NULL AND "amountPaid" > 0
-      GROUP BY "currency"
-    `,
-    db.$queryRaw<CurrencyGroup[]>`
-      SELECT "currency", COALESCE(SUM("amountPaid"), 0)::text AS total
-      FROM "CareerClient" WHERE "invoiceId" IS NULL AND "amountPaid" > 0 AND "createdAt" >= ${thirtyDaysAgo}
-      GROUP BY "currency"
-    `,
-    db.$queryRaw<CurrencyGroup[]>`
-      SELECT "currency", COALESCE(SUM("amountPaid"), 0)::text AS total
-      FROM "CareerClient" WHERE "invoiceId" IS NULL AND "amountPaid" > 0 AND "createdAt" >= ${sixtyDaysAgo} AND "createdAt" < ${thirtyDaysAgo}
-      GROUP BY "currency"
-    `,
-    // RN clients manually onboarded (no portal invoice)
-    db.$queryRaw<CurrencyGroup[]>`
-      SELECT "currency", COALESCE(SUM("amountPaid"), 0)::text AS total
-      FROM "RnClient" WHERE "invoiceId" IS NULL AND "amountPaid" > 0
-      GROUP BY "currency"
-    `,
-    db.$queryRaw<CurrencyGroup[]>`
-      SELECT "currency", COALESCE(SUM("amountPaid"), 0)::text AS total
-      FROM "RnClient" WHERE "invoiceId" IS NULL AND "amountPaid" > 0 AND "createdAt" >= ${thirtyDaysAgo}
-      GROUP BY "currency"
-    `,
-    db.$queryRaw<CurrencyGroup[]>`
-      SELECT "currency", COALESCE(SUM("amountPaid"), 0)::text AS total
-      FROM "RnClient" WHERE "invoiceId" IS NULL AND "amountPaid" > 0 AND "createdAt" >= ${sixtyDaysAgo} AND "createdAt" < ${thirtyDaysAgo}
-      GROUP BY "currency"
-    `,
-  ]);
+  let currentStart: Date;
+  let currentEnd: Date;
+  let prevStart: Date;
+  let prevEnd: Date;
+  let yearStart: Date;
+  let yearEnd: Date;
 
-  // Convert each source to INR using live rates (shared cache, single API call)
-  const [
-    invoiceLifetimeInr, invoiceCurrentInr, invoicePrevInr,
-    careerLifetimeInr,  careerCurrentInr,  careerPrevInr,
-    rnLifetimeInr,      rnCurrentInr,      rnPrevInr,
-  ] = await Promise.all([
-    groupsToInr(invoiceLifetime),
-    groupsToInr(invoiceCurrent),
-    groupsToInr(invoicePrev),
-    groupsToInr(careerLifetime),
-    groupsToInr(careerCurrent),
-    groupsToInr(careerPrev),
-    groupsToInr(rnLifetime),
-    groupsToInr(rnCurrent),
-    groupsToInr(rnPrev),
-  ]);
+  if (monthParam) {
+    const [y, m] = monthParam.split('-');
+    const year = parseInt(y);
+    const month = parseInt(m) - 1; // 0-indexed
+    currentStart = new Date(year, month, 1);
+    currentEnd = new Date(year, month + 1, 0, 23, 59, 59, 999);
+    
+    prevStart = new Date(year, month - 1, 1);
+    prevEnd = new Date(year, month, 0, 23, 59, 59, 999);
 
-  const lifetimeRevenue      = invoiceLifetimeInr + careerLifetimeInr + rnLifetimeInr;
-  const currentPeriodRevenue = invoiceCurrentInr  + careerCurrentInr  + rnCurrentInr;
-  const prevPeriodRevenue    = invoicePrevInr     + careerPrevInr     + rnPrevInr;
-  const revenueTrendPct      = calculateTrend(currentPeriodRevenue, prevPeriodRevenue);
+    yearStart = new Date(year, 0, 1);
+    yearEnd = new Date(year, 11, 31, 23, 59, 59, 999);
+  } else {
+    const now = new Date();
+    currentEnd = now;
+    currentStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    prevEnd = currentStart;
+    prevStart = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    
+    yearStart = new Date(now.getFullYear(), 0, 1);
+    yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+  }
 
-  // Build per-currency breakdown across all three sources
-  const { rates: inrRates, source: rateSource } = await getInrRates();
+  // Fetch Reconciled Invoices
+  const allInvoices = await db.invoice.findMany({
+    where: { status: 'PAID' },
+    select: { subtotalConverted: true, currency: true, amountSettledInr: true, paidAt: true, settledAt: true }
+  });
+  
+  const allCareer = await db.careerClient.findMany({
+    where: { amountPaid: { gt: 0 } },
+    select: { amountPaid: true, currency: true, amountSettledInr: true, createdAt: true, settledAt: true }
+  });
+
+  const allRn = await db.rnClient.findMany({
+    where: { amountPaid: { gt: 0 } },
+    select: { amountPaid: true, currency: true, amountSettledInr: true, createdAt: true, settledAt: true }
+  });
+
+  let lifetimeRevenue = 0;
+  let currentPeriodRevenue = 0;
+  let prevPeriodRevenue = 0;
+
+  let monthlyLeakage = 0;
+  let annualLeakage = 0;
+  
   const rawMap = new Map<string, number>();
-  const addRows = (rows: CurrencyGroup[]) => {
-    rows.forEach(r => {
-      const cur = r.currency?.toUpperCase() ?? 'INR';
-      rawMap.set(cur, (rawMap.get(cur) ?? 0) + Number(r.total));
-    });
+  const addBreakdown = (cur: string | null, amt: number) => {
+    const c = cur?.toUpperCase() ?? 'INR';
+    rawMap.set(c, (rawMap.get(c) ?? 0) + amt);
   };
-  addRows(invoiceLifetime);
-  addRows(careerLifetime);
-  addRows(rnLifetime);
 
+  for (const inv of allInvoices) {
+    // Only count as revenue if it is settled!
+    if (inv.amountSettledInr !== null && inv.settledAt) {
+      const settledAmt = inv.amountSettledInr;
+      lifetimeRevenue += settledAmt;
+      addBreakdown(inv.currency, inv.subtotalConverted);
+
+      if (inv.settledAt >= currentStart && inv.settledAt <= currentEnd) currentPeriodRevenue += settledAmt;
+      if (inv.settledAt >= prevStart && inv.settledAt <= prevEnd) prevPeriodRevenue += settledAmt;
+
+      // Leakage calculation
+      const expectedInr = await amountToInr(inv.subtotalConverted, inv.currency);
+      const gap = Math.max(0, expectedInr - settledAmt);
+      
+      if (inv.settledAt >= currentStart && inv.settledAt <= currentEnd) monthlyLeakage += gap;
+      if (inv.settledAt >= yearStart && inv.settledAt <= yearEnd) annualLeakage += gap;
+    }
+  }
+
+  // Same for Career
+  for (const c of allCareer) {
+    if (c.amountSettledInr !== null && c.settledAt) {
+      const settledAmt = c.amountSettledInr;
+      lifetimeRevenue += settledAmt;
+      addBreakdown(c.currency, c.amountPaid);
+
+      if (c.settledAt >= currentStart && c.settledAt <= currentEnd) currentPeriodRevenue += settledAmt;
+      if (c.settledAt >= prevStart && c.settledAt <= prevEnd) prevPeriodRevenue += settledAmt;
+
+      const expectedInr = await amountToInr(c.amountPaid, c.currency ?? 'INR');
+      const gap = Math.max(0, expectedInr - settledAmt);
+      if (c.settledAt >= currentStart && c.settledAt <= currentEnd) monthlyLeakage += gap;
+      if (c.settledAt >= yearStart && c.settledAt <= yearEnd) annualLeakage += gap;
+    }
+  }
+
+  // Same for RN
+  for (const c of allRn) {
+    if (c.amountSettledInr !== null && c.settledAt) {
+      const settledAmt = c.amountSettledInr;
+      lifetimeRevenue += settledAmt;
+      addBreakdown(c.currency, c.amountPaid);
+
+      if (c.settledAt >= currentStart && c.settledAt <= currentEnd) currentPeriodRevenue += settledAmt;
+      if (c.settledAt >= prevStart && c.settledAt <= prevEnd) prevPeriodRevenue += settledAmt;
+
+      const expectedInr = await amountToInr(c.amountPaid, c.currency ?? 'INR');
+      const gap = Math.max(0, expectedInr - settledAmt);
+      if (c.settledAt >= currentStart && c.settledAt <= currentEnd) monthlyLeakage += gap;
+      if (c.settledAt >= yearStart && c.settledAt <= yearEnd) annualLeakage += gap;
+    }
+  }
+
+  const revenueTrendPct = calculateTrend(currentPeriodRevenue, prevPeriodRevenue);
+
+  const { rates: inrRates, source: rateSource } = await getInrRates();
   const currencyBreakdown = Array.from(rawMap.entries())
     .map(([currency, amount]) => ({
       currency,
@@ -139,10 +159,10 @@ export async function GET() {
   const [activeCareerClients, activeRnClients, activeCareerCurrent, activeRnCurrent, activeCareerPrev, activeRnPrev] = await Promise.all([
     db.careerClient.count({ where: activeWhere }),
     db.rnClient.count({ where: activeRnWhere }),
-    db.careerClient.count({ where: { ...activeWhere, createdAt: { gte: thirtyDaysAgo } } }),
-    db.rnClient.count({ where: { ...activeRnWhere, createdAt: { gte: thirtyDaysAgo } } }),
-    db.careerClient.count({ where: { ...activeWhere, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
-    db.rnClient.count({ where: { ...activeRnWhere, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
+    db.careerClient.count({ where: { ...activeWhere, createdAt: { gte: currentStart, lte: currentEnd } } }),
+    db.rnClient.count({ where: { ...activeRnWhere, createdAt: { gte: currentStart, lte: currentEnd } } }),
+    db.careerClient.count({ where: { ...activeWhere, createdAt: { gte: prevStart, lt: currentStart } } }),
+    db.rnClient.count({ where: { ...activeRnWhere, createdAt: { gte: prevStart, lt: currentStart } } }),
   ]);
 
   const totalActiveClients    = activeCareerClients + activeRnClients;
@@ -152,8 +172,8 @@ export async function GET() {
 
   // ── 3. Satisfaction & NPS ──────────────────────────────────────────────────
   const [currentFeedbacks, prevFeedbacks] = await Promise.all([
-    db.feedback.findMany({ where: { createdAt: { gte: thirtyDaysAgo } }, select: { npsScore: true, rating: true } }),
-    db.feedback.findMany({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } }, select: { npsScore: true, rating: true } }),
+    db.feedback.findMany({ where: { createdAt: { gte: currentStart, lte: currentEnd } }, select: { npsScore: true, rating: true } }),
+    db.feedback.findMany({ where: { createdAt: { gte: prevStart, lt: currentStart } }, select: { npsScore: true, rating: true } }),
   ]);
 
   const calcNps = (fbs: { npsScore: number }[]) => {
@@ -179,10 +199,10 @@ export async function GET() {
 
   return NextResponse.json({
     revenue: {
-      value: Math.round(lifetimeRevenue),
+      value: Math.round(currentPeriodRevenue),
       lifetimeValue: Math.round(lifetimeRevenue),
-      invoiceRevenue: Math.round(invoiceLifetimeInr),
-      externalRevenue: Math.round(careerLifetimeInr + rnLifetimeInr),
+      monthlyLeakageInr: Math.round(monthlyLeakage),
+      annualLeakageInr: Math.round(annualLeakage),
       trendPct: revenueTrendPct,
       trendDirection: revenueTrendPct >= 0 ? 'up' : 'down',
       context: `≈ INR · ${breakdownStr || 'No revenue recorded'} · rates: ${rateSource}`,

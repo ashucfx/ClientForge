@@ -112,6 +112,7 @@ function RevenueBarChart({ data }: { data: MonthlyRevenue[] }) {
 
 export default function AnalyticsDashboard() {
   const { activeBrand } = useBrand();
+  const [monthFilter, setMonthFilter] = useState<string>(''); // YYYY-MM
   const [execData, setExecData] = useState<any>(null);
   const [opsData, setOpsData] = useState<any>(null);
   const [slaData, setSlaData] = useState<any>(null);
@@ -123,13 +124,14 @@ export default function AnalyticsDashboard() {
   useEffect(() => {
     async function fetchAnalytics() {
       setLoading(true);
+      const qs = monthFilter ? `?month=${monthFilter}` : '';
       const results = await Promise.allSettled([
-        fetch('/api/admin/analytics/executive').then(r => r.ok ? r.json() : null),
-        fetch('/api/admin/analytics/operations').then(r => r.ok ? r.json() : null),
-        fetch('/api/admin/analytics/sla').then(r => r.ok ? r.json() : null),
-        fetch('/api/admin/analytics/satisfaction').then(r => r.ok ? r.json() : null),
-        fetch('/api/admin/analytics/lifecycle').then(r => r.ok ? r.json() : null),
-        fetch('/api/admin/analytics/revenue-chart').then(r => r.ok ? r.json() : null),
+        fetch(`/api/admin/analytics/executive${qs}`).then(r => r.ok ? r.json() : null),
+        fetch(`/api/admin/analytics/operations`).then(r => r.ok ? r.json() : null), // Ops is realtime
+        fetch(`/api/admin/analytics/sla${qs}`).then(r => r.ok ? r.json() : null),
+        fetch(`/api/admin/analytics/satisfaction${qs}`).then(r => r.ok ? r.json() : null),
+        fetch(`/api/admin/analytics/lifecycle${qs}`).then(r => r.ok ? r.json() : null),
+        fetch(`/api/admin/analytics/revenue-chart${qs}`).then(r => r.ok ? r.json() : null),
       ]);
       const [exec, ops, sla, sat, life, chart] = results;
       if (exec.status === 'fulfilled' && exec.value) setExecData(exec.value);
@@ -141,7 +143,7 @@ export default function AnalyticsDashboard() {
       setLoading(false);
     }
     fetchAnalytics();
-  }, []);
+  }, [monthFilter]);
 
   const TrendIndicator = ({ trendPct, trendDirection }: { trendPct: number, trendDirection: 'up' | 'down' | 'neutral' }) => {
     if (trendPct === 0 || trendPct === null || isNaN(trendPct)) return <span className="text-xs font-semibold text-slate-400">No change</span>;
@@ -197,7 +199,13 @@ export default function AnalyticsDashboard() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <input
+              type="month"
+              className="px-3.5 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-white transition-all shadow-xs"
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+            />
             <Link
               href="/analytics/sources"
               className="inline-flex items-center gap-2 px-4 py-2 bg-[#B8935B] text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-[#9A7540] transition-colors shadow-sm shrink-0"
@@ -217,12 +225,12 @@ export default function AnalyticsDashboard() {
           <div className="space-y-8">
             
             {/* ── SECTION 1: EXECUTIVE COMMAND CENTER ── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               
-              {/* Total Revenue KPI */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#2D2418] text-white p-5 sm:p-6 shadow-md border border-[#B8935B]/30 flex flex-col justify-between">
+              {/* Total Settled Revenue KPI */}
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#2D2418] text-white p-5 sm:p-6 shadow-md border border-[#B8935B]/30 flex flex-col justify-between col-span-1 lg:col-span-1">
                 <div className="flex justify-between items-start mb-3">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#D4AF7A]">All-Time Revenue</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#D4AF7A]">Settled Revenue</span>
                   {execData?.revenue?.rateSource && (
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase ${
                       execData.revenue.rateSource === 'live'
@@ -237,7 +245,7 @@ export default function AnalyticsDashboard() {
                   <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mb-1">
                     ₹{execData?.revenue?.value != null ? Number(execData.revenue.value).toLocaleString('en-IN') : '—'}
                   </div>
-                  <div className="text-xs text-slate-300 mb-2.5">≈ INR equivalent · net transactional revenue</div>
+                  <div className="text-[10px] text-slate-300 mb-2.5">All-time: ₹{execData?.revenue?.lifetimeValue != null ? Number(execData.revenue.lifetimeValue).toLocaleString('en-IN') : '—'}</div>
                   
                   {execData?.revenue?.currencyBreakdown?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-3">
@@ -258,11 +266,37 @@ export default function AnalyticsDashboard() {
                         {Math.abs(execData.revenue.trendPct ?? 0)}%
                       </span>
                     )}
-                    <span className="text-[11px] text-slate-400">vs last 30d</span>
+                    <span className="text-[11px] text-slate-400">vs prev. period</span>
                   </div>
                 </div>
                 <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-[#B8935B]/10 blur-2xl pointer-events-none" />
               </div>
+
+              {/* Fee Leakage KPI */}
+              <div className="bg-white rounded-2xl p-5 sm:p-6 border transition-all duration-200 shadow-xs hover:shadow-md hover:border-slate-300 flex flex-col justify-between col-span-1 lg:col-span-1 border-l-4 border-l-rose-500">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 tracking-tight">Fee Leakage</h3>
+                    <p className="text-[11px] text-slate-500 mt-1 font-medium leading-relaxed">
+                      Lost to payment gateways in the period
+                    </p>
+                  </div>
+                  <div className="p-2.5 bg-rose-50 rounded-xl text-rose-600 shadow-inner">
+                    <IconTrendDown size={20} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <span className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                      ₹{execData?.revenue?.monthlyLeakageInr != null ? Number(execData.revenue.monthlyLeakageInr).toLocaleString('en-IN') : '—'}
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-1 rounded-md inline-block border border-rose-100">
+                    Annual: ₹{execData?.revenue?.annualLeakageInr != null ? Number(execData.revenue.annualLeakageInr).toLocaleString('en-IN') : '—'}
+                  </div>
+                </div>
+              </div>
+
 
               {/* Active Clients */}
               <KpiCard
