@@ -250,6 +250,7 @@ function InvoicePreview({
   lineItems, discountRate, taxRate, notes, dueDays,
   currencyInfo, exchangeRate, brandId,
   paypalWillConvertToUsd, usdExchangeRate,
+  paymentGateway,
 }: {
   clientName: string; clientEmail: string; clientType: ClientType;
   country: string; companyName: string;
@@ -257,6 +258,7 @@ function InvoicePreview({
   notes: string; dueDays: number;
   currencyInfo: CurrencyInfo | null; exchangeRate: number; brandId: BrandId;
   paypalWillConvertToUsd?: boolean; usdExchangeRate?: number;
+  paymentGateway?: 'RAZORPAY' | 'PAYPAL';
 }) {
   const sym  = currencyInfo?.symbol ?? '₹';
   const code = currencyInfo?.code   ?? 'INR';
@@ -266,9 +268,15 @@ function InvoicePreview({
   const afterDiscount   = round2(grossSubtotal - discountAmount);
   const taxAmount       = round2(afterDiscount * taxRate / 100);
   const subtotal        = round2(afterDiscount + taxAmount);
-  const feeRate         = code === 'INR' ? FEE_RATES.INR : FEE_RATES.INTERNATIONAL;
-  const fee             = round2(subtotal * feeRate);
-  const total           = round2(subtotal + fee);
+  
+  const gateway = paymentGateway ?? 'RAZORPAY';
+  const feeRate = code === 'INR' 
+    ? FEE_RATES.RAZORPAY_DOMESTIC 
+    : (gateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL : FEE_RATES.RAZORPAY_INTL);
+  
+  // ZERO-LOSS GROSS-UP
+  const total = round2(subtotal / (1 - feeRate));
+  const fee   = round2(total - subtotal);
   const today           = new Date();
   const due             = addDays(today, dueDays);
 
@@ -1545,6 +1553,7 @@ export default function NewInvoicePage() {
               brandId={brandId}
               paypalWillConvertToUsd={paypalWillConvertToUsd}
               usdExchangeRate={usdExchangeRate}
+              paymentGateway={paymentGateway}
             />
           </div>
         )}

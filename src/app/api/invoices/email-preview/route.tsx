@@ -47,9 +47,13 @@ export async function POST(req: NextRequest) {
     const afterDiscount      = round2(grossSubtotal - discountAmount);
     const taxAmount          = round2(afterDiscount * taxRate / 100);
     const subtotalConverted  = round2(afterDiscount + taxAmount);
-    const processingFeeRate  = currency === 'INR' ? FEE_RATES.INR : FEE_RATES.INTERNATIONAL;
-    const processingFeeConverted = round2(subtotalConverted * processingFeeRate);
-    const totalPayable       = round2(subtotalConverted + processingFeeConverted);
+    const processingFeeRate = currency === 'INR'
+      ? FEE_RATES.RAZORPAY_DOMESTIC
+      : (paymentGateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL : FEE_RATES.RAZORPAY_INTL);
+    
+    // ZERO-LOSS GROSS-UP
+    const totalPayable       = round2(subtotalConverted / (1 - processingFeeRate));
+    const processingFeeConverted = round2(totalPayable - subtotalConverted);
 
     // If PayPal falls back to USD, rewrite all amounts to USD (same logic as route.ts)
     let emailCurrency    = currency;

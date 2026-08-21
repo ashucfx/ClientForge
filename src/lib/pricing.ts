@@ -108,11 +108,12 @@ export const SERVICE_DESCRIPTIONS: Record<ClientType, {
 };
 
 // ─────────────────────────────────────────────
-// FEE RATES
+// FEE RATES (BLENDED ZERO-LOSS RATES)
 // ─────────────────────────────────────────────
 export const FEE_RATES = {
-  INR:           0.0236,  // Razorpay domestic: 2% fee + 18% GST on fee (2% × 1.18)
-  INTERNATIONAL: 0.0354,  // Razorpay international cards: 3% fee + 18% GST on fee (3% × 1.18)
+  RAZORPAY_DOMESTIC: 0.025, // Covers 2.36% + rounding
+  RAZORPAY_INTL:     0.060, // Covers 3.54% fee + ~2.46% FX spread
+  PAYPAL_INTL:       0.090, // Covers 5.19% fee + ~3.81% FX spread
 };
 
 // ─────────────────────────────────────────────
@@ -123,7 +124,8 @@ export function calculatePricing(
   currency: string,
   exchangeRate: number,
   services: { resume: boolean; linkedin: boolean; coverLetter: boolean; portfolio?: boolean },
-  customBaseInr?: { resume?: number; linkedin?: number; portfolio?: number }
+  customBaseInr?: { resume?: number; linkedin?: number; portfolio?: number },
+  paymentGateway: 'RAZORPAY' | 'PAYPAL' = 'RAZORPAY'
 ): PricingCalculation {
   const base = BASE_PRICING[clientType];
 
@@ -139,11 +141,15 @@ export function calculatePricing(
   const linkedinConverted      = round2(linkedinBaseInr  / exchangeRate);
   const portfolioConverted     = round2(portfolioBaseInr / exchangeRate);
   const coverLetterConverted   = 0;
-  const subtotalConverted      = round2(subtotalInr      / exchangeRate);
+  const subtotalConverted      = round2(subtotalInr      / exchangeRate); // This is our target Net
 
-  const processingFeeRate      = currency === 'INR' ? FEE_RATES.INR : FEE_RATES.INTERNATIONAL;
-  const processingFeeConverted = round2(subtotalConverted * processingFeeRate);
-  const totalPayable           = round2(subtotalConverted + processingFeeConverted);
+  const processingFeeRate = currency === 'INR' 
+    ? FEE_RATES.RAZORPAY_DOMESTIC 
+    : (paymentGateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL : FEE_RATES.RAZORPAY_INTL);
+
+  // ZERO-LOSS GROSS-UP FORMULA: GrossPayable = Net / (1 - Rate)
+  const totalPayable           = round2(subtotalConverted / (1 - processingFeeRate));
+  const processingFeeConverted = round2(totalPayable - subtotalConverted);
 
   return {
     resumeBaseInr,

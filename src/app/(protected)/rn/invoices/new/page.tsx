@@ -179,9 +179,14 @@ export default function RnNewInvoicePage() {
   const afterDiscount = round2(grossSubtotal - discountAmount);
   const taxAmount = round2(afterDiscount * taxRate / 100);
   const subtotal = round2(afterDiscount + taxAmount);
-  const feeRate = (currencyInfo?.code ?? 'INR') === 'INR' ? FEE_RATES.INR : FEE_RATES.INTERNATIONAL;
-  const fee = round2(subtotal * feeRate);
-  const total = round2(subtotal + fee);
+  const code = currencyInfo?.code ?? 'INR';
+  const feeRate = code === 'INR' 
+    ? FEE_RATES.RAZORPAY_DOMESTIC 
+    : (paymentGateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL : FEE_RATES.RAZORPAY_INTL);
+  
+  // ZERO-LOSS GROSS-UP
+  const total = round2(subtotal / (1 - feeRate));
+  const fee = round2(total - subtotal);
 
   return (
     <RippleNexusShell>

@@ -181,14 +181,18 @@ export async function POST(request: NextRequest) {
     const afterDiscount     = round2(grossSubtotal - discountAmount);
     const taxAmount         = round2(afterDiscount * taxRate / 100);
     const subtotalConverted = round2(afterDiscount + taxAmount);
-    const processingFeeRate      = currencyCode === 'INR' ? FEE_RATES.INR : FEE_RATES.INTERNATIONAL;
-    const processingFeeConverted = round2(subtotalConverted * processingFeeRate);
-    const totalPayable           = round2(subtotalConverted + processingFeeConverted);
+    const gateway: 'RAZORPAY' | 'PAYPAL' = requestedGateway ?? 'RAZORPAY';
+    const processingFeeRate = currencyCode === 'INR' 
+      ? FEE_RATES.RAZORPAY_DOMESTIC 
+      : (gateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL : FEE_RATES.RAZORPAY_INTL);
+    
+    // ZERO-LOSS GROSS-UP
+    const totalPayable           = round2(subtotalConverted / (1 - processingFeeRate));
+    const processingFeeConverted = round2(totalPayable - subtotalConverted);
 
     const invoiceDate    = new Date();
     const dueDate        = addDays(invoiceDate, dueDays);
     const isSplit        = installmentCount > 1;
-    const gateway: 'RAZORPAY' | 'PAYPAL' = requestedGateway ?? 'RAZORPAY';
     const finalSourceChannel = requestedSourceChannel || (referralId ? 'CLIENT_REFERRAL' : 'CLIENTFORGE_INVOICE');
     const finalNotes = referralId ? `${notes ? notes + '\n' : ''}Referral ID: ${referralId}` : notes;
 
