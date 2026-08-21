@@ -16,6 +16,7 @@ export async function GET() {
     select: {
       id: true,
       totalPayable: true,
+      subtotalConverted: true,  // net revenue (excl. processing fees)
       currency: true,
       brandId: true,
       sourceChannel: true,
@@ -68,7 +69,8 @@ export async function GET() {
   // Convert invoices
   await Promise.all(
     invoices.map(async (inv) => {
-      const inr = await amountToInr(inv.totalPayable, inv.currency);
+      // Use subtotalConverted (net revenue) — excludes processing fees collected by gateway
+      const inr = await amountToInr(inv.subtotalConverted ?? inv.totalPayable, inv.currency);
       const paidDate = inv.paidAt || inv.createdAt;
       const month = paidDate.toISOString().slice(0, 7);
 

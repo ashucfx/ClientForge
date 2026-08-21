@@ -13,7 +13,7 @@ export async function GET() {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  // ── 1. Portal invoice breakdown ────────────────────────────────────────────
+  // ── 1. ALL paid portal invoices (no take limit) ──────────────────────────
   const paidInvoices = await db.invoice.findMany({
     where: { status: 'PAID' },
     select: {
@@ -21,8 +21,8 @@ export async function GET() {
       invoiceNumber: true,
       clientName: true,
       clientEmail: true,
-      totalPayable: true,
-      subtotalConverted: true,
+      totalPayable: true,         // gross (incl. fees/tax) — shown as "paid by client"
+      subtotalConverted: true,    // net revenue — used for financial totals
       currency: true,
       currencySymbol: true,
       exchangeRate: true,
@@ -34,12 +34,14 @@ export async function GET() {
       paymentGateway: true,
     },
     orderBy: { paidAt: 'desc' },
-    take: 50,
+    // NO take limit — we need ALL records
   });
 
   const invoicesWithInr = await Promise.all(
     paidInvoices.map(async (inv) => {
+      // inrEquivalent = gross (what client paid including fees)
       const inrEquivalent = await amountToInr(inv.totalPayable, inv.currency);
+      // netInr = net revenue you actually keep (subtotal after discount, before fees)
       const netInr = await amountToInr(inv.subtotalConverted, inv.currency);
       return {
         ...inv,
@@ -50,7 +52,7 @@ export async function GET() {
     })
   );
 
-  // ── 2. Manual career clients (no portal invoice) ───────────────────────────
+  // ── 2. ALL manual career clients — no portal invoice (no take limit) ───────
   const manualCareerClients = await db.careerClient.findMany({
     where: { invoiceId: null, amountPaid: { gt: 0 } },
     select: {
@@ -63,7 +65,7 @@ export async function GET() {
       createdAt: true,
     },
     orderBy: { createdAt: 'desc' },
-    take: 30,
+    // NO take limit
   });
 
   const manualCareerWithInr = await Promise.all(
@@ -75,7 +77,7 @@ export async function GET() {
     }))
   );
 
-  // ── 3. Manual RN clients (no portal invoice) ──────────────────────────────
+  // ── 3. ALL manual RN clients — no portal invoice (no take limit) ─────────
   const manualRnClients = await db.rnClient.findMany({
     where: { invoiceId: null, amountPaid: { gt: 0 } },
     select: {
@@ -87,7 +89,7 @@ export async function GET() {
       createdAt: true,
     },
     orderBy: { createdAt: 'desc' },
-    take: 30,
+    // NO take limit
   });
 
   const manualRnWithInr = await Promise.all(
@@ -133,7 +135,9 @@ export async function GET() {
   });
 
   // ── 5. Totals summary ──────────────────────────────────────────────────────
-  const invoiceTotalInr = invoicesWithInr.reduce((s, i) => s + i.inrEquivalent, 0);
+  // Use netInr (subtotalConverted) for financial totals — this is actual revenue you retain
+  // (excludes payment processing fees and taxes collected on behalf)
+  const invoiceTotalInr = invoicesWithInr.reduce((s, i) => s + i.netInr, 0);
   const careerManualTotalInr = manualCareerWithInr.reduce((s, c) => s + c.inrEquivalent, 0);
   const rnManualTotalInr = manualRnWithInr.reduce((s, c) => s + c.inrEquivalent, 0);
   const grandTotal = invoiceTotalInr + careerManualTotalInr + rnManualTotalInr;
@@ -166,7 +170,7 @@ export async function GET() {
       detractors,
       passives: totalFb - promoters - detractors,
     },
-    invoices: invoicesWithInr,
+    invoices: invoicesWithInr.slice(0, 100), // Display up to 100, but totals use ALL
     manualCareer: manualCareerWithInr,
     manualRn: manualRnWithInr,
     feedbacks,

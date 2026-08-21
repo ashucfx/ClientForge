@@ -34,18 +34,19 @@ export async function GET() {
     careerLifetime,  careerCurrent,  careerPrev,
     rnLifetime,      rnCurrent,      rnPrev,
   ] = await Promise.all([
+    // Use subtotalConverted (net revenue) not totalPayable (gross incl. fees)
     db.$queryRaw<CurrencyGroup[]>`
-      SELECT "currency", COALESCE(SUM("totalPayable"), 0)::text AS total
+      SELECT "currency", COALESCE(SUM("subtotalConverted"), 0)::text AS total
       FROM "Invoice" WHERE "status" = 'PAID'
       GROUP BY "currency"
     `,
     db.$queryRaw<CurrencyGroup[]>`
-      SELECT "currency", COALESCE(SUM("totalPayable"), 0)::text AS total
+      SELECT "currency", COALESCE(SUM("subtotalConverted"), 0)::text AS total
       FROM "Invoice" WHERE "status" = 'PAID' AND "paidAt" >= ${thirtyDaysAgo}
       GROUP BY "currency"
     `,
     db.$queryRaw<CurrencyGroup[]>`
-      SELECT "currency", COALESCE(SUM("totalPayable"), 0)::text AS total
+      SELECT "currency", COALESCE(SUM("subtotalConverted"), 0)::text AS total
       FROM "Invoice" WHERE "status" = 'PAID' AND "paidAt" >= ${sixtyDaysAgo} AND "paidAt" < ${thirtyDaysAgo}
       GROUP BY "currency"
     `,
