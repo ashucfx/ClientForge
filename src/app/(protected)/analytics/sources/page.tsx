@@ -299,6 +299,9 @@ export default function AnalyticsSourcesPage() {
                     {data.summary.promoters} Promoters · {data.summary.passives} Passives · {data.summary.detractors} Detractors
                   </p>
                 </div>
+              </div>
+
+            </div>
 
             {/* ── Revenue Leakage Banner ── */}
             <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-100 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
@@ -317,9 +320,6 @@ export default function AnalyticsSourcesPage() {
               >
                 Go to Reconciliation →
               </Link>
-            </div>
-              </div>
-
             </div>
 
             {/* ── Visual Computation Rule Banner ── */}
