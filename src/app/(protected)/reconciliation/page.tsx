@@ -239,8 +239,12 @@ export default function ReconciliationPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'reconciled' | 'unreconciled'>('all');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const now = new Date();
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const [from, setFrom] = useState(currentMonthStart);
+  const [to, setTo] = useState(currentMonthEnd);
+  const [monthVal, setMonthVal] = useState(now.toISOString().slice(0, 7));
   const [search, setSearch] = useState('');
   const [exporting, setExporting] = useState<'pdf' | 'docx' | null>(null);
 
@@ -458,8 +462,10 @@ export default function ReconciliationPage() {
         </div>
         <input
           type="month"
+          value={monthVal}
           onChange={e => {
             const val = e.target.value;
+            setMonthVal(val);
             if (!val) { setFrom(''); setTo(''); return; }
             const [y, m] = val.split('-');
             setFrom(new Date(parseInt(y), parseInt(m) - 1, 1).toISOString().slice(0, 10));

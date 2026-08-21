@@ -231,15 +231,9 @@ export default function AnalyticsDashboard() {
               <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#2D2418] text-white p-5 sm:p-6 shadow-md border border-[#B8935B]/30 flex flex-col justify-between col-span-1 lg:col-span-1">
                 <div className="flex justify-between items-start mb-3">
                   <span className="text-xs font-bold uppercase tracking-wider text-[#D4AF7A]">All-Time Settled Revenue</span>
-                  {execData?.revenue?.rateSource && (
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase ${
-                      execData.revenue.rateSource === 'live'
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                    }`}>
-                      {execData.revenue.rateSource} rates
-                    </span>
-                  )}
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Exact Ledger
+                  </span>
                 </div>
                 <div>
                   <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mb-1">
@@ -578,7 +572,7 @@ export default function AnalyticsDashboard() {
                   <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Current Period (30d)</div>
                   <div className="flex items-center gap-2">
                     <div className="text-xl sm:text-2xl font-extrabold text-slate-900">
-                      {formatCurrency(execData?.revenue?.value || 0, '₹')}
+                      {formatCurrency(execData?.revenue?.periodValue || 0, '₹')}
                     </div>
                     {execData?.revenue?.trendPct !== undefined && (
                       <TrendIndicator trendPct={execData?.revenue?.trendPct} trendDirection={execData?.revenue?.trendDirection} />
