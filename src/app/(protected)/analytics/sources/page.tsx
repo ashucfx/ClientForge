@@ -308,7 +308,7 @@ export default function AnalyticsSourcesPage() {
                   Zero-Loss Revenue Reconciliation Active
                 </h3>
                 <p className="text-xs text-red-700 mt-1 max-w-2xl">
-                  We're now strictly tracking the gap between invoiced amounts and actual bank settlements to eliminate fee leakage. Review un-reconciled transactions and export reports in the new dashboard.
+                  We&apos;re now strictly tracking the gap between invoiced amounts and actual bank settlements to eliminate fee leakage. Review un-reconciled transactions and export reports in the new dashboard.
                 </p>
               </div>
               <Link

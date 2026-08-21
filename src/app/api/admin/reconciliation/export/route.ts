@@ -7,7 +7,7 @@ import { getAdminSession } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 import { amountToInr } from '@/lib/fx';
 import {
-  Document, Packer, Paragraph, Table, TableRow, TableCell,
+  Document as DocxDocument, Packer, Paragraph, Table, TableRow, TableCell,
   TextRun, HeadingLevel, AlignmentType, WidthType, BorderStyle,
 } from 'docx';
 import React from 'react';
