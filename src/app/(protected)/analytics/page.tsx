@@ -112,7 +112,7 @@ function RevenueBarChart({ data }: { data: MonthlyRevenue[] }) {
 
 export default function AnalyticsDashboard() {
   const { activeBrand } = useBrand();
-  const [monthFilter, setMonthFilter] = useState<string>(''); // YYYY-MM
+  const [monthFilter, setMonthFilter] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [execData, setExecData] = useState<any>(null);
   const [opsData, setOpsData] = useState<any>(null);
   const [slaData, setSlaData] = useState<any>(null);
@@ -328,7 +328,7 @@ export default function AnalyticsDashboard() {
                     ? `Lifetime NPS · Avg: ${satData?.lifetime?.avgRating ?? '—'} / 5`
                     : 'No feedback collected yet'
                 }
-                icon={<span className="text-violet-600 font-extrabold text-sm">NPS</span>}
+                icon={<span className="text-violet-600 font-extrabold text-[11px] tracking-tighter">NPS</span>}
                 bg="#ede9fe"
               />
 
@@ -544,7 +544,7 @@ export default function AnalyticsDashboard() {
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                   <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">All-Time Revenue</div>
                   <div className="text-xl sm:text-2xl font-extrabold text-slate-900">
-                    {formatCurrency(execData?.revenue?.lifetimeValue || 0, '₹')}
+                    {formatCurrency(execData?.revenue?.value || 0, '₹')}
                   </div>
                   {execData?.revenue?.externalRevenue > 0 && (
                     <div className="text-[11px] text-slate-500 mt-1">
