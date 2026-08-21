@@ -482,6 +482,16 @@ export default function NewInvoicePage() {
   const [installmentCount, setInstallmentCount] = useState<1 | 2 | 3>(1);
   const [sourceChannel,   setSourceChannel]   = useState<'CLIENTFORGE_INVOICE' | 'MANUAL_PORTAL' | 'PAYMENT_GATEWAY_DIRECT' | 'CLIENT_REFERRAL'>('CLIENTFORGE_INVOICE');
   const [referralId,      setReferralId]      = useState('');
+  const [referrerOptions, setReferrerOptions] = useState<{ id: string; name: string; email: string; referralCode?: string }[]>([]);
+
+  useEffect(() => {
+    fetch('/api/admin/referrals/options')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.options) setReferrerOptions(data.options);
+      })
+      .catch(() => {});
+  }, []);
 
   // Currency state
   const [currencyInfo,    setCurrencyInfo]    = useState<CurrencyInfo | null>({ code: 'INR', symbol: '₹', name: 'Indian Rupee' });
@@ -637,8 +647,8 @@ export default function NewInvoicePage() {
           // INR always uses Razorpay (enforced server-side too)
           paymentGateway: effectiveCurrency === 'INR' ? 'RAZORPAY' : paymentGateway,
           installmentCount,
-          sourceChannel,
-          referralId: sourceChannel === 'CLIENT_REFERRAL' ? referralId.trim() : undefined,
+          sourceChannel: referralId.trim() ? 'CLIENT_REFERRAL' : 'CLIENTFORGE_INVOICE',
+          referralId: referralId.trim() || undefined,
           lineItems: validItems,
           discountRate,
           taxRate,
@@ -993,54 +1003,72 @@ export default function NewInvoicePage() {
                   </select>
                 </div>
                 <div>
-                  <FieldLabel label="Acquisition Channel" />
-                  <select
+                  <FieldLabel label="Currency Override (optional)" />
+                  <input
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-white transition-all shadow-xs"
-                    value={sourceChannel}
-                    onChange={e => setSourceChannel(e.target.value as any)}
-                  >
-                    <option value="CLIENTFORGE_INVOICE">ClientForge Invoice Portal</option>
-                    <option value="MANUAL_PORTAL">Manual Portal Onboarding</option>
-                    <option value="CLIENT_REFERRAL">Client Referral</option>
-                  </select>
+                    type="text"
+                    value={currencyOverride}
+                    onChange={e => setCurrencyOverride(e.target.value.toUpperCase())}
+                    placeholder={rateLoading ? 'Fetching…' : `Auto: ${currencyInfo?.code ?? 'INR'}`}
+                    maxLength={3}
+                  />
                 </div>
-                {sourceChannel === 'CLIENT_REFERRAL' ? (
-                  <div>
-                    <FieldLabel label="Referral ID / Referred By" required />
-                    <input
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#B8935B]/50 bg-[#FBF8F3]/50 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B8935B] transition-all shadow-xs"
-                      type="text"
-                      value={referralId}
-                      onChange={e => setReferralId(e.target.value)}
-                      placeholder="e.g. Abdullah Albaiz / cmr8swjzw0002wau..."
-                    />
+
+                {/* Referral Mapping */}
+                <div className="sm:col-span-2 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="isReferral"
+                        checked={Boolean(referralId)}
+                        onChange={e => {
+                          if (!e.target.checked) setReferralId('');
+                          else setReferralId(referrerOptions[0]?.referralCode || referrerOptions[0]?.name || 'Referred Client');
+                        }}
+                        className="w-4 h-4 text-[#B8935B] rounded border-slate-300 focus:ring-[#B8935B] cursor-pointer"
+                      />
+                      <label htmlFor="isReferral" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
+                        Referred by Existing Client (Optional)
+                      </label>
+                    </div>
+                    {referralId && (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        ✓ Referral Mapped
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <div>
-                    <FieldLabel label="Currency Override" />
-                    <input
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-white transition-all shadow-xs"
-                      type="text"
-                      value={currencyOverride}
-                      onChange={e => setCurrencyOverride(e.target.value.toUpperCase())}
-                      placeholder={rateLoading ? 'Fetching…' : `Auto: ${currencyInfo?.code ?? 'INR'}`}
-                      maxLength={3}
-                    />
-                  </div>
-                )}
-                {sourceChannel === 'CLIENT_REFERRAL' && (
-                  <div className="sm:col-span-2">
-                    <FieldLabel label="Currency Override" />
-                    <input
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-white transition-all shadow-xs"
-                      type="text"
-                      value={currencyOverride}
-                      onChange={e => setCurrencyOverride(e.target.value.toUpperCase())}
-                      placeholder={rateLoading ? 'Fetching…' : `Auto: ${currencyInfo?.code ?? 'INR'}`}
-                      maxLength={3}
-                    />
-                  </div>
-                )}
+
+                  {Boolean(referralId) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2.5 bg-[#FBF8F3] p-3.5 rounded-2xl border border-[#B8935B]/30 animate-fadeIn">
+                      <div>
+                        <FieldLabel label="Select Referring Client" />
+                        <select
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-white transition-all shadow-xs"
+                          value={referrerOptions.some(o => o.referralCode === referralId || o.name === referralId) ? referralId : ''}
+                          onChange={e => setReferralId(e.target.value)}
+                        >
+                          <option value="">Choose from existing clients…</option>
+                          {referrerOptions.map(opt => (
+                            <option key={opt.id} value={opt.referralCode || opt.name}>
+                              {opt.name} {opt.referralCode ? `(${opt.referralCode})` : `(${opt.email})`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <FieldLabel label="Or Custom Referral Code / Name" />
+                        <input
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-white transition-all shadow-xs"
+                          type="text"
+                          value={referralId}
+                          onChange={e => setReferralId(e.target.value)}
+                          placeholder="e.g. REF-ABC123 or Client Name"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </SectionCard>
 
