@@ -318,7 +318,7 @@ export default function ReconciliationPage() {
               <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
               Zero-Loss Tracker
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Revenue Reconciliation</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Revenue Reconciliation</h1>
             <p className="text-sm text-slate-500 mt-1 max-w-xl">
               Strictly track actual bank settlements against invoiced amounts to detect and eliminate gateway fee leakage.
             </p>
@@ -327,17 +327,29 @@ export default function ReconciliationPage() {
             <button
               onClick={() => handleExport('pdf')}
               disabled={exporting !== null}
-              className="group flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-red-50 text-slate-700 hover:text-red-600 text-sm font-semibold rounded-xl border border-slate-200 hover:border-red-200 transition-all shadow-sm disabled:opacity-50"
+              className="group flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-[#B8935B]/5 text-slate-700 hover:text-[#B8935B] text-sm font-medium rounded-xl border border-slate-200 hover:border-[#B8935B]/40 transition-all shadow-sm disabled:opacity-50"
             >
-              <span className="text-red-500 group-hover:scale-110 transition-transform">{exporting === 'pdf' ? '⏳' : '📄'}</span> 
+              {exporting === 'pdf' ? (
+                <span className="text-[#B8935B]">⏳</span>
+              ) : (
+                <svg className="w-4 h-4 text-[#B8935B] group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+              )}
               Export PDF
             </button>
             <button
               onClick={() => handleExport('docx')}
               disabled={exporting !== null}
-              className="group flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-xl transition-all shadow-md disabled:opacity-50 active:scale-95"
+              className="group flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl transition-all shadow-md disabled:opacity-50 active:scale-95"
             >
-              <span className="group-hover:scale-110 transition-transform">{exporting === 'docx' ? '⏳' : '📝'}</span>
+              {exporting === 'docx' ? (
+                <span className="text-[#D4AF7A]">⏳</span>
+              ) : (
+                <svg className="w-4 h-4 text-[#D4AF7A] group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              )}
               Export DOCX
             </button>
           </div>
@@ -387,8 +399,8 @@ export default function ReconciliationPage() {
           ].map((card, i) => (
             <div key={card.label} className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${card.gradient} p-6 shadow-lg border border-white/10 group hover:-translate-y-1 transition-transform duration-300`}>
               <div className="absolute -right-4 -top-4 text-6xl opacity-10 group-hover:scale-110 group-hover:opacity-20 transition-all duration-500">{card.icon}</div>
-              <p className={`text-xs font-bold tracking-wider uppercase mb-2 ${card.text === 'text-white' ? 'text-white/70' : 'text-amber-900/60'}`}>{card.label}</p>
-              <p className={`text-3xl font-black tracking-tight ${card.text}`}>{card.value}</p>
+              <p className={`text-xs font-semibold tracking-wider uppercase mb-2 ${card.text === 'text-white' ? 'text-white/70' : 'text-amber-900/60'}`}>{card.label}</p>
+              <p className={`text-3xl font-bold tracking-tight ${card.text}`}>{card.value}</p>
               <p className={`text-xs font-medium mt-2 ${card.subText}`}>{card.sub}</p>
             </div>
           ))}
@@ -399,27 +411,27 @@ export default function ReconciliationPage() {
       {summary && summary.byGateway.length > 0 && (
         <div className="bg-white rounded-3xl border border-slate-200/60 p-6 mb-8 shadow-sm">
           <div className="flex items-center gap-2 mb-5">
-            <h2 className="font-bold text-slate-800 text-lg">Fee Leakage by Gateway</h2>
-            <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-md uppercase tracking-wider">Analysis</span>
+            <h2 className="font-semibold text-slate-800 text-lg">Fee Leakage by Gateway</h2>
+            <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-semibold rounded-md uppercase tracking-wider">Analysis</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {summary.byGateway.map(gw => (
               <div key={gw.gateway} className="border border-slate-100 rounded-2xl p-5 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-200 transition-colors group">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="font-bold text-slate-900 text-base">{gw.gateway}</span>
-                  <span className="text-xs bg-red-100 text-red-700 px-2.5 py-1 rounded-full font-bold shadow-sm group-hover:bg-red-500 group-hover:text-white transition-colors">
+                  <span className="font-semibold text-slate-900 text-base">{gw.gateway}</span>
+                  <span className="text-xs bg-[#B8935B]/10 text-[#B8935B] px-2.5 py-1 rounded-full font-semibold shadow-sm group-hover:bg-[#B8935B] group-hover:text-white transition-colors">
                     {gw.effectiveFeeRate}% fee
                   </span>
                 </div>
                 <div className="text-sm space-y-2 text-slate-600 font-medium">
-                  <div className="flex justify-between items-center"><span className="text-slate-500">Net revenue</span><span className="text-slate-900 font-semibold">{fmt(gw.netInr)}</span></div>
-                  <div className="flex justify-between items-center"><span className="text-slate-500">Settled to bank</span><span className="text-emerald-600 font-bold">{fmt(gw.settledInr)}</span></div>
-                  <div className="flex justify-between items-center pt-2 border-t border-slate-200/60"><span className="text-slate-500">Lost to fees</span><span className="text-red-600 font-bold">{fmt(gw.gapInr)}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-500">Net revenue</span><span className="text-slate-900 font-medium">{fmt(gw.netInr)}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-slate-500">Settled to bank</span><span className="text-emerald-600 font-medium">{fmt(gw.settledInr)}</span></div>
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-200/60"><span className="text-slate-500">Lost to fees</span><span className="text-[#B8935B] font-medium">{fmt(gw.gapInr)}</span></div>
                 </div>
                 {/* Progress bar */}
                 <div className="mt-4 h-2 bg-slate-200 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-red-400 to-red-600 rounded-full"
+                    className="h-full bg-gradient-to-r from-[#D4AF7A] to-[#B8935B] rounded-full"
                     style={{ width: `${Math.min(gw.effectiveFeeRate * 10, 100)}%` }}
                   />
                 </div>
