@@ -114,6 +114,8 @@ export const FEE_RATES = {
   RAZORPAY_DOMESTIC: 0.0295, // 2.5% Gateway Fee + 18% GST (2.5 * 1.18)
   RAZORPAY_INTL:     0.0554, // 3.54% Gateway Fee + ~2.00% FX spread
   PAYPAL_INTL:       0.090,  // 5.19% Gateway Fee + ~3.81% FX spread
+  BANK_TRANSFER_NATIVE: 0.0118, // 1% + 18% GST
+  BANK_TRANSFER_SWIFT:  0.0354, // 3% + 18% GST
 };
 
 // ─────────────────────────────────────────────

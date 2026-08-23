@@ -61,7 +61,7 @@ export default function RnNewInvoicePage() {
   const [taxRate, setTaxRate] = useState(0);
   const [notes, setNotes] = useState('');
   const [dueDays, setDueDays] = useState(7);
-  const [paymentGateway, setPaymentGateway] = useState<'RAZORPAY' | 'PAYPAL'>('PAYPAL');
+  const [paymentGateway, setPaymentGateway] = useState<'RAZORPAY' | 'PAYPAL' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER'>('PAYPAL');
   const [installmentCount, setInstallmentCount] = useState<1|2|3>(1);
 
   const [currencyInfo, setCurrencyInfo] = useState<CurrencyInfo | null>({ code: 'INR', symbol: '₹', name: 'Indian Rupee' });
@@ -71,6 +71,15 @@ export default function RnNewInvoicePage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const errorRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-routing for Bank Transfer fee
+  const [bankAccounts, setBankAccounts] = useState<{ currency: string; transferRail: string }[]>([]);
+
+  useEffect(() => {
+    fetch('/api/admin/international-payment-accounts').then(r => r.json()).then(d => {
+      if (Array.isArray(d)) setBankAccounts(d);
+    }).catch(console.error);
+  }, []);
 
   useEffect(() => {
     fetch('/api/rn/services').then(r => r.json()).then(d => {
@@ -151,7 +160,8 @@ export default function RnNewInvoicePage() {
           brandId: 'ripple_nexus',
           rnServiceId: selectedRnServiceId || undefined,
           currencyOverride: currencyOverride.trim() || undefined,
-          paymentGateway: (currencyOverride.trim() || currencyInfo?.code || 'INR') === 'INR' ? 'RAZORPAY' : paymentGateway,
+          paymentGateway: (currencyOverride.trim() || currencyInfo?.code || 'INR') === 'INR' ? 'RAZORPAY' : 
+            (paymentGateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER' ? derivedBankGateway : paymentGateway),
           installmentCount,
           lineItems: validItems,
           discountRate,
@@ -180,9 +190,20 @@ export default function RnNewInvoicePage() {
   const taxAmount = round2(afterDiscount * taxRate / 100);
   const subtotal = round2(afterDiscount + taxAmount);
   const code = currencyInfo?.code ?? 'INR';
+  
+  // Auto-determine if this currency has a Native account configured
+  const currencyAccounts = bankAccounts.filter(a => a.currency === code);
+  const hasNative = currencyAccounts.some(a => a.transferRail && !a.transferRail.toUpperCase().includes('SWIFT'));
+  const derivedBankGateway = hasNative ? 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' : 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT';
+  const derivedBankFeeRate = hasNative ? FEE_RATES.BANK_TRANSFER_NATIVE : FEE_RATES.BANK_TRANSFER_SWIFT;
+
   const feeRate = code === 'INR' 
     ? FEE_RATES.RAZORPAY_DOMESTIC 
-    : (paymentGateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL : FEE_RATES.RAZORPAY_INTL);
+    : (
+        paymentGateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL :
+        paymentGateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER' ? derivedBankFeeRate :
+        FEE_RATES.RAZORPAY_INTL
+      );
   
   // ZERO-LOSS GROSS-UP
   const total = round2(subtotal / (1 - feeRate));
@@ -248,6 +269,16 @@ export default function RnNewInvoicePage() {
                   <FieldLabel label="Currency Override" />
                   <input className="input" type="text" value={currencyOverride} onChange={e => setCurrencyOverride(e.target.value.toUpperCase())} placeholder={`Auto: ${currencyInfo?.code ?? 'INR'}`} maxLength={3} />
                 </div>
+                { (currencyOverride.trim() || currencyInfo?.code || 'INR') !== 'INR' && (
+                  <div>
+                    <FieldLabel label="Payment Method" />
+                    <select className="input" value={paymentGateway} onChange={e => setPaymentGateway(e.target.value as any)}>
+                      <option value="PAYPAL">PayPal (Card/Wallet)</option>
+                      <option value="RAZORPAY">Razorpay (Intl Card)</option>
+                      <option value="RAZORPAY_INTERNATIONAL_BANK_TRANSFER">International Bank Transfer (Wire)</option>
+                    </select>
+                  </div>
+                )}
               </div>
             </SectionCard>
 

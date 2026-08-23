@@ -41,7 +41,7 @@ const CreateInvoiceSchema = z.object({
   country:          z.string().min(2),
   clientType:       z.enum(['FRESHER', 'MID_CAREER', 'EXECUTIVE', 'EXECUTIVE_PLUS', 'AGENCY_CLIENT']),
   currencyOverride: z.string().optional(),
-  paymentGateway:   z.enum(['RAZORPAY', 'PAYPAL']).optional(),
+  paymentGateway:   z.enum(['RAZORPAY', 'PAYPAL', 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER', 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE', 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT']).optional(),
   installmentCount: z.number().int().min(1).max(3).default(1), // 1 = full, 2 = split 2, 3 = split 3
   sourceChannel:    z.string().optional(),
   referralId:       z.string().optional(),
@@ -181,10 +181,16 @@ export async function POST(request: NextRequest) {
     const afterDiscount     = round2(grossSubtotal - discountAmount);
     const taxAmount         = round2(afterDiscount * taxRate / 100);
     const subtotalConverted = round2(afterDiscount + taxAmount);
-    const gateway: 'RAZORPAY' | 'PAYPAL' = requestedGateway ?? 'RAZORPAY';
+    const gateway: 'RAZORPAY' | 'PAYPAL' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' = requestedGateway ?? 'RAZORPAY';
     const processingFeeRate = currencyCode === 'INR' 
       ? FEE_RATES.RAZORPAY_DOMESTIC 
-      : (gateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL : FEE_RATES.RAZORPAY_INTL);
+      : (
+          gateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL :
+          gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' ? FEE_RATES.BANK_TRANSFER_NATIVE :
+          gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' ? FEE_RATES.BANK_TRANSFER_SWIFT :
+          gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER' ? 0 :
+          FEE_RATES.RAZORPAY_INTL
+        );
     
     // ZERO-LOSS GROSS-UP
     const totalPayable           = round2(subtotalConverted / (1 - processingFeeRate));
@@ -270,7 +276,7 @@ export async function POST(request: NextRequest) {
         if (gateway === 'RAZORPAY') {
           const rzp = await createRazorpayPaymentLink(invoice as unknown as Parameters<typeof createRazorpayPaymentLink>[0]);
           gatewayUpdate = { paymentGateway: 'RAZORPAY', razorpayLinkId: rzp.id, razorpayLinkUrl: rzp.short_url };
-        } else {
+        } else if (gateway === 'PAYPAL') {
           const pp = await createPaypalInvoice({
             id: invoice.id, invoiceNumber: invoice.invoiceNumber,
             clientName: invoice.clientName, clientEmail: invoice.clientEmail,
@@ -303,6 +309,8 @@ export async function POST(request: NextRequest) {
               localEquivalentAmount: totalPayable,
             }),
           };
+        } else if (gateway.startsWith('RAZORPAY_INTERNATIONAL_BANK_TRANSFER')) {
+          gatewayUpdate = { paymentGateway: gateway };
         }
       } else {
         // ── Split payment — create N links ──
@@ -324,7 +332,7 @@ export async function POST(request: NextRequest) {
               seq, amount, dueDate: instDue.toISOString(), status: 'PENDING',
               razorpayLinkId: rzp.id, razorpayLinkUrl: rzp.short_url,
             });
-          } else {
+          } else if (gateway === 'PAYPAL') {
             const pp = await createPaypalInstallmentInvoice(
               {
                 id: invoice.id, invoiceNumber: invoice.invoiceNumber,
@@ -337,6 +345,10 @@ export async function POST(request: NextRequest) {
             installs.push({
               seq, amount, dueDate: instDue.toISOString(), status: 'PENDING',
               paypalInvoiceId: pp.id, paypalPaymentUrl: pp.paymentUrl,
+            });
+          } else if (gateway.startsWith('RAZORPAY_INTERNATIONAL_BANK_TRANSFER')) {
+            installs.push({
+              seq, amount, dueDate: instDue.toISOString(), status: 'PENDING',
             });
           }
         }
@@ -374,7 +386,11 @@ export async function POST(request: NextRequest) {
           },
           ...(gateway === 'RAZORPAY'
             ? { razorpayLinkId: installs[0].razorpayLinkId, razorpayLinkUrl: installs[0].razorpayLinkUrl }
-            : { paypalInvoiceId: installs[0].paypalInvoiceId, paypalPaymentUrl: installs[0].paypalPaymentUrl }),
+            : (gateway === 'PAYPAL' 
+                ? { paypalInvoiceId: installs[0].paypalInvoiceId, paypalPaymentUrl: installs[0].paypalPaymentUrl }
+                : {}
+              )
+          ),
         };
 
       }
