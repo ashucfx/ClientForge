@@ -344,7 +344,7 @@ function SidebarContent({
   careerUnread, onNavigate, onLogout, onSwitchTenant, switching, isSuperAdmin,
   collapsed = false, onToggleCollapse, isMobileDrawer = false,
 }: SidebarProps) {
-  const inFinance = ['/invoices', '/analytics', '/reconciliation'].some(p => pathname.startsWith(p));
+  const inFinance = ['/invoices', '/analytics', '/reconciliation', '/bank-transfers'].some(p => pathname.startsWith(p));
   const inCareer  = pathname.startsWith('/career');
   const inGrowth  = pathname.startsWith('/flywheel') || pathname.startsWith('/sales');
   const inTools   = pathname.startsWith('/bugs') || pathname.startsWith('/referrals') || pathname.startsWith('/team') || pathname.startsWith('/reviews') || pathname.startsWith('/settings');
@@ -424,6 +424,8 @@ function SidebarContent({
             active={isActive('/analytics', pathname)} onClick={onNavigate} collapsed={collapsed} />
           <NavLink href="/reconciliation" icon={<IconTrendUp size={16} />} label="Reconciliation"
             active={isActive('/reconciliation', pathname)} onClick={onNavigate} collapsed={collapsed} />
+          <NavLink href="/bank-transfers" icon={<IconList size={16} />} label="Bank Transfers"
+            active={isActive('/bank-transfers', pathname)} onClick={onNavigate} collapsed={collapsed} />
         </NavSection>
 
         {/* Branding Suite */}
