@@ -19,7 +19,7 @@ const CheckoutSchema = z.object({
   experienceLevel: z.nativeEnum(ClientType),
   services: z.array(z.enum(VALID_SERVICE_SLUGS)).min(1, 'Select at least one service'),
   packageSlug: z.enum(['CAREER_BOOSTER', 'PREMIUM_PLUS', 'CUSTOM']),
-  preferredGateway: z.enum(['RAZORPAY', 'PAYPAL']).optional(),
+  preferredGateway: z.string().optional(),
   whatsapp: z.string().max(25).optional(),
   ref: z.string().max(16).optional(),
   website: z.string().max(0).optional(),

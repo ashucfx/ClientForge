@@ -16,6 +16,12 @@ export default async function CheckoutSessionPage({ params }: Props) {
       paymentUrl: true,
       name: true,
       email: true,
+      invoices: {
+        select: {
+          paymentGateway: true,
+        },
+        take: 1
+      }
     },
   }).catch(() => null);
 
@@ -26,7 +32,10 @@ export default async function CheckoutSessionPage({ params }: Props) {
 
   // Session not found or no payment link yet
   const notFound = !session;
-  const pending = session && !session.paymentUrl;
+  
+  const paymentGateway = session?.invoices?.[0]?.paymentGateway || '';
+  const isBankTransfer = paymentGateway.startsWith('RAZORPAY_INTERNATIONAL_BANK_TRANSFER');
+  const pending = session && !session.paymentUrl && !isBankTransfer;
 
   return (
     <div className="min-h-screen bg-brand-bone flex flex-col">
@@ -51,6 +60,17 @@ export default async function CheckoutSessionPage({ params }: Props) {
                 Start checkout
               </Link>
             </>
+          ) : isBankTransfer ? (
+            <>
+              <h1 className="font-serif text-display-lg text-brand-obsidian mb-6">
+                Invoice generated successfully
+              </h1>
+              <p className="text-subheading text-brand-obsidian/60 mb-8">
+                We have emailed your official invoice and wire transfer instructions to{' '}
+                <strong className="text-brand-obsidian">{session.email}</strong>. 
+                Please complete the transfer through your bank and submit the reconciliation form linked in the email.
+              </p>
+            </>
           ) : pending ? (
             <>
               <h1 className="font-serif text-display-lg text-brand-obsidian mb-6">
@@ -58,7 +78,7 @@ export default async function CheckoutSessionPage({ params }: Props) {
               </h1>
               <p className="text-subheading text-brand-obsidian/60 mb-8">
                 Your payment link is being generated. Check your email at{' '}
-                <strong>{session.email}</strong> — it will arrive within a minute.
+                <strong className="text-brand-obsidian">{session.email}</strong> — it will arrive within a minute.
                 You can also{' '}
                 <Link href="/checkout" className="text-brand-gold hover:underline">
                   start a new checkout

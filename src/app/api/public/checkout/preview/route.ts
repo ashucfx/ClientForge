@@ -17,7 +17,7 @@ const PreviewSchema = z.object({
   countryCode:      z.string().length(2),
   countryName:      z.string().min(2),
   tierHint:         z.nativeEnum(ClientType).optional(),
-  preferredGateway: z.enum(['RAZORPAY', 'PAYPAL']).optional(),
+  preferredGateway: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {

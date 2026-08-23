@@ -11,6 +11,7 @@ import { createRazorpayPaymentLink, createRazorpayInstallmentLink } from '@/lib/
 import { createPaypalInvoice, createPaypalInstallmentInvoice, PAYPAL_SUPPORTED_CURRENCIES } from '@/lib/paypal';
 import { getNextInvoiceNumber } from '@/lib/invoiceUtils';
 import { sendInvoiceEmail } from '@/lib/email';
+import { sendCareerEmail } from '@/lib/career/email';
 import { normalizePhoneE164 } from '@/lib/phone';
 import { getAdminSession } from '@/lib/auth';
 import { logAudit } from '@/lib/audit/logger';
@@ -430,6 +431,22 @@ export async function POST(request: NextRequest) {
           metadata: { invoiceId: fullInvoice.id, invoiceNumber: fullInvoice.invoiceNumber },
         },
       }).catch(() => {});
+    }
+
+    // ── Send Reconciliation Form for Bank Transfers ──
+    if (gateway.startsWith('RAZORPAY_INTERNATIONAL_BANK_TRANSFER')) {
+      try {
+        await sendCareerEmail({
+          to: fullInvoice.clientEmail,
+          trigger: 'RECONCILIATION_FORM_LINK',
+          data: {
+            recipientName: fullInvoice.clientName,
+            portalUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://catalyst.theripplenexus.com'}/bank-transfers/form`,
+          }
+        });
+      } catch (err) {
+        console.error('[Email] Reconciliation form email failed:', err);
+      }
     }
 
     await logAudit(

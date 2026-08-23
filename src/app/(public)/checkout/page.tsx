@@ -20,6 +20,7 @@ const SERVICE_LABELS: Record<ServiceSlug, string> = {
   LINKEDIN:     'LinkedIn Optimisation',
   COVER_LETTER: 'Cover Letter',
   PORTFOLIO:    'Portfolio Website',
+  EXECUTIVE_CONNECT: 'Executive Connect',
 };
 
 const PKG_SERVICES: Record<Exclude<PackageSlug, 'CUSTOM'>, ServiceSlug[]> = {
@@ -90,7 +91,7 @@ function CheckoutPageInner() {
   const [phone, setPhone] = useState('');
   const [countryCode, setCountryCode] = useState(INITIAL_COUNTRY.code);
   const [countryName, setCountryName] = useState(INITIAL_COUNTRY.name);
-  const [preferredGateway, setPreferredGateway] = useState<'RAZORPAY' | 'PAYPAL'>('PAYPAL');
+  const [preferredGateway, setPreferredGateway] = useState<string>('PAYPAL');
   const [experienceLevel, setExperienceLevel] = useState<'FRESHER' | 'MID_CAREER' | 'EXECUTIVE' | 'EXECUTIVE_PLUS'>('MID_CAREER');
   const [pricingPreview, setPricingPreview] = useState<{
     currency: string; currencySymbol: string;
@@ -241,7 +242,7 @@ function CheckoutPageInner() {
 
   // Switching payment method on the review step re-prices the order
   // (gateway fees differ), so totals always match what will be charged.
-  const handleGatewayChange = async (gateway: 'RAZORPAY' | 'PAYPAL') => {
+  const handleGatewayChange = async (gateway: string) => {
     if (gateway === preferredGateway || gatewaySwitching) return;
     const previous = preferredGateway;
     setPreferredGateway(gateway);
@@ -281,7 +282,7 @@ function CheckoutPageInner() {
         setOtpError(d.error ?? 'Incorrect code. Please try again.');
         return;
       }
-      setPricingPreview(await fetchPreview(preferredGateway));
+      setPricingPreview(await fetchPreview(preferredGateway as any));
       setOtpStep(false);
       setStep(2);
     } catch (e: unknown) {
@@ -846,14 +847,24 @@ function CheckoutPageInner() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {([
                   {
-                    value: 'PAYPAL' as const,
+                    value: 'PAYPAL',
                     label: 'PayPal',
                     sub: 'Charged in USD ($) · card or PayPal balance · PayPal converts to your currency',
                   },
                   {
-                    value: 'RAZORPAY' as const,
+                    value: 'RAZORPAY',
                     label: 'Card (Local Currency)',
                     sub: 'Charged directly in your local currency — no conversion on your end',
+                  },
+                  {
+                    value: 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE',
+                    label: 'Local Bank Transfer',
+                    sub: 'Pay natively via ACH, SEPA, FPS, etc. Invoice with details will be emailed.',
+                  },
+                  {
+                    value: 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT',
+                    label: 'SWIFT Wire Transfer',
+                    sub: 'Standard international bank wire. Invoice with details will be emailed.',
                   },
                 ]).map(({ value, label, sub }) => (
                   <button
