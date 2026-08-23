@@ -79,17 +79,10 @@ export async function GET(req: Request) {
       });
 
       if (!willRetry) {
-        // Send a direct email to admin about the failure
-        await sendCareerEmail({
-          to: ADMIN_EMAIL,
-          trigger: 'MESSAGE_NOTIFY',
-          data: {
-            recipientName: 'Catalyst Admin',
-            senderType: 'system',
-            body: `CRITICAL: Email to ${email.to} permanently failed after 3 attempts. Error: ${err.message ?? String(err)}. Please check the Vercel logs and Resend dashboard.`,
-            portalUrl: `https://catalyst.theripplenexus.com`
-          }
-        }).catch(e => console.error('Failed to notify admin of permanent failure:', e));
+        // Prevent infinite loop if email sending is permanently failing
+        console.error(
+          `CRITICAL: Email to ${email.to} permanently failed after 3 attempts. Error: ${err.message ?? String(err)}. Please check the Vercel logs and Resend dashboard. (Email ID: ${email.id})`
+        );
       }
 
       results.push({ id: email.id, status: willRetry ? 'FAILED' : 'PERMANENTLY_FAILED', error: err.message });

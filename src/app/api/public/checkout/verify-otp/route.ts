@@ -3,10 +3,18 @@ import type { NextRequest } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { prisma as db } from '@/lib/db';
 import { createWithGeneratedDisplayId, nextContactDisplayId } from '@/lib/displayIds';
+import { enforcePublicRateLimit } from '@/lib/publicRateLimit';
+import { normalizePhoneE164 } from '@/lib/phone';
 
 export async function POST(req: NextRequest) {
+  let body;
   try {
-    const body  = await req.json();
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
+  }
+
+  try {
     const email = (body.email ?? '').toLowerCase().trim();
     const code  = (body.code  ?? '').trim();
     const token = (body.token ?? '').trim();
@@ -19,6 +27,14 @@ export async function POST(req: NextRequest) {
     if (dotIdx === -1) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 400 });
     }
+
+    const limited = await enforcePublicRateLimit(req, {
+      action: 'verify_otp',
+      email: email,
+      ipLimit: { limit: 15, windowMs: 15 * 60 * 1000 },
+      emailLimit: { limit: 5, windowMs: 15 * 60 * 1000 },
+    });
+    if (limited) return limited;
 
     const sig    = token.slice(0, dotIdx);
     const expStr = token.slice(dotIdx + 1);
@@ -64,6 +80,8 @@ async function captureCheckoutLead(data: {
   tier: string; countryCode: string; countryName: string;
 }) {
   try {
+    const normPhone = normalizePhoneE164(data.phone, data.countryName)?.e164 || data.phone;
+    const normWhatsapp = normalizePhoneE164(data.whatsapp, data.countryName)?.e164 || data.whatsapp;
     let contact = await db.contact.findFirst({
       where: { email: { equals: data.email, mode: 'insensitive' } },
       include: { flywheelProfile: true },
@@ -78,8 +96,8 @@ async function captureCheckoutLead(data: {
             displayId,
             name:          data.name || data.email.split('@')[0],
             email:         data.email,
-            ...(data.phone    ? { phone: data.phone }       : {}),
-            ...(data.whatsapp ? { whatsapp: data.whatsapp } : {}),
+            ...(normPhone    ? { phone: normPhone }       : {}),
+            ...(normWhatsapp ? { whatsapp: normWhatsapp } : {}),
             ...(data.countryCode ? { country: data.countryCode } : {}),
             contactSource: 'WEBSITE_CHECKOUT',
           },
@@ -89,8 +107,8 @@ async function captureCheckoutLead(data: {
     } else {
       // Fill in missing fields only — never overwrite existing data
       const update: Record<string, string> = {};
-      if (data.phone    && !contact.phone)    update.phone    = data.phone;
-      if (data.whatsapp && !contact.whatsapp) update.whatsapp = data.whatsapp;
+      if (normPhone    && !contact.phone)    update.phone    = normPhone;
+      if (normWhatsapp && !contact.whatsapp) update.whatsapp = normWhatsapp;
       if (data.name     && !contact.name)     update.name     = data.name;
       if (Object.keys(update).length > 0) {
         await db.contact.update({ where: { id: contact.id }, data: update });

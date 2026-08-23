@@ -34,7 +34,7 @@ export interface CheckoutSessionInput {
   packageSlug: PackageSlug;
   services?: ServiceSlug[];
   tierHint?: ClientType;
-  preferredGateway?: 'RAZORPAY' | 'PAYPAL';
+  preferredGateway?: 'RAZORPAY' | 'PAYPAL' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT';
   referralCode?: string;
 }
 

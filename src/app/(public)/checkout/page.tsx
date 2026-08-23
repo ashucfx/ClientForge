@@ -220,7 +220,12 @@ function CheckoutPageInner() {
     }
   };
 
-  const fetchPreview = async (gateway: 'RAZORPAY' | 'PAYPAL') => {
+  const fetchAbortCtrl = useRef<AbortController | null>(null);
+
+  const fetchPreview = async (gateway: string) => {
+    if (fetchAbortCtrl.current) fetchAbortCtrl.current.abort();
+    fetchAbortCtrl.current = new AbortController();
+    
     const previewRes = await fetch('/api/public/checkout/preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -232,6 +237,7 @@ function CheckoutPageInner() {
         tierHint: experienceLevel,
         preferredGateway: countryCode === 'IN' ? 'RAZORPAY' : gateway,
       }),
+      signal: fetchAbortCtrl.current.signal,
     });
     if (!previewRes.ok) {
       const d = await previewRes.json().catch(() => ({}));
@@ -249,7 +255,8 @@ function CheckoutPageInner() {
     setGatewaySwitching(true);
     try {
       setPricingPreview(await fetchPreview(gateway));
-    } catch {
+    } catch (e: any) {
+      if (e.name === 'AbortError') return; // Ignore aborted requests
       setPreferredGateway(previous);
       alert('Could not update pricing for that payment method. Please try again.');
     } finally {
