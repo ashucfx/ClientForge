@@ -9,7 +9,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+    env:
+      # Provide dummy variables so tests and build pass
+      DATABASE_URL: "postgresql://postgres:password@localhost:5432/ripple_nexus"
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+      RESEND_API_KEY: "re_dummy"
+      CRON_SECRET: "dummy_cron_secret"
+      
     steps:
     - uses: actions/checkout@v4
     
@@ -36,9 +42,3 @@ jobs:
 
     - name: Build Next.js
       run: npm run build
-      env:
-        # Provide dummy variables so Next.js build passes if it statically evaluates some of these
-        DATABASE_URL: "postgresql://postgres:password@localhost:5432/ripple_nexus"
-        NEXT_PUBLIC_APP_URL: "http://localhost:3000"
-        RESEND_API_KEY: "re_dummy"
-        CRON_SECRET: "dummy_cron_secret"
