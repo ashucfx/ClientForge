@@ -33,6 +33,9 @@ export async function GET(req: NextRequest) {
       createdAt: true,
       lastLoginAt: true,
       expectedDeliveryAt: true,
+      consultationStatus: true,
+      consultationScheduledAt: true,
+      consultationJoinUrl: true,
       services: { select: { service: { select: { slug: true, name: true } } } },
       forms: {
         select: { formType: true, submittedAt: true, version: true },
@@ -259,5 +262,8 @@ export async function GET(req: NextRequest) {
     premiumPlusEnabled: ppEnabled,
     premiumPlusPriceInr: ppPriceInr,
     premiumPlusPriceUsd: ppPriceUsd,
+    consultationStatus: client.consultationStatus,
+    consultationScheduledAt: client.consultationScheduledAt,
+    consultationJoinUrl: client.consultationJoinUrl,
   });
 }

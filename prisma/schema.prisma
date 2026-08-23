@@ -252,6 +252,11 @@ model CareerClient {
   updatedAt          DateTime       @updatedAt
   waitingOn          String         @default("AGENCY") // "AGENCY" | "CLIENT"
 
+  // Consultation Feature
+  consultationStatus      String?   @default("PENDING") // PENDING, BOOKED, COMPLETED
+  consultationScheduledAt DateTime?
+  consultationJoinUrl     String?
+
   // ── Settlement Reconciliation (additive, nullable) ──
   amountSettledInr Float? // actual INR received in bank after UPI/cash/gateway deductions
   settlementNote   String? // optional note
