@@ -23,7 +23,8 @@ export type EmailTrigger =
   | 'MESSAGE_NOTIFY'
   | 'DELETE_OTP'
   | 'UPSELL_PITCH'
-  | 'MIDPOINT_UPDATE';
+  | 'MIDPOINT_UPDATE'
+  | 'RECONCILIATION_FORM_LINK';
 
 // New form types matching updated brief names
 export type FormType = 'career_profile' | 'linkedin_profile' | 'portfolio_website';
@@ -35,7 +36,8 @@ export type CareerServiceSlug =
   | 'LINKEDIN'
   | 'PORTFOLIO'
   | 'FULL_PACKAGE'
-  | 'PREMIUM_PLUS';
+  | 'PREMIUM_PLUS'
+  | 'EXECUTIVE_CONNECT';
 
 export interface FormField {
   id: string;
@@ -92,6 +94,7 @@ export const SERVICE_LABELS: Record<CareerServiceSlug, string> = {
   PORTFOLIO: 'Portfolio Website',
   FULL_PACKAGE: 'Career Booster Package',
   PREMIUM_PLUS: 'Premium Plus Package',
+  EXECUTIVE_CONNECT: 'Executive Connect Strategy Consultation',
 };
 
 export const STATUS_LABELS: Record<CareerStatus, string> = {

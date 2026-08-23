@@ -179,6 +179,19 @@ export async function buildEmail(
       };
     }
 
+    case 'RECONCILIATION_FORM_LINK': {
+      const { recipientName, portalUrl } = data as { recipientName: string; portalUrl: string; };
+      return {
+        subject: `Catalyst - Bank Transfer Reconciliation Instructions`,
+        html: await render(MessageNotifyEmail({ 
+          recipientName, 
+          senderType: 'admin', 
+          portalUrl, 
+          body: `Thank you for choosing Bank Transfer for your payment! Your invoice has been generated.\n\nPlease complete your wire transfer through your bank and then fill out our reconciliation form using the link below. Once we verify the payment, your project will be initiated immediately.\n\n[Submit Reconciliation Form](${portalUrl})` 
+        })),
+      };
+    }
+
     default:
       throw new Error(`Unknown trigger: ${trigger}`);
   }

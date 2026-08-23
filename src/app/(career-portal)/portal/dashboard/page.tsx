@@ -45,6 +45,9 @@ interface Me {
   premiumPlusEnabled?: boolean;
   premiumPlusPriceInr?: number;
   premiumPlusPriceUsd?: number;
+  consultationStatus?: string | null;
+  consultationScheduledAt?: string | null;
+  consultationJoinUrl?: string | null;
 }
 interface ReferralStats {
   referralCode: string | null;
@@ -672,9 +675,17 @@ export default function PortalDashboardPage() {
                     {upgradePreview.isIndia === false && upgradePreview.gatewayOptions && upgradePreview.gatewayOptions.length > 0 && (
                       <div className="mb-5">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-2">Payment method</p>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {upgradePreview.gatewayOptions.map(opt => {
                             const active = upgradeGateway === opt.gateway;
+                            const isBankNative = opt.gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE';
+                            const isBankSwift = opt.gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT';
+                            const isBank = isBankNative || isBankSwift;
+                            const isCard = opt.gateway === 'RAZORPAY';
+                            const isPayPal = opt.gateway === 'PAYPAL';
+                            const title = isCard ? 'Card' : isPayPal ? 'PayPal' : isBankNative ? 'Local Bank Transfer' : 'SWIFT Wire';
+                            const desc = isCard ? `Local currency (${opt.currency})` : isPayPal ? 'Charged in USD' : isBankNative ? 'Direct local transfer' : 'Standard wire transfer';
+
                             return (
                               <button key={opt.gateway} type="button"
                                 onClick={() => switchUpgradeGateway(opt.gateway)}
@@ -682,12 +693,12 @@ export default function PortalDashboardPage() {
                                 className={`text-left p-3 rounded-xl border transition-all disabled:opacity-60 ${active ? 'border-[#B8935B] bg-[#FBF8F3]' : 'border-slate-200 hover:border-slate-300'}`}>
                                 <div className="flex items-center justify-between gap-1">
                                   <span className="text-sm font-semibold text-slate-800">
-                                    {opt.gateway === 'RAZORPAY' ? 'Card' : 'PayPal'}
+                                    {title}
                                   </span>
                                   {opt.recommended && <span className="text-[8px] font-bold text-[#B8935B] bg-[#B8935B]/10 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Best</span>}
                                 </div>
-                                <p className="text-[11px] text-slate-500 mt-0.5">
-                                  {opt.gateway === 'RAZORPAY' ? `Local currency (${opt.currency})` : 'Charged in USD'}
+                                <p className="text-[11px] text-slate-500 mt-0.5 whitespace-nowrap">
+                                  {desc}
                                 </p>
                                 <p className="text-xs font-bold text-slate-700 mt-1">{opt.currencySymbol}{opt.totalPayable.toLocaleString()}</p>
                               </button>
@@ -865,50 +876,107 @@ export default function PortalDashboardPage() {
           </div>
         </div>
 
+        {/* ── Dynamic Upgrades ── */}
+        {(() => {
+          const hasResume = me.services?.some(s => s.slug === 'RESUME');
+          const hasLinkedIn = me.services?.some(s => s.slug === 'LINKEDIN');
+          const hasCoverLetter = me.services?.some(s => s.slug === 'COVER_LETTER');
+          const hasPortfolio = me.services?.some(s => s.slug === 'PORTFOLIO');
+          const hasFull = hasResume && hasLinkedIn && hasCoverLetter;
+          
+          return (
+            <div className="flex flex-col gap-5 mb-5">
+              {!hasFull && (
+                <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                      <span className="text-xl">🚀</span> Career Booster Upgrade
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Unlock the complete Career Booster package including Professional Resume, LinkedIn Optimization, and Cover Letter.
+                    </p>
+                  </div>
+                  <button onClick={() => handleUpgrade('CAREER_BOOSTER')} className="px-4 py-2 bg-slate-900 text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-slate-800 transition-colors shadow-sm">
+                    Upgrade Now
+                  </button>
+                </div>
+              )}
+              
+              {!hasPortfolio && (
+                <div className="bg-gradient-to-r from-[#FDFBF7] to-[#F9F6F0] border border-[#D4AF7A]/40 rounded-2xl shadow-[0_1px_4px_rgba(184,147,91,0.08)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-[#B8935B]/10 rounded-full blur-2xl -translate-y-10 translate-x-10 pointer-events-none" />
+                  <div className="relative z-10">
+                    <h3 className="font-bold text-[#9A7540] text-lg flex items-center gap-2">
+                      <span className="text-xl">✨</span> Premium Plus Upgrade
+                    </h3>
+                    <p className="text-sm text-slate-600 mt-1">
+                      Stand out with a stunning Personal Portfolio Website tailored to showcase your unique career journey.
+                    </p>
+                  </div>
+                  <button onClick={() => handleUpgrade('PREMIUM_PLUS')} className="relative z-10 px-4 py-2 bg-[#B8935B] text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-[#9A7540] transition-colors shadow-sm">
+                    Unlock Premium Plus
+                  </button>
+                </div>
+              )}
+
+              {!hasExecutiveAccess && (
+                <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                      <span className="text-xl">🤝</span> Executive Connect
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Unlock 1-on-1 Executive Connect consultations with our career experts.
+                    </p>
+                  </div>
+                  <button onClick={() => handleUpgrade('EXECUTIVE_CONNECT')} className="px-4 py-2 bg-white border border-[#B8935B] text-[#B8935B] font-bold rounded-xl text-sm whitespace-nowrap hover:bg-[#F0EAE0] transition-colors shadow-sm">
+                    Unlock Access
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         {/* ── Consultation ── */}
-        {(me.packageType === 'EXECUTIVE' || me.packageType === 'EXECUTIVE_PLUS') ? (
-          <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div>
-              <h3 className="font-bold text-slate-800 text-lg">Executive Connect</h3>
-              <p className="text-sm text-slate-500 mt-1">
-                {me.consultationStatus === 'BOOKED' 
-                  ? 'Your Executive Connect consultation is scheduled. Join via the link below at the scheduled time.' 
-                  : 'As an Executive client, you get a 1-on-1 Executive Connect consultation. Book it now.'}
-              </p>
-            </div>
-            {me.consultationStatus === 'BOOKED' ? (
-              <div className="flex flex-col items-end">
-                <p className="text-sm font-semibold text-[#B8935B] mb-2">
-                  {me.consultationScheduledAt ? new Date(me.consultationScheduledAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'Scheduled'}
+        {(() => {
+          const isExecutivePackage = me.packageType === 'EXECUTIVE' || me.packageType === 'EXECUTIVE_PLUS';
+          const hasExecutiveService = me.services?.some(s => s.slug === 'EXECUTIVE_CONNECT');
+          const hasExecutiveAccess = isExecutivePackage || hasExecutiveService;
+          
+          if (!hasExecutiveAccess) return null; // Don't show if they don't have access
+
+          return (
+            <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 mb-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <h3 className="font-bold text-slate-800 text-lg">Executive Connect</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  {me.consultationStatus === 'BOOKED' 
+                    ? 'Your Executive Connect consultation is scheduled. Join via the link below at the scheduled time.' 
+                    : 'You have unlocked 1-on-1 Executive Connect consultation. Book it now.'}
                 </p>
-                {me.consultationJoinUrl ? (
-                  <a href={me.consultationJoinUrl} target="_blank" rel="noreferrer" className="px-4 py-2 bg-[#B8935B] text-white font-bold rounded-xl text-sm hover:bg-[#9A7540] transition-colors">
-                    Join Meeting
-                  </a>
-                ) : (
-                  <span className="text-xs text-slate-400">Link pending...</span>
-                )}
               </div>
-            ) : (
-              <a href={`https://cal.com/your-username/30min?clientId=${me.id}`} target="_blank" rel="noreferrer" className="px-4 py-2 bg-slate-900 text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-slate-800 transition-colors shadow-sm">
-                Book Executive Connect
-              </a>
-            )}
-          </div>
-        ) : (
-          <div className="bg-[#FBF8F3] border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div>
-              <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-slate-400"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                Executive Connect
-              </h3>
-              <p className="text-sm text-slate-500 mt-1">Upgrade to an Executive package to unlock 1-on-1 Executive Connect consultations with our experts.</p>
+              {me.consultationStatus === 'BOOKED' ? (
+                <div className="flex flex-col items-end">
+                  <p className="text-sm font-semibold text-[#B8935B] mb-2">
+                    {me.consultationScheduledAt ? new Date(me.consultationScheduledAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'Scheduled'}
+                  </p>
+                  {me.consultationJoinUrl ? (
+                    <a href={me.consultationJoinUrl} target="_blank" rel="noreferrer" className="px-4 py-2 bg-[#B8935B] text-white font-bold rounded-xl text-sm hover:bg-[#9A7540] transition-colors">
+                      Join Meeting
+                    </a>
+                  ) : (
+                    <span className="text-xs text-slate-400">Link pending...</span>
+                  )}
+                </div>
+              ) : (
+                <a href={`https://cal.com/your-username/30min?clientId=${me.id}`} target="_blank" rel="noreferrer" className="px-4 py-2 bg-slate-900 text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-slate-800 transition-colors shadow-sm">
+                  Book Executive Connect
+                </a>
+              )}
             </div>
-            <button onClick={() => handleUpgrade('PREMIUM_PLUS')} className="px-4 py-2 bg-white border border-[#B8935B] text-[#B8935B] font-bold rounded-xl text-sm whitespace-nowrap hover:bg-[#F0EAE0] transition-colors shadow-sm">
-              Upgrade to Unlock
-            </button>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── Stats row: Revisions + Delivery Date ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

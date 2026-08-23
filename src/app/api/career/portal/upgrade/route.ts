@@ -8,23 +8,23 @@ import { getCurrencyForCountry, getExchangeRate, countryNameFromIso } from '@/li
 import { getNextInvoiceNumber } from '@/lib/invoiceUtils';
 import { createRazorpayPaymentLink } from '@/lib/razorpay';
 import { createPaypalInvoice } from '@/lib/paypal';
+import { sendInvoiceEmail } from '@/lib/email';
+import { sendCareerEmail } from '@/lib/career/email';
 import type { CareerServiceSlug } from '@/lib/career/types';
 import { ClientType } from '@prisma/client';
-import { isPremiumPlusEnabled, getPremiumPlusPrice } from '@/lib/systemSettings';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-type UpgradeGateway = 'RAZORPAY' | 'PAYPAL';
+type UpgradeGateway = 'RAZORPAY' | 'PAYPAL' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT';
+import { FEE_RATES } from '@/lib/pricing';
 
-// Fee-recovery rates kept in sync with the main checkout (pricing-v2):
-//  - Razorpay domestic:     2% + 18% GST on the fee                     = 2.36%
-//  - Razorpay international: 3% + 18% GST on the fee + ~2% FX spread     = 5.54%
-//  - PayPal:                4.4% + ~3% FX spread + $0.30 fixed          = 7.4% + $0.30
-const RAZORPAY_DOMESTIC_FEE = 0.02 * 1.18;
-const RAZORPAY_INTL_FEE     = 0.03 * 1.18 + 0.02;
-const PAYPAL_FEE            = 0.044 + 0.03;
+const RAZORPAY_DOMESTIC_FEE = FEE_RATES.RAZORPAY_DOMESTIC;
+const RAZORPAY_INTL_FEE     = FEE_RATES.RAZORPAY_INTL;
+const PAYPAL_FEE            = FEE_RATES.PAYPAL_INTL;
 const PAYPAL_FIXED          = 0.30;
+const BANK_TRANSFER_NATIVE_FEE = FEE_RATES.BANK_TRANSFER_NATIVE;
+const BANK_TRANSFER_SWIFT_FEE = FEE_RATES.BANK_TRANSFER_SWIFT;
 const ZERO_DECIMAL = ['INR', 'JPY', 'KRW', 'VND', 'IDR'];
 
 const roundMoney = (v: number, cur: string) => (ZERO_DECIMAL.includes(cur) ? Math.round(v) : Math.round(v * 100) / 100);
@@ -82,6 +82,20 @@ async function computeUpgradePricing(
     };
   }
 
+  if (gateway.startsWith('RAZORPAY_INTERNATIONAL_BANK_TRANSFER')) {
+    const { getCurrencyByCode } = require('@/lib/currency');
+    const local  = getCurrencyByCode(clientCurrency);
+    const rate   = await getExchangeRate('USD', local.code);
+    const subtotal     = roundMoney(differenceBase * rate, local.code);
+    const feeRate = gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' ? BANK_TRANSFER_NATIVE_FEE : BANK_TRANSFER_SWIFT_FEE;
+    const totalPayable = ceilMoney(subtotal / (1 - feeRate), local.code);
+    return {
+      gateway, currency: local.code, currencySymbol: local.symbol, exchangeRate: rate,
+      subtotal, taxRate: 0, taxAmount: 0,
+      processingFeeRate: feeRate, processingFee: roundMoney(totalPayable - subtotal, local.code), totalPayable,
+    };
+  }
+
   // International PayPal — USD
   const totalPayable = ceilMoney((differenceBase + PAYPAL_FIXED) / (1 - PAYPAL_FEE), 'USD');
   return {
@@ -99,7 +113,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl;
   const targetUpgrade = searchParams.get('target');
-  if (targetUpgrade !== 'FULL_PACKAGE' && targetUpgrade !== 'PREMIUM_PLUS') {
+  if (targetUpgrade !== 'FULL_PACKAGE' && targetUpgrade !== 'PREMIUM_PLUS' && targetUpgrade !== 'EXECUTIVE_CONNECT') {
     return NextResponse.json({ error: 'Invalid upgrade target' }, { status: 400 });
   }
 
@@ -136,6 +150,9 @@ export async function GET(req: NextRequest) {
   }
   if (targetUpgrade === 'PREMIUM_PLUS' && hasPortfolio && hasFull) {
     return NextResponse.json({ error: 'Already have premium plus' }, { status: 400 });
+  }
+  if (targetUpgrade === 'EXECUTIVE_CONNECT' && existingServices.includes('EXECUTIVE_CONNECT')) {
+    return NextResponse.json({ error: 'Already have Executive Connect' }, { status: 400 });
   }
 
   const invoiceData  = client.invoiceLinks[0]?.invoice;
@@ -191,13 +208,17 @@ export async function GET(req: NextRequest) {
   if (hasPortfolio) currentlyPaid += basePrices.PORTFOLIO[clientType];
 
   let differenceBase: number;
+  let customTotalPayable: number | null = null;
+
   if (targetUpgrade === 'PREMIUM_PLUS') {
-    // Use admin-configured price from SystemSetting for PREMIUM_PLUS.
-    // This is the flat upgrade price, not a computed diff, to make admin pricing explicit.
-    const configuredPrice = await getPremiumPlusPrice(isIndia ? 'INR' : 'USD', client.id);
     const computedBase = targetPrice - currentlyPaid;
-    // Use configured price if set and reasonable, else fall back to computed diff
-    differenceBase = configuredPrice > 0 ? configuredPrice : (computedBase > 0 ? computedBase : 0);
+    differenceBase = computedBase > 0 ? computedBase : 0;
+  } else if (targetUpgrade === 'EXECUTIVE_CONNECT') {
+    const { getExecutiveConnectPricingMap } = require('@/lib/systemSettings');
+    const pricingMap = await getExecutiveConnectPricingMap();
+    const cur = client.currency || (isIndia ? 'INR' : 'USD');
+    differenceBase = pricingMap[cur] || pricingMap['USD'] || 100;
+    customTotalPayable = differenceBase; // Manual pricing map means exactly this price.
   } else {
     differenceBase = targetPrice - currentlyPaid;
   }
@@ -206,12 +227,20 @@ export async function GET(req: NextRequest) {
   }
 
   const pricing = await computeUpgradePricing(differenceBase, isIndia, chosenGateway, client.currency);
+  
+  if (customTotalPayable !== null) {
+    pricing.totalPayable = customTotalPayable;
+    pricing.subtotal = customTotalPayable;
+    pricing.taxAmount = 0;
+    pricing.processingFee = 0;
+  }
+
   const { currency, currencySymbol, taxRate, taxAmount, processingFee, processingFeeRate, totalPayable } = pricing;
 
   // For international clients, also price the alternative gateway so the modal
   // can show both options (Razorpay recommended) without another round-trip.
   const gatewayOptions = isIndia ? null : await Promise.all(
-    (['RAZORPAY', 'PAYPAL'] as UpgradeGateway[]).map(async (g) => {
+    (['RAZORPAY', 'PAYPAL', 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE', 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT'] as UpgradeGateway[]).map(async (g) => {
       const p = await computeUpgradePricing(differenceBase, false, g, client.currency);
       return {
         gateway: g, currency: p.currency, currencySymbol: p.currencySymbol,
@@ -242,7 +271,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     targetService:  targetUpgrade,
-    upgradeLabel:   targetUpgrade === 'FULL_PACKAGE' ? 'Career Booster Package' : 'Premium Plus Package',
+    upgradeLabel:   targetUpgrade === 'FULL_PACKAGE' ? 'Career Booster Package' : (targetUpgrade === 'EXECUTIVE_CONNECT' ? 'Executive Connect' : 'Premium Plus Package'),
     currentPlan,
     whatYouGet,
     differenceBase,
@@ -269,7 +298,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const targetUpgrade = body?.targetService as string | undefined;
 
-  if (targetUpgrade !== 'FULL_PACKAGE' && targetUpgrade !== 'PREMIUM_PLUS') {
+  if (targetUpgrade !== 'FULL_PACKAGE' && targetUpgrade !== 'PREMIUM_PLUS' && targetUpgrade !== 'EXECUTIVE_CONNECT') {
     return NextResponse.json({ error: 'Invalid upgrade target' }, { status: 400 });
   }
 
@@ -299,6 +328,9 @@ export async function POST(req: NextRequest) {
   if (targetUpgrade === 'PREMIUM_PLUS' && hasPortfolio && hasFull) {
     return NextResponse.json({ error: 'Already have premium plus' }, { status: 400 });
   }
+  if (targetUpgrade === 'EXECUTIVE_CONNECT' && existingServices.includes('EXECUTIVE_CONNECT')) {
+    return NextResponse.json({ error: 'Already have Executive Connect' }, { status: 400 });
+  }
 
   const invoiceData = client.invoiceLinks[0]?.invoice;
   const clientType  = (invoiceData?.clientType as ClientType) || 'MID_CAREER';
@@ -306,7 +338,7 @@ export async function POST(req: NextRequest) {
   const rawCountry = invoiceData?.country ?? null;
   const chosenGateway: UpgradeGateway = isIndia
     ? 'RAZORPAY'
-    : (body?.gateway === 'PAYPAL' ? 'PAYPAL' : 'RAZORPAY');
+    : ((body?.gateway as UpgradeGateway) ?? 'RAZORPAY');
 
   const basePrices = isIndia ? PRICING.basePrices.INR : PRICING.basePrices.USD;
 
@@ -328,7 +360,21 @@ export async function POST(req: NextRequest) {
   }
   if (hasPortfolio) currentlyPaid += basePrices.PORTFOLIO[clientType];
 
-  const differenceBase = targetPrice - currentlyPaid;
+  let differenceBase = targetPrice - currentlyPaid;
+  let customTotalPayable: number | null = null;
+  
+  if (targetUpgrade === 'PREMIUM_PLUS') {
+    const configuredPrice = await getPremiumPlusPrice(isIndia ? 'INR' : 'USD', client.id);
+    const computedBase = differenceBase;
+    differenceBase = configuredPrice > 0 ? configuredPrice : (computedBase > 0 ? computedBase : 0);
+  } else if (targetUpgrade === 'EXECUTIVE_CONNECT') {
+    const { getExecutiveConnectPricingMap } = require('@/lib/systemSettings');
+    const pricingMap = await getExecutiveConnectPricingMap();
+    const cur = client.currency || (isIndia ? 'INR' : 'USD');
+    differenceBase = pricingMap[cur] || pricingMap['USD'] || 100;
+    customTotalPayable = differenceBase;
+  }
+  
   if (differenceBase <= 0) {
     return NextResponse.json({ error: 'No price difference to upgrade' }, { status: 400 });
   }
@@ -349,6 +395,14 @@ export async function POST(req: NextRequest) {
   });
 
   const pricing = await computeUpgradePricing(differenceBase, isIndia, chosenGateway, client.currency);
+  
+  if (customTotalPayable !== null) {
+    pricing.totalPayable = customTotalPayable;
+    pricing.subtotal = customTotalPayable;
+    pricing.taxAmount = 0;
+    pricing.processingFee = 0;
+  }
+  
   const { currency, currencySymbol, taxRate, taxAmount, processingFee: processingFeeConverted, processingFeeRate, totalPayable } = pricing;
 
   if (existingInvoice) {
@@ -363,7 +417,7 @@ export async function POST(req: NextRequest) {
 
   const upgradeDescription = targetUpgrade === 'FULL_PACKAGE'
     ? 'Upgrade to Complete Career Booster (Resume, LinkedIn, Cover Letter)'
-    : 'Upgrade to Premium Plus Package (Career Booster + Portfolio)';
+    : (targetUpgrade === 'EXECUTIVE_CONNECT' ? 'Executive Connect Strategy Consultation' : 'Upgrade to Premium Plus Package (Career Booster + Portfolio)');
 
   // Build one line item per NEW service being added, so onboarding grants exactly
   // what was paid for. (A single combined "Career Booster + Portfolio" line was
@@ -373,10 +427,11 @@ export async function POST(req: NextRequest) {
   const effectivelyHasLinkedIn    = hasLinkedIn    || hasFull;
   const effectivelyHasCoverLetter = hasCoverLetter || hasFull;
   const upgradeItems: { description: string; unitPrice: number }[] = [];
-  if (!effectivelyHasResume)      upgradeItems.push({ description: 'Professional Resume Writing',   unitPrice: basePrices.RESUME[clientType] });
-  if (!effectivelyHasLinkedIn)    upgradeItems.push({ description: 'LinkedIn Profile Optimisation', unitPrice: basePrices.LINKEDIN[clientType] });
-  if (!effectivelyHasCoverLetter) upgradeItems.push({ description: 'Cover Letter Writing',          unitPrice: basePrices.COVER_LETTER[clientType] });
+  if (!effectivelyHasResume && targetUpgrade !== 'EXECUTIVE_CONNECT')      upgradeItems.push({ description: 'Professional Resume Writing',   unitPrice: basePrices.RESUME[clientType] });
+  if (!effectivelyHasLinkedIn && targetUpgrade !== 'EXECUTIVE_CONNECT')    upgradeItems.push({ description: 'LinkedIn Profile Optimisation', unitPrice: basePrices.LINKEDIN[clientType] });
+  if (!effectivelyHasCoverLetter && targetUpgrade !== 'EXECUTIVE_CONNECT') upgradeItems.push({ description: 'Cover Letter Writing',          unitPrice: basePrices.COVER_LETTER[clientType] });
   if (targetUpgrade === 'PREMIUM_PLUS' && !hasPortfolio) upgradeItems.push({ description: 'Portfolio Website Development', unitPrice: basePrices.PORTFOLIO[clientType] });
+  if (targetUpgrade === 'EXECUTIVE_CONNECT') upgradeItems.push({ description: 'Executive Connect Strategy Consultation', unitPrice: differenceBase });
   if (upgradeItems.length === 0) upgradeItems.push({ description: upgradeDescription, unitPrice: differenceBase });
 
   // Create invoice with retry for invoice-number collision
@@ -433,7 +488,24 @@ export async function POST(req: NextRequest) {
 
   // Create payment link
   try {
-    if (chosenGateway === 'RAZORPAY') {
+    if (chosenGateway.startsWith('RAZORPAY_INTERNATIONAL_BANK_TRANSFER')) {
+      // Send invoice email with wire instructions
+      await sendInvoiceEmail(invoice as any);
+      
+      // Send reconciliation form link via career email
+      const portalAppUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com';
+      await sendCareerEmail({
+        to: client.email,
+        trigger: 'MESSAGE_NOTIFY',
+        data: {
+          recipientName: client.name,
+          senderType: 'admin',
+          portalUrl: `${portalAppUrl}/portal/reconciliation/${invoice.id}`,
+          body: `Your wire transfer invoice has been generated. Please follow the wire instructions in the invoice PDF.\n\nOnce you have transferred the funds, please fill out the reconciliation form with your reference number so we can unlock your services immediately:\n\n${portalAppUrl}/portal/reconciliation/${invoice.id}`,
+        }
+      });
+      return NextResponse.json({ ok: true, isBankTransfer: true, message: 'Invoice and instructions sent via email.', differenceBase, totalPayable });
+    } else if (chosenGateway === 'RAZORPAY') {
       // Razorpay — domestic (INR) or international (client's local currency)
       const rzp = await createRazorpayPaymentLink(invoice as any);
       await db.invoice.update({

@@ -12,7 +12,7 @@ import {
   normalizeFormType, getFormsForServices,
 } from '@/lib/career/types';
 import type { CareerPackage, CareerStatus, CareerServiceSlug } from '@/lib/career/types';
-import { isPremiumPlusEnabled, getPremiumPlusPrice } from '@/lib/systemSettings';
+
 import { waitUntil } from '@vercel/functions';
 import { sendCareerEmail } from '@/lib/career/email';
 
@@ -221,13 +221,6 @@ export async function GET(req: NextRequest) {
     fallbackDeliveryAt = d.toISOString();
   }
 
-  // Read Premium Plus settings from SystemSetting table (admin-configurable)
-  const [ppEnabled, ppPriceInr, ppPriceUsd] = await Promise.all([
-    isPremiumPlusEnabled(client.id),
-    getPremiumPlusPrice('INR', client.id),
-    getPremiumPlusPrice('USD', client.id),
-  ]);
-
   return NextResponse.json({
     id: client.id,
     name: client.name,
@@ -259,9 +252,6 @@ export async function GET(req: NextRequest) {
     hasSubmittedFeedback: !!client.Feedback,
     hasSubmittedReview: !!client.Review,
     deliverables: client.deliverables,
-    premiumPlusEnabled: ppEnabled,
-    premiumPlusPriceInr: ppPriceInr,
-    premiumPlusPriceUsd: ppPriceUsd,
     consultationStatus: client.consultationStatus,
     consultationScheduledAt: client.consultationScheduledAt,
     consultationJoinUrl: client.consultationJoinUrl,
