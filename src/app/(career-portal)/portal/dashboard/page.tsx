@@ -869,11 +869,11 @@ export default function PortalDashboardPage() {
         {(me.packageType === 'EXECUTIVE' || me.packageType === 'EXECUTIVE_PLUS') ? (
           <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
-              <h3 className="font-bold text-slate-800 text-lg">Strategy Consultation</h3>
+              <h3 className="font-bold text-slate-800 text-lg">Executive Connect</h3>
               <p className="text-sm text-slate-500 mt-1">
                 {me.consultationStatus === 'BOOKED' 
-                  ? 'Your consultation is scheduled. Join via the link below at the scheduled time.' 
-                  : 'As an Executive client, you get a 1-on-1 strategy consultation. Book it now.'}
+                  ? 'Your Executive Connect consultation is scheduled. Join via the link below at the scheduled time.' 
+                  : 'As an Executive client, you get a 1-on-1 Executive Connect consultation. Book it now.'}
               </p>
             </div>
             {me.consultationStatus === 'BOOKED' ? (
@@ -891,7 +891,7 @@ export default function PortalDashboardPage() {
               </div>
             ) : (
               <a href={`https://cal.com/your-username/30min?clientId=${me.id}`} target="_blank" rel="noreferrer" className="px-4 py-2 bg-slate-900 text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-slate-800 transition-colors shadow-sm">
-                Book Consultation
+                Book Executive Connect
               </a>
             )}
           </div>
@@ -900,9 +900,9 @@ export default function PortalDashboardPage() {
             <div>
               <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-slate-400"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                Career Strategy Consultation
+                Executive Connect
               </h3>
-              <p className="text-sm text-slate-500 mt-1">Upgrade to an Executive package to unlock 1-on-1 consultations with our experts.</p>
+              <p className="text-sm text-slate-500 mt-1">Upgrade to an Executive package to unlock 1-on-1 Executive Connect consultations with our experts.</p>
             </div>
             <button onClick={() => handleUpgrade('PREMIUM_PLUS')} className="px-4 py-2 bg-white border border-[#B8935B] text-[#B8935B] font-bold rounded-xl text-sm whitespace-nowrap hover:bg-[#F0EAE0] transition-colors shadow-sm">
               Upgrade to Unlock
