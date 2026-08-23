@@ -48,11 +48,15 @@ const RN_NAV = [
   { href: '/rn/services',     Icon: IconTarget,    label: 'Service Workflows',   section: 'Operations' },
   { href: '/rn/deliverables', Icon: IconGrid,      label: 'Global Deliverables', section: 'Operations' },
   { href: '/rn/invoices',     Icon: IconList,      label: 'Billing',             section: 'Operations' },
+  { href: '/rn/reconciliation', Icon: IconList,    label: 'Reconciliation',      section: 'Operations' },
   { href: '/rn/emails',       Icon: IconMail,      label: 'Email Center',        section: 'Operations' },
   { href: '/rn/reports',      Icon: IconTrendUp,   label: 'Reports',             section: 'Operations' },
 
   { href: '/rn/templates/services', Icon: IconGrid,      label: 'Service Templates', section: 'Templates' },
   { href: '/rn/templates/emails',   Icon: IconMail,      label: 'Email Templates',   section: 'Templates' },
+
+  { href: '/settings/bank-accounts', Icon: IconSettings, label: 'Bank Accounts',     section: 'Settings' },
+  { href: '/settings/contacts',      Icon: IconUser,     label: 'Global Contacts',   section: 'Settings' },
 ];
 
 function isNavActive(href: string, pathname: string) {
