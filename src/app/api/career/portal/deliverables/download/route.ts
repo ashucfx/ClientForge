@@ -32,9 +32,7 @@ export async function GET(req: NextRequest) {
 
   const arrayBuffer = await upstream.arrayBuffer();
 
-  const rawBaseName = file.originalName || file.label || 'deliverable';
-  const clientPrefix = `${payload.clientId}_`;
-  const baseName = rawBaseName.startsWith(clientPrefix) ? rawBaseName : `${clientPrefix}${rawBaseName}`;
+  const baseName = file.originalName || file.label || 'download';
   const filename = ensureExtension(baseName, file.mimeType);
   const safe     = filename.replace(/[^\w.\- ]/g, '_');
 
