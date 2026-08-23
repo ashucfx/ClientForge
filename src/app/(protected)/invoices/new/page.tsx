@@ -684,6 +684,23 @@ export default function NewInvoicePage() {
   const localCode = currencyInfo?.code ?? 'INR';
   const paypalWillConvertToUsd = paymentGateway === 'PAYPAL' && localCode !== 'USD' && !PAYPAL_SUPPORTED_CURRENCIES.has(localCode);
 
+  // Live calculations for the Form tab
+  const formGrossSubtotal = round2(lineItems.reduce((s, i) => s + round2(i.qty * i.unitPrice), 0));
+  const formDiscountAmount = round2(formGrossSubtotal * discountRate / 100);
+  const formAfterDiscount = round2(formGrossSubtotal - formDiscountAmount);
+  const formTaxAmount = round2(formAfterDiscount * taxRate / 100);
+  const formSubtotal = round2(formAfterDiscount + formTaxAmount);
+  const formFeeRate = localCode === 'INR'
+    ? FEE_RATES.RAZORPAY_DOMESTIC
+    : (
+        paymentGateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL :
+        paymentGateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' ? FEE_RATES.BANK_TRANSFER_NATIVE :
+        paymentGateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' ? FEE_RATES.BANK_TRANSFER_SWIFT :
+        FEE_RATES.RAZORPAY_INTL
+      );
+  const formTotalPayable = round2(formSubtotal / (1 - formFeeRate));
+  const formProcessingFee = round2(formTotalPayable - formSubtotal);
+
   return (
     <AppShell>
       <main className="page-body">
@@ -1255,7 +1272,7 @@ export default function NewInvoicePage() {
                   </tbody>
                 </table>
               </div>
-              <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)' }}>
+              <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fafbfc', flexWrap: 'wrap', gap: 10 }}>
                 <button
                   type="button"
                   onClick={addItem}
@@ -1264,6 +1281,10 @@ export default function NewInvoicePage() {
                 >
                   + Add Item
                 </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Items Subtotal:</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>{fmt(formGrossSubtotal, sym)}</span>
+                </div>
               </div>
             </SectionCard>
 
@@ -1301,7 +1322,7 @@ export default function NewInvoicePage() {
                   />
                 </div>
               </div>
-              <div>
+              <div style={{ marginBottom: 16 }}>
                 <FieldLabel label="Notes (optional)" />
                 <textarea
                   className="input"
@@ -1311,6 +1332,39 @@ export default function NewInvoicePage() {
                   placeholder="Any additional notes for the client…"
                   style={{ resize: 'vertical', minHeight: 72, fontFamily: 'inherit' }}
                 />
+              </div>
+
+              {/* Live Cost & Fee Summary Banner directly in form */}
+              <div style={{ background: '#f8fafc', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', marginTop: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted)', marginBottom: 10 }}>
+                  Estimated Invoice Summary
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 110px), 1fr))', gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600 }}>Subtotal</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{fmt(formGrossSubtotal, sym)}</div>
+                  </div>
+                  {formDiscountAmount > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, color: '#dc2626', fontWeight: 600 }}>Discount ({discountRate}%)</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#dc2626' }}>-{fmt(formDiscountAmount, sym)}</div>
+                    </div>
+                  )}
+                  {formTaxAmount > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600 }}>Tax ({taxRate}%)</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>+{fmt(formTaxAmount, sym)}</div>
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ fontSize: 10, color: '#d97706', fontWeight: 600 }}>Fee ({(formFeeRate * 100).toFixed(2)}%)</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#d97706' }}>+{fmt(formProcessingFee, sym)}</div>
+                  </div>
+                  <div style={{ borderLeft: '2px solid var(--border)', paddingLeft: 10 }}>
+                    <div style={{ fontSize: 10, color: '#15803d', fontWeight: 800 }}>Total Payable</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: '#15803d' }}>{fmt(formTotalPayable, sym)}</div>
+                  </div>
+                </div>
               </div>
             </SectionCard>
 
@@ -1365,31 +1419,32 @@ export default function NewInvoicePage() {
                         background: sel ? `${opt.color}12` : '#fff',
                         borderRadius: 12, padding: '14px 16px',
                         cursor: 'pointer', textAlign: 'left', transition: 'all .15s',
-                        position: 'relative',
+                        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                         touchAction: 'manipulation',
                       }}
                     >
-                      {opt.badge && (
-                        <span style={{
-                          position: 'absolute', top: 8, right: 8,
-                          background: sel ? opt.color : '#f1f5f9',
-                          color: sel ? '#fff' : '#475569',
-                          fontSize: 10, fontWeight: 700, borderRadius: 20,
-                          padding: '2px 7px', letterSpacing: '.3px',
-                        }}>
-                          {opt.badge}
-                        </span>
-                      )}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <span style={{ fontSize: 14, fontWeight: 800, color: sel ? opt.color : 'var(--text)' }}>
-                          {opt.label}
-                        </span>
-                        <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${sel ? opt.color : '#d1d5db'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {sel && <div style={{ width: 8, height: 8, borderRadius: '50%', background: opt.color }} />}
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 6 }}>
+                          {opt.badge ? (
+                            <span style={{
+                              background: sel ? opt.color : '#f1f5f9',
+                              color: sel ? '#fff' : '#475569',
+                              fontSize: 10, fontWeight: 700, borderRadius: 20,
+                              padding: '2px 8px', letterSpacing: '.3px',
+                            }}>
+                              {opt.badge}
+                            </span>
+                          ) : <span />}
+                          <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${sel ? opt.color : '#d1d5db'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            {sel && <div style={{ width: 8, height: 8, borderRadius: '50%', background: opt.color }} />}
+                          </div>
                         </div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: sel ? opt.color : 'var(--text)', marginBottom: 4, lineHeight: 1.3 }}>
+                          {opt.label}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, lineHeight: 1.4 }}>{opt.sub}</div>
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{opt.sub}</div>
-                      <div style={{ fontSize: 11, color: opt.color, fontWeight: 700 }}>{opt.fee}</div>
+                      <div style={{ fontSize: 11, color: opt.color, fontWeight: 700, marginTop: 4 }}>{opt.fee}</div>
                     </button>
                   );
                 })}
