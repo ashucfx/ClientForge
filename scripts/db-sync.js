@@ -54,7 +54,7 @@ if (!process.env.DIRECT_URL) {
 console.log('[db-sync] Running prisma db push…');
 const result = spawnSync(
   process.platform === 'win32' ? 'npx.cmd' : 'npx',
-  ['prisma', 'db', 'push', '--skip-generate'],
+  ['prisma', 'db', 'push'],
   { stdio: 'inherit', env: process.env, shell: process.platform === 'win32' }
 );
 
