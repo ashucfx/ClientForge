@@ -16,7 +16,14 @@ export default function ContactsAdminPage() {
     fetch('/api/admin/contacts/list')
       .then(r => r.json())
       .then(d => {
-        if (Array.isArray(d)) setContacts(d);
+        if (Array.isArray(d)) {
+          d.sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return dateB - dateA;
+          });
+          setContacts(d);
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
