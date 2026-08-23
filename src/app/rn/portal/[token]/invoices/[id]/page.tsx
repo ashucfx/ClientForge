@@ -63,7 +63,9 @@ export default async function BankTransferInstructionsPage({ params }: { params:
                 )}
                 {bankAccount.routingNumber && (
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Routing Number (ACH/ABA)</div>
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      Routing Code {bankAccount.routingType ? `(${bankAccount.routingType})` : ''}
+                    </div>
                     <div className="text-slate-800 font-mono font-medium">{bankAccount.routingNumber}</div>
                   </div>
                 )}
@@ -83,6 +85,12 @@ export default async function BankTransferInstructionsPage({ params }: { params:
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                     <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">SWIFT / BIC</div>
                     <div className="text-slate-800 font-mono font-medium">{bankAccount.swiftBic}</div>
+                  </div>
+                )}
+                {bankAccount.bankAddress && (
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 sm:col-span-2">
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Bank Address</div>
+                    <div className="text-slate-800 font-medium">{bankAccount.bankAddress}</div>
                   </div>
                 )}
               </div>
