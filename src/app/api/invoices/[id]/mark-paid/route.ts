@@ -9,7 +9,7 @@ import { getAdminSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { fetchPaymentLinkStatus } from '@/lib/razorpay';
 import { fetchPaypalInvoiceStatus } from '@/lib/paypal';
-import { sendPaymentConfirmationEmail } from '@/lib/email';
+import { sendPaymentConfirmationEmail, sendAdminPaymentAlert } from '@/lib/email';
 import { onboardFromInvoice } from '@/lib/career/onboarding';
 import { rnOnboardFromInvoice } from '@/lib/rn/onboarding';
 import type { Installment } from '@/types';
@@ -137,6 +137,19 @@ export async function POST(
     if (newStatus === 'PAID') {
       sendPaymentConfirmationEmail(updatedInvoice as any)
         .catch(err => console.error('[mark-paid/sync] Confirmation email failed:', err));
+        
+      sendAdminPaymentAlert({
+        clientName: updatedInvoice.clientName,
+        clientEmail: updatedInvoice.clientEmail,
+        product: 'Invoice Payment (Synced)',
+        amount: updatedInvoice.totalPayable,
+        currency: updatedInvoice.currency,
+        currencySymbol: updatedInvoice.currencySymbol,
+        invoiceNumber: updatedInvoice.invoiceNumber,
+        invoiceId: updatedInvoice.id,
+        brandId: updatedInvoice.brandId ?? 'catalyst',
+      }).catch(err => console.error('[mark-paid/sync] Admin alert failed:', err));
+
       if (updatedInvoice.brandId === 'ripple_nexus') {
         rnOnboardFromInvoice(updatedInvoice as any)
           .catch(err => console.error('[mark-paid/sync] RN onboarding failed:', err));
@@ -191,6 +204,18 @@ export async function POST(
   // Send confirmation email + auto-onboard (best-effort, non-blocking)
   sendPaymentConfirmationEmail(updatedInvoice as any)
     .catch(err => console.error('[mark-paid/manual] Confirmation email failed:', err));
+    
+  sendAdminPaymentAlert({
+    clientName: updatedInvoice.clientName,
+    clientEmail: updatedInvoice.clientEmail,
+    product: 'Invoice Payment (Manual)',
+    amount: updatedInvoice.totalPayable,
+    currency: updatedInvoice.currency,
+    currencySymbol: updatedInvoice.currencySymbol,
+    invoiceNumber: updatedInvoice.invoiceNumber,
+    invoiceId: updatedInvoice.id,
+    brandId: updatedInvoice.brandId ?? 'catalyst',
+  }).catch(err => console.error('[mark-paid/manual] Admin alert failed:', err));
   
   if (updatedInvoice.brandId === 'ripple_nexus') {
     rnOnboardFromInvoice(updatedInvoice as any)
