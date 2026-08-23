@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import AppShell from '@/components/AppShell';
 import { useAdmin } from '@/components/AdminProvider';
-import { IconTrash, IconList, IconEye } from '@/components/Icons';
+import { IconTrash, IconEye, IconRefresh, IconCheck } from '@/components/Icons';
 
 type BankAccount = {
   id: string;
@@ -23,7 +23,7 @@ type BankAccount = {
 const DEFAULT_FORM = {
   currency: 'USD',
   transferRail: 'ACH',
-  accountName: '',
+  accountName: 'Ripple Nexus',
   bankName: '',
   accountNumber: '',
   routingNumber: '',
@@ -36,10 +36,23 @@ const DEFAULT_FORM = {
   isActive: true,
 };
 
+const CURRENCY_PRESETS: Record<string, { transferRail: string; routingType: string; bankName?: string; bankAddress?: string; country?: string }> = {
+  USD: { transferRail: 'ACH', routingType: 'ach_routing_number', bankName: 'Community Federal Savings Bank', country: 'US' },
+  GBP: { transferRail: 'FPS / BACS / CHAPS', routingType: 'Sort_Code', bankName: 'Banking Circle S.A. UK Branch', country: 'GB' },
+  EUR: { transferRail: 'SEPA / SEPA Instant', routingType: 'BIC_SWIFT', bankName: 'Banking Circle Germany', country: 'EU' },
+  CAD: { transferRail: 'EFT', routingType: 'routing_code', bankName: 'Digital Commerce Bank', country: 'CA' },
+  AUD: { transferRail: 'NPP / BECS / Osko', routingType: 'BSB Number', bankName: 'BC Payments Australia Pty Ltd', country: 'AU' },
+  DKK: { transferRail: 'DKK Local', routingType: 'BIC_SWIFT', bankName: 'Banking Circle Denmark', country: 'DK' },
+  AED: { transferRail: 'FTS', routingType: 'routing_code', country: 'AE' },
+  SGD: { transferRail: 'GIRO', routingType: 'routing_code', country: 'SG' },
+};
+
 export default function BankAccountsSettingsPage() {
   const { isSuperAdmin } = useAdmin();
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
+  const [seedSuccess, setSeedSuccess] = useState(false);
   const [modalMode, setModalMode] = useState<'closed' | 'add' | 'edit' | 'view'>('closed');
   const [formData, setFormData] = useState<any>(DEFAULT_FORM);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -64,6 +77,39 @@ export default function BankAccountsSettingsPage() {
     loadAccounts();
   }, [isSuperAdmin]);
 
+  const handleSyncPresets = async () => {
+    if (!confirm('This will load all standard Razorpay International accounts (USD, GBP, EUR, CAD, AUD, DKK) configured for Ripple Nexus into your database. Continue?')) return;
+    setSeeding(true);
+    try {
+      const res = await fetch('/api/admin/international-payment-accounts/seed', { method: 'POST' });
+      if (res.ok) {
+        setSeedSuccess(true);
+        setTimeout(() => setSeedSuccess(false), 3000);
+        loadAccounts();
+      } else {
+        alert('Failed to sync preset accounts');
+      }
+    } catch {
+      alert('Error syncing preset accounts');
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const handleCurrencyChange = (newCurrency: string) => {
+    const preset = CURRENCY_PRESETS[newCurrency];
+    setFormData({
+      ...formData,
+      currency: newCurrency,
+      ...(preset ? {
+        transferRail: preset.transferRail,
+        routingType: preset.routingType,
+        ...(modalMode === 'add' && preset.bankName ? { bankName: preset.bankName } : {}),
+        ...(preset.country ? { country: preset.country } : {}),
+      } : {}),
+    });
+  };
+
   const openAddModal = () => {
     setFormData(DEFAULT_FORM);
     setModalMode('add');
@@ -81,8 +127,8 @@ export default function BankAccountsSettingsPage() {
     setModalMode('view');
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to permanently delete the bank account for ${name}?`)) return;
+  const handleDelete = async (id: string, currency: string) => {
+    if (!confirm(`Are you sure you want to permanently delete the bank account for ${currency}?`)) return;
     try {
       const res = await fetch(`/api/admin/international-payment-accounts/${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -136,17 +182,33 @@ export default function BankAccountsSettingsPage() {
   return (
     <AppShell>
       <div className="w-full max-w-6xl mx-auto px-4 py-8 relative">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">International Bank Accounts</h1>
             <p className="text-sm text-slate-500 mt-1">Configure receiving accounts for manual Bank Transfer invoices.</p>
           </div>
-          <button 
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg shadow-sm transition-colors"
-            onClick={openAddModal}
-          >
-            + Add Account
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSyncPresets}
+              disabled={seeding}
+              className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-bold rounded-lg border border-indigo-200 transition-colors flex items-center gap-2"
+            >
+              {seedSuccess ? (
+                <><IconCheck size={14} /> Synced Razorpay Accounts!</>
+              ) : seeding ? (
+                <><IconRefresh size={14} className="animate-spin" /> Syncing…</>
+              ) : (
+                <>⚡ Auto-Sync Razorpay Accounts</>
+              )}
+            </button>
+            <button 
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg shadow-sm transition-colors"
+              onClick={openAddModal}
+            >
+              + Add Account
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -155,7 +217,13 @@ export default function BankAccountsSettingsPage() {
           <div className="bg-white rounded-xl border border-slate-200 p-12 text-center shadow-sm">
             <div className="text-3xl mb-3">🏦</div>
             <h3 className="text-base font-bold text-slate-800">No Bank Accounts Configured</h3>
-            <p className="text-sm text-slate-500 mt-1 mb-4">Add your first bank account to enable International Wire Transfers.</p>
+            <p className="text-sm text-slate-500 mt-1 mb-4">Click below to automatically import your verified Razorpay accounts.</p>
+            <button
+              onClick={handleSyncPresets}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg shadow-sm"
+            >
+              ⚡ Import Razorpay Accounts
+            </button>
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -163,8 +231,9 @@ export default function BankAccountsSettingsPage() {
               <thead>
                 <tr className="bg-slate-50 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                   <th className="px-4 py-3">Currency</th>
-                  <th className="px-4 py-3">Rail</th>
+                  <th className="px-4 py-3">Payment Method</th>
                   <th className="px-4 py-3">Bank Details</th>
+                  <th className="px-4 py-3">Routing Code</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -172,11 +241,19 @@ export default function BankAccountsSettingsPage() {
               <tbody className="divide-y divide-slate-100 text-sm">
                 {accounts.map(acc => (
                   <tr key={acc.id} className="hover:bg-slate-50/50">
-                    <td className="px-4 py-4 font-bold text-slate-800">{acc.currency}</td>
-                    <td className="px-4 py-4 text-slate-600">{acc.transferRail}</td>
+                    <td className="px-4 py-4 font-bold text-slate-800">
+                      <span className="px-2 py-1 bg-slate-100 rounded text-xs font-mono font-bold text-slate-700">
+                        {acc.currency}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-slate-700 font-semibold">{acc.transferRail}</td>
                     <td className="px-4 py-4">
                       <div className="font-medium text-slate-900">{acc.bankName}</div>
-                      <div className="text-xs text-slate-500">{acc.accountName} • {acc.accountNumber || acc.iban}</div>
+                      <div className="text-xs text-slate-500">{acc.accountName} • <span className="font-mono">{acc.accountNumber || acc.iban}</span></div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="text-xs font-mono font-bold text-slate-800">{acc.routingNumber || acc.sortCode || '—'}</div>
+                      <div className="text-[10px] text-slate-500">{acc.routingType || 'routing_code'}</div>
                     </td>
                     <td className="px-4 py-4">
                       {acc.isActive ? (
@@ -187,9 +264,9 @@ export default function BankAccountsSettingsPage() {
                     </td>
                     <td className="px-4 py-4 text-right">
                       <div className="flex justify-end items-center gap-3">
-                        <button onClick={() => openViewModal(acc)} className="text-slate-400 hover:text-slate-800" title="View"><IconEye /></button>
-                        <button onClick={() => openEditModal(acc)} className="text-indigo-600 hover:text-indigo-900 text-xs font-bold" title="Edit">Edit</button>
-                        <button onClick={() => handleDelete(acc.id, acc.currency)} className="text-red-500 hover:text-red-700" title="Delete"><IconTrash /></button>
+                        <button onClick={() => openViewModal(acc)} className="text-slate-400 hover:text-slate-800 p-1 rounded" title="View"><IconEye /></button>
+                        <button onClick={() => openEditModal(acc)} className="text-indigo-600 hover:text-indigo-900 text-xs font-bold px-2 py-1 bg-indigo-50 hover:bg-indigo-100 rounded" title="Edit">Edit</button>
+                        <button onClick={() => handleDelete(acc.id, acc.currency)} className="text-red-500 hover:text-red-700 p-1 rounded" title="Delete"><IconTrash /></button>
                       </div>
                     </td>
                   </tr>
@@ -213,59 +290,88 @@ export default function BankAccountsSettingsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">Currency</label>
-                    <select disabled={modalMode === 'view'} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none disabled:bg-slate-50" value={formData.currency} onChange={e => setFormData({...formData, currency: e.target.value})}>
+                    <select
+                      disabled={modalMode === 'view'}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none disabled:bg-slate-50 font-medium"
+                      value={formData.currency}
+                      onChange={e => handleCurrencyChange(e.target.value)}
+                    >
                       <option value="USD">USD - US Dollar</option>
-                      <option value="EUR">EUR - Euro</option>
                       <option value="GBP">GBP - British Pound</option>
-                      <option value="AUD">AUD - Australian Dollar</option>
+                      <option value="EUR">EUR - Euro</option>
                       <option value="CAD">CAD - Canadian Dollar</option>
+                      <option value="AUD">AUD - Australian Dollar</option>
+                      <option value="DKK">DKK - Danish Krone</option>
                       <option value="AED">AED - UAE Dirham</option>
                       <option value="SGD">SGD - Singapore Dollar</option>
-                      <option value="DKK">DKK - Danish Krone</option>
                       <option value="CNY">CNY - Chinese Yuan</option>
                       <option value="CHF">CHF - Swiss Franc</option>
                       <option value="SEK">SEK - Swedish Krona</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Transfer Rail</label>
-                    <select disabled={modalMode === 'view'} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none disabled:bg-slate-50" value={formData.transferRail} onChange={e => setFormData({...formData, transferRail: e.target.value})}>
-                      <option value="ACH">ACH (Local US)</option>
-                      <option value="SEPA">SEPA (Local Europe)</option>
-                      <option value="BACS">BACS (Local UK)</option>
-                      <option value="FPS">FPS (Local UK)</option>
-                      <option value="SWIFT">SWIFT (Global)</option>
-                      <option value="FTS">FTS (Local AED)</option>
-                      <option value="NPP">NPP (Local AUD)</option>
-                      <option value="GIRO">GIRO (Local DKK)</option>
-                      <option value="SIC">SIC (Local CHF)</option>
-                    </select>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Payment Method / Transfer Rail</label>
+                    <input
+                      readOnly={modalMode === 'view'}
+                      type="text"
+                      list="payment-method-presets"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none read-only:bg-slate-50 font-medium"
+                      placeholder="e.g. ACH, FPS / BACS / CHAPS, SEPA"
+                      value={formData.transferRail}
+                      onChange={e => setFormData({ ...formData, transferRail: e.target.value })}
+                    />
+                    <datalist id="payment-method-presets">
+                      <option value="ACH" />
+                      <option value="FPS / BACS / CHAPS" />
+                      <option value="SEPA / SEPA Instant" />
+                      <option value="EFT" />
+                      <option value="NPP / BECS / Osko" />
+                      <option value="DKK Local" />
+                      <option value="FTS" />
+                      <option value="GIRO" />
+                      <option value="SWIFT" />
+                    </datalist>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">Account Name</label>
-                  <input readOnly={modalMode === 'view'} required type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none read-only:bg-slate-50" placeholder="e.g. Ripple Nexus Inc." value={formData.accountName} onChange={e => setFormData({...formData, accountName: e.target.value})} />
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Account Holder Name</label>
+                  <input readOnly={modalMode === 'view'} required type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none read-only:bg-slate-50" placeholder="e.g. Ripple Nexus" value={formData.accountName} onChange={e => setFormData({...formData, accountName: e.target.value})} />
                 </div>
 
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">Bank Name</label>
-                  <input readOnly={modalMode === 'view'} required type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none read-only:bg-slate-50" placeholder="e.g. Community Federal Savings Bank" value={formData.bankName} onChange={e => setFormData({...formData, bankName: e.target.value})} />
+                  <input readOnly={modalMode === 'view'} required type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none read-only:bg-slate-50" placeholder="e.g. Banking Circle S.A." value={formData.bankName} onChange={e => setFormData({...formData, bankName: e.target.value})} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">Account Number / IBAN</label>
-                    <input readOnly={modalMode === 'view'} type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none read-only:bg-slate-50" value={formData.accountNumber} onChange={e => setFormData({...formData, accountNumber: e.target.value})} />
+                    <input readOnly={modalMode === 'view'} type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none read-only:bg-slate-50 font-mono" value={formData.accountNumber} onChange={e => setFormData({...formData, accountNumber: e.target.value})} />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-sm font-bold text-slate-700 mb-1">Routing Code</label>
-                      <input readOnly={modalMode === 'view'} type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none read-only:bg-slate-50" value={formData.routingNumber} onChange={e => setFormData({...formData, routingNumber: e.target.value})} />
+                      <input readOnly={modalMode === 'view'} type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none read-only:bg-slate-50 font-mono" value={formData.routingNumber} onChange={e => setFormData({...formData, routingNumber: e.target.value})} />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-slate-700 mb-1">Routing Type</label>
-                      <input readOnly={modalMode === 'view'} type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none read-only:bg-slate-50" placeholder="ach_routing_number" value={formData.routingType} onChange={e => setFormData({...formData, routingType: e.target.value})} />
+                      <input
+                        readOnly={modalMode === 'view'}
+                        type="text"
+                        list="routing-type-presets"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none read-only:bg-slate-50 font-mono"
+                        placeholder="Sort_Code"
+                        value={formData.routingType}
+                        onChange={e => setFormData({...formData, routingType: e.target.value})}
+                      />
+                      <datalist id="routing-type-presets">
+                        <option value="ach_routing_number" />
+                        <option value="Sort_Code" />
+                        <option value="BIC_SWIFT" />
+                        <option value="routing_code" />
+                        <option value="BSB Number" />
+                      </datalist>
                     </div>
                   </div>
                 </div>
@@ -273,17 +379,17 @@ export default function BankAccountsSettingsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">SWIFT / BIC (Optional)</label>
-                    <input readOnly={modalMode === 'view'} type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none read-only:bg-slate-50" value={formData.swiftBic} onChange={e => setFormData({...formData, swiftBic: e.target.value})} />
+                    <input readOnly={modalMode === 'view'} type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none read-only:bg-slate-50 font-mono" value={formData.swiftBic} onChange={e => setFormData({...formData, swiftBic: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">Bank Address</label>
-                    <input readOnly={modalMode === 'view'} type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none read-only:bg-slate-50" placeholder="e.g. 5 Penn Plaza..." value={formData.bankAddress} onChange={e => setFormData({...formData, bankAddress: e.target.value})} />
+                    <input readOnly={modalMode === 'view'} type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none read-only:bg-slate-50" placeholder="e.g. 68 King William Street, London..." value={formData.bankAddress} onChange={e => setFormData({...formData, bankAddress: e.target.value})} />
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 pt-2">
                   <input disabled={modalMode === 'view'} type="checkbox" id="isActive" checked={formData.isActive} onChange={e => setFormData({...formData, isActive: e.target.checked})} className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-                  <label htmlFor="isActive" className="text-sm font-medium text-slate-700">Account is Active</label>
+                  <label htmlFor="isActive" className="text-sm font-medium text-slate-700">Account is Active for invoicing</label>
                 </div>
 
                 <div className="pt-4 flex justify-end gap-3 border-t border-slate-100 mt-6">
