@@ -12,6 +12,7 @@ import { PaymentConfirmationEmail } from '@/emails/invoice/PaymentConfirmationEm
 import { CheckoutRecoveryEmail } from '@/emails/invoice/CheckoutRecoveryEmail';
 import { AdminPaymentAlertEmail } from '@/emails/invoice/AdminPaymentAlertEmail';
 import { sendRnEmail, isRnSmtpConfigured } from './rn/mailer';
+import { prisma } from './db';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY!;
 
@@ -50,9 +51,17 @@ export async function sendInvoiceEmail(
   // Catchy, spam-safe subject
   const subject = `Invoice ${invoice.invoiceNumber}: Your ${subjectPkgLabel} — ${brand.name}`;
 
-  const html = await render(React.createElement(InvoiceEmail, { invoice }))
-    .catch(() => buildInvoiceEmailHTML(invoice));
-  const text = buildInvoiceEmailText(invoice);
+  let bankAccount = null;
+  if (invoice.paymentGateway?.startsWith('RAZORPAY_INTERNATIONAL_BANK_TRANSFER')) {
+    bankAccount = await prisma.internationalBankAccount.findFirst({
+      where: { currency: invoice.currency, isActive: true },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  const html = await render(React.createElement(InvoiceEmail, { invoice, bankAccount }))
+    .catch(() => buildInvoiceEmailHTML(invoice, bankAccount));
+  const text = buildInvoiceEmailText(invoice, bankAccount);
 
   const payload: Record<string, unknown> = {
     from:     `${brand.name} <${brand.fromEmail}>`,
@@ -261,7 +270,7 @@ export async function sendCheckoutRecoveryEmail(
 // ─────────────────────────────────────────────
 // PLAIN-TEXT FALLBACK — INVOICE
 // ─────────────────────────────────────────────
-function buildInvoiceEmailText(invoice: InvoiceData): string {
+function buildInvoiceEmailText(invoice: InvoiceData, bankAccount?: any): string {
   const brand = getBrand(invoice.brandId);
   const sym = invoice.currencySymbol;
   const fmt = (n: number) => formatCurrency(n, sym);
@@ -303,7 +312,16 @@ ${discountLine}${taxLine}${'Processing Fee (' + (invoice.processingFeeRate * 100
 TOTAL PAYABLE                      ${fmt(invoice.totalPayable)} ${invoice.currency}
 ─────────────────────────────────────
 ${invoice.razorpayLinkUrl ? `PAY NOW: ${invoice.razorpayLinkUrl}` : invoice.paypalPaymentUrl ? `PAY NOW: ${invoice.paypalPaymentUrl}` : ''}
+${bankAccount ? `
+BANK TRANSFER INSTRUCTIONS:
+Account Name: ${bankAccount.accountName}
+Bank Name: ${bankAccount.bankName || 'N/A'}
+Account Number / IBAN: ${bankAccount.accountNumber || bankAccount.iban || 'N/A'}
+Routing / Sort Code: ${bankAccount.routingNumber || bankAccount.sortCode || 'N/A'}
+SWIFT/BIC: ${bankAccount.swiftBic || 'N/A'}
 
+*IMPORTANT*: Please include your invoice number (${invoice.invoiceNumber}) in the payment reference.
+` : ''}
 Terms: No refunds after work commences. Delivery within 2–4 business days. 2 revisions included.
 
 Questions? Reply to this email or write to ${brand.replyTo}
@@ -361,7 +379,7 @@ function buildLegacyAdminAlertHTML(opts: {
 // ─────────────────────────────────────────────
 // EMAIL HTML TEMPLATE — INVOICE
 // ─────────────────────────────────────────────
-function buildInvoiceEmailHTML(invoice: InvoiceData): string {
+function buildInvoiceEmailHTML(invoice: InvoiceData, bankAccount?: any): string {
   const brand     = getBrand(invoice.brandId);
   const sym       = invoice.currencySymbol;
   const fmt       = (n: number) => formatCurrency(n, sym);
@@ -393,6 +411,27 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
         </a>
         <!--<![endif]-->`
     : '';
+
+  const bankDetailsHTML = bankAccount ? `
+    <tr>
+      <td class="mobile-pad" style="padding:28px 36px 8px;">
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;">
+          <h3 style="margin:0 0 12px;font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#0f1c3d;">Bank Transfer Instructions</h3>
+          <p style="margin:0 0 16px;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#64748b;">
+            Please transfer <strong>${fmt(invoice.totalPayable)} ${invoice.currency}</strong> to the following account. 
+            <span style="color:#dc2626;font-weight:bold;">Include your invoice number (${invoice.invoiceNumber}) in the reference.</span>
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#334155;">
+            <tr><td style="padding:4px 0;border-bottom:1px solid #f1f5f9;"><strong>Account Name:</strong></td><td align="right" style="padding:4px 0;border-bottom:1px solid #f1f5f9;">${bankAccount.accountName}</td></tr>
+            <tr><td style="padding:4px 0;border-bottom:1px solid #f1f5f9;"><strong>Bank Name:</strong></td><td align="right" style="padding:4px 0;border-bottom:1px solid #f1f5f9;">${bankAccount.bankName || 'N/A'}</td></tr>
+            <tr><td style="padding:4px 0;border-bottom:1px solid #f1f5f9;"><strong>Account / IBAN:</strong></td><td align="right" style="padding:4px 0;border-bottom:1px solid #f1f5f9;">${bankAccount.accountNumber || bankAccount.iban || 'N/A'}</td></tr>
+            <tr><td style="padding:4px 0;border-bottom:1px solid #f1f5f9;"><strong>Routing / Sort Code:</strong></td><td align="right" style="padding:4px 0;border-bottom:1px solid #f1f5f9;">${bankAccount.routingNumber || bankAccount.sortCode || 'N/A'}</td></tr>
+            ${bankAccount.swiftBic ? `<tr><td style="padding:4px 0;border-bottom:1px solid #f1f5f9;"><strong>SWIFT / BIC:</strong></td><td align="right" style="padding:4px 0;border-bottom:1px solid #f1f5f9;">${bankAccount.swiftBic}</td></tr>` : ''}
+          </table>
+        </div>
+      </td>
+    </tr>
+  ` : '';
 
   // Line items already extracted above (lineItemsArr)
 
@@ -687,6 +726,8 @@ function buildInvoiceEmailHTML(invoice: InvoiceData): string {
         </div>
       </td>
     </tr>` : ''}
+
+    ${bankDetailsHTML}
 
     <!-- ══════════════════ DELIVERY TIMELINE ══════════════════ -->
     <tr>

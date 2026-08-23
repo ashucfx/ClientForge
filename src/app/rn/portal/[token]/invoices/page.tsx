@@ -67,7 +67,11 @@ export default async function PortalInvoicesPage({ params }: { params: { token: 
                       {isPaid ? (
                         <span className="portal-nav-badge" style={{ background: 'var(--rn-success)' }}>PAID</span>
                       ) : (
-                        <a href={`/rn/invoices/${inv.id}`} className="btn-premium alert-btn" style={{ padding: '6px 12px', fontSize: '12px' }}>Pay Now</a>
+                        inv.paymentGateway?.startsWith('RAZORPAY_INTERNATIONAL_BANK_TRANSFER') ? (
+                          <a href={`/rn/portal/${params.token}/invoices/${inv.id}`} className="btn-premium alert-btn" style={{ padding: '6px 12px', fontSize: '12px' }}>View Instructions</a>
+                        ) : (
+                          <a href={inv.paymentGateway === 'PAYPAL' ? (inv.paypalPaymentUrl || undefined) : (inv.razorpayLinkUrl || undefined)} target="_blank" rel="noopener noreferrer" className="btn-premium alert-btn" style={{ padding: '6px 12px', fontSize: '12px' }}>Pay Now</a>
+                        )
                       )}
                     </div>
                   </div>

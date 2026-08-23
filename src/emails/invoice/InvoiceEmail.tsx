@@ -69,9 +69,10 @@ function tierRevisions(clientType: InvoiceData['clientType']): { label: string; 
 
 interface InvoiceEmailProps {
   invoice: InvoiceData;
+  bankAccount?: any;
 }
 
-export function InvoiceEmail({ invoice }: InvoiceEmailProps) {
+export function InvoiceEmail({ invoice, bankAccount }: InvoiceEmailProps) {
   const brand      = getBrand(invoice.brandId);
   const sym        = invoice.currencySymbol;
   const fmt        = (n: number) => formatCurrency(n, sym);
@@ -226,6 +227,29 @@ export function InvoiceEmail({ invoice }: InvoiceEmailProps) {
       )}
 
       {/* Timeline */}
+      {bankAccount && (
+        <Section style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', margin: '0 0 24px' }}>
+          <Text style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: 700, color: '#0f1c3d' }}>
+            Bank Transfer Instructions
+          </Text>
+          <Text style={{ margin: '0 0 16px', fontSize: '12px', color: '#64748b' }}>
+            Please transfer <strong>{fmt(invoice.totalPayable)} {invoice.currency}</strong> to the following account. 
+            <span style={{ color: '#dc2626', fontWeight: 700 }}> Include your invoice number ({invoice.invoiceNumber}) in the reference.</span>
+          </Text>
+          <table width="100%" cellPadding="0" cellSpacing="0" style={{ fontSize: '13px', color: '#334155' }}>
+            <tbody>
+              <tr><td style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}><strong>Account Name:</strong></td><td align="right" style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>{bankAccount.accountName}</td></tr>
+              <tr><td style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}><strong>Bank Name:</strong></td><td align="right" style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>{bankAccount.bankName || 'N/A'}</td></tr>
+              <tr><td style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}><strong>Account / IBAN:</strong></td><td align="right" style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>{bankAccount.accountNumber || bankAccount.iban || 'N/A'}</td></tr>
+              <tr><td style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}><strong>Routing / Sort Code:</strong></td><td align="right" style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>{bankAccount.routingNumber || bankAccount.sortCode || 'N/A'}</td></tr>
+              {bankAccount.swiftBic && (
+                <tr><td style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}><strong>SWIFT / BIC:</strong></td><td align="right" style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>{bankAccount.swiftBic}</td></tr>
+              )}
+            </tbody>
+          </table>
+        </Section>
+      )}
+
       <Hr style={{ borderColor: '#EDE9DF', margin: '0 0 24px' }} />
       <TimelineSteps
         brand={brand}
