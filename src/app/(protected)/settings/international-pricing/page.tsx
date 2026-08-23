@@ -73,7 +73,8 @@ export default function InternationalPricingPage() {
       if (!next[currency]) {
         next[currency] = { RESUME: {}, LINKEDIN: {}, COVER_LETTER: {}, PORTFOLIO: {} };
       }
-      next[currency][service as any][tier] = isNaN(num) ? 0 : num;
+      const svc = service as keyof GlobalCurrencyPricingMap[string];
+      next[currency][svc][tier] = isNaN(num) ? 0 : num;
       return next;
     });
   };
@@ -100,11 +101,11 @@ export default function InternationalPricingPage() {
   };
 
   if (!isSuperAdmin) {
-    return <AppShell title="International Pricing"><div className="p-6">Unauthorized. Super admin access required.</div></AppShell>;
+    return <AppShell><div className="p-6">Unauthorized. Super admin access required.</div></AppShell>;
   }
 
   return (
-    <AppShell title="International Global Pricing">
+    <AppShell>
       <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8">
           <div>
@@ -153,7 +154,7 @@ export default function InternationalPricingPage() {
                                 </div>
                                 <input
                                   type="number"
-                                  value={pricingMap[currency]?.[svc as any]?.[tier] || ''}
+                                  value={pricingMap[currency]?.[svc as keyof GlobalCurrencyPricingMap[string]]?.[tier] || ''}
                                   onChange={e => handlePriceChange(currency, svc, tier, e.target.value)}
                                   className="form-input block w-full pl-12 pr-3 py-2 border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                   placeholder="API Fallback"

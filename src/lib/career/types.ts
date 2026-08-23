@@ -1,6 +1,6 @@
 // src/lib/career/types.ts
 
-export type CareerPackage = 'RESUME' | 'LINKEDIN' | 'COVER_LETTER' | 'FULL';
+export type CareerPackage = 'RESUME' | 'LINKEDIN' | 'COVER_LETTER' | 'FULL' | 'EXECUTIVE' | 'EXECUTIVE_PLUS';
 export type CareerStatus =
   | 'NOT_STARTED'
   | 'SUBMITTED'
@@ -85,6 +85,8 @@ export const PACKAGE_LABELS: Record<CareerPackage, string> = {
   LINKEDIN: 'LinkedIn Optimisation',
   COVER_LETTER: 'Cover Letter',
   FULL: 'Career Booster Package',
+  EXECUTIVE: 'Executive Package',
+  EXECUTIVE_PLUS: 'Executive Plus Package',
 };
 
 export const SERVICE_LABELS: Record<CareerServiceSlug, string> = {
@@ -124,6 +126,7 @@ export const SERVICE_FORM_MAP: Record<CareerServiceSlug, FormType[]> = {
   PORTFOLIO:     ['portfolio_website'],
   FULL_PACKAGE:  ['career_profile', 'linkedin_profile'],
   PREMIUM_PLUS:  ['career_profile', 'linkedin_profile', 'portfolio_website'],
+  EXECUTIVE_CONNECT: [],
 };
 
 // Legacy: package → forms (kept for backward compat)
@@ -132,6 +135,8 @@ export const PACKAGE_FORMS: Record<CareerPackage, FormType[]> = {
   LINKEDIN:     ['linkedin_profile'],
   COVER_LETTER: ['career_profile'],
   FULL:         ['career_profile', 'linkedin_profile'],
+  EXECUTIVE:    ['career_profile', 'linkedin_profile'],
+  EXECUTIVE_PLUS: ['career_profile', 'linkedin_profile', 'portfolio_website'],
 };
 
 // ── Legacy form type compatibility ────────────────────────────────────────────
