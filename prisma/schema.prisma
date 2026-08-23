@@ -1691,7 +1691,9 @@ model InternationalBankAccount {
   iban          String?
   sortCode      String?
   routingNumber String?
+  routingType   String?
   swiftBic      String?
+  bankAddress   String? @db.Text
 
   // Instructions & Meta
   referenceRequirements String? // e.g., "Must include invoice number"

@@ -241,9 +241,12 @@ export function InvoiceEmail({ invoice, bankAccount }: InvoiceEmailProps) {
               <tr><td style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}><strong>Account Name:</strong></td><td align="right" style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>{bankAccount.accountName}</td></tr>
               <tr><td style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}><strong>Bank Name:</strong></td><td align="right" style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>{bankAccount.bankName || 'N/A'}</td></tr>
               <tr><td style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}><strong>Account / IBAN:</strong></td><td align="right" style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>{bankAccount.accountNumber || bankAccount.iban || 'N/A'}</td></tr>
-              <tr><td style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}><strong>Routing / Sort Code:</strong></td><td align="right" style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>{bankAccount.routingNumber || bankAccount.sortCode || 'N/A'}</td></tr>
+              <tr><td style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}><strong>Routing / Sort Code:</strong></td><td align="right" style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>{bankAccount.routingNumber || bankAccount.sortCode || 'N/A'} {bankAccount.routingType ? `(${bankAccount.routingType})` : ''}</td></tr>
               {bankAccount.swiftBic && (
                 <tr><td style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}><strong>SWIFT / BIC:</strong></td><td align="right" style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>{bankAccount.swiftBic}</td></tr>
+              )}
+              {bankAccount.bankAddress && (
+                <tr><td style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}><strong>Bank Address:</strong></td><td align="right" style={{ padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>{bankAccount.bankAddress}</td></tr>
               )}
             </tbody>
           </table>

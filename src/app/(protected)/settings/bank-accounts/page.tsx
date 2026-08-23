@@ -11,9 +11,11 @@ type BankAccount = {
   bankName: string;
   accountNumber: string;
   routingNumber: string;
+  routingType: string;
   sortCode: string;
   iban: string;
   swiftBic: string;
+  bankAddress: string;
   isActive: boolean;
 };
 
@@ -30,10 +32,12 @@ export default function BankAccountsSettingsPage() {
     bankName: '',
     accountNumber: '',
     routingNumber: '',
+    routingType: 'ach_routing_number',
     swiftBic: '',
     iban: '',
     sortCode: '',
     country: 'US',
+    bankAddress: '',
   });
 
   const loadAccounts = () => {
@@ -195,15 +199,27 @@ export default function BankAccountsSettingsPage() {
                     <label className="block text-sm font-bold text-slate-700 mb-1">Account Number / IBAN</label>
                     <input type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none" value={formData.accountNumber} onChange={e => setFormData({...formData, accountNumber: e.target.value})} />
                   </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Routing / Sort Code</label>
-                    <input type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none" value={formData.routingNumber} onChange={e => setFormData({...formData, routingNumber: e.target.value})} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Routing Code</label>
+                      <input type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none" value={formData.routingNumber} onChange={e => setFormData({...formData, routingNumber: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Routing Type</label>
+                      <input type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none" placeholder="e.g. ach_routing_number" value={formData.routingType} onChange={e => setFormData({...formData, routingType: e.target.value})} />
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">SWIFT / BIC (Optional)</label>
-                  <input type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none" value={formData.swiftBic} onChange={e => setFormData({...formData, swiftBic: e.target.value})} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">SWIFT / BIC (Optional)</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none" value={formData.swiftBic} onChange={e => setFormData({...formData, swiftBic: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Bank Address</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none" placeholder="e.g. 5 Penn Plaza..." value={formData.bankAddress} onChange={e => setFormData({...formData, bankAddress: e.target.value})} />
+                  </div>
                 </div>
 
                 <div className="pt-4 flex justify-end gap-3 border-t border-slate-100 mt-6">
