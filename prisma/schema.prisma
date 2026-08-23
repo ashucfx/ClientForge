@@ -95,8 +95,8 @@ model Invoice {
   // ── Settlement Reconciliation (additive, nullable — legacy rows unaffected) ──
   // Enter the actual INR amount that landed in your bank after all gateway deductions.
   // Gap = subtotalConverted − amountSettledInr → fees lost to payment gateway.
-  amountSettledInr Float?   // actual INR credited to bank after Razorpay/PayPal deductions
-  settlementNote   String?  // e.g. "Razorpay batch settled on 2026-08-20, TXN#xxx"
+  amountSettledInr Float? // actual INR credited to bank after Razorpay/PayPal deductions
+  settlementNote   String? // e.g. "Razorpay batch settled on 2026-08-20, TXN#xxx"
   settledAt        DateTime? // date funds were credited to bank account
 
   // Meta
@@ -253,8 +253,8 @@ model CareerClient {
   waitingOn          String         @default("AGENCY") // "AGENCY" | "CLIENT"
 
   // ── Settlement Reconciliation (additive, nullable) ──
-  amountSettledInr Float?    // actual INR received in bank after UPI/cash/gateway deductions
-  settlementNote   String?   // optional note
+  amountSettledInr Float? // actual INR received in bank after UPI/cash/gateway deductions
+  settlementNote   String? // optional note
   settledAt        DateTime? // date received
 
   // Phase 4: Lifecycle & Archival
@@ -612,8 +612,8 @@ model RnClient {
   waitingOn          String    @default("AGENCY") // "AGENCY" | "CLIENT"
 
   // ── Settlement Reconciliation (additive, nullable) ──
-  amountSettledInr Float?    // actual INR received in bank after deductions
-  settlementNote   String?   // optional note
+  amountSettledInr Float? // actual INR received in bank after deductions
+  settlementNote   String? // optional note
   settledAt        DateTime? // date received
 
   // Phase 4: Lifecycle & Archival
@@ -741,14 +741,14 @@ model RnMessage {
   readByClient   Boolean   @default(false)
   readByAdminAt  DateTime?
   readByClientAt DateTime?
-  
-  isPriority     Boolean   @default(false)
-  isPinned       Boolean   @default(false)
-  replyToId      String?
-  editedAt       DateTime?
-  isDeleted      Boolean   @default(false)
 
-  createdAt      DateTime  @default(now())
+  isPriority Boolean   @default(false)
+  isPinned   Boolean   @default(false)
+  replyToId  String?
+  editedAt   DateTime?
+  isDeleted  Boolean   @default(false)
+
+  createdAt DateTime @default(now())
 
   client RnClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -1646,7 +1646,6 @@ model RnOnboardingTemplate {
   updatedAt DateTime @updatedAt
 }
 
-
 model RnEmailTemplate {
   id                 String  @id @default(cuid())
   triggerEvent       String  @unique
@@ -1667,11 +1666,73 @@ model RnEmailTemplate {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model SystemSetting {
-  key       String   @id  // e.g. "PREMIUM_PLUS_ENABLED" | "PREMIUM_PLUS_PRICE_INR"
-  value     Json         // stored as JSON so it accepts bool, number, string, object
+  key       String   @id // e.g. "PREMIUM_PLUS_ENABLED" | "PREMIUM_PLUS_PRICE_INR"
+  value     Json // stored as JSON so it accepts bool, number, string, object
   updatedAt DateTime @updatedAt
-  updatedBy String?      // soft reference to AdminUser.id
+  updatedBy String? // soft reference to AdminUser.id
 
   @@index([key])
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// INTERNATIONAL PAYMENT ARCHITECTURE (PHASE 2)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model InternationalBankAccount {
+  id           String @id @default(cuid())
+  provider     String @default("RAZORPAY_INTERNATIONAL_BANK_TRANSFER")
+  currency     String // e.g., "USD", "GBP", "EUR"
+  transferRail String // e.g., "ACH", "FPS", "SEPA", "SWIFT"
+
+  // Bank Details
+  accountName   String
+  bankName      String?
+  accountNumber String?
+  iban          String?
+  sortCode      String?
+  routingNumber String?
+  swiftBic      String?
+
+  // Instructions & Meta
+  referenceRequirements String? // e.g., "Must include invoice number"
+  paymentInstructions   String? @db.Text
+  country               String? // e.g., "US", "UK"
+
+  // Settings
+  isActive         Boolean @default(true)
+  isSwiftAvailable Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([currency])
+  @@index([provider])
+}
+
+model PaymentTransaction {
+  id        String  @id @default(cuid())
+  invoiceId String
+  provider  String // "RAZORPAY", "PAYPAL", "RAZORPAY_INTERNATIONAL_BANK_TRANSFER", "MANUAL"
+  method    String? // "CARD", "BANK_TRANSFER", etc.
+  status    String  @default("PENDING") // PENDING, PROCESSING, SETTLED, FAILED, MANUALLY_RECONCILED
+  currency  String
+  amount    Float
+
+  providerTransactionId   String? @unique // ID from the gateway (if applicable)
+  providerReference       String? // Any secondary reference from provider
+  reconciliationReference String? // e.g., the invoiceNumber used for matching
+
+  payerName  String?
+  payerEmail String?
+
+  receivedAt DateTime?
+  settledAt  DateTime?
+  metadata   Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([status])
+  @@index([reconciliationReference])
+}
