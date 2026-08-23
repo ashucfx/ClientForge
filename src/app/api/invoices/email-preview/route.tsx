@@ -8,6 +8,7 @@ import { render } from '@react-email/render';
 import { InvoiceEmail } from '@/emails/invoice/InvoiceEmail';
 import type { InvoiceData, ClientType, LineItem } from '@/types';
 import { FEE_RATES, round2 } from '@/lib/pricing';
+import { prisma } from '@/lib/db';
 import { addDays } from 'date-fns';
 
 export async function POST(req: NextRequest) {
@@ -49,7 +50,13 @@ export async function POST(req: NextRequest) {
     const subtotalConverted  = round2(afterDiscount + taxAmount);
     const processingFeeRate = currency === 'INR'
       ? FEE_RATES.RAZORPAY_DOMESTIC
-      : (paymentGateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL : FEE_RATES.RAZORPAY_INTL);
+      : (
+          paymentGateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL :
+          paymentGateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' ? FEE_RATES.BANK_TRANSFER_NATIVE :
+          paymentGateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' ? FEE_RATES.BANK_TRANSFER_SWIFT :
+          paymentGateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER' ? 0 :
+          FEE_RATES.RAZORPAY_INTL
+        );
     
     // ZERO-LOSS GROSS-UP
     const totalPayable       = round2(subtotalConverted / (1 - processingFeeRate));
@@ -146,7 +153,17 @@ export async function POST(req: NextRequest) {
       settledAt:        null,
     };
 
-    const html = await render(React.createElement(InvoiceEmail, { invoice: invoiceData }));
+    let bankAccount = null;
+    if (paymentGateway.startsWith('RAZORPAY_INTERNATIONAL_BANK_TRANSFER')) {
+      bankAccount = await prisma.internationalBankAccount.findFirst({
+        where: {
+          currency: emailCurrency,
+          isActive: true,
+        },
+      });
+    }
+
+    const html = await render(React.createElement(InvoiceEmail, { invoice: invoiceData, bankAccount }));
     return NextResponse.json({ html });
   } catch (err) {
     console.error('[email-preview]', err);

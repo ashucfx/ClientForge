@@ -124,7 +124,7 @@ function EmailPreviewPane({
   lineItems: LineItem[]; discountRate: number; taxRate: number;
   notes: string; dueDays: number;
   currencyInfo: CurrencyInfo | null; exchangeRate: number; usdExchangeRate: number;
-  brandId: BrandId; paymentGateway: 'RAZORPAY' | 'PAYPAL'; paypalWillConvertToUsd: boolean;
+  brandId: BrandId; paymentGateway: 'RAZORPAY' | 'PAYPAL' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT'; paypalWillConvertToUsd: boolean;
 }) {
   const [html, setHtml] = useState('');
   const [loading, setLoading] = useState(false);
@@ -258,7 +258,7 @@ function InvoicePreview({
   notes: string; dueDays: number;
   currencyInfo: CurrencyInfo | null; exchangeRate: number; brandId: BrandId;
   paypalWillConvertToUsd?: boolean; usdExchangeRate?: number;
-  paymentGateway?: 'RAZORPAY' | 'PAYPAL';
+  paymentGateway?: 'RAZORPAY' | 'PAYPAL' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT';
 }) {
   const sym  = currencyInfo?.symbol ?? '₹';
   const code = currencyInfo?.code   ?? 'INR';
@@ -272,7 +272,12 @@ function InvoicePreview({
   const gateway = paymentGateway ?? 'RAZORPAY';
   const feeRate = code === 'INR' 
     ? FEE_RATES.RAZORPAY_DOMESTIC 
-    : (gateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL : FEE_RATES.RAZORPAY_INTL);
+    : (
+        gateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL :
+        gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' ? FEE_RATES.BANK_TRANSFER_NATIVE :
+        gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' ? FEE_RATES.BANK_TRANSFER_SWIFT :
+        FEE_RATES.RAZORPAY_INTL
+      );
   
   // ZERO-LOSS GROSS-UP
   const total = round2(subtotal / (1 - feeRate));
@@ -478,7 +483,7 @@ export default function NewInvoicePage() {
   const [taxRate,         setTaxRate]         = useState(0);
   const [notes,           setNotes]           = useState('');
   const [dueDays,         setDueDays]         = useState(7);
-  const [paymentGateway,  setPaymentGateway]  = useState<'RAZORPAY' | 'PAYPAL'>('RAZORPAY');
+  const [paymentGateway,  setPaymentGateway]  = useState<'RAZORPAY' | 'PAYPAL' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT'>('RAZORPAY');
   const [installmentCount, setInstallmentCount] = useState<1 | 2 | 3>(1);
   const [sourceChannel,   setSourceChannel]   = useState<'CLIENTFORGE_INVOICE' | 'MANUAL_PORTAL' | 'PAYMENT_GATEWAY_DIRECT' | 'CLIENT_REFERRAL'>('CLIENTFORGE_INVOICE');
   const [referralId,      setReferralId]      = useState('');
@@ -737,7 +742,9 @@ export default function NewInvoicePage() {
                 color: paypalWillConvertToUsd ? '#92400e' : '#15803d',
               }}>
                 <IconCreditCard size={10} />
-                {localCode === 'INR' || paymentGateway === 'RAZORPAY' ? 'Razorpay' : 'PayPal'}
+                {localCode === 'INR' || paymentGateway === 'RAZORPAY' ? 'Razorpay' : 
+                 paymentGateway === 'PAYPAL' ? 'PayPal' : 
+                 paymentGateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' ? 'Bank Transfer (Native)' : 'Bank Transfer (SWIFT)'}
                 {paypalWillConvertToUsd && <span style={{ marginLeft: 2 }}>→ USD</span>}
               </span>
             </div>
@@ -1316,19 +1323,35 @@ export default function NewInvoicePage() {
                 {([
                   {
                     value: 'RAZORPAY' as const,
-                    label: 'Razorpay',
-                    sub: 'Cards, UPI & Multi-currency',
-                    fee: 'Direct Local Settlement',
+                    label: 'Razorpay Instant Link',
+                    sub: 'Cards, UPI & Multi-currency Checkout',
+                    fee: 'Standard Gateway Link',
                     color: '#B8935B',
                     badge: 'Instant Links',
                   },
                   {
                     value: 'PAYPAL' as const,
-                    label: 'PayPal',
+                    label: 'PayPal Invoice',
                     sub: 'Global PayPal & Cards (USD)',
                     fee: 'Global Checkout',
                     color: '#003087',
                     badge: 'International',
+                  },
+                  {
+                    value: 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' as const,
+                    label: 'Bank Transfer (Native Rails)',
+                    sub: 'ACH (US), SEPA (EU), BACS/FPS (UK), etc.',
+                    fee: '1.18% Fee (1% + 18% GST)',
+                    color: '#059669',
+                    badge: 'Lowest Fee (1.18%)',
+                  },
+                  {
+                    value: 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' as const,
+                    label: 'Bank Transfer (Global SWIFT)',
+                    sub: 'International Wire Transfer via SWIFT',
+                    fee: '3.54% Fee (3% + 18% GST)',
+                    color: '#0284c7',
+                    badge: 'Global Wire (3.54%)',
                   },
                 ] as const).map(opt => {
                   const sel = paymentGateway === opt.value;
