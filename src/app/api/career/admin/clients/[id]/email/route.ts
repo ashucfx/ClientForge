@@ -12,7 +12,7 @@ import { PACKAGE_LABELS, SERVICE_LABELS } from '@/lib/career/types';
 import type { EmailTrigger, CareerPackage, CareerServiceSlug } from '@/lib/career/types';
 
 const LINKEDIN_FILE_TYPES = new Set([
-  'linkedin_banner', 'linkedin_profile_picture', 'linkedin_optimization', 'linkedin_content',
+  'linkedin_banner', 'linkedin_profile_picture', 'linkedin_optimization', 'linkedin_content', 'linkedin_playbook'
 ]);
 
 /** Derive the correct service label — always reads from SERVICE_LABELS so DB names can't override */
@@ -62,6 +62,7 @@ function fileTypeToEmailLabel(ft: string, fallback: string): string {
     linkedin_profile_picture: 'LinkedIn Profile',
     linkedin_optimization:    'LinkedIn Profile',
     linkedin_content:         'LinkedIn Profile',
+    linkedin_playbook:        'LinkedIn Profile',
     portfolio:                'Portfolio',
   };
   return map[ft] ?? fallback;

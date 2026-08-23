@@ -77,6 +77,7 @@ const FILE_TYPES = [
   { value: 'cover_letter',             label: 'Cover Letter' },
   { value: 'linkedin_banner',          label: 'LinkedIn Banner' },
   { value: 'linkedin_profile_picture', label: 'LinkedIn Profile Picture' },
+  { value: 'linkedin_playbook',        label: 'LinkedIn Playbook' },
   { value: 'portfolio',                label: 'Portfolio Website' },
   { value: 'other',                    label: 'Other' },
 ];

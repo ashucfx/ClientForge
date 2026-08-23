@@ -20,7 +20,7 @@ const MAX_FILE_BYTES  = 20 * 1024 * 1024; // 20 MB
 
 /** File types that belong to the LinkedIn optimisation service */
 const LINKEDIN_FILE_TYPES = new Set([
-  'linkedin_banner', 'linkedin_profile_picture', 'linkedin_optimization', 'linkedin_content',
+  'linkedin_banner', 'linkedin_profile_picture', 'linkedin_optimization', 'linkedin_content', 'linkedin_playbook'
 ]);
 
 /**
@@ -45,6 +45,7 @@ function fileTypeToEmailLabel(ft: string, fallback: string): string {
     linkedin_profile_picture: 'LinkedIn Profile',
     linkedin_optimization:    'LinkedIn Profile',
     linkedin_content:         'LinkedIn Profile',
+    linkedin_playbook:        'LinkedIn Profile',
     portfolio:                'Portfolio',
   };
   return map[ft] ?? fallback;
