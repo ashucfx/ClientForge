@@ -27,7 +27,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: 'File unavailable' }, { status: 502 });
   }
 
-  const baseName = file.originalName || file.label || 'download';
+  const rawBaseName = file.originalName || file.label || 'deliverable';
+  const clientPrefix = `${params.id}_`;
+  const baseName = rawBaseName.startsWith(clientPrefix) ? rawBaseName : `${clientPrefix}${rawBaseName}`;
   const filename = ensureExtension(baseName, file.mimeType);
   const safe     = filename.replace(/[^\w.\- ]/g, '_');
 
