@@ -18,9 +18,14 @@ export default function ContactsAdminPage() {
       .then(d => {
         if (Array.isArray(d)) {
           d.sort((a, b) => {
-            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            return dateB - dateA;
+            const idA = a.displayId || a.id || '';
+            const idB = b.displayId || b.id || '';
+            const matchA = idA.match(/(\d+)$/);
+            const matchB = idB.match(/(\d+)$/);
+            if (matchA && matchB) {
+              return parseInt(matchB[1], 10) - parseInt(matchA[1], 10);
+            }
+            return idB.localeCompare(idA);
           });
           setContacts(d);
         }
