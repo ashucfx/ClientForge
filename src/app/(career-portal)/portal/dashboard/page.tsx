@@ -343,17 +343,17 @@ export default function PortalDashboardPage() {
     processingFee: number;
     processingFeeRate: number;
     totalPayable: number;
-    gateway: 'RAZORPAY' | 'PAYPAL';
+    gateway: string;
     currency: string;
     currencySymbol: string;
     isIndia?: boolean;
-    gatewayOptions?: { gateway: 'RAZORPAY' | 'PAYPAL'; currency: string; currencySymbol: string; totalPayable: number; recommended: boolean }[] | null;
+    gatewayOptions?: { gateway: string; currency: string; currencySymbol: string; totalPayable: number; recommended: boolean }[] | null;
     existingPaymentUrl: string | null;
   } | null>(null);
   const [upgradePreviewLoading, setUpgradePreviewLoading] = useState(false);
-  const [upgradeGateway, setUpgradeGateway] = useState<'RAZORPAY' | 'PAYPAL'>('RAZORPAY');
+  const [upgradeGateway, setUpgradeGateway] = useState<string>('RAZORPAY');
 
-  const handleUpgrade = async (targetService: string, gateway: 'RAZORPAY' | 'PAYPAL' = 'RAZORPAY') => {
+  const handleUpgrade = async (targetService: string, gateway: string = 'RAZORPAY') => {
     setUpgradeTarget(targetService);
     setUpgradeGateway(gateway);
     setUpgradePreviewLoading(true);
@@ -376,7 +376,7 @@ export default function PortalDashboardPage() {
 
   // Switch gateway on the upgrade modal (international only) — re-prices in the
   // selected currency (Razorpay = local, PayPal = USD).
-  const switchUpgradeGateway = async (gateway: 'RAZORPAY' | 'PAYPAL') => {
+  const switchUpgradeGateway = async (gateway: string) => {
     if (!upgradeTarget || gateway === upgradeGateway) return;
     setUpgradeGateway(gateway);
     setUpgradePreviewLoading(true);
@@ -883,6 +883,10 @@ export default function PortalDashboardPage() {
           const hasCoverLetter = me.services?.some(s => s.slug === 'COVER_LETTER');
           const hasPortfolio = me.services?.some(s => s.slug === 'PORTFOLIO');
           const hasFull = hasResume && hasLinkedIn && hasCoverLetter;
+          
+          const isExecutivePackage = me.packageType === 'EXECUTIVE' || me.packageType === 'EXECUTIVE_PLUS';
+          const hasExecutiveService = me.services?.some(s => s.slug === 'EXECUTIVE_CONNECT');
+          const hasExecutiveAccess = isExecutivePackage || hasExecutiveService;
           
           return (
             <div className="flex flex-col gap-5 mb-5">

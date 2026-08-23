@@ -7,9 +7,8 @@ import { getSetting, setSetting } from '@/lib/systemSettings';
 import type { SettingKey } from '@/lib/systemSettings';
 
 const ALLOWED_KEYS: SettingKey[] = [
-  'PREMIUM_PLUS_ENABLED',
-  'PREMIUM_PLUS_PRICE_INR',
-  'PREMIUM_PLUS_PRICE_USD',
+  'GLOBAL_CURRENCY_PRICING',
+  'EXECUTIVE_CONNECT_PRICING',
 ];
 
 function isKeyAllowed(key: string): boolean {

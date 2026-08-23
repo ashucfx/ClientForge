@@ -117,13 +117,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid upgrade target' }, { status: 400 });
   }
 
-  // Gate Premium Plus behind admin toggle
-  if (targetUpgrade === 'PREMIUM_PLUS') {
-    const enabled = await isPremiumPlusEnabled(payload.clientId);
-    if (!enabled) {
-      return NextResponse.json({ error: 'Premium Plus upgrade is not currently available' }, { status: 403 });
-    }
-  }
+  // Premium Plus gating removed, directly accessible
 
   const client = await db.careerClient.findUnique({
     where: { id: payload.clientId },
@@ -364,9 +358,7 @@ export async function POST(req: NextRequest) {
   let customTotalPayable: number | null = null;
   
   if (targetUpgrade === 'PREMIUM_PLUS') {
-    const configuredPrice = await getPremiumPlusPrice(isIndia ? 'INR' : 'USD', client.id);
-    const computedBase = differenceBase;
-    differenceBase = configuredPrice > 0 ? configuredPrice : (computedBase > 0 ? computedBase : 0);
+    differenceBase = differenceBase > 0 ? differenceBase : 0;
   } else if (targetUpgrade === 'EXECUTIVE_CONNECT') {
     const { getExecutiveConnectPricingMap } = require('@/lib/systemSettings');
     const pricingMap = await getExecutiveConnectPricingMap();
