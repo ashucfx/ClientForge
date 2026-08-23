@@ -52,6 +52,7 @@ const SERVICE_LABELS: Record<ServiceSlug, string> = {
   LINKEDIN:     'LinkedIn Profile Optimisation',
   COVER_LETTER: 'Cover Letter Writing',
   PORTFOLIO:    'Portfolio Website Development',
+  EXECUTIVE_CONNECT: 'Executive Connect Strategy Consultation',
 };
 
 const PKG_META: Record<PackageSlug, { label: string; sub: string; color: string }> = {

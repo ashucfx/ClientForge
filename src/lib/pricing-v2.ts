@@ -1,7 +1,7 @@
 import { ClientType } from '@prisma/client';
 import { getCurrencyForCountry, getExchangeRate } from './currency';
 
-export type ServiceSlug = 'RESUME' | 'LINKEDIN' | 'COVER_LETTER' | 'PORTFOLIO';
+export type ServiceSlug = 'RESUME' | 'LINKEDIN' | 'COVER_LETTER' | 'PORTFOLIO' | 'EXECUTIVE_CONNECT';
 
 export type PackageSlug = 'CAREER_BOOSTER' | 'PREMIUM_PLUS' | 'CUSTOM';
 
@@ -47,6 +47,13 @@ export const PRICING: PricingConfig = {
         EXECUTIVE: 12999,
         EXECUTIVE_PLUS: 19999,
         AGENCY_CLIENT: 0,
+      },
+      EXECUTIVE_CONNECT: {
+        FRESHER: 0,
+        MID_CAREER: 0,
+        EXECUTIVE: 4999,
+        EXECUTIVE_PLUS: 4999,
+        AGENCY_CLIENT: 0,
       }
     },
     USD: {
@@ -76,6 +83,13 @@ export const PRICING: PricingConfig = {
         MID_CAREER: 199,
         EXECUTIVE: 299,
         EXECUTIVE_PLUS: 399,
+        AGENCY_CLIENT: 0,
+      },
+      EXECUTIVE_CONNECT: {
+        FRESHER: 0,
+        MID_CAREER: 0,
+        EXECUTIVE: 100,
+        EXECUTIVE_PLUS: 100,
         AGENCY_CLIENT: 0,
       }
     }
@@ -125,7 +139,7 @@ export interface PricingParams {
   packageSlug: PackageSlug;
   countryCode: string; // e.g. "IN" for India, "US" for USA
   countryName: string; // e.g. "Saudi Arabia"
-  preferredGateway?: 'RAZORPAY' | 'PAYPAL';
+  preferredGateway?: string; // allow Bank transfer string too
 }
 
 /**
@@ -140,10 +154,14 @@ export async function calculatePricing({
   countryName,
   preferredGateway 
 }: PricingParams): Promise<PricingBreakdown> {
+  const { getGlobalCurrencyPricing, getExecutiveConnectPricingMap } = await import('./systemSettings');
+  const globalPricing = await getGlobalCurrencyPricing();
+  const execConnectPricing = await getExecutiveConnectPricingMap();
+
   // If country is IN, use INR and Razorpay. Otherwise, start with USD base prices.
   const isIndia = countryCode.toUpperCase() === 'IN';
   
-  // Base calculation is always done in INR or USD first.
+  // Base calculation is always done in INR or USD first (unless custom price exists)
   const baseCurrency: 'INR' | 'USD' = isIndia ? 'INR' : 'USD';
   
   // Final target currency and gateway.
@@ -152,8 +170,8 @@ export async function calculatePricing({
   let paymentGateway = isIndia ? 'RAZORPAY' : (preferredGateway || 'PAYPAL');
   let exchangeRate = 1;
 
-  // If it's an international client explicitly requesting Razorpay, we convert USD to their local currency!
-  if (!isIndia && paymentGateway === 'RAZORPAY') {
+  // If it's an international client explicitly requesting Razorpay or Bank Transfer, we convert USD to their local currency!
+  if (!isIndia && paymentGateway.startsWith('RAZORPAY')) {
     const localCur = getCurrencyForCountry(countryName);
     currency = localCur.code;
     currencySymbol = localCur.symbol;
@@ -166,17 +184,32 @@ export async function calculatePricing({
   const isZeroDecimal = zeroDecimalCurrencies.includes(currency);
   const roundMoney = (v: number) => (isZeroDecimal ? Math.round(v) : Math.round(v * 100) / 100);
 
-  // Each service price is rounded in the target currency FIRST, and the subtotal
-  // is the sum of those rounded prices — so line items always add up exactly to
-  // the subtotal shown on invoices and emails (no floating-point drift).
   let subtotal = 0;
   const complementarySet = new Set(PACKAGE_COMPLEMENTARY[packageSlug] ?? []);
   const serviceDetails: { slug: ServiceSlug; price: number; complimentary?: boolean }[] = [];
 
+  const customCurrencyMap = globalPricing[currency];
+
   for (const slug of services) {
     const isComplimentary = complementarySet.has(slug);
-    const basePrice = isComplimentary ? 0 : (PRICING.basePrices[baseCurrency][slug][experienceLevel] || 0);
-    const price = roundMoney(basePrice * exchangeRate);
+    
+    // Check if we have an explicit backend price for this currency and service
+    let price = 0;
+    if (isComplimentary) {
+      price = 0;
+    } else if (slug === 'EXECUTIVE_CONNECT') {
+      price = execConnectPricing[currency] || (execConnectPricing['USD'] * exchangeRate) || 0;
+      price = roundMoney(price);
+    } else if (customCurrencyMap && customCurrencyMap[slug] && customCurrencyMap[slug][experienceLevel] !== undefined) {
+      // Direct hit on the new Global Currency table
+      price = customCurrencyMap[slug][experienceLevel];
+      // Note: custom prices are already exact native amounts, no exchange rate needed!
+    } else {
+      // Fallback: USD * Exchange Rate
+      const basePrice = PRICING.basePrices[baseCurrency][slug][experienceLevel] || 0;
+      price = roundMoney(basePrice * exchangeRate);
+    }
+
     subtotal += price;
     serviceDetails.push({ slug, price, ...(isComplimentary ? { complimentary: true } : {}) });
   }

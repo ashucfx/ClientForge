@@ -32,6 +32,7 @@ function detectSlugsFromLineItems(lineItems: LineItem[]): CareerServiceSlug[] {
     // (Career Booster + Portfolio)" matches "career booster" and the portfolio the
     // client just paid for is silently dropped.
     if (/portfolio/i.test(d)) slugs.add('PORTFOLIO');
+    if (/executive.?connect|strategy.?consultation/i.test(d)) slugs.add('EXECUTIVE_CONNECT');
 
     if (/full.?career|career.?booster|full.?package|premium.?plus/i.test(d)) {
       slugs.add('FULL_PACKAGE');

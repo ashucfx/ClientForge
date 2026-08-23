@@ -1743,3 +1743,28 @@ model PaymentTransaction {
   @@index([status])
   @@index([reconciliationReference])
 }
+
+enum BankTransferStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model BankTransferRequest {
+  id              String             @id @default(cuid())
+  invoiceId       String
+  clientName      String
+  clientEmail     String
+  currency        String
+  amount          Float
+  referenceNumber String
+  transferDate    DateTime
+  receiptUrl      String?
+  status          BankTransferStatus @default(PENDING)
+  notes           String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([invoiceId])
+  @@index([status])
+}
