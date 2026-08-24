@@ -980,7 +980,7 @@ export default function PortalDashboardPage() {
                   Session Completed
                 </span>
               ) : (
-                <a href={`${process.env.NEXT_PUBLIC_CAL_LINK || 'https://cal.com/example/30min'}?clientId=${me.id}`} target="_blank" rel="noreferrer" className="px-4 py-2 bg-slate-900 text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-slate-800 transition-colors shadow-sm">
+                <a href={`${process.env.NEXT_PUBLIC_CAL_LINK || 'https://cal.com/example/30min'}?clientId=${me.id}&metadata[clientId]=${me.id}&name=${encodeURIComponent(me.name)}&email=${encodeURIComponent(me.email)}`} target="_blank" rel="noreferrer" className="px-4 py-2 bg-slate-900 text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-slate-800 transition-colors shadow-sm">
                   Book Executive Connect
                 </a>
               )}

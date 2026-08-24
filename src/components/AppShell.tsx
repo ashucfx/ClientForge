@@ -478,7 +478,7 @@ function SidebarContent({
             active={isActive('/team', pathname)} onClick={onNavigate} collapsed={collapsed} />
           {isSuperAdmin && (
             <>
-              <NavLink href="/settings" icon={
+              <NavLink href="/settings/executive-connect" icon={
                 <svg width={16} height={16} fill="none" viewBox="0 0 24 24" aria-hidden>
                   <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="3" />
@@ -486,7 +486,7 @@ function SidebarContent({
                   </g>
                 </svg>
               } label="Exec Connect"
-                active={pathname === '/settings'} onClick={onNavigate} collapsed={collapsed} />
+                active={isActive('/settings/executive-connect', pathname)} onClick={onNavigate} collapsed={collapsed} />
 
               <NavLink href="/settings/global-pricing" icon={<IconGrid size={16} />} label="Global Pricing"
                 active={isActive('/settings/global-pricing', pathname)} onClick={onNavigate} collapsed={collapsed} />
