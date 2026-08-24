@@ -8,7 +8,7 @@ import { validatePublicFormMeta } from '@/lib/publicForms';
 import { acquireLockDurable, releaseLockDurable } from '@/lib/idempotency';
 import { z } from 'zod';
 
-const VALID_SERVICE_SLUGS = ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'] as const;
+const VALID_SERVICE_SLUGS = ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO', 'EXECUTIVE_CONNECT'] as const;
 
 const CheckoutSchema = z.object({
   name: z.string().min(2, 'Name is too short').max(100),

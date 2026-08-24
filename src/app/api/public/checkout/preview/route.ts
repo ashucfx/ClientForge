@@ -9,7 +9,7 @@ import { deriveExperienceLevel, resolveSelfServiceServices } from '@/lib/catalog
 import { ClientType } from '@prisma/client';
 import { enforcePublicRateLimit } from '@/lib/publicRateLimit';
 
-const VALID_SERVICE_SLUGS = ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'] as const;
+const VALID_SERVICE_SLUGS = ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO', 'EXECUTIVE_CONNECT'] as const;
 
 const PreviewSchema = z.object({
   packageSlug:      z.enum(['CAREER_BOOSTER', 'PREMIUM_PLUS', 'CUSTOM']),
