@@ -187,7 +187,10 @@ function ExecutiveConnectPricingSection() {
                           className="w-full px-3 py-1.5 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-slate-900 font-medium"
                           placeholder="e.g. 100"
                           value={pricingMap[code] ?? ''}
-                          onChange={e => setPricingMap(prev => ({ ...prev, [code]: e.target.value }))}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setPricingMap(prev => ({ ...prev, [code]: val === '' ? '' : Number(val) }));
+                          }}
                         />
                       </div>
                     </td>
