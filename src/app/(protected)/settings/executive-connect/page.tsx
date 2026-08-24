@@ -195,7 +195,7 @@ function ExecutiveConnectPricingSection() {
                 ))}
                 {filteredCurrencies.length === 0 && (
                   <tr>
-                    <td colSpan={2} className="px-6 py-8 text-center text-slate-400">No currencies found matching "{search}"</td>
+                    <td colSpan={2} className="px-6 py-8 text-center text-slate-400">No currencies found matching &quot;{search}&quot;</td>
                   </tr>
                 )}
               </tbody>
