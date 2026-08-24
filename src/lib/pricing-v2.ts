@@ -1,5 +1,6 @@
 import { ClientType } from '@prisma/client';
 import { getCurrencyForCountry, getExchangeRate } from './currency';
+import { FEE_RATES } from './pricing';
 
 export type ServiceSlug = 'RESUME' | 'LINKEDIN' | 'COVER_LETTER' | 'PORTFOLIO' | 'EXECUTIVE_CONNECT';
 
@@ -255,7 +256,6 @@ export async function calculatePricing({
   //    foreign currency to INR                                       = 5.54%
   //  - PayPal: 4.4% + $0.30 fixed, + ~3% conversion spread PayPal
   //    applies when settling USD to an INR merchant account          = 7.4% + $0.30
-  const { FEE_RATES } = require('./pricing');
   const PAYPAL_FIXED_FEE = 0.30; // USD
 
   let finalPayable = costWithTax;
