@@ -149,6 +149,7 @@ export interface PricingParams {
   countryCode: string; // e.g. "IN" for India, "US" for USA
   countryName: string; // e.g. "Saudi Arabia"
   preferredGateway?: string; // allow Bank transfer string too
+  couponCode?: string;
 }
 
 /**

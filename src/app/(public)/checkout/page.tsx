@@ -338,12 +338,12 @@ function CheckoutPageInner() {
         throw new Error(d.error || 'Checkout failed');
       }
       const data = await res.json();
-      if (data.checkoutSessionId) {
-        window.location.href = `/checkout/session/${data.checkoutSessionId}`;
-        return;
-      }
       if (data.paymentUrl) {
         window.location.href = data.paymentUrl as string;
+        return;
+      }
+      if (data.checkoutSessionId) {
+        window.location.href = `/checkout/session/${data.checkoutSessionId}`;
         return;
       }
       throw new Error('Payment link unavailable. Please try again.');

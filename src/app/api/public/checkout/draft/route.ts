@@ -75,7 +75,11 @@ export async function POST(req: NextRequest) {
         referralCode: data.ref,
       });
       await releaseLockDurable(lockKey);
-      return NextResponse.json({ success: true, checkoutSessionId: result.checkoutSessionId });
+      return NextResponse.json({ 
+        success: true, 
+        checkoutSessionId: result.checkoutSessionId,
+        paymentUrl: result.paymentUrl
+      });
     } catch (innerError) {
       await releaseLockDurable(lockKey);
       throw innerError;

@@ -240,7 +240,7 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
       console.error('Razorpay Gateway Error:', e);
       throw new Error('Unable to create Razorpay payment link. Please try again.');
     }
-  } else {
+  } else if (paymentGateway === 'PAYPAL') {
     try {
       const ppRes = await createPaypalInvoice({
         id: result.invoice.id,
