@@ -9,6 +9,7 @@ import type { SettingKey } from '@/lib/systemSettings';
 const ALLOWED_KEYS: SettingKey[] = [
   'GLOBAL_CURRENCY_PRICING',
   'EXECUTIVE_CONNECT_PRICING',
+  'GLOBAL_PRICING_V2',
 ];
 
 function isKeyAllowed(key: string): boolean {

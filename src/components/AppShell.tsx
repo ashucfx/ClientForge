@@ -487,6 +487,9 @@ function SidebarContent({
                 </svg>
               } label="System Settings"
                 active={pathname === '/settings'} onClick={onNavigate} collapsed={collapsed} />
+
+              <NavLink href="/settings/global-pricing" icon={<IconGrid size={16} />} label="Global Pricing"
+                active={isActive('/settings/global-pricing', pathname)} onClick={onNavigate} collapsed={collapsed} />
               
               <NavLink href="/settings/bank-accounts" icon={<IconList size={16} />} label="Bank Accounts"
                 active={isActive('/settings/bank-accounts', pathname)} onClick={onNavigate} collapsed={collapsed} />

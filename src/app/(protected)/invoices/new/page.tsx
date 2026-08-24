@@ -7,8 +7,8 @@ import { useRouter } from 'next/navigation';
 import { COUNTRIES, ISO2_TO_COUNTRY } from '@/lib/currency';
 import { parsePhoneNumberFromString } from 'libphonenumber-js/min';
 import { CLIENT_TYPE_LABELS, FEE_RATES, round2 } from '@/lib/pricing';
-import { PRICING, PACKAGE_COMPLEMENTARY } from '@/lib/pricing-v2';
-import type { ServiceSlug, PackageSlug } from '@/lib/pricing-v2';
+import { DEFAULT_PRICING, PACKAGE_COMPLEMENTARY } from '@/lib/pricing-v2';
+import type { ServiceSlug, PackageSlug, PricingConfig } from '@/lib/pricing-v2';
 import { getCallingCodeForCountryName, normalizePhoneE164 } from '@/lib/phone';
 import type { ClientType, LineItem, CurrencyInfo } from '@/types';
 import { Logo } from '@/components/Logo';
@@ -67,6 +67,7 @@ function defaultItemsForPackage(
   currencyCode: string,
   inrToLocalRate: number,  // INR → local (used when currencyCode === 'INR')
   usdToLocalRate: number,  // USD → local (used for all other currencies)
+  pricingConfig: PricingConfig = DEFAULT_PRICING
 ): LineItem[] {
   if (packageSlug === 'CUSTOM') return [makeItem()];
   const isInr = currencyCode === 'INR';
@@ -75,7 +76,7 @@ function defaultItemsForPackage(
   const complementarySet = new Set(PACKAGE_COMPLEMENTARY[packageSlug] ?? []);
   return PKG_SERVICES[packageSlug].map(slug => {
     const isComplimentary = complementarySet.has(slug);
-    const basePrice = isComplimentary ? 0 : (PRICING.basePrices[baseCurrency][slug][clientType] ?? 0);
+    const basePrice = isComplimentary ? 0 : (pricingConfig.basePrices[baseCurrency][slug][clientType] ?? 0);
     const finalPrice = isInr ? basePrice : round2(basePrice * convRate);
     return makeItem(SERVICE_LABELS[slug] + (isComplimentary ? ' (Complimentary)' : ''), 1, finalPrice);
   });
@@ -502,7 +503,15 @@ export default function NewInvoicePage() {
   // Currency state
   const [currencyInfo,    setCurrencyInfo]    = useState<CurrencyInfo | null>({ code: 'INR', symbol: '₹', name: 'Indian Rupee' });
   const [exchangeRate,    setExchangeRate]    = useState(1);   // INR → local
-  const [usdExchangeRate, setUsdExchangeRate] = useState(83.5); // USD → local (≈ INR/USD fallback for IN)
+  const [usdExchangeRate, setUsdExchangeRate] = useState<number>(1);
+  const [pricingConfig, setPricingConfig] = useState<PricingConfig>(DEFAULT_PRICING);
+
+  useEffect(() => {
+    fetch('/api/public/pricing')
+      .then(res => res.json())
+      .then(data => setPricingConfig(data))
+      .catch(console.error);
+  }, []); // USD → local (≈ INR/USD fallback for IN)
   const [rateLoading,     setRateLoading]     = useState(false);
 
   // Ripple Nexus Services
@@ -562,7 +571,7 @@ export default function NewInvoicePage() {
     } else {
       setClientType('FRESHER');
       setPackageSlug('CAREER_BOOSTER');
-      setLineItems(defaultItemsForPackage('CAREER_BOOSTER', 'FRESHER', currencyInfo?.code ?? 'INR', exchangeRate, usdExchangeRate));
+      setLineItems(defaultItemsForPackage('CAREER_BOOSTER', 'FRESHER', currencyInfo?.code ?? 'INR', exchangeRate, usdExchangeRate, pricingConfig));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brandId]);
@@ -591,7 +600,7 @@ export default function NewInvoicePage() {
     }
     if (brandId !== 'catalyst') return;
     if (packageSlug === 'CUSTOM') return; // user is building manually
-    setLineItems(defaultItemsForPackage(packageSlug, clientType, currencyInfo?.code ?? 'INR', exchangeRate, usdExchangeRate));
+    setLineItems(defaultItemsForPackage(packageSlug, clientType, currencyInfo?.code ?? 'INR', exchangeRate, usdExchangeRate, pricingConfig));
     // Discount is now entirely manual based on user request
     setDiscountRate(0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1106,8 +1115,8 @@ export default function NewInvoicePage() {
                     const sel  = clientType === t;
                     const isInr = (currencyInfo?.code ?? 'INR') === 'INR';
                     const baseCur = isInr ? 'INR' : 'USD';
-                    const resumeBase = PRICING.basePrices[baseCur].RESUME[t] ?? 0;
-                    const linkedinBase = PRICING.basePrices[baseCur].LINKEDIN[t] ?? 0;
+                    const resumeBase = pricingConfig.basePrices[baseCur].RESUME[t] ?? 0;
+                    const linkedinBase = pricingConfig.basePrices[baseCur].LINKEDIN[t] ?? 0;
                     const baseSum = resumeBase + linkedinBase;
                     const displayPrice = isInr ? baseSum : round2(baseSum * usdExchangeRate);
                     const fromLabel = isInr

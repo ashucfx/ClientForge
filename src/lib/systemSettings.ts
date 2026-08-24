@@ -9,7 +9,8 @@ import { Prisma } from '@prisma/client';
 
 export type SettingKey =
   | 'GLOBAL_CURRENCY_PRICING'
-  | 'EXECUTIVE_CONNECT_PRICING';
+  | 'EXECUTIVE_CONNECT_PRICING'
+  | 'GLOBAL_PRICING_V2';
 
 export type GlobalCurrencyPricingMap = {
   [currency: string]: {
@@ -22,6 +23,7 @@ export type GlobalCurrencyPricingMap = {
 
 const DEFAULTS: Record<SettingKey, unknown> = {
   GLOBAL_CURRENCY_PRICING: {}, // Defaults to empty map, logic falls back to USD API
+  GLOBAL_PRICING_V2: null, // we will handle fallback in pricing-v2.ts
   EXECUTIVE_CONNECT_PRICING: {
     INR: 4999,
     USD: 100,

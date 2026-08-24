@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 import { round2 } from '@/lib/pricing';
-import { PRICING } from '@/lib/pricing-v2';
+import { getGlobalPricing } from '@/lib/pricing-v2';
 import { getCurrencyForCountry, getExchangeRate, countryNameFromIso } from '@/lib/currency';
 import { getNextInvoiceNumber } from '@/lib/invoiceUtils';
 import { createRazorpayPaymentLink } from '@/lib/razorpay';
@@ -158,7 +158,8 @@ export async function GET(req: NextRequest) {
     ? 'RAZORPAY'
     : (searchParams.get('gateway') === 'PAYPAL' ? 'PAYPAL' : 'RAZORPAY');
 
-  const basePrices = isIndia ? PRICING.basePrices.INR : PRICING.basePrices.USD;
+  const globalPricing = await getGlobalPricing();
+  const basePrices = isIndia ? globalPricing.basePrices.INR : globalPricing.basePrices.USD;
 
   // FULL_PACKAGE slug covers resume + linkedin + coverLetter
   const effectivelyHasResume      = hasResume      || hasFull;
@@ -334,7 +335,8 @@ export async function POST(req: NextRequest) {
     ? 'RAZORPAY'
     : ((body?.gateway as UpgradeGateway) ?? 'RAZORPAY');
 
-  const basePrices = isIndia ? PRICING.basePrices.INR : PRICING.basePrices.USD;
+  const globalPricing = await getGlobalPricing();
+  const basePrices = isIndia ? globalPricing.basePrices.INR : globalPricing.basePrices.USD;
 
   let targetPrice  = 0;
   let currentlyPaid = 0;

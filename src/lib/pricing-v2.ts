@@ -15,9 +15,11 @@ export interface PricingConfig {
   packageDiscounts: Record<PackageSlug, number>; // Percentage off (e.g. 0.10 for 10% off)
 }
 
+import { getSetting } from './systemSettings';
+
 // These are base prices per currency. 
 // Having static USD prices allows for clean numbers (e.g. $149) rather than weird exchange rate fractions.
-export const PRICING: PricingConfig = {
+export const DEFAULT_PRICING: PricingConfig = {
   basePrices: {
     INR: {
       RESUME: {
@@ -95,11 +97,18 @@ export const PRICING: PricingConfig = {
     }
   },
   packageDiscounts: {
-    CAREER_BOOSTER: 0.15, // 15% discount on Resume + LinkedIn (Cover Letter is complimentary)
-    PREMIUM_PLUS: 0.20,   // 20% discount on Resume + LinkedIn + Portfolio (Cover Letter is complimentary)
+    CAREER_BOOSTER: 0.0,  // 0% discount by default
+    PREMIUM_PLUS: 0.0,    // 0% discount by default
     CUSTOM: 0.0,          // No package discount
   }
 };
+
+export const PRICING = DEFAULT_PRICING;
+
+export async function getGlobalPricing(): Promise<PricingConfig> {
+  const config = await getSetting<PricingConfig>('GLOBAL_PRICING_V2');
+  return config ?? DEFAULT_PRICING;
+}
 
 /**
  * Services that are included at no extra charge when purchased as part of a package.
@@ -152,10 +161,11 @@ export async function calculatePricing({
   packageSlug, 
   countryCode,
   countryName,
-  preferredGateway 
+  preferredGateway,
+  couponCode
 }: PricingParams): Promise<PricingBreakdown> {
-  const { getGlobalCurrencyPricing, getExecutiveConnectPricingMap } = await import('./systemSettings');
-  const globalPricing = await getGlobalCurrencyPricing();
+  const { getExecutiveConnectPricingMap } = await import('./systemSettings');
+  const globalPricing = await getGlobalPricing();
   const execConnectPricing = await getExecutiveConnectPricingMap();
 
   // If country is IN, use INR and Razorpay. Otherwise, start with USD base prices.
@@ -205,8 +215,8 @@ export async function calculatePricing({
       price = customCurrencyMap[slug][experienceLevel];
       // Note: custom prices are already exact native amounts, no exchange rate needed!
     } else {
-      // Fallback: USD * Exchange Rate
-      const basePrice = PRICING.basePrices[baseCurrency][slug][experienceLevel] || 0;
+      // Convert base (USD) to client's local currency if not INR/USD
+      const basePrice = globalPricing.basePrices[baseCurrency][slug][experienceLevel] || 0;
       price = roundMoney(basePrice * exchangeRate);
     }
 
@@ -215,7 +225,8 @@ export async function calculatePricing({
   }
   subtotal = roundMoney(subtotal);
 
-  const discountRate = PRICING.packageDiscounts[packageSlug] || 0;
+  // Then apply package discount
+  const discountRate = globalPricing.packageDiscounts[packageSlug] || 0;
   const discountAmount = roundMoney(subtotal * discountRate);
   const subtotalAfterDiscount = roundMoney(subtotal - discountAmount);
 

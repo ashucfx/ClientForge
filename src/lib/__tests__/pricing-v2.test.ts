@@ -41,10 +41,10 @@ describe('calculatePricing — India / Razorpay (Career Booster, mid-career)', (
     expect(p.subtotal).toBe(sum);
   });
 
-  it('applies the 15% package discount', async () => {
+  it('applies default package discount (0% configured)', async () => {
     const p = await run();
-    expect(p.discountRate).toBe(0.15);
-    expect(p.discountAmount).toBe(Math.round(p.subtotal * 0.15));
+    expect(p.discountRate).toBe(0);
+    expect(p.discountAmount).toBe(0);
   });
 
   it('rounds the INR total to a whole number', async () => {
@@ -78,9 +78,9 @@ describe('calculatePricing — International / PayPal (Premium Plus, executive)'
     expect(p.taxRate).toBe(0);
   });
 
-  it('applies the 20% package discount', async () => {
+  it('applies default package discount (0% configured)', async () => {
     const p = await run();
-    expect(p.discountRate).toBe(0.2);
+    expect(p.discountRate).toBe(0);
   });
 
   it('keeps at most 2 decimal places on the total', async () => {

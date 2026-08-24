@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { Check, ArrowRight, Loader2, Lock, Star } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { SELF_SERVICE_PACKAGES } from '@/lib/catalog/self-service';
-import { PRICING, PACKAGE_COMPLEMENTARY } from '@/lib/pricing-v2';
+import { DEFAULT_PRICING, PACKAGE_COMPLEMENTARY } from '@/lib/pricing-v2';
+import type { PricingConfig } from '@/lib/pricing-v2';
 import type { ServiceSlug, PackageSlug as PkgSlug } from '@/lib/pricing-v2';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
@@ -33,8 +34,9 @@ function computePrice(
   tier: ExperienceKey,
   cur: 'INR' | 'USD',
   customSlugs: string[] = [],
+  pricingConfig: PricingConfig = DEFAULT_PRICING
 ) {
-  const prices = PRICING.basePrices[cur];
+  const prices = pricingConfig.basePrices[cur];
   const sym    = cur === 'INR' ? '₹' : '$';
   const slugs: ServiceSlug[] =
     pkg === 'CUSTOM'
@@ -49,7 +51,7 @@ function computePrice(
     complimentary: complementarySet.has(slug),
   }));
   const subtotal  = services.reduce((s, x) => s + x.price, 0);
-  const rate      = PRICING.packageDiscounts[pkg as PkgSlug] ?? 0;
+  const rate      = pricingConfig.packageDiscounts[pkg as PkgSlug] ?? 0;
   // Match server rounding: whole units for INR, cents for USD
   const discount  = cur === 'INR'
     ? Math.round(subtotal * rate)
@@ -101,6 +103,7 @@ function CheckoutPageInner() {
     subtotalAfterDiscount: number; taxRate: number; taxAmount: number;
     finalPayable: number; isIndia: boolean; gateway: string;
   } | null>(null);
+  const [pricingConfig, setPricingConfig] = useState<PricingConfig>(DEFAULT_PRICING);
   const [whatsapp, setWhatsapp] = useState('');
   const [website] = useState('');
   const [startedAt] = useState(() => Date.now());
@@ -115,6 +118,13 @@ function CheckoutPageInner() {
   const [showTierConfirm, setShowTierConfirm] = useState(false);
   const [gatewaySwitching, setGatewaySwitching] = useState(false);
   const [localRate, setLocalRate] = useState<{ rate: number; code: string; symbol: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/public/pricing')
+      .then(res => res.json())
+      .then(data => setPricingConfig(data))
+      .catch(console.error);
+  }, []);
 
   // Real location detection via the CDN edge (server-side geo-IP). This overrides
   // the initial timezone guess — e.g. a visitor in the UAE resolves to AE / AED,
@@ -658,8 +668,8 @@ function CheckoutPageInner() {
           {formStep === 4 && (
             <div className="space-y-6">
               {(() => {
-                const cur  = countryCode === 'IN' ? 'INR' : 'USD';
-                const live = computePrice(selectedPackage, experienceLevel, cur, customServices);
+                const cur = countryCode === 'IN' ? 'INR' : 'USD';
+                const live = computePrice(selectedPackage, experienceLevel, cur, customServices, pricingConfig);
                 if (live.services.length === 0) return null;
                 // International clients see their local currency as the headline; USD is the reference.
                 const showLocal = !!(localRate && countryCode !== 'IN');
