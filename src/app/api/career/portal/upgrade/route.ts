@@ -185,12 +185,14 @@ export async function GET(req: NextRequest) {
     if (!effectivelyHasResume)      whatYouGet.push('Professional Resume Writing');
     if (!effectivelyHasLinkedIn)    whatYouGet.push('LinkedIn Profile Optimisation');
     if (!effectivelyHasCoverLetter) whatYouGet.push('Cover Letter Writing');
-  } else {
+  } else if (targetUpgrade === 'PREMIUM_PLUS') {
     targetPrice = basePrices.RESUME[clientType] + basePrices.LINKEDIN[clientType] + basePrices.COVER_LETTER[clientType] + basePrices.PORTFOLIO[clientType];
     if (!effectivelyHasResume)      whatYouGet.push('Professional Resume Writing');
     if (!effectivelyHasLinkedIn)    whatYouGet.push('LinkedIn Profile Optimisation');
     if (!effectivelyHasCoverLetter) whatYouGet.push('Cover Letter Writing');
     if (!hasPortfolio)              whatYouGet.push('Portfolio Website Development');
+  } else if (targetUpgrade === 'EXECUTIVE_CONNECT') {
+    whatYouGet.push('1-on-1 Executive Connect Consultation');
   }
 
   if (hasFull) {
@@ -237,9 +239,11 @@ export async function GET(req: NextRequest) {
   const gatewayOptions = isIndia ? null : await Promise.all(
     (['RAZORPAY', 'PAYPAL', 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE', 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT'] as UpgradeGateway[]).map(async (g) => {
       const p = await computeUpgradePricing(differenceBase, false, g, client.currency);
+      let pTotal = p.totalPayable;
+      if (customTotalPayable !== null) pTotal = customTotalPayable;
       return {
         gateway: g, currency: p.currency, currencySymbol: p.currencySymbol,
-        totalPayable: p.totalPayable, recommended: g === 'RAZORPAY',
+        totalPayable: pTotal, recommended: g === 'RAZORPAY',
       };
     })
   );
