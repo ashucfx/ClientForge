@@ -215,7 +215,6 @@ export async function GET(req: NextRequest) {
     const pricingMap = await getExecutiveConnectPricingMap();
     const cur = client.currency || (isIndia ? 'INR' : 'USD');
     differenceBase = pricingMap[cur] || pricingMap['USD'] || 100;
-    customTotalPayable = differenceBase; // Manual pricing map means exactly this price.
   } else {
     differenceBase = targetPrice - currentlyPaid;
   }
@@ -225,13 +224,6 @@ export async function GET(req: NextRequest) {
 
   const pricing = await computeUpgradePricing(differenceBase, isIndia, chosenGateway, client.currency);
   
-  if (customTotalPayable !== null) {
-    pricing.totalPayable = customTotalPayable;
-    pricing.subtotal = customTotalPayable;
-    pricing.taxAmount = 0;
-    pricing.processingFee = 0;
-  }
-
   const { currency, currencySymbol, taxRate, taxAmount, processingFee, processingFeeRate, totalPayable } = pricing;
 
   // For international clients, also price the alternative gateway so the modal
@@ -239,11 +231,9 @@ export async function GET(req: NextRequest) {
   const gatewayOptions = isIndia ? null : await Promise.all(
     (['RAZORPAY', 'PAYPAL', 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE', 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT'] as UpgradeGateway[]).map(async (g) => {
       const p = await computeUpgradePricing(differenceBase, false, g, client.currency);
-      let pTotal = p.totalPayable;
-      if (customTotalPayable !== null) pTotal = customTotalPayable;
       return {
         gateway: g, currency: p.currency, currencySymbol: p.currencySymbol,
-        totalPayable: pTotal, recommended: g === 'RAZORPAY',
+        totalPayable: p.totalPayable, recommended: g === 'RAZORPAY',
       };
     })
   );
@@ -361,7 +351,6 @@ export async function POST(req: NextRequest) {
   if (hasPortfolio) currentlyPaid += basePrices.PORTFOLIO[clientType];
 
   let differenceBase = targetPrice - currentlyPaid;
-  let customTotalPayable: number | null = null;
   
   if (targetUpgrade === 'PREMIUM_PLUS') {
     differenceBase = differenceBase > 0 ? differenceBase : 0;
@@ -370,7 +359,6 @@ export async function POST(req: NextRequest) {
     const pricingMap = await getExecutiveConnectPricingMap();
     const cur = client.currency || (isIndia ? 'INR' : 'USD');
     differenceBase = pricingMap[cur] || pricingMap['USD'] || 100;
-    customTotalPayable = differenceBase;
   }
   
   if (differenceBase <= 0) {
@@ -393,13 +381,6 @@ export async function POST(req: NextRequest) {
   });
 
   const pricing = await computeUpgradePricing(differenceBase, isIndia, chosenGateway, client.currency);
-  
-  if (customTotalPayable !== null) {
-    pricing.totalPayable = customTotalPayable;
-    pricing.subtotal = customTotalPayable;
-    pricing.taxAmount = 0;
-    pricing.processingFee = 0;
-  }
   
   const { currency, currencySymbol, taxRate, taxAmount, processingFee: processingFeeConverted, processingFeeRate, totalPayable } = pricing;
 

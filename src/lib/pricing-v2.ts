@@ -255,19 +255,21 @@ export async function calculatePricing({
   //    foreign currency to INR                                       = 5.54%
   //  - PayPal: 4.4% + $0.30 fixed, + ~3% conversion spread PayPal
   //    applies when settling USD to an INR merchant account          = 7.4% + $0.30
-  const RAZORPAY_DOMESTIC_FEE = 0.02 * 1.18;          // 2.36%
-  const RAZORPAY_INTL_FEE     = 0.03 * 1.18 + 0.02;   // 5.54% incl. FX spread
-  const PAYPAL_FEE            = 0.044 + 0.03;          // 7.4% incl. FX spread
-  const PAYPAL_FIXED_FEE      = 0.30;                  // USD
+  const { FEE_RATES } = require('./pricing');
+  const PAYPAL_FIXED_FEE = 0.30; // USD
 
   let finalPayable = costWithTax;
   let internalGatewayFee = 0;
 
   if (paymentGateway === 'RAZORPAY') {
-    const feePercent = isIndia ? RAZORPAY_DOMESTIC_FEE : RAZORPAY_INTL_FEE;
+    const feePercent = isIndia ? FEE_RATES.RAZORPAY_DOMESTIC : FEE_RATES.RAZORPAY_INTL;
     finalPayable = costWithTax / (1 - feePercent);
   } else if (paymentGateway === 'PAYPAL') {
-    finalPayable = (costWithTax + PAYPAL_FIXED_FEE) / (1 - PAYPAL_FEE);
+    finalPayable = (costWithTax + PAYPAL_FIXED_FEE) / (1 - FEE_RATES.PAYPAL_INTL);
+  } else if (paymentGateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE') {
+    finalPayable = costWithTax / (1 - FEE_RATES.BANK_TRANSFER_NATIVE);
+  } else if (paymentGateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT') {
+    finalPayable = costWithTax / (1 - FEE_RATES.BANK_TRANSFER_SWIFT);
   }
 
   // Always round the customer-facing total UP so recovery never falls short.
