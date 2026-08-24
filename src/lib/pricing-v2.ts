@@ -199,7 +199,7 @@ export async function calculatePricing({
   const complementarySet = new Set(PACKAGE_COMPLEMENTARY[packageSlug] ?? []);
   const serviceDetails: { slug: ServiceSlug; price: number; complimentary?: boolean }[] = [];
 
-  const customCurrencyMap = globalPricing[currency];
+  const customCurrencyMap = (currency === 'INR' || currency === 'USD') ? globalPricing.basePrices[currency] : null;
 
   for (const slug of services) {
     const isComplimentary = complementarySet.has(slug);
