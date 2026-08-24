@@ -60,6 +60,26 @@ export default function ReconciliationsPage() {
     }
   };
 
+  const handleReject = async (id: string) => {
+    if (!confirm('Are you sure you want to REJECT this payment request? The invoice will remain unpaid.')) {
+      return;
+    }
+    setVerifyingId(id);
+    try {
+      const res = await fetch(`/api/admin/reconciliations/${id}/reject`, { method: 'POST' });
+      if (res.ok) {
+        setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'REJECTED' } : r));
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to reject');
+      }
+    } catch (e) {
+      alert('Network error');
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
   return (
     <AppShell>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -127,13 +147,22 @@ export default function ReconciliationsPage() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         {req.status === 'PENDING' && (
-                          <button
-                            onClick={() => handleVerify(req.id)}
-                            disabled={verifyingId === req.id}
-                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm disabled:opacity-50 transition-colors"
-                          >
-                            {verifyingId === req.id ? 'Verifying...' : 'Verify Funds'}
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleReject(req.id)}
+                              disabled={verifyingId === req.id}
+                              className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                            <button
+                              onClick={() => handleVerify(req.id)}
+                              disabled={verifyingId === req.id}
+                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm disabled:opacity-50 transition-colors"
+                            >
+                              {verifyingId === req.id ? 'Verifying...' : 'Verify Funds'}
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
