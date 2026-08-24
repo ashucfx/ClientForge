@@ -1067,37 +1067,37 @@ export async function sendBankTransferRejectedEmail(req: any): Promise<void> {
   
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: \Bearer \\ },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
     body: JSON.stringify({
-      from:    \\ <\>\,
+      from:    `${brand.name} <${brand.fromEmail}>`,
       to:      [req.clientEmail],
-      subject: \Action Required: Wire Transfer Verification Failed - \\,
+      subject: `Action Required: Wire Transfer Verification Failed - ${brand.name}`,
       html,
     }),
   }).catch(err => console.error('[BankTransferReject] Failed to send rejection email:', err));
 }
 
 function buildBankTransferRejectedEmailHTML(req: any, brand: any): string {
-  return \<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html>
 <body style="font-family:sans-serif;line-height:1.6;color:#333;">
   <div style="max-w-xl;margin:0 auto;padding:20px;">
     <h2>Bank Transfer Verification Failed</h2>
-    <p>Hi \,</p>
+    <p>Hi ${req.clientName},</p>
     <p>Our finance team was unable to verify the bank transfer you submitted.</p>
     <div style="background-color:#f9f9f9;border:1px solid #ddd;padding:15px;margin:20px 0;">
       <strong>Details submitted:</strong><br/>
-      Reference Number: \<br/>
-      Date: \<br/>
-      Amount: \ \
+      Reference Number: ${req.referenceNumber}<br/>
+      Date: ${new Date(req.transferDate).toLocaleDateString()}<br/>
+      Amount: ${req.currency} ${req.amount.toLocaleString()}
     </div>
     <p>This typically happens if the wire transfer was delayed, the reference number was mistyped, or the funds bounced back to your account.</p>
     <p><strong>Next Steps:</strong></p>
     <p>Please double-check your bank statement. If the funds were successfully debited, please submit the reconciliation request again with the correct reference number.</p>
     <p>If you have any questions, simply reply to this email and our team will assist you.</p>
     <br/>
-    <p>Best regards,<br/>The \ Team</p>
+    <p>Best regards,<br/>The ${brand.name} Team</p>
   </div>
 </body>
-</html>\;
+</html>`;
 }

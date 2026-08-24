@@ -16,7 +16,7 @@ export default function SettingsPage() {
         <div className="w-full max-w-4xl mx-auto px-4 py-24 text-center">
           <div className="text-4xl mb-4">🔒</div>
           <h2 className="text-lg font-bold text-slate-900">Access Restricted</h2>
-          <p className="text-sm text-slate-500 mt-1">System settings are only accessible to Super Admins.</p>
+          <p className="text-sm text-slate-500 mt-1">Executive Connect pricing is only accessible to Super Admins.</p>
         </div>
       </AppShell>
     );
@@ -32,10 +32,10 @@ export default function SettingsPage() {
             <span>Configuration Hub</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-            System Settings
+            Executive Connect Pricing
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Configure system-wide settings and overrides.
+            Configure system-wide overrides for Executive Connect local currency rates.
           </p>
         </div>
 
