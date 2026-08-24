@@ -94,7 +94,7 @@ export default function GlobalPricingPage() {
 
   return (
     <AppShell>
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6 px-4 sm:px-6 py-6 sm:py-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Global Pricing Engine</h1>
           <p className="text-sm text-slate-500 mt-1">
@@ -119,7 +119,7 @@ export default function GlobalPricingPage() {
             <p className="text-xs text-slate-500">Fixed prices charged to clients in India.</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
+            <table className="w-full text-left text-sm whitespace-nowrap min-w-[800px]">
               <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-semibold">
                 <tr>
                   <th className="px-6 py-3">Service</th>
@@ -158,7 +158,7 @@ export default function GlobalPricingPage() {
             <p className="text-xs text-slate-500">Serves as the global anchor. Will be automatically converted to 180+ local currencies (EUR, GBP, CAD, etc.) at live rates.</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
+            <table className="w-full text-left text-sm whitespace-nowrap min-w-[800px]">
               <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-semibold">
                 <tr>
                   <th className="px-6 py-3">Service</th>
