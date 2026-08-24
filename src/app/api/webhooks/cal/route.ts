@@ -1,11 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma as db } from '@/lib/db';
+import crypto from 'crypto';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const rawBody = await req.text();
+    const signature = req.headers.get('x-cal-signature-256');
+    const secret = process.env.CAL_WEBHOOK_SECRET;
+
+    if (secret && signature) {
+      const hmac = crypto.createHmac('sha256', secret);
+      const computedSignature = hmac.update(rawBody).digest('hex');
+      if (signature !== computedSignature) {
+        console.warn('[Cal.com Webhook] Invalid signature');
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      }
+    } else if (secret && !signature) {
+      console.warn('[Cal.com Webhook] Missing signature');
+      return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+    }
+
+    const body = JSON.parse(rawBody);
     const trigger = body.triggerEvent;
     
     if (trigger === 'BOOKING_CREATED') {
@@ -66,6 +83,21 @@ export async function POST(req: NextRequest) {
           }
         });
         return NextResponse.json({ ok: true, message: 'Consultation cancelled' });
+      }
+    }
+
+    if (trigger === 'MEETING_ENDED') {
+      const payload = body.payload;
+      let clientId = payload?.metadata?.clientId || payload?.responses?.clientId?.value || payload?.responses?.clientId;
+      
+      if (clientId) {
+        await db.careerClient.update({
+          where: { id: clientId },
+          data: {
+            consultationStatus: 'COMPLETED'
+          }
+        });
+        return NextResponse.json({ ok: true, message: 'Consultation completed' });
       }
     }
 

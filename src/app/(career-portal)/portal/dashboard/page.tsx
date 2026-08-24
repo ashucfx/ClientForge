@@ -957,6 +957,8 @@ export default function PortalDashboardPage() {
                 <p className="text-sm text-slate-500 mt-1">
                   {me.consultationStatus === 'BOOKED' 
                     ? 'Your Executive Connect consultation is scheduled. Join via the link below at the scheduled time.' 
+                    : me.consultationStatus === 'COMPLETED'
+                    ? 'Your Executive Connect consultation has been completed.'
                     : 'You have unlocked 1-on-1 Executive Connect consultation. Book it now.'}
                 </p>
               </div>
@@ -973,8 +975,12 @@ export default function PortalDashboardPage() {
                     <span className="text-xs text-slate-400">Link pending...</span>
                   )}
                 </div>
+              ) : me.consultationStatus === 'COMPLETED' ? (
+                <span className="px-4 py-2 bg-slate-100 text-slate-500 font-bold rounded-xl text-sm shadow-sm cursor-not-allowed">
+                  Session Completed
+                </span>
               ) : (
-                <a href={`https://cal.com/your-username/30min?clientId=${me.id}`} target="_blank" rel="noreferrer" className="px-4 py-2 bg-slate-900 text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-slate-800 transition-colors shadow-sm">
+                <a href={`${process.env.NEXT_PUBLIC_CAL_LINK || 'https://cal.com/example/30min'}?clientId=${me.id}`} target="_blank" rel="noreferrer" className="px-4 py-2 bg-slate-900 text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-slate-800 transition-colors shadow-sm">
                   Book Executive Connect
                 </a>
               )}

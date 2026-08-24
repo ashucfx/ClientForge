@@ -41,7 +41,11 @@ function computePrice(
   const slugs: ServiceSlug[] =
     pkg === 'CUSTOM'
       ? (customSlugs as ServiceSlug[]).filter(s => s in prices)
-      : PKG_SERVICES[pkg] ?? [];
+      : [...(PKG_SERVICES[pkg] ?? [])];
+
+  if (customSlugs.includes('EXECUTIVE_CONNECT') && !slugs.includes('EXECUTIVE_CONNECT')) {
+    slugs.push('EXECUTIVE_CONNECT');
+  }
 
   const complementarySet = new Set(PACKAGE_COMPLEMENTARY[pkg as PkgSlug] ?? []);
   const services = slugs.map(slug => ({
@@ -50,13 +54,24 @@ function computePrice(
     price: complementarySet.has(slug) ? 0 : (prices[slug]?.[tier] ?? 0),
     complimentary: complementarySet.has(slug),
   }));
-  const subtotal  = services.reduce((s, x) => s + x.price, 0);
+  let discountableSubtotal = 0;
+  let nonDiscountableSubtotal = 0;
+  services.forEach(x => {
+    if (x.slug === 'EXECUTIVE_CONNECT') {
+      nonDiscountableSubtotal += x.price;
+    } else {
+      discountableSubtotal += x.price;
+    }
+  });
+
+  const subtotal = discountableSubtotal + nonDiscountableSubtotal;
   const rate      = pricingConfig.packageDiscounts[pkg as PkgSlug] ?? 0;
   // Match server rounding: whole units for INR, cents for USD
   const discount  = cur === 'INR'
-    ? Math.round(subtotal * rate)
-    : Math.round(subtotal * rate * 100) / 100;
-  return { sym, services, subtotal, discount, total: subtotal - discount, rate };
+    ? Math.round(discountableSubtotal * rate)
+    : Math.round(discountableSubtotal * rate * 100) / 100;
+  const total = subtotal - discount;
+  return { sym, services, subtotal, discount, total, rate };
 }
 
 export default function CatalystCheckoutPage() {
@@ -104,6 +119,7 @@ function CheckoutPageInner() {
     finalPayable: number; isIndia: boolean; gateway: string;
   } | null>(null);
   const [pricingConfig, setPricingConfig] = useState<PricingConfig>(DEFAULT_PRICING);
+  const [addExecutiveConnect, setAddExecutiveConnect] = useState(false);
   const [whatsapp, setWhatsapp] = useState('');
   const [website] = useState('');
   const [startedAt] = useState(() => Date.now());
@@ -154,13 +170,18 @@ function CheckoutPageInner() {
   }, [countryCode, countryName]);
 
   const resolveServices = (): string[] => {
+    let baseServices: string[] = [];
     if (selectedPackage === 'PREMIUM_PLUS') {
-      return SELF_SERVICE_PACKAGES.PREMIUM_PLUS.services;
+      baseServices = [...SELF_SERVICE_PACKAGES.PREMIUM_PLUS.services];
+    } else if (selectedPackage === 'CAREER_BOOSTER') {
+      baseServices = [...SELF_SERVICE_PACKAGES.CAREER_BOOSTER.services];
+    } else {
+      baseServices = [...customServices];
     }
-    if (selectedPackage === 'CAREER_BOOSTER') {
-      return SELF_SERVICE_PACKAGES.CAREER_BOOSTER.services;
+    if (addExecutiveConnect && (experienceLevel === 'EXECUTIVE' || experienceLevel === 'EXECUTIVE_PLUS')) {
+      baseServices.push('EXECUTIVE_CONNECT');
     }
-    return customServices;
+    return baseServices;
   };
 
   const dispatchOtp = async () => {
@@ -669,7 +690,8 @@ function CheckoutPageInner() {
             <div className="space-y-6">
               {(() => {
                 const cur = countryCode === 'IN' ? 'INR' : 'USD';
-                const live = computePrice(selectedPackage, experienceLevel, cur, customServices, pricingConfig);
+                const currentServices = resolveServices();
+                const live = computePrice(selectedPackage, experienceLevel, cur, currentServices, pricingConfig);
                 if (live.services.length === 0) return null;
                 // International clients see their local currency as the headline; USD is the reference.
                 const showLocal = !!(localRate && countryCode !== 'IN');
@@ -677,6 +699,25 @@ function CheckoutPageInner() {
                 const priSym  = showLocal ? localRate!.symbol : live.sym;
                 const priCode = showLocal ? localRate!.code : (cur === 'INR' ? 'INR' : 'USD');
                 return (
+                  <div className="space-y-6">
+                    {(experienceLevel === 'EXECUTIVE' || experienceLevel === 'EXECUTIVE_PLUS') && (
+                      <div className="p-5 border border-brand-gold/30 bg-brand-gold/5 flex flex-col gap-3">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <h3 className="font-semibold text-brand-obsidian text-sm uppercase tracking-wider mb-1">Add Executive Connect</h3>
+                            <p className="text-xs text-brand-obsidian/70 leading-relaxed">
+                              A 45-minute 1-on-1 strategy session with our senior executive team to align your narrative before we start writing. Highly recommended for Director and C-suite roles.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setAddExecutiveConnect(!addExecutiveConnect)}
+                            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 mt-1 ${addExecutiveConnect ? 'bg-brand-gold' : 'bg-brand-obsidian/20'}`}
+                          >
+                            <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${addExecutiveConnect ? 'translate-x-5' : 'translate-x-0'}`} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   <div className="border border-brand-parchment p-6 bg-white/60">
                     <p className="text-status text-brand-gold uppercase tracking-widest font-bold mb-5 text-[10px]">Your Investment</p>
                     <div className="space-y-3 mb-5">
@@ -715,6 +756,7 @@ function CheckoutPageInner() {
                     <p className="text-[10px] text-brand-obsidian/30 mt-3">
                       One-time · includes revisions · final total incl. taxes and fees is confirmed on the next step before you pay.
                     </p>
+                  </div>
                   </div>
                 );
               })()}

@@ -195,7 +195,8 @@ export async function calculatePricing({
   const isZeroDecimal = zeroDecimalCurrencies.includes(currency);
   const roundMoney = (v: number) => (isZeroDecimal ? Math.round(v) : Math.round(v * 100) / 100);
 
-  let subtotal = 0;
+  let discountableSubtotal = 0;
+  let nonDiscountableSubtotal = 0;
   const complementarySet = new Set(PACKAGE_COMPLEMENTARY[packageSlug] ?? []);
   const serviceDetails: { slug: ServiceSlug; price: number; complimentary?: boolean }[] = [];
 
@@ -221,14 +222,20 @@ export async function calculatePricing({
       price = roundMoney(basePrice * exchangeRate);
     }
 
-    subtotal += price;
+    if (slug === 'EXECUTIVE_CONNECT') {
+      nonDiscountableSubtotal += price;
+    } else {
+      discountableSubtotal += price;
+    }
     serviceDetails.push({ slug, price, ...(isComplimentary ? { complimentary: true } : {}) });
   }
-  subtotal = roundMoney(subtotal);
+  discountableSubtotal = roundMoney(discountableSubtotal);
+  nonDiscountableSubtotal = roundMoney(nonDiscountableSubtotal);
+  const subtotal = roundMoney(discountableSubtotal + nonDiscountableSubtotal);
 
-  // Then apply package discount
+  // Then apply package discount ONLY to discountable items
   const discountRate = globalPricing.packageDiscounts[packageSlug] || 0;
-  const discountAmount = roundMoney(subtotal * discountRate);
+  const discountAmount = roundMoney(discountableSubtotal * discountRate);
   const subtotalAfterDiscount = roundMoney(subtotal - discountAmount);
 
   // For INR (Razorpay), assume 18% GST. For PayPal (Export of Services), assume 0% GST.
