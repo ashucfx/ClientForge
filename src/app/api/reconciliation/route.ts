@@ -4,9 +4,9 @@ import { prisma as db } from '@/lib/db';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { invoiceId, referenceNumber, transferDate } = body;
+    const { invoiceId, referenceNumber, transferDate, clientName, clientEmail, clientPhone } = body;
 
-    if (!invoiceId || !referenceNumber || !transferDate) {
+    if (!invoiceId || !referenceNumber || !transferDate || !clientName || !clientEmail || !clientPhone) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -30,8 +30,9 @@ export async function POST(req: NextRequest) {
     const request = await db.bankTransferRequest.create({
       data: {
         invoiceId: invoice.id,
-        clientName: invoice.clientName,
-        clientEmail: invoice.clientEmail,
+        clientName: clientName,
+        clientEmail: clientEmail,
+        clientPhone: clientPhone,
         currency: invoice.currency,
         amount: invoice.totalPayable,
         referenceNumber,

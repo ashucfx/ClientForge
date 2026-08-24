@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
+import { sendBankTransferRejectedEmail } from '@/lib/email';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -41,6 +42,8 @@ export async function POST(
       where: { id: request.id },
       data: { status: 'REJECTED' }
     });
+
+    sendBankTransferRejectedEmail(updatedReq).catch(err => console.error(err));
 
     return NextResponse.json({ ok: true, request: updatedReq });
   } catch (err: any) {

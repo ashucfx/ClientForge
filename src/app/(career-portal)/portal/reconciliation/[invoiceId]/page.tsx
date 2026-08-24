@@ -13,6 +13,9 @@ export default function ReconciliationPage() {
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  const [clientName, setClientName] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [transferDate, setTransferDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -27,7 +30,7 @@ export default function ReconciliationPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!referenceNumber.trim() || !transferDate) {
+    if (!referenceNumber.trim() || !transferDate || !clientName.trim() || !clientEmail.trim() || !clientPhone.trim()) {
       setErrorMsg('Please provide all required fields.');
       return;
     }
@@ -40,6 +43,9 @@ export default function ReconciliationPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           invoiceId,
+          clientName: clientName.trim(),
+          clientEmail: clientEmail.trim(),
+          clientPhone: clientPhone.trim(),
           referenceNumber: referenceNumber.trim(),
           transferDate,
         }),
@@ -124,6 +130,43 @@ export default function ReconciliationPage() {
               disabled
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Your Full Name</label>
+            <input 
+              type="text" 
+              value={clientName}
+              onChange={e => setClientName(e.target.value)}
+              required
+              placeholder="e.g. John Doe"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#B8935B]/50 transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Email Address</label>
+            <input 
+              type="email" 
+              value={clientEmail}
+              onChange={e => setClientEmail(e.target.value)}
+              required
+              placeholder="e.g. john@example.com"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#B8935B]/50 transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Phone Number</label>
+            <input 
+              type="tel" 
+              value={clientPhone}
+              onChange={e => setClientPhone(e.target.value)}
+              required
+              placeholder="e.g. +91 9876543210"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#B8935B]/50 transition-all"
+            />
+            <p className="text-xs text-slate-400 mt-1.5">Same as used in communication with us.</p>
           </div>
 
           <div>

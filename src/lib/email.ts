@@ -1061,3 +1061,43 @@ function buildConfirmationEmailHTML(invoice: InvoiceData): string {
 </body>
 </html>`;
 }
+export async function sendBankTransferRejectedEmail(req: any): Promise<void> {
+  const brand = getBrand('catalyst');
+  const html = buildBankTransferRejectedEmailHTML(req, brand);
+  
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: \Bearer \\ },
+    body: JSON.stringify({
+      from:    \\ <\>\,
+      to:      [req.clientEmail],
+      subject: \Action Required: Wire Transfer Verification Failed - \\,
+      html,
+    }),
+  }).catch(err => console.error('[BankTransferReject] Failed to send rejection email:', err));
+}
+
+function buildBankTransferRejectedEmailHTML(req: any, brand: any): string {
+  return \<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;line-height:1.6;color:#333;">
+  <div style="max-w-xl;margin:0 auto;padding:20px;">
+    <h2>Bank Transfer Verification Failed</h2>
+    <p>Hi \,</p>
+    <p>Our finance team was unable to verify the bank transfer you submitted.</p>
+    <div style="background-color:#f9f9f9;border:1px solid #ddd;padding:15px;margin:20px 0;">
+      <strong>Details submitted:</strong><br/>
+      Reference Number: \<br/>
+      Date: \<br/>
+      Amount: \ \
+    </div>
+    <p>This typically happens if the wire transfer was delayed, the reference number was mistyped, or the funds bounced back to your account.</p>
+    <p><strong>Next Steps:</strong></p>
+    <p>Please double-check your bank statement. If the funds were successfully debited, please submit the reconciliation request again with the correct reference number.</p>
+    <p>If you have any questions, simply reply to this email and our team will assist you.</p>
+    <br/>
+    <p>Best regards,<br/>The \ Team</p>
+  </div>
+</body>
+</html>\;
+}

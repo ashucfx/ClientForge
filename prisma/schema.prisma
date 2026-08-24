@@ -1750,11 +1750,12 @@ enum BankTransferStatus {
   REJECTED
 }
 
-model BankTransferRequest {
+  model BankTransferRequest {
   id              String             @id @default(cuid())
   invoiceId       String
   clientName      String
   clientEmail     String
+  clientPhone     String?
   currency        String
   amount          Float
   referenceNumber String
