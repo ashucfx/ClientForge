@@ -1117,17 +1117,35 @@ export default function InvoiceDetailPage() {
                 {/* 4. Financials Summary / Totals Box */}
                 <div className="mt-5 flex flex-col sm:items-end">
                   <div className="w-full sm:w-80 space-y-2 text-xs sm:text-sm bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80">
-                    <div className="flex justify-between items-center text-slate-600">
-                      <span>Subtotal</span>
-                      <span className="font-mono font-bold text-slate-800">{fmt(invoice.subtotalConverted)}</span>
-                    </div>
+                    {(() => {
+                      const hasDiscount = (invoice.discountRate ?? 0) > 0 && (invoice.discountAmount ?? 0) > 0;
+                      const grossSubtotal = hasDiscount
+                        ? (invoice.subtotalConverted - (invoice.taxAmount ?? 0)) + invoice.discountAmount
+                        : invoice.subtotalConverted;
+                      const afterDiscount = invoice.subtotalConverted - (invoice.taxAmount ?? 0);
 
-                    {(invoice.discountRate ?? 0) > 0 && (
-                      <div className="flex justify-between items-center text-emerald-700 font-medium">
-                        <span>Discount ({invoice.discountRate}%)</span>
-                        <span className="font-mono font-bold">−{fmt(invoice.discountAmount)}</span>
-                      </div>
-                    )}
+                      return (
+                        <>
+                          <div className="flex justify-between items-center text-slate-600">
+                            <span>Subtotal</span>
+                            <span className="font-mono font-bold text-slate-800">{fmt(grossSubtotal)}</span>
+                          </div>
+
+                          {hasDiscount && (
+                            <>
+                              <div className="flex justify-between items-center text-emerald-700 font-medium">
+                                <span>Discount ({invoice.discountRate}%)</span>
+                                <span className="font-mono font-bold">−{fmt(invoice.discountAmount)}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-emerald-800 font-semibold bg-emerald-50 px-2 py-1 rounded-lg">
+                                <span>After Discount</span>
+                                <span className="font-mono font-bold">{fmt(afterDiscount)}</span>
+                              </div>
+                            </>
+                          )}
+                        </>
+                      );
+                    })()}
 
                     {(invoice.taxRate ?? 0) > 0 && (
                       <div className="flex justify-between items-center text-slate-600">

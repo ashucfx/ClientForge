@@ -43,9 +43,16 @@ export function LineItemTable({
   const localFmt = (usd: number) =>
     `≈ ${localCurrencyCode} ${(usd * usdToLocalRate!).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  // When a discount applies, compute the after-discount subtotal for the summary row
+  // Compute true pre-discount gross subtotal from items (sum of qty * unitPrice)
+  // Fall back to reconstructed gross if items array is empty (legacy invoices)
+  const itemsGross = items.reduce((s, i) => s + (i.qty * i.unitPrice), 0);
+  const grossSubtotal = itemsGross > 0
+    ? itemsGross
+    : (discountAmount > 0 ? (subtotal - taxAmount + discountAmount) : subtotal);
+
+  // When a discount applies, after-discount amount is grossSubtotal - discountAmount
   const afterDiscount = discountRate > 0 && discountAmount > 0
-    ? subtotal - discountAmount
+    ? Math.max(0, Math.round((grossSubtotal - discountAmount) * 100) / 100)
     : null;
 
   return (
@@ -101,13 +108,11 @@ export function LineItemTable({
                   <Text style={{ margin: 0, fontSize: '14px', color: '#0f172a', fontWeight: 600, lineHeight: '1.4', wordBreak: 'break-word' as const }}>
                     {item.description}
                   </Text>
-                  <Text style={{ margin: '3px 0 0', fontSize: '11px', color: '#94a3b8' }}>
-                    {item.qty !== 1
-                      ? `Qty: ${item.qty} × ${fmt(item.unitPrice)}`
-                      : discountRate > 0 && !isFree
-                        ? <>{fmt(item.unitPrice)} <span style={{ textDecoration: 'line-through', opacity: 0.5 }}>full</span></>
-                        : fmt(item.unitPrice)}
-                  </Text>
+                  {item.qty > 1 && (
+                    <Text style={{ margin: '3px 0 0', fontSize: '11px', color: '#94a3b8' }}>
+                      Qty: {item.qty} × {fmt(item.unitPrice)}
+                    </Text>
+                  )}
                 </div>
               </div>
             </Column>
@@ -162,8 +167,8 @@ export function LineItemTable({
       <Row style={{ background: '#FAFAF8', padding: '8px 16px 2px', borderTop: '1px solid #EDE9DF' }}>
         <Column><Text style={summaryLabel}>Subtotal</Text></Column>
         <Column style={{ textAlign: 'right' as const }}>
-          <Text style={summaryValue}>{fmt(subtotal)}</Text>
-          {showLocal && <Text style={localNote}>{localFmt(subtotal)}</Text>}
+          <Text style={summaryValue}>{fmt(grossSubtotal)}</Text>
+          {showLocal && <Text style={localNote}>{localFmt(grossSubtotal)}</Text>}
         </Column>
       </Row>
 
