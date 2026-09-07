@@ -40,7 +40,11 @@ interface Summary {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const fmt = (n: number) => '₹' + Math.round(n).toLocaleString('en-IN');
+const fmt = (n: number) => {
+  const rounded = Math.round(n);
+  if (rounded < 0) return '−₹' + Math.abs(rounded).toLocaleString('en-IN');
+  return '₹' + rounded.toLocaleString('en-IN');
+};
 
 const fmtDate = (d: string | null) => {
   if (!d) return '—';
@@ -525,7 +529,7 @@ export default function ReconciliationPage() {
               </div>
             </div>
 
-            {/* Fee Leakage */}
+            {/* Fee Leakage / Net Surplus */}
             <div className={`relative overflow-hidden rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between border ${
               summary.totalGapInr > 0
                 ? 'bg-rose-50/40 border-rose-200/80 text-rose-950'
@@ -533,22 +537,38 @@ export default function ReconciliationPage() {
             }`}>
               <div className="flex justify-between items-start mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                  {(from || to) ? 'Period Fee Leakage' : 'All-Time Leakage'}
+                  {summary.totalGapInr < 0
+                    ? ((from || to) ? 'Period Net Surplus' : 'All-Time Net Surplus')
+                    : ((from || to) ? 'Period Fee Leakage' : 'All-Time Leakage')}
                 </span>
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                  summary.totalGapInr > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                  summary.totalGapInr > 0
+                    ? 'bg-rose-100 text-rose-700'
+                    : summary.totalGapInr < 0
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-slate-100 text-slate-600'
                 }`}>
-                  {summary.totalGapInr > 0 ? `${summary.avgGapPct ?? 0}% loss` : '0% Leakage'}
+                  {summary.totalGapInr > 0
+                    ? `${summary.avgGapPct ?? 0}% loss`
+                    : summary.totalGapInr < 0
+                    ? `+${Math.abs(summary.avgGapPct ?? 0)}% surplus`
+                    : '0% Leakage'}
                 </span>
               </div>
               <div>
                 <div className={`text-2xl sm:text-3xl font-extrabold tracking-tight mb-1 ${
                   summary.totalGapInr > 0 ? 'text-rose-600' : 'text-emerald-600'
                 }`}>
-                  {fmt(summary.totalGapInr)}
+                  {summary.totalGapInr < 0
+                    ? `+${fmt(Math.abs(summary.totalGapInr))}`
+                    : summary.totalGapInr > 0
+                    ? `−${fmt(summary.totalGapInr)}`
+                    : '₹0'}
                 </div>
                 <div className="text-xs text-slate-500">
-                  {(from || to) && summary.allTimeTotalGapInr !== undefined
+                  {summary.totalGapInr < 0
+                    ? 'Surplus: Bank settled exceeded expected net'
+                    : (from || to) && summary.allTimeTotalGapInr !== undefined
                     ? `All-Time Gap: ${fmt(summary.allTimeTotalGapInr)}`
                     : 'Target: ₹0 gateway fee loss'}
                 </div>
@@ -614,8 +634,18 @@ export default function ReconciliationPage() {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <span className="font-bold text-slate-900 text-sm uppercase tracking-wide">{gw.gateway}</span>
-                    <span className="text-xs bg-[#B8935B]/15 text-[#9A7540] px-2.5 py-0.5 rounded-full font-bold">
-                      {gw.effectiveFeeRate}% fee
+                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
+                      gw.gapInr > 0
+                        ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                        : gw.gapInr < 0
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-slate-100 text-slate-700'
+                    }`}>
+                      {gw.gapInr > 0
+                        ? `${gw.effectiveFeeRate}% fee`
+                        : gw.gapInr < 0
+                        ? `+${Math.abs(gw.effectiveFeeRate)}% surplus`
+                        : '0% fee (exact)'}
                     </span>
                   </div>
                   <div className="text-xs space-y-2 text-slate-600 font-medium">
@@ -628,17 +658,23 @@ export default function ReconciliationPage() {
                       <span className="text-emerald-600 font-bold">{fmt(gw.settledInr)}</span>
                     </div>
                     <div className="flex justify-between items-center pt-2 border-t border-slate-200">
-                      <span className="text-slate-400">Fee gap / loss</span>
+                      <span className="text-slate-400">
+                        {gw.gapInr < 0 ? 'Fee surplus / gain' : 'Fee gap / loss'}
+                      </span>
                       <span className={`font-bold ${gw.gapInr > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                        {fmt(gw.gapInr)}
+                        {gw.gapInr < 0
+                          ? `+${fmt(Math.abs(gw.gapInr))}`
+                          : gw.gapInr > 0
+                          ? `−${fmt(gw.gapInr)}`
+                          : '₹0 (exact)'}
                       </span>
                     </div>
                   </div>
                   {/* Progress bar */}
                   <div className="mt-3.5 h-1.5 bg-slate-200 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-[#B8935B] rounded-full"
-                      style={{ width: `${Math.min(gw.effectiveFeeRate * 15, 100)}%` }}
+                      className={`h-full rounded-full ${gw.gapInr < 0 ? 'bg-emerald-500' : 'bg-[#B8935B]'}`}
+                      style={{ width: `${Math.max(0, Math.min(Math.abs(gw.effectiveFeeRate) * 15, 100))}%` }}
                     />
                   </div>
                 </div>
@@ -859,7 +895,7 @@ export default function ReconciliationPage() {
                         <td className="px-4 py-3.5 text-right font-bold whitespace-nowrap">
                           {row.gapInr !== null ? (
                             <span className={row.gapInr > 0 ? 'text-rose-600' : 'text-emerald-600'}>
-                              {row.gapInr > 0 ? '-' : '+'}{fmt(Math.abs(row.gapInr))}
+                              {row.gapInr > 0 ? '−' : '+'}{fmt(Math.abs(row.gapInr))}
                             </span>
                           ) : (
                             <span className="text-slate-300">—</span>
@@ -874,7 +910,7 @@ export default function ReconciliationPage() {
                                 ? 'bg-amber-50 text-amber-700 border border-amber-200'
                                 : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                             }`}>
-                              {row.gapPct}%
+                              {row.gapPct > 0 ? `${row.gapPct}%` : `+${Math.abs(row.gapPct)}%`}
                             </span>
                           ) : (
                             <span className="text-slate-300 text-xs">—</span>
@@ -923,12 +959,20 @@ export default function ReconciliationPage() {
                       <div className={`p-2.5 rounded-xl border ${
                         row.gapInr !== null && row.gapInr > 0
                           ? 'bg-rose-50 border-rose-100 text-rose-700'
+                          : row.gapInr !== null && row.gapInr < 0
+                          ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
                           : 'bg-slate-50 border-slate-100 text-slate-700'
                       }`}>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase block">Fee Gap</span>
+                        <span className={`text-[10px] font-bold uppercase block ${
+                          row.gapInr !== null && row.gapInr < 0 ? 'text-emerald-600' : 'text-slate-400'
+                        }`}>
+                          {row.gapInr !== null && row.gapInr < 0 ? 'Fee Surplus' : 'Fee Gap'}
+                        </span>
                         <span className="font-bold mt-0.5 block">
-                          {row.gapInr !== null ? fmt(Math.abs(row.gapInr)) : '—'}
-                          {row.gapPct !== null ? ` (${row.gapPct}%)` : ''}
+                          {row.gapInr !== null
+                            ? `${row.gapInr < 0 ? '+' : row.gapInr > 0 ? '−' : ''}${fmt(Math.abs(row.gapInr))}`
+                            : '—'}
+                          {row.gapPct !== null ? ` (${row.gapPct > 0 ? `${row.gapPct}%` : `+${Math.abs(row.gapPct)}%`})` : ''}
                         </span>
                       </div>
                     </div>
