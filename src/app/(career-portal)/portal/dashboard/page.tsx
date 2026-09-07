@@ -1034,6 +1034,8 @@ export default function PortalDashboardPage() {
                     </div>
                   );
                 })}
+                {/* ── What counts as a revision? ── */}
+                <RevisionPolicyToggle />
               </div>
             ) : (
               <div>
@@ -1044,6 +1046,8 @@ export default function PortalDashboardPage() {
                 <div className="h-1.5 bg-[#F0EAE0] rounded-full overflow-hidden">
                   <div className="h-full bg-[#B8935B] rounded-full" style={{ width: `${((2 - (me.revisionsLeft ?? 2)) / 2) * 100}%` }} />
                 </div>
+                {/* ── What counts as a revision? ── */}
+                <RevisionPolicyToggle />
               </div>
             )}
           </div>
@@ -1680,6 +1684,45 @@ export default function PortalDashboardPage() {
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Revision Policy Toggle (used inside the Free Revisions card) ───────────────
+function RevisionPolicyToggle() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-3 pt-2.5 border-t border-[#F0EAE0]">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-400 hover:text-[#B8935B] transition-colors w-full text-left"
+      >
+        <svg
+          width="10" height="10" fill="none" viewBox="0 0 24 24"
+          className={`transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`}
+        >
+          <path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M19 9l-7 7-7-7"/>
+        </svg>
+        What counts as a revision?
+      </button>
+      {open && (
+        <div className="mt-2 rounded-lg border border-slate-100 bg-slate-50 overflow-hidden text-[10px]">
+          <div className="px-2.5 py-2 grid grid-cols-1 gap-y-1.5">
+            <div>
+              <p className="font-bold text-emerald-600 mb-0.5">✓ Included (Free)</p>
+              <p className="text-slate-500 leading-relaxed">Factual corrections, wording &amp; tone, keyword updates, minor layout tweaks</p>
+            </div>
+            <div>
+              <p className="font-bold text-red-500 mb-0.5">✗ Not Included (Chargeable)</p>
+              <p className="text-slate-500 leading-relaxed">Full rewrites, new sections, adding roles/projects not in your brief, design changes</p>
+            </div>
+          </div>
+          <div className="px-2.5 py-1.5 bg-amber-50 border-t border-amber-100">
+            <p className="text-amber-700 leading-relaxed">Admin reviews every request before work begins. Out-of-scope = chargeable.</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function fmtBytes(b: number) {

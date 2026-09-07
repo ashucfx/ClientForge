@@ -556,6 +556,45 @@ function RevisionModal({
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{error}</p>}
 
+              {/* ── Revision Policy Box ─────────────────────────── */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden text-xs">
+                <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 border-b border-slate-200">
+                  <svg width="13" height="13" fill="none" viewBox="0 0 24 24" className="text-slate-500 flex-shrink-0">
+                    <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  <span className="font-bold text-slate-600 uppercase tracking-[0.12em]">Revision Policy</span>
+                </div>
+                <div className="px-3 py-2.5 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+                  <div>
+                    <p className="font-bold text-emerald-700 mb-1">✓ Included (Free)</p>
+                    <ul className="space-y-0.5 text-slate-600">
+                      <li>Factual corrections — titles, dates, companies</li>
+                      <li>Wording &amp; tone adjustments</li>
+                      <li>Keyword / skills updates</li>
+                      <li>Minor layout &amp; spacing tweaks</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="font-bold text-red-600 mb-1">✗ Not Included (Chargeable)</p>
+                    <ul className="space-y-0.5 text-slate-600">
+                      <li>Full rewrites or entirely new sections</li>
+                      <li>Adding roles / projects not in your brief</li>
+                      <li>Strategic profile repositioning</li>
+                      <li>Design or template changes</li>
+                    </ul>
+                  </div>
+                </div>
+                <div className="px-3 py-2 bg-amber-50 border-t border-amber-100 flex items-start gap-1.5">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" className="text-amber-600 flex-shrink-0 mt-0.5">
+                    <path stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                  </svg>
+                  <p className="text-amber-800 leading-relaxed">
+                    <strong>Our team reviews every request before work begins.</strong> Out-of-scope requests will be discussed with you first — additional charges may apply.
+                  </p>
+                </div>
+              </div>
+              {/* ─────────────────────────────────────────────────── */}
+
               {/* Area selection — shown for known services */}
               {areas.length > 0 && (
                 <div>
