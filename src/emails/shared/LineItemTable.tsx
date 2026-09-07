@@ -43,6 +43,11 @@ export function LineItemTable({
   const localFmt = (usd: number) =>
     `≈ ${localCurrencyCode} ${(usd * usdToLocalRate!).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+  // When a discount applies, compute the after-discount subtotal for the summary row
+  const afterDiscount = discountRate > 0 && discountAmount > 0
+    ? subtotal - discountAmount
+    : null;
+
   return (
     <Section style={{ margin: '20px 0 0', borderRadius: '10px', border: '1px solid #EDE9DF', overflow: 'hidden' }}>
       {/* Header row */}
@@ -51,7 +56,7 @@ export function LineItemTable({
           <Text style={headerCell}>Services</Text>
         </Column>
         <Column style={{ textAlign: 'right' as const }}>
-          <Text style={headerCell}>Amount</Text>
+          <Text style={headerCell}>{discountRate > 0 ? 'Amount (Discounted)' : 'Amount'}</Text>
         </Column>
       </Row>
 
@@ -60,6 +65,10 @@ export function LineItemTable({
         const lt = item.qty * item.unitPrice;
         const isFree = lt === 0;
         const isLast = idx === items.length - 1;
+        // When discount applies, show the discounted amount as primary
+        const discountedLt = discountRate > 0 && !isFree
+          ? Math.round(lt * (1 - discountRate / 100) * 100) / 100
+          : lt;
 
         return (
           <Row
@@ -94,13 +103,15 @@ export function LineItemTable({
                   </Text>
                   <Text style={{ margin: '3px 0 0', fontSize: '11px', color: '#94a3b8' }}>
                     {item.qty !== 1
-                      ? `Qty: ${item.qty} × ${fmt(item.unitPrice)} = ${fmt(lt)}`
-                      : fmt(item.unitPrice)}
+                      ? `Qty: ${item.qty} × ${fmt(item.unitPrice)}`
+                      : discountRate > 0 && !isFree
+                        ? <>{fmt(item.unitPrice)} <span style={{ textDecoration: 'line-through', opacity: 0.5 }}>full</span></>
+                        : fmt(item.unitPrice)}
                   </Text>
                 </div>
               </div>
             </Column>
-            <Column className="li-amount" style={{ textAlign: 'right' as const, verticalAlign: 'top' as const, width: '110px' }}>
+            <Column className="li-amount" style={{ textAlign: 'right' as const, verticalAlign: 'top' as const, width: '130px' }}>
               {isFree ? (
                 <span style={{
                   fontSize: '11px',
@@ -114,6 +125,22 @@ export function LineItemTable({
                 }}>
                   FREE
                 </span>
+              ) : discountRate > 0 ? (
+                <>
+                  {/* Discounted price — primary */}
+                  <Text style={{ margin: 0, fontSize: '15px', color: '#0f172a', fontWeight: 700, whiteSpace: 'nowrap' as const }}>
+                    {fmt(discountedLt)}
+                  </Text>
+                  {/* Original full price — muted reference */}
+                  <Text style={{ margin: '2px 0 0', fontSize: '10px', color: '#94a3b8', whiteSpace: 'nowrap' as const, textDecoration: 'line-through' }}>
+                    {fmt(lt)}
+                  </Text>
+                  {showLocal && (
+                    <Text style={{ margin: '1px 0 0', fontSize: '10px', color: '#94a3b8', whiteSpace: 'nowrap' as const }}>
+                      {localFmt(discountedLt)}
+                    </Text>
+                  )}
+                </>
               ) : (
                 <>
                   <Text style={{ margin: 0, fontSize: '15px', color: '#0f172a', fontWeight: 700, whiteSpace: 'nowrap' as const }}>
@@ -146,6 +173,19 @@ export function LineItemTable({
           <Column style={{ textAlign: 'right' as const }}>
             <Text style={{ ...summaryValue, color: '#16a34a' }}>−{fmt(discountAmount)}</Text>
             {showLocal && <Text style={localNote}>{localFmt(discountAmount)}</Text>}
+          </Column>
+        </Row>
+      )}
+
+      {/* After Discount sub-total — only shown when a discount is active */}
+      {afterDiscount !== null && (
+        <Row style={{ background: '#F0FAF4', padding: '4px 16px', borderTop: '1px solid #dcfce7', borderBottom: '1px solid #dcfce7' }}>
+          <Column>
+            <Text style={{ ...summaryLabel, color: '#15803d', fontWeight: 600 }}>After Discount</Text>
+          </Column>
+          <Column style={{ textAlign: 'right' as const }}>
+            <Text style={{ ...summaryValue, color: '#15803d', fontWeight: 700 }}>{fmt(afterDiscount)}</Text>
+            {showLocal && <Text style={localNote}>{localFmt(afterDiscount)}</Text>}
           </Column>
         </Row>
       )}

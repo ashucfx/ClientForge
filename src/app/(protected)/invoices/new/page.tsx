@@ -330,19 +330,39 @@ function InvoicePreview({
       <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, marginBottom: 2, borderBottom: '1px solid var(--border)' }}>
           <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: 1, color: 'var(--muted)' }}>Service</span>
-          <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: 1, color: 'var(--muted)' }}>Amount ({code})</span>
+          <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: 1, color: 'var(--muted)' }}>
+            {discountRate > 0 ? `Amount (${code} · Discounted)` : `Amount (${code})`}
+          </span>
         </div>
         {lineItems.map((item, i) => {
           const lt = round2(item.qty * item.unitPrice);
           const isFree = lt === 0;
+          const discountedLt = discountRate > 0 && !isFree
+            ? round2(lt * (1 - discountRate / 100))
+            : lt;
           return (
             <div key={item.id || i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '6px 0', borderBottom: i < lineItems.length - 1 ? '1px solid #f1f5f9' : 'none', gap: 8 }}>
               <span style={{ fontSize: 12, color: 'var(--text)', flex: 1, lineHeight: 1.4, wordBreak: 'break-word' as const }}>
                 {item.description || <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>No description</span>}
                 {item.qty !== 1 && <span style={{ fontSize: 10, color: 'var(--muted)', display: 'block' }}>× {item.qty}</span>}
               </span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: isFree ? '#16a34a' : 'var(--text)', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
-                {isFree ? 'FREE' : fmt(lt, sym)}
+              <span style={{ textAlign: 'right' as const, flexShrink: 0 }}>
+                {isFree ? (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>FREE</span>
+                ) : discountRate > 0 ? (
+                  <>
+                    <span style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' as const }}>
+                      {fmt(discountedLt, sym)}
+                    </span>
+                    <span style={{ display: 'block', fontSize: 10, color: 'var(--muted)', textDecoration: 'line-through', whiteSpace: 'nowrap' as const }}>
+                      {fmt(lt, sym)}
+                    </span>
+                  </>
+                ) : (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' as const }}>
+                    {fmt(lt, sym)}
+                  </span>
+                )}
               </span>
             </div>
           );
@@ -358,6 +378,11 @@ function InvoicePreview({
           {discountRate > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#16a34a' }}>
               <span>Discount ({discountRate}%)</span><span>−{fmt(discountAmount, sym)}</span>
+            </div>
+          )}
+          {discountRate > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, color: '#15803d', padding: '3px 6px', background: '#f0fdf4', borderRadius: 6 }}>
+              <span>After Discount</span><span>{fmt(afterDiscount, sym)}</span>
             </div>
           )}
           {taxRate > 0 && (
