@@ -65,8 +65,9 @@ export function RevisionEmail({ name, packageLabel, portalUrl, status }: Revisio
         ) : (
           <>
             Thank you for submitting your revision request for your{' '}
-            <strong style={{ color: '#0f172a' }}>{label}</strong>. Our team has reviewed
-            it and will follow up with you through the portal shortly.
+            <strong style={{ color: '#0f172a' }}>{label}</strong>. After reviewing your
+            request, our team has determined that it falls <strong style={{ color: '#0f172a' }}>outside the scope</strong> of
+            the two free revisions included with your package.
           </>
         )}
       </EmailBody>
@@ -103,6 +104,47 @@ export function RevisionEmail({ name, packageLabel, portalUrl, status }: Revisio
               </Row>
             ))}
           </Section>
+        </>
+      )}
+
+      {!isApproved && (
+        <>
+          {/* What's included — scope reference */}
+          <Section
+            style={{
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '10px',
+              padding: '16px 20px',
+              margin: '8px 0 16px',
+            }}
+          >
+            <Text style={{ margin: '0 0 10px', fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+              Free revisions include:
+            </Text>
+            {[
+              '✓  Factual corrections — job titles, dates, companies, qualifications',
+              '✓  Wording & tone adjustments — phrasing, clarity, conciseness',
+              '✓  Keyword / skills updates — adding or removing specific terms',
+              '✓  Minor layout tweaks — bullet structure, spacing',
+            ].map((item, i) => (
+              <Row key={i} style={{ marginBottom: '6px' }}>
+                <Column style={{ verticalAlign: 'top' }}>
+                  <Text style={{ margin: 0, fontSize: '13px', color: '#475569', lineHeight: '1.5' }}>{item}</Text>
+                </Column>
+              </Row>
+            ))}
+            <Text style={{ margin: '10px 0 0', fontSize: '12px', color: '#94a3b8', borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
+              Full rewrites, new sections, adding roles or projects not in your original brief, or design changes fall outside the included scope.
+            </Text>
+          </Section>
+
+          {/* Paid add-on option */}
+          <InfoBox color="#B8935B">
+            If you&apos;d still like these changes, our team will be happy to arrange them as a{' '}
+            <strong style={{ color: '#0f172a' }}>paid add-on</strong>. We will reach out
+            through your portal with pricing and next steps. You can also message us directly from your portal.
+          </InfoBox>
         </>
       )}
 
