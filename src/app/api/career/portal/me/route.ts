@@ -177,27 +177,82 @@ export async function GET(req: NextRequest) {
     r => r.chargeStatus === 'FREE' && (!r.serviceSlug || r.serviceSlug === 'GENERAL' || !serviceSlugs.has(r.serviceSlug))
   ).length;
 
+  // ── Legacy packageType → synthetic service component list ────────────────────
+  // Used when client has no services linked (old clients stored with packageType only).
+  // Each component gets its own 0/2 bar. GENERAL bucket revisions are attributed
+  // to the first component only (consistent with existing multi-service logic below).
+  const LEGACY_PACKAGE_COMPONENTS: Record<string, { slug: string; name: string }[]> = {
+    RESUME:        [{ slug: 'RESUME',       name: 'Resume Writing' }],
+    LINKEDIN:      [{ slug: 'LINKEDIN',     name: 'LinkedIn Optimisation' }],
+    COVER_LETTER:  [{ slug: 'COVER_LETTER', name: 'Cover Letter' }],
+    // Career Booster: Resume + Cover Letter + LinkedIn
+    FULL:          [
+      { slug: 'RESUME',       name: 'Resume Writing' },
+      { slug: 'COVER_LETTER', name: 'Cover Letter' },
+      { slug: 'LINKEDIN',     name: 'LinkedIn Optimisation' },
+    ],
+    // Executive Package: Resume + LinkedIn (no cover letter)
+    EXECUTIVE:     [
+      { slug: 'RESUME',       name: 'Resume Writing' },
+      { slug: 'LINKEDIN',     name: 'LinkedIn Optimisation' },
+    ],
+    // Executive Plus = Premium Plus legacy: Resume + Cover Letter + LinkedIn + Portfolio
+    EXECUTIVE_PLUS: [
+      { slug: 'RESUME',       name: 'Resume Writing' },
+      { slug: 'COVER_LETTER', name: 'Cover Letter' },
+      { slug: 'LINKEDIN',     name: 'LinkedIn Optimisation' },
+      { slug: 'PORTFOLIO',    name: 'Portfolio Website' },
+    ],
+  };
+
   // Calculate usage per service — GENERAL revisions count toward the primary service
   // for single-service clients (prevents showing 2/2 when 1 GENERAL revision exists)
-  const revisionSummary = client.services.map((s, idx) => {
-    const slug = s.service.slug;
-    const slugFreeUsed = revisionsList.filter(r => r.serviceSlug === slug && r.chargeStatus === 'FREE').length;
-    // Attribute GENERAL revisions to primary (first) service for single-service clients
-    const freeUsed = isSingleService
-      ? slugFreeUsed + generalFreeUsed
-      : (idx === 0 ? slugFreeUsed + generalFreeUsed : slugFreeUsed);
-    const paidUsed = revisionsList.filter(r => r.serviceSlug === slug && r.chargeStatus !== 'FREE').length;
-    return {
-      slug,
-      name: SERVICE_LABELS[slug as CareerServiceSlug] ?? s.service.name,
-      freeLimit: FREE_LIMIT,
-      freeUsed,
-      revisionsLeft: Math.max(0, FREE_LIMIT - freeUsed),
-      paidUsed,
-    };
-  });
+  let revisionSummary: {
+    slug: string; name: string; freeLimit: number;
+    freeUsed: number; revisionsLeft: number; paidUsed: number;
+  }[];
 
-  // Global fallback (for clients with no services linked yet)
+  if (client.services.length > 0) {
+    // Modern path: services are linked — use actual service records
+    revisionSummary = client.services.map((s, idx) => {
+      const slug = s.service.slug;
+      const slugFreeUsed = revisionsList.filter(r => r.serviceSlug === slug && r.chargeStatus === 'FREE').length;
+      const freeUsed = isSingleService
+        ? slugFreeUsed + generalFreeUsed
+        : (idx === 0 ? slugFreeUsed + generalFreeUsed : slugFreeUsed);
+      const paidUsed = revisionsList.filter(r => r.serviceSlug === slug && r.chargeStatus !== 'FREE').length;
+      return {
+        slug,
+        name: SERVICE_LABELS[slug as CareerServiceSlug] ?? s.service.name,
+        freeLimit: FREE_LIMIT,
+        freeUsed,
+        revisionsLeft: Math.max(0, FREE_LIMIT - freeUsed),
+        paidUsed,
+      };
+    });
+  } else if (pkg && LEGACY_PACKAGE_COMPONENTS[pkg]) {
+    // Legacy path: no services linked — derive components from packageType
+    // All existing revisions are GENERAL bucket; attribute to first component only.
+    const components = LEGACY_PACKAGE_COMPONENTS[pkg];
+    revisionSummary = components.map((comp, idx) => {
+      const freeUsed = idx === 0 ? generalFreeUsed : 0;
+      const paidUsed = idx === 0
+        ? revisionsList.filter(r => r.chargeStatus !== 'FREE').length
+        : 0;
+      return {
+        slug: comp.slug,
+        name: comp.name,
+        freeLimit: FREE_LIMIT,
+        freeUsed,
+        revisionsLeft: Math.max(0, FREE_LIMIT - freeUsed),
+        paidUsed,
+      };
+    });
+  } else {
+    revisionSummary = [];
+  }
+
+  // Global fallback counters (used by legacy single-counter UI path)
   const globalFreeUsed = revisionsList.filter(r => r.chargeStatus === 'FREE').length;
   const revisionsLeft = Math.max(0, FREE_LIMIT - globalFreeUsed);
   const revisionCount = revisionsList.length;
