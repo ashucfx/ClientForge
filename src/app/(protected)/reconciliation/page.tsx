@@ -782,7 +782,10 @@ export default function ReconciliationPage() {
 
             <div className="flex items-center gap-2 w-full md:w-auto">
               <input
-                type="month"
+                type={monthVal ? "month" : "text"}
+                onFocus={(e) => (e.target.type = "month")}
+                onBlur={(e) => { if (!e.target.value) e.target.type = "text"; }}
+                placeholder="Select Month"
                 value={monthVal}
                 onChange={e => {
                   const val = e.target.value;
@@ -793,23 +796,29 @@ export default function ReconciliationPage() {
                   setFrom(new Date(parseInt(y), parseInt(m) - 1, 1).toISOString().slice(0, 10));
                   setTo(new Date(parseInt(y), parseInt(m), 0).toISOString().slice(0, 10));
                 }}
-                className="px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#B8935B] transition-all shrink-0"
+                className="px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#B8935B] transition-all shrink-0 w-32"
                 title="Select Specific Month"
               />
               <div className="flex items-center gap-1 shrink-0">
                 <input
-                  type="date"
+                  type={from ? "date" : "text"}
+                  onFocus={(e) => (e.target.type = "date")}
+                  onBlur={(e) => { if (!e.target.value) e.target.type = "text"; }}
+                  placeholder="Start Date"
                   value={from}
                   onChange={e => { setFrom(e.target.value); setActivePreset('custom'); }}
-                  className="px-2.5 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#B8935B]"
+                  className="px-2.5 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#B8935B] w-28"
                   title="Start Date"
                 />
                 <span className="text-slate-400 text-xs">–</span>
                 <input
-                  type="date"
+                  type={to ? "date" : "text"}
+                  onFocus={(e) => (e.target.type = "date")}
+                  onBlur={(e) => { if (!e.target.value) e.target.type = "text"; }}
+                  placeholder="End Date"
                   value={to}
                   onChange={e => { setTo(e.target.value); setActivePreset('custom'); }}
-                  className="px-2.5 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#B8935B]"
+                  className="px-2.5 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#B8935B] w-28"
                   title="End Date"
                 />
               </div>
