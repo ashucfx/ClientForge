@@ -40,6 +40,11 @@ interface Summary {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+const toLocalISOString = (d: Date) => {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
 const fmt = (n: number) => {
   const rounded = Math.round(n);
   if (rounded < 0) return '−₹' + Math.abs(rounded).toLocaleString('en-IN');
@@ -296,9 +301,9 @@ export default function ReconciliationPage() {
   
   // Date states initialized to current month
   const now = useMemo(() => new Date(), []);
-  const currentMonthStart = useMemo(() => new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10), [now]);
-  const currentMonthEnd = useMemo(() => new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10), [now]);
-  const currentMonthVal = useMemo(() => now.toISOString().slice(0, 7), [now]);
+  const currentMonthStart = useMemo(() => toLocalISOString(new Date(now.getFullYear(), now.getMonth(), 1)), [now]);
+  const currentMonthEnd = useMemo(() => toLocalISOString(new Date(now.getFullYear(), now.getMonth() + 1, 0)), [now]);
+  const currentMonthVal = useMemo(() => toLocalISOString(now).slice(0, 7), [now]);
 
   const [from, setFrom] = useState(currentMonthStart);
   const [to, setTo] = useState(currentMonthEnd);
@@ -335,27 +340,27 @@ export default function ReconciliationPage() {
     setActivePreset(preset);
     const n = new Date();
     if (preset === 'this_month') {
-      const start = new Date(n.getFullYear(), n.getMonth(), 1).toISOString().slice(0, 10);
-      const end = new Date(n.getFullYear(), n.getMonth() + 1, 0).toISOString().slice(0, 10);
+      const start = toLocalISOString(new Date(n.getFullYear(), n.getMonth(), 1));
+      const end = toLocalISOString(new Date(n.getFullYear(), n.getMonth() + 1, 0));
       setFrom(start);
       setTo(end);
-      setMonthVal(n.toISOString().slice(0, 7));
+      setMonthVal(toLocalISOString(n).slice(0, 7));
     } else if (preset === 'last_month') {
       const prevMonth = new Date(n.getFullYear(), n.getMonth() - 1, 1);
-      const start = prevMonth.toISOString().slice(0, 10);
-      const end = new Date(n.getFullYear(), n.getMonth(), 0).toISOString().slice(0, 10);
+      const start = toLocalISOString(prevMonth);
+      const end = toLocalISOString(new Date(n.getFullYear(), n.getMonth(), 0));
       setFrom(start);
       setTo(end);
-      setMonthVal(prevMonth.toISOString().slice(0, 7));
+      setMonthVal(toLocalISOString(prevMonth).slice(0, 7));
     } else if (preset === '90d') {
-      const past = new Date(n.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      const today = n.toISOString().slice(0, 10);
+      const past = toLocalISOString(new Date(n.getTime() - 90 * 24 * 60 * 60 * 1000));
+      const today = toLocalISOString(n);
       setFrom(past);
       setTo(today);
       setMonthVal('');
     } else if (preset === 'ytd') {
-      const start = new Date(n.getFullYear(), 0, 1).toISOString().slice(0, 10);
-      const today = n.toISOString().slice(0, 10);
+      const start = toLocalISOString(new Date(n.getFullYear(), 0, 1));
+      const today = toLocalISOString(n);
       setFrom(start);
       setTo(today);
       setMonthVal('');
@@ -793,8 +798,8 @@ export default function ReconciliationPage() {
                   setActivePreset('custom');
                   if (!val) { setFrom(''); setTo(''); return; }
                   const [y, m] = val.split('-');
-                  setFrom(new Date(parseInt(y), parseInt(m) - 1, 1).toISOString().slice(0, 10));
-                  setTo(new Date(parseInt(y), parseInt(m), 0).toISOString().slice(0, 10));
+                  setFrom(toLocalISOString(new Date(parseInt(y), parseInt(m) - 1, 1)));
+                  setTo(toLocalISOString(new Date(parseInt(y), parseInt(m), 0)));
                 }}
                 className="px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#B8935B] transition-all shrink-0 w-32"
                 title="Select Specific Month"
