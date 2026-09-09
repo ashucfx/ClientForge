@@ -801,7 +801,7 @@ export default function ReconciliationPage() {
                   setFrom(toLocalISOString(new Date(parseInt(y), parseInt(m) - 1, 1)));
                   setTo(toLocalISOString(new Date(parseInt(y), parseInt(m), 0)));
                 }}
-                className="px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#B8935B] transition-all shrink-0 w-full sm:w-[150px]"
+                className="px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#B8935B] transition-all shrink-0 w-full sm:w-44"
                 title="Select Specific Month"
               />
               <div className="flex items-center gap-1 shrink-0 w-full sm:w-auto">
@@ -812,7 +812,7 @@ export default function ReconciliationPage() {
                   placeholder="Start Date"
                   value={from}
                   onChange={e => { setFrom(e.target.value); setActivePreset('custom'); }}
-                  className="px-2.5 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#B8935B] w-full sm:w-[130px]"
+                  className="px-2.5 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#B8935B] w-full sm:w-36"
                   title="Start Date"
                 />
                 <span className="text-slate-400 text-xs shrink-0">–</span>
@@ -823,7 +823,7 @@ export default function ReconciliationPage() {
                   placeholder="End Date"
                   value={to}
                   onChange={e => { setTo(e.target.value); setActivePreset('custom'); }}
-                  className="px-2.5 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#B8935B] w-full sm:w-[130px]"
+                  className="px-2.5 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#B8935B] w-full sm:w-36"
                   title="End Date"
                 />
               </div>
