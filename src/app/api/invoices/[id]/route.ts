@@ -5,6 +5,7 @@ import { cancelRazorpayPaymentLink, createRazorpayPaymentLink } from '@/lib/razo
 import { cancelPaypalInvoice, createPaypalInvoice } from '@/lib/paypal';
 import { calculatePricing, round2 } from '@/lib/pricing';
 import type { LineItem, Installment } from '@/types';
+import { createHmac } from 'crypto';
 import { getAdminSession } from '@/lib/auth';
 
 export const runtime = 'nodejs';
@@ -177,10 +178,10 @@ export async function PATCH(
 }
 
 // ─────────────────────────────────────────────
-// DELETE — cancel Razorpay link then remove invoice
+// DELETE — cancel payment link then remove invoice with mandatory OTP & compliance check
 // ─────────────────────────────────────────────
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -192,6 +193,48 @@ export async function DELETE(
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     if (session.role !== 'SUPER_ADMIN' && !session.brandAccess.includes(invoice.brandId)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Strict compliance: Paid and partially paid invoices CANNOT be deleted
+    if (invoice.status === 'PAID' || invoice.status === 'PARTIALLY_PAID') {
+      return NextResponse.json(
+        { error: 'Paid or partially paid invoices cannot be deleted for tax and audit compliance. Please mark as void or cancelled instead.' },
+        { status: 400 }
+      );
+    }
+
+    // Verify mandatory 6-digit OTP
+    const body = await request.json().catch(() => ({}));
+    const { otpCode, otpToken } = body as { otpCode?: string; otpToken?: string };
+
+    if (!otpCode || !otpToken) {
+      return NextResponse.json(
+        { error: 'Mandatory 6-digit verification code required to authorize deletion.' },
+        { status: 400 }
+      );
+    }
+
+    let tokenData: { invoiceId: string; exp: number; sig: string };
+    try {
+      tokenData = JSON.parse(Buffer.from(otpToken, 'base64').toString('utf-8'));
+    } catch {
+      return NextResponse.json({ error: 'Invalid verification token payload' }, { status: 400 });
+    }
+
+    if (tokenData.invoiceId !== invoice.id || Date.now() > tokenData.exp) {
+      return NextResponse.json(
+        { error: 'Verification code has expired. Please request a new code.' },
+        { status: 400 }
+      );
+    }
+
+    const secret = process.env.ADMIN_SESSION_SECRET || process.env.CAREER_PORTAL_SECRET || 'catalyst-otp-secret';
+    const expectedSig = createHmac('sha256', secret)
+      .update(`${invoice.id}:${otpCode.trim()}:${tokenData.exp}`)
+      .digest('hex');
+
+    if (expectedSig !== tokenData.sig) {
+      return NextResponse.json({ error: 'Incorrect 6-digit verification code' }, { status: 400 });
     }
 
     // Cancel the active payment link(s) (best-effort) before deletion
@@ -215,6 +258,25 @@ export async function DELETE(
         }
       }
     }
+
+    // Log deletion event to immutable AuditLog
+    await prisma.auditLog.create({
+      data: {
+        tenantId: 'catalyst',
+        adminId: session.adminId,
+        action: 'INVOICE_DELETED',
+        entity: 'Invoice',
+        entityId: invoice.id,
+        changes: {
+          invoiceNumber: invoice.invoiceNumber,
+          clientName: invoice.clientName,
+          clientEmail: invoice.clientEmail,
+          totalPayable: invoice.totalPayable,
+          currency: invoice.currency,
+          deletedAt: new Date().toISOString(),
+        },
+      },
+    }).catch(e => console.error('AuditLog insert error:', e));
 
     await prisma.invoice.delete({ where: { id: params.id } });
 
