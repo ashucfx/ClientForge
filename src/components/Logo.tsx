@@ -5,9 +5,10 @@ interface LogoProps {
   size?: number;   // height of the mark in px
   dark?: boolean;  // true = for dark backgrounds (bone stroke, obsidian dot)
   brandId?: BrandId; // Defaults to catalyst
+  showSubtitle?: boolean;
 }
 
-export function Logo({ variant = 'horizontal', size = 40, dark = false }: LogoProps) {
+export function Logo({ variant = 'horizontal', size = 40, dark = false, showSubtitle = true }: LogoProps) {
   // CATALYST Logo
   const strokeFill = dark ? '#F4F1EB' : '#0A0B0D';
   const dotFill    = dark ? '#0A0B0D' : '#F4F1EB';
@@ -22,6 +23,7 @@ export function Logo({ variant = 'horizontal', size = 40, dark = false }: LogoPr
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
+      style={{ flexShrink: 0 }}
     >
       <polygon points="0,240 44,240 192,0 148,0" fill={strokeFill} />
       <polygon points="192,0 148,0 100,76 144,76" fill="#B8935B" />
@@ -35,23 +37,43 @@ export function Logo({ variant = 'horizontal', size = 40, dark = false }: LogoPr
 
   return (
     <div
-      style={{ display: 'flex', alignItems: 'center', gap: Math.round(size * 0.3) }}
-      aria-label="Catalyst"
+      style={{ display: 'inline-flex', alignItems: 'center', gap: Math.max(8, Math.round(size * 0.28)) }}
+      aria-label="Catalyst TPA"
     >
       {mark}
-      <span
-        style={{
-          fontFamily: 'Georgia, "Times New Roman", serif',
-          fontWeight: 400,
-          fontSize: Math.round(size * 0.52),
-          letterSpacing: '0.5px',
-          color: textColor,
-          lineHeight: 1,
-          userSelect: 'none',
-        }}
-      >
-        CATALYST
-      </span>
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <span
+          style={{
+            fontFamily: 'var(--font-cinzel), Cinzel, "Playfair Display", "Times New Roman", Georgia, serif',
+            fontWeight: 700,
+            fontSize: Math.round(size * 0.52),
+            letterSpacing: '2.4px',
+            color: textColor,
+            lineHeight: 1.05,
+            userSelect: 'none',
+            textTransform: 'uppercase',
+          }}
+        >
+          CATALYST
+        </span>
+        {showSubtitle && (
+          <span
+            style={{
+              fontFamily: 'var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+              fontWeight: 800,
+              fontSize: Math.max(8, Math.round(size * 0.22)),
+              letterSpacing: '1.6px',
+              color: '#B8935B',
+              textTransform: 'uppercase',
+              lineHeight: 1,
+              marginTop: 2.5,
+              userSelect: 'none',
+            }}
+          >
+            TPA · CLIENTFORGE
+          </span>
+        )}
+      </div>
     </div>
   );
 }
