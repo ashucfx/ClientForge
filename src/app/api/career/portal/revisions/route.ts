@@ -43,7 +43,30 @@ export async function GET() {
     orderBy: { createdAt: 'desc' },
   });
 
-  return NextResponse.json({ revisions });
+  const invoiceIds = revisions.map(r => r.invoiceId).filter(Boolean) as string[];
+  const invoices = invoiceIds.length > 0
+    ? await db.invoice.findMany({
+        where: { id: { in: invoiceIds } },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          totalPayable: true,
+          currency: true,
+          currencySymbol: true,
+          status: true,
+          razorpayLinkUrl: true,
+          paypalPaymentUrl: true,
+        },
+      })
+    : [];
+  const invoiceMap = new Map(invoices.map(inv => [inv.id, inv]));
+
+  const enrichedRevisions = revisions.map(r => ({
+    ...r,
+    invoice: r.invoiceId ? invoiceMap.get(r.invoiceId) ?? null : null,
+  }));
+
+  return NextResponse.json({ revisions: enrichedRevisions });
 }
 
 export async function POST(req: NextRequest) {
@@ -57,21 +80,23 @@ export async function POST(req: NextRequest) {
     }, { status: 403 });
   }
 
-  // 15-day post-delivery window — anchored to firstCompletedAt so re-deliveries never extend it
+  const body              = await req.json().catch(() => null);
+  const rawNote           = (body?.note as string | undefined)?.trim();
+  const fileLabel         = (body?.fileLabel as string | undefined)?.trim() || undefined;
+  const isOutOfScope      = body?.isOutOfScope === true;
+  const preferredCurrency = (body?.preferredCurrency as string | undefined)?.trim().toUpperCase() || 'USD';
+  const outOfScopeCategory = (body?.outOfScopeCategory as string | undefined)?.trim().toUpperCase();
+  const customReason      = (body?.outOfScopeReason as string | undefined)?.trim();
+
+  // 15-day post-delivery window check
   const windowAnchor = client.firstCompletedAt ?? client.completedAt;
+  let isWindowExpired = false;
   if (client.status === 'COMPLETED' && windowAnchor) {
     const daysSinceDelivery = Math.floor((Date.now() - new Date(windowAnchor).getTime()) / (1000 * 60 * 60 * 24));
     if (daysSinceDelivery > 15) {
-      return NextResponse.json({
-        error: `The 15-day revision window has closed (delivered ${daysSinceDelivery} days ago). Please contact us to arrange a paid revision.`,
-        windowExpired: true,
-      }, { status: 403 });
+      isWindowExpired = true;
     }
   }
-
-  const body      = await req.json().catch(() => null);
-  const note      = (body?.note as string | undefined)?.trim();
-  const fileLabel = (body?.fileLabel as string | undefined)?.trim() || undefined;
 
   // Resolve service slug: prefer what the client sends, fall back to primary service, then GENERAL
   const serviceSlugs = client.services.map(s => s.service.slug);
@@ -80,10 +105,10 @@ export async function POST(req: NextRequest) {
     ? rawSlug
     : (serviceSlugs.length === 1 ? serviceSlugs[0] : (rawSlug ?? 'GENERAL'));
 
-  if (!note || note.length < 5) {
+  if (!rawNote || rawNote.length < 5) {
     return NextResponse.json({ error: 'Please describe the revision needed (min 5 chars).' }, { status: 400 });
   }
-  if (note.length > 2000) {
+  if (rawNote.length > 2000) {
     return NextResponse.json({ error: 'Note too long (max 2000 chars).' }, { status: 400 });
   }
 
@@ -91,6 +116,8 @@ export async function POST(req: NextRequest) {
   const FREE_LIMIT = 2;
 
   let isFree = true;
+  let finalNote = rawNote;
+
   const revision = await db.$transaction(async (tx) => {
     // Count ALL free revisions for this service slug (including any legacy GENERAL ones)
     const existingFreeRevisions = await tx.careerRevision.count({
@@ -104,44 +131,61 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    isFree = existingFreeRevisions < FREE_LIMIT;
+    const isQuotaExhausted = existingFreeRevisions >= FREE_LIMIT;
+    isFree = !isOutOfScope && !isWindowExpired && !isQuotaExhausted;
+
+    if (!isFree) {
+      const category = outOfScopeCategory || (isQuotaExhausted || isWindowExpired ? 'POST_WINDOW' : 'OTHER');
+      const reason = customReason || (
+        isQuotaExhausted
+          ? `Complimentary revision quota (${FREE_LIMIT}/${FREE_LIMIT}) exhausted.`
+          : isWindowExpired
+          ? 'Complimentary 15-day delivery revision window has elapsed.'
+          : 'Substantive scope addition outside baseline complimentary revision guidelines.'
+      );
+      finalNote = `[OUT_OF_SCOPE_CATEGORY: ${category}]\n[OUT_OF_SCOPE_REASON: ${reason}]\n[PREFERRED_CURRENCY: ${preferredCurrency}]\n\n${rawNote}`;
+    }
 
     return tx.careerRevision.create({
       data: {
         clientId: client.id,
         requestedBy: 'client',
-        note,
+        note: finalNote,
         fileLabel,
         serviceSlug,
         status: 'PENDING',
-        chargeStatus: isFree ? 'FREE' : 'PAID',
+        chargeStatus: isFree ? 'FREE' : 'PENDING_PAYMENT',
         clientStatusBefore: client.status,
       },
     });
   });
 
-  // Extend SLA by 3 working days from now to cover revised draft delivery
-  const REVISION_SLA_DAYS = 3;
-  const holidays = await getHolidaySet(db);
-  const revisedDeadline = addWorkingDays(new Date(), REVISION_SLA_DAYS, holidays);
-  await db.careerClient.update({
-    where: { id: client.id },
-    data: {
-      slaDeadline:        revisedDeadline,
-      expectedDeliveryAt: revisedDeadline,
-    },
-  });
+  // Extend SLA by 3 working days only if free; paid revisions start SLA once quote is accepted & paid
+  if (isFree) {
+    const REVISION_SLA_DAYS = 3;
+    const holidays = await getHolidaySet(db);
+    const revisedDeadline = addWorkingDays(new Date(), REVISION_SLA_DAYS, holidays);
+    await db.careerClient.update({
+      where: { id: client.id },
+      data: {
+        slaDeadline:        revisedDeadline,
+        expectedDeliveryAt: revisedDeadline,
+      },
+    });
+  }
 
   // Log activity
   await db.careerActivityLog.create({
     data: {
       clientId: client.id,
-      action: 'revision_requested',
+      action: isFree ? 'revision_requested' : 'paid_revision_requested',
       performedBy: 'client',
       metadata: {
-        note: note.slice(0, 100), fileLabel, serviceSlug, chargeStatus: 'FREE',
-        slaExtendedTo: revisedDeadline.toISOString(),
-        slaExtensionDays: REVISION_SLA_DAYS,
+        note: finalNote.slice(0, 100), fileLabel, serviceSlug,
+        chargeStatus: isFree ? 'FREE' : 'PENDING_PAYMENT',
+        isOutOfScope,
+        isWindowExpired,
+        preferredCurrency,
       },
     },
   });
@@ -149,17 +193,19 @@ export async function POST(req: NextRequest) {
   // Notify admin in-app (DB notification)
   waitUntil(
     notifyAllAdmins({
-      title: `${isFree ? 'Revision' : 'Paid Revision'} requested by ${client.name}`,
-      message: `[${serviceSlug}] "${note.slice(0, 100)}${note.length > 100 ? '…' : ''}"`,
-      type: isFree ? 'WARNING' : 'ERROR', // ERROR color draws attention to pending payments
+      title: `${isFree ? 'Revision' : 'Paid / Out-of-Scope Revision'} requested by ${client.name}`,
+      message: `[${serviceSlug}] "${finalNote.slice(0, 100)}${finalNote.length > 100 ? '…' : ''}"${!isFree ? ` · Currency: ${preferredCurrency}` : ''}`,
+      type: isFree ? 'WARNING' : 'ERROR', // ERROR color draws attention to pending review/payment
       link: `${PORTAL_URL}/career/${client.id}?tab=revisions`,
     }).catch(console.error)
   );
 
   // Notify admin via email
   const fileContext = fileLabel ? ` regarding "${fileLabel}"` : '';
-  const pricingContext = isFree ? 'This is a free revision.' : '⚠️ The client has exhausted their free revisions for this service. A payment link needs to be generated.';
-  
+  const pricingContext = isFree
+    ? 'This is an included free revision.'
+    : `⚠️ Out-of-Scope / Paid Revision Request. The client has requested this engagement (preferred currency: ${preferredCurrency}). Please review scope, set pricing, and approve in the admin panel.`;
+
   waitUntil(
     sendCareerEmail({
       to: ADMIN_EMAIL,
@@ -168,8 +214,8 @@ export async function POST(req: NextRequest) {
         recipientName: 'Catalyst Team',
         senderType: 'client',
         portalUrl: `${PORTAL_URL}/career/${client.id}?tab=revisions`,
-        subject: `Catalyst — ${client.name} has requested a ${isFree ? '' : 'PAID '}revision`,
-        body: `${client.name} has submitted a new revision request for ${serviceSlug}${fileContext}. \n\n${pricingContext}\n\nRequest: "${note.slice(0, 200)}${note.length > 200 ? '…' : ''}"`,
+        subject: `Catalyst — ${client.name} requested a ${isFree ? '' : 'PAID / OUT-OF-SCOPE '}revision`,
+        body: `${client.name} has submitted a revision request for ${serviceSlug}${fileContext}.\n\n${pricingContext}\n\nRequest Note:\n"${finalNote.slice(0, 500)}${finalNote.length > 500 ? '…' : ''}"`,
       },
     }).catch(console.error)
   );
@@ -185,7 +231,9 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     revision,
-    requiresPayment: false,
-    message: 'Revision requested successfully.',
+    requiresPayment: !isFree,
+    message: isFree
+      ? 'Revision requested successfully.'
+      : 'Your paid revision request has been submitted to the Catalyst team for scope review and quote approval.',
   }, { status: 201 });
 }

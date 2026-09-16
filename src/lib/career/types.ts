@@ -39,6 +39,112 @@ export type CareerServiceSlug =
   | 'PREMIUM_PLUS'
   | 'EXECUTIVE_CONNECT';
 
+export type OutOfScopeCategoryKey =
+  | 'CAREER_PIVOT'
+  | 'ROLE_ADDITION'
+  | 'FULL_REWRITE'
+  | 'NEW_DOCUMENT'
+  | 'POST_WINDOW'
+  | 'OTHER';
+
+export interface OutOfScopeCategoryDef {
+  key: OutOfScopeCategoryKey;
+  label: string;
+  badge: string;
+  desc: string;
+  triggerReason: string;
+}
+
+export const OUT_OF_SCOPE_CATEGORIES: Record<OutOfScopeCategoryKey, OutOfScopeCategoryDef> = {
+  CAREER_PIVOT: {
+    key: 'CAREER_PIVOT',
+    label: 'Major Target / Industry Pivot',
+    badge: 'Industry Pivot',
+    desc: 'Changing target job title, industry focus, or seniority level from the initial intake brief.',
+    triggerReason: 'A shift in career target requires comprehensive strategic repositioning, re-benchmarking, and keyword architecture beyond baseline scope.',
+  },
+  ROLE_ADDITION: {
+    key: 'ROLE_ADDITION',
+    label: 'Substantial Experience / Role Addition',
+    badge: 'Experience Addition',
+    desc: 'Adding full-time roles, contracts, or new project records not previously provided in the intake.',
+    triggerReason: 'Integrating newly provided career roles requires recalculating career chronology, re-spacing, and tailoring bullet achievements.',
+  },
+  FULL_REWRITE: {
+    key: 'FULL_REWRITE',
+    label: 'Complete Section / Narrative Restructure',
+    badge: 'Narrative Restructure',
+    desc: 'Complete stylistic overhaul, structural repositioning, or rewriting approved sections from scratch.',
+    triggerReason: 'Wholesale rewriting and structural re-engineering exceeds standard refinement boundaries.',
+  },
+  NEW_DOCUMENT: {
+    key: 'NEW_DOCUMENT',
+    label: 'Additional Asset / Custom Variant',
+    badge: 'New Deliverable',
+    desc: 'Requesting targeted sub-variants, executive bios, tailored cover letters, or additional file formats.',
+    triggerReason: 'Creation of net-new deliverables or document variants outside of original service tier.',
+  },
+  POST_WINDOW: {
+    key: 'POST_WINDOW',
+    label: 'Post-Delivery Quota / Window Extension',
+    badge: 'Quota/Window Extension',
+    desc: 'Standard modifications requested after the 15-day complimentary window or after quota exhaustion.',
+    triggerReason: 'Complimentary revision window (15 days) or package revision quota has concluded.',
+  },
+  OTHER: {
+    key: 'OTHER',
+    label: 'Other Custom Scope Expansion',
+    badge: 'Custom Scope',
+    desc: 'Custom enhancements, bespoke sections, or specialized deliverables agreed with the Catalyst team.',
+    triggerReason: 'Custom scope modification requested outside of baseline engagement specifications.',
+  },
+};
+
+export interface ParsedRevisionNote {
+  category?: OutOfScopeCategoryKey;
+  categoryLabel?: string;
+  categoryBadge?: string;
+  triggerReason?: string;
+  preferredCurrency?: string;
+  cleanNote: string;
+}
+
+export function parseRevisionNote(rawNote: string): ParsedRevisionNote {
+  let note = rawNote || '';
+  let category: OutOfScopeCategoryKey | undefined;
+  let triggerReason: string | undefined;
+  let preferredCurrency: string | undefined;
+
+  const catMatch = note.match(/\[OUT_OF_SCOPE_CATEGORY:\s*([A-Z_]+)\]/);
+  if (catMatch) {
+    category = catMatch[1] as OutOfScopeCategoryKey;
+    note = note.replace(catMatch[0], '').trim();
+  }
+
+  const reasonMatch = note.match(/\[OUT_OF_SCOPE_REASON:\s*([^\]]+)\]/);
+  if (reasonMatch) {
+    triggerReason = reasonMatch[1].trim();
+    note = note.replace(reasonMatch[0], '').trim();
+  }
+
+  const currMatch = note.match(/\[PREFERRED_CURRENCY:\s*([A-Z]+)\]/);
+  if (currMatch) {
+    preferredCurrency = currMatch[1].trim();
+    note = note.replace(currMatch[0], '').trim();
+  }
+
+  const catDef = category && OUT_OF_SCOPE_CATEGORIES[category] ? OUT_OF_SCOPE_CATEGORIES[category] : undefined;
+
+  return {
+    category,
+    categoryLabel: catDef?.label,
+    categoryBadge: catDef?.badge,
+    triggerReason: triggerReason || catDef?.triggerReason,
+    preferredCurrency,
+    cleanNote: note,
+  };
+}
+
 export interface FormField {
   id: string;
   label: string;

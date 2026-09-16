@@ -4,8 +4,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { PACKAGE_LABELS, SERVICE_LABELS, STATUS_LABELS } from '@/lib/career/types';
-import type { CareerStatus, CareerPackage, CareerServiceSlug, EmailTrigger } from '@/lib/career/types';
+import { PACKAGE_LABELS, SERVICE_LABELS, STATUS_LABELS, parseRevisionNote, OUT_OF_SCOPE_CATEGORIES } from '@/lib/career/types';
+import type { CareerStatus, CareerPackage, CareerServiceSlug, EmailTrigger, OutOfScopeCategoryKey } from '@/lib/career/types';
 import { TRIGGER_LABELS } from '@/lib/career/triggerLabels';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -29,6 +29,17 @@ interface ActivityLog {
 interface RevisionItem {
   id: string; note: string; fileLabel?: string; status: string;
   requestedBy: string; adminNote?: string; createdAt: string;
+  chargeStatus?: string; invoiceId?: string; serviceSlug?: string;
+  invoice?: {
+    id: string;
+    invoiceNumber: string;
+    totalPayable: number;
+    currency: string;
+    currencySymbol: string;
+    status: string;
+    razorpayLinkUrl?: string;
+    paypalPaymentUrl?: string;
+  } | null;
 }
 interface ClientDetail {
   id: string; name: string; email: string; phone: string | null;
@@ -2524,9 +2535,172 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
     }
   };
 
+  const [quoteRevision,    setQuoteRevision]    = useState<RevisionItem | null>(null);
+  const [quoteRevId,       setQuoteRevId]       = useState<string | null>(null);
+  const [quoteAmount,      setQuoteAmount]      = useState('50');
+  const [quoteCurrency,    setQuoteCurrency]    = useState('USD');
+  const [quoteGateway,     setQuoteGateway]     = useState<'RAZORPAY' | 'PAYPAL'>('PAYPAL');
+  const [quoteDescription, setQuoteDescription] = useState('Out-of-Scope Revision Engagement');
+  const [quoteAdminNote,   setQuoteAdminNote]   = useState('');
+  const [submittingQuote,  setSubmittingQuote]  = useState(false);
+
+  const submitPaidQuote = async () => {
+    if (!quoteRevId || !quoteAmount || Number(quoteAmount) <= 0) return;
+    setSubmittingQuote(true);
+    const res = await fetch(`/api/career/admin/clients/${clientId}/revisions`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'APPROVE_PAID',
+        revisionId: quoteRevId,
+        chargeAmount: Number(quoteAmount),
+        currency: quoteCurrency,
+        paymentGateway: quoteGateway,
+        description: quoteDescription.trim() || 'Out-of-Scope Revision Engagement',
+        adminNote: quoteAdminNote.trim() || undefined,
+        sendEmail: true,
+      }),
+    });
+    setSubmittingQuote(false);
+    if (res.ok) {
+      const d = await res.json() as { revision: RevisionItem };
+      setRevisions(prev => prev.map(r => r.id === quoteRevId ? d.revision : r));
+      showToast('Paid revision quote approved & invoice generated');
+      setQuoteRevision(null);
+      setQuoteRevId(null);
+      setQuoteAdminNote('');
+    } else {
+      const d = await res.json().catch(() => ({})) as { error?: string };
+      showToast(d.error ?? 'Failed to approve quote');
+    }
+  };
+
   return (
     <div className="space-y-4">
       {toast && <Toast msg={toast} />}
+
+      {/* Quote Approval Modal */}
+      {quoteRevision && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => { setQuoteRevision(null); setQuoteRevId(null); }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-slate-800">Evaluate Scope &amp; Issue Quote Invoice</h4>
+              <button onClick={() => { setQuoteRevision(null); setQuoteRevId(null); }} className="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Review the client&apos;s requested scope and category below. Set your fee and currency; Catalyst will generate an invoice and email it with a &ldquo;Pay &amp; Proceed&rdquo; link.
+            </p>
+
+            {/* Scope Assessment Summary */}
+            {(() => {
+              const parsed = parseRevisionNote(quoteRevision.note);
+              return (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-amber-900 uppercase tracking-wide">
+                      ⚡ Scope Category: {parsed.categoryLabel || 'Custom Out-of-Scope'}
+                    </span>
+                    {parsed.preferredCurrency && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-800">
+                        Client Preferred: {parsed.preferredCurrency}
+                      </span>
+                    )}
+                  </div>
+                  {parsed.triggerReason && (
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      <strong>Reason / Criteria:</strong> {parsed.triggerReason}
+                    </p>
+                  )}
+                  <p className="text-slate-800 text-xs italic pt-1 border-t border-amber-200/60 leading-relaxed">
+                    &ldquo;{parsed.cleanNote.slice(0, 180)}{parsed.cleanNote.length > 180 ? '…' : ''}&rdquo;
+                  </p>
+                </div>
+              );
+            })()}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Pricing Amount *</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={quoteAmount}
+                  onChange={e => setQuoteAmount(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Currency *</label>
+                <select
+                  value={quoteCurrency}
+                  onChange={e => setQuoteCurrency(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50"
+                >
+                  <option value="USD">USD ($)</option>
+                  <option value="INR">INR (₹)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                  <option value="AED">AED (AED)</option>
+                  <option value="CAD">CAD ($)</option>
+                  <option value="AUD">AUD ($)</option>
+                  <option value="SGD">SGD ($)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Payment Gateway</label>
+              <select
+                value={quoteGateway}
+                onChange={e => setQuoteGateway(e.target.value as 'RAZORPAY' | 'PAYPAL')}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50"
+              >
+                <option value="PAYPAL">PayPal (International)</option>
+                <option value="RAZORPAY">Razorpay (Domestic &amp; International)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Scope / Item Description</label>
+              <input
+                type="text"
+                value={quoteDescription}
+                onChange={e => setQuoteDescription(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Note to Client (optional)</label>
+              <textarea
+                rows={2}
+                value={quoteAdminNote}
+                onChange={e => setQuoteAdminNote(e.target.value)}
+                placeholder="e.g. Scope evaluated and approved for additional section rewrites."
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 resize-none"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={submitPaidQuote}
+                disabled={submittingQuote || !quoteAmount || Number(quoteAmount) <= 0}
+                className="flex-1 py-2.5 bg-[#B8935B] hover:bg-[#9A7540] text-white text-xs font-bold rounded-xl disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {submittingQuote && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                {submittingQuote ? 'Creating Invoice…' : 'Approve & Send Quote Invoice'}
+              </button>
+              <button
+                onClick={() => { setQuoteRevision(null); setQuoteRevId(null); }}
+                className="px-4 py-2.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -2542,23 +2716,22 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
         </button>
       </div>
 
-      {/* Free-revision usage per service — the same numbers the client sees in
-          their portal. Exhausted services show red so misuse is obvious. */}
+      {/* Free-revision usage per service */}
       {revSummary.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {revSummary.map(s => {
             const exhausted = s.revisionsLeft === 0;
             const pct = Math.min(100, Math.round((s.freeUsed / s.freeLimit) * 100));
             return (
-              <div key={s.slug} className={`px-3.5 py-2.5 rounded-xl border ${exhausted ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'}`}>
+              <div key={s.slug} className={`px-3.5 py-2.5 rounded-xl border ${exhausted ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span className="text-xs font-semibold text-slate-700 truncate">{s.name}</span>
-                  <span className={`text-[10px] font-bold whitespace-nowrap ${exhausted ? 'text-red-600' : 'text-slate-500'}`}>
-                    {s.freeUsed}/{s.freeLimit} free used{exhausted ? ' · limit reached' : ` · ${s.revisionsLeft} left`}
+                  <span className={`text-[10px] font-bold whitespace-nowrap ${exhausted ? 'text-amber-700' : 'text-slate-500'}`}>
+                    {s.freeUsed}/{s.freeLimit} free used{exhausted ? ' · paid only' : ` · ${s.revisionsLeft} left`}
                   </span>
                 </div>
                 <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full ${exhausted ? 'bg-red-400' : s.freeUsed > 0 ? 'bg-amber-400' : 'bg-emerald-400'}`} style={{ width: `${pct}%` }} />
+                  <div className={`h-full rounded-full ${exhausted ? 'bg-amber-500' : s.freeUsed > 0 ? 'bg-amber-400' : 'bg-emerald-400'}`} style={{ width: `${pct}%` }} />
                 </div>
                 {s.paidUsed > 0 && (
                   <p className="text-[10px] text-slate-400 mt-1">{s.paidUsed} paid revision{s.paidUsed === 1 ? '' : 's'} on top</p>
@@ -2569,7 +2742,7 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
         </div>
       )}
 
-      {/* Pending action banner — surfaces what needs the admin's decision */}
+      {/* Pending action banner */}
       {(() => {
         const pending = revisions.filter(r => r.status === 'PENDING');
         if (pending.length === 0) return null;
@@ -2578,7 +2751,7 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
             <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
             <p className="text-xs font-semibold text-amber-800">
               {pending.length} revision{pending.length === 1 ? '' : 's'} awaiting your decision
-              {pending.some(r => r.requestedBy === 'client') && ' — including client requests'}
+              {pending.some(r => r.chargeStatus === 'PENDING_PAYMENT') && ' · including out-of-scope / quote requests'}
             </p>
           </div>
         );
@@ -2608,7 +2781,7 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
                 className="w-4 h-4 rounded border-slate-300 accent-[#B8935B]" />
               Send revision email to client ({clientPackage})
             </label>
-            {/* Count against client's free limit — use when client asked via chat/call */}
+            {/* Count against client's free limit */}
             <div className="border border-amber-200 bg-amber-50 rounded-xl p-3 space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-amber-800 cursor-pointer">
                 <input type="checkbox" checked={countAsClient} onChange={e => { setCountAsClient(e.target.checked); if (!e.target.checked) setServiceSlug(''); }}
@@ -2654,26 +2827,83 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
       ) : (
         <div className="space-y-3">
           {revisions.map(r => {
-            const accent = r.status === 'APPROVED' ? 'border-l-emerald-400'
+            const parsed = parseRevisionNote(r.note);
+            const isPaid = r.chargeStatus === 'PAID';
+            const isUnderProcess = r.status === 'UNDER_PROCESS' || isPaid;
+            const isPendingPayment = r.chargeStatus === 'PENDING_PAYMENT';
+            const accent = isUnderProcess ? 'border-l-emerald-500'
+              : r.status === 'APPROVED' ? 'border-l-emerald-400'
               : r.status === 'DENIED' ? 'border-l-red-300'
+              : isPendingPayment ? 'border-l-amber-500'
               : 'border-l-amber-400';
+
             return (
             <div key={r.id} className={`bg-white border border-slate-200 border-l-4 ${accent} rounded-2xl p-5 shadow-sm`}>
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${REV_STATUS_STYLE[r.status] ?? REV_STATUS_STYLE.PENDING}`}>
-                      {r.status}
+                      {r.status === 'UNDER_PROCESS' ? 'UNDER PROCESS' : r.status}
                     </span>
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${r.requestedBy === 'client' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
                       {r.requestedBy === 'admin' ? 'ADMIN' : 'CLIENT REQUEST'}
                     </span>
+                    {parsed.categoryBadge && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+                        {parsed.categoryBadge}
+                      </span>
+                    )}
+                    {isPendingPayment && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
+                        {r.invoice ? 'QUOTE ISSUED · AWAITING PAYMENT' : 'OUT OF SCOPE · QUOTE REQUESTED'}
+                      </span>
+                    )}
+                    {isUnderProcess && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        UNDER PROCESS (PAID ✓)
+                      </span>
+                    )}
                     <span className="text-xs text-slate-400">{fmt(r.createdAt)}</span>
                   </div>
+
+                  {/* Scope Assessment Summary for Admin */}
+                  {parsed.category && (
+                    <div className="my-2 p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-amber-900 uppercase tracking-wide">
+                          ⚡ Out-of-Scope Engagement: {parsed.categoryLabel}
+                        </span>
+                        {parsed.preferredCurrency && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-amber-300 text-amber-800">
+                            Client Currency: {parsed.preferredCurrency}
+                          </span>
+                        )}
+                      </div>
+                      {parsed.triggerReason && (
+                        <p className="text-slate-600 text-[11px] leading-relaxed">
+                          <strong>Assessment Criteria:</strong> {parsed.triggerReason}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {r.invoice && (
+                    <div className="mb-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-bold text-slate-700">Invoice #{r.invoice.invoiceNumber}</span>
+                        <span className="text-slate-400 mx-1.5">·</span>
+                        <span className="font-semibold text-[#9A7540]">{r.invoice.currencySymbol}{r.invoice.totalPayable.toFixed(2)} {r.invoice.currency}</span>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${r.invoice.status === 'PAID' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                        {r.invoice.status === 'PAID' ? 'PAID ✓' : 'AWAITING PAYMENT'}
+                      </span>
+                    </div>
+                  )}
+
                   {r.fileLabel && <p className="text-xs font-semibold text-slate-500 mb-1">Re: {r.fileLabel}</p>}
                   {(() => {
-                    // Multi-line notes render as a clean bullet list; single-line as a paragraph
-                    const lines = r.note.split('\n').map(l => l.trim()).filter(Boolean);
+                    const lines = parsed.cleanNote.split('\n').map(l => l.trim()).filter(Boolean);
                     return lines.length > 1 ? (
                       <ul className="space-y-1">
                         {lines.map((l, i) => (
@@ -2684,7 +2914,7 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">{r.note}</p>
+                      <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">{parsed.cleanNote}</p>
                     );
                   })()}
                   {r.adminNote && (
@@ -2716,6 +2946,7 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
                   )}
                 </div>
               </div>
+
               {r.status === 'PENDING' && (
                 <div className="pt-3 border-t border-slate-100">
                   {confirmId === r.id && confirmDecision ? (
@@ -2752,12 +2983,28 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => { setConfirmId(r.id); setConfirmDecision('APPROVED'); setConfirmNote(''); setConfirmEmail(true); }}
                         className="flex-1 py-1.5 text-xs font-bold text-emerald-700 border border-emerald-200 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors">
-                        Approve
+                        Approve Free
                       </button>
+                      {!r.invoice && (
+                        <button
+                          onClick={() => {
+                            setQuoteRevision(r);
+                            setQuoteRevId(r.id);
+                            if (parsed.preferredCurrency) setQuoteCurrency(parsed.preferredCurrency);
+                            setQuoteDescription(
+                              parsed.categoryLabel
+                                ? `Out-of-Scope Revision: ${parsed.categoryLabel}`
+                                : `Out-of-Scope Revision: ${r.fileLabel || r.serviceSlug || 'Deliverable'}`
+                            );
+                          }}
+                          className="flex-1 py-1.5 text-xs font-bold text-[#B8935B] border border-[#B8935B]/40 bg-[#FBF8F3] rounded-xl hover:bg-[#F5EEDF] transition-colors">
+                          ⚡ Review Scope &amp; Set Quote
+                        </button>
+                      )}
                       <button
                         onClick={() => { setConfirmId(r.id); setConfirmDecision('DENIED'); setConfirmNote(''); setConfirmEmail(true); }}
                         className="flex-1 py-1.5 text-xs font-bold text-red-700 border border-red-200 bg-red-50 rounded-xl hover:bg-red-100 transition-colors">

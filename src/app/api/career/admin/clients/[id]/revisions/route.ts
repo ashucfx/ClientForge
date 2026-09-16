@@ -12,6 +12,14 @@ import type { CareerPackage, CareerServiceSlug } from '@/lib/career/types';
 import { waitUntil } from '@vercel/functions';
 
 
+import { getNextInvoiceNumber } from '@/lib/invoiceUtils';
+import { getCurrencyForCountry, getExchangeRate } from '@/lib/currency';
+import { FEE_RATES, round2 } from '@/lib/pricing';
+import { createRazorpayPaymentLink } from '@/lib/razorpay';
+import { createPaypalInvoice } from '@/lib/paypal';
+import { normalizePhoneE164 } from '@/lib/phone';
+import { addDays } from 'date-fns';
+
 const PORTAL_URL =
   process.env.NODE_ENV === 'development'
     ? 'http://localhost:3000'
@@ -39,6 +47,30 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     where: { clientId: params.id },
     orderBy: { createdAt: 'desc' },
   });
+
+  // Attach linked invoices if any
+  const invoiceIds = revisions.map(r => r.invoiceId).filter(Boolean) as string[];
+  const invoices = invoiceIds.length > 0
+    ? await db.invoice.findMany({
+        where: { id: { in: invoiceIds } },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          totalPayable: true,
+          currency: true,
+          currencySymbol: true,
+          status: true,
+          razorpayLinkUrl: true,
+          paypalPaymentUrl: true,
+        },
+      })
+    : [];
+  const invoiceMap = new Map(invoices.map(inv => [inv.id, inv]));
+
+  const enrichedRevisions = revisions.map(r => ({
+    ...r,
+    invoice: r.invoiceId ? invoiceMap.get(r.invoiceId) ?? null : null,
+  }));
 
   const FREE_LIMIT = 2;
   const services = client?.services ?? [];
@@ -69,7 +101,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     };
   });
 
-  return NextResponse.json({ revisions, revisionSummary });
+  return NextResponse.json({ revisions: enrichedRevisions, revisionSummary });
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -173,11 +205,215 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => null);
+  const action       = body?.action as string | undefined;
   const revisionId   = body?.revisionId as string | undefined;
   const status       = body?.status as string | undefined;
   const adminNote    = (body?.adminNote as string | undefined)?.trim() || undefined;
   const doSendEmail  = body?.sendEmail !== false; // default true
 
+  // ── SPECIAL ACTION: APPROVE AS PAID ENGAGEMENT ──────────────────────────────
+  if (action === 'APPROVE_PAID' || (status === 'APPROVE_PAID') || (body?.chargeAmount !== undefined && Number(body?.chargeAmount) > 0)) {
+    const chargeAmount = Number(body?.chargeAmount);
+    const currency = (body?.currency as string || 'USD').trim().toUpperCase();
+    const description = (body?.description as string | undefined)?.trim() || 'Paid Revision / Out-of-Scope Scope Addition';
+    const requestedGateway = body?.paymentGateway as 'RAZORPAY' | 'PAYPAL' | undefined;
+
+    if (!revisionId || isNaN(chargeAmount) || chargeAmount <= 0) {
+      return NextResponse.json({ error: 'revisionId and positive chargeAmount required' }, { status: 400 });
+    }
+
+    const client = await db.careerClient.findUnique({
+      where: { id: params.id },
+      select: {
+        id: true, name: true, email: true, phone: true, packageType: true,
+        services: { select: { service: { select: { slug: true, name: true } } } },
+      },
+    });
+    if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+
+    const targetCountry = client.phone?.startsWith('+91') ? 'IN' : 'US';
+    const detectedCurrency = getCurrencyForCountry(targetCountry);
+    const currencyCode = currency || detectedCurrency.code;
+    const currencySymbol = currencyCode === 'INR' ? '₹' : currencyCode === 'EUR' ? '€' : currencyCode === 'GBP' ? '£' : '$';
+    const exchangeRate = await getExchangeRate('INR', currencyCode);
+
+    const safeUnitPrice = round2(chargeAmount);
+    const grossSubtotal = safeUnitPrice;
+    const gateway = requestedGateway ?? (currencyCode === 'INR' ? 'RAZORPAY' : 'PAYPAL');
+    const processingFeeRate = currencyCode === 'INR'
+      ? FEE_RATES.RAZORPAY_DOMESTIC
+      : (gateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL : FEE_RATES.RAZORPAY_INTL);
+
+    const totalPayable = round2(grossSubtotal / (1 - processingFeeRate));
+    const processingFeeConverted = round2(totalPayable - grossSubtotal);
+
+    const invoiceNumber = await getNextInvoiceNumber();
+    const invoiceDate = new Date();
+    const dueDate = addDays(invoiceDate, 7);
+
+    const lineItems = [{
+      id: 'rev-item-1',
+      description,
+      qty: 1,
+      unitPrice: safeUnitPrice,
+      lineTotal: safeUnitPrice,
+    }];
+
+    const normalizedPhone = normalizePhoneE164(client.phone || '+12025550100', targetCountry);
+
+    // Create Catalyst Invoice
+    const invoice = await db.invoice.create({
+      data: {
+        invoiceNumber,
+        brandId: 'catalyst',
+        clientName: client.name,
+        clientEmail: client.email,
+        clientPhone: normalizedPhone?.e164 || client.phone || '+12025550100',
+        clientType: 'FRESHER',
+        country: targetCountry,
+        currency: currencyCode,
+        currencySymbol,
+        exchangeRate,
+        lineItems,
+        discountRate: 0,
+        taxRate: 0,
+        discountAmount: 0,
+        taxAmount: 0,
+        subtotalConverted: grossSubtotal,
+        processingFeeRate,
+        processingFeeConverted,
+        totalPayable,
+        revisionCount: 1,
+        revisionCharge: grossSubtotal,
+        dueDate,
+        paymentGateway: gateway,
+        notes: `Out-of-scope revision engagement for ${client.name}.${adminNote ? '\nTeam Note: ' + adminNote : ''}`,
+        sourceChannel: 'REVISION_QUOTE',
+        clientLinks: {
+          create: {
+            clientId: client.id,
+          },
+        },
+      },
+    });
+
+    // Attempt payment link creation
+    let paymentUrl: string | null = null;
+    if (gateway === 'RAZORPAY') {
+      try {
+        const link = await createRazorpayPaymentLink({
+          id: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          clientName: invoice.clientName,
+          clientEmail: invoice.clientEmail,
+          clientPhone: invoice.clientPhone,
+          clientType: invoice.clientType,
+          country: invoice.country,
+          totalPayable: invoice.totalPayable,
+          currency: invoice.currency,
+          brandId: 'catalyst',
+          dueDate: invoice.dueDate,
+        } as any);
+        if (link?.short_url) {
+          paymentUrl = link.short_url;
+          await db.invoice.update({
+            where: { id: invoice.id },
+            data: {
+              razorpayLinkId: link.id,
+              razorpayLinkUrl: link.short_url,
+            },
+          });
+        }
+      } catch (gwErr) {
+        console.warn('[revisions/approve_paid] Razorpay link generation skipped/failed:', gwErr);
+      }
+    } else if (gateway === 'PAYPAL') {
+      try {
+        const paypalResult = await createPaypalInvoice({
+          id: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          clientName: invoice.clientName,
+          clientEmail: invoice.clientEmail,
+          currency: invoice.currency,
+          lineItems,
+          discountAmount: 0,
+          taxAmount: 0,
+          processingFeeAmount: processingFeeConverted,
+          dueDate,
+          notes: invoice.notes ?? undefined,
+        });
+        if (paypalResult?.id) {
+          paymentUrl = paypalResult.paymentUrl ?? null;
+          await db.invoice.update({
+            where: { id: invoice.id },
+            data: {
+              paypalInvoiceId: paypalResult.id,
+              paypalPaymentUrl: paypalResult.paymentUrl,
+            },
+          });
+        }
+      } catch (gwErr) {
+        console.warn('[revisions/approve_paid] PayPal invoice generation skipped/failed:', gwErr);
+      }
+    }
+
+    const updatedRevision = await db.careerRevision.update({
+      where: { id: revisionId, clientId: params.id },
+      data: {
+        invoiceId: invoice.id,
+        chargeStatus: 'PENDING_PAYMENT',
+        status: 'PENDING',
+        adminNote: adminNote || `Quote approved: ${currencySymbol}${totalPayable.toFixed(2)} ${currencyCode}. Please complete payment to start revised draft.`,
+      },
+      select: {
+        id: true, status: true, adminNote: true,
+        clientStatusBefore: true, chargeStatus: true,
+        serviceSlug: true, note: true, requestedBy: true, createdAt: true, updatedAt: true,
+        fileLabel: true, invoiceId: true,
+      },
+    });
+
+    await db.careerActivityLog.create({
+      data: {
+        clientId: params.id,
+        action: 'revision_quote_created',
+        performedBy: 'admin',
+        metadata: {
+          revisionId,
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          totalPayable,
+          currency: currencyCode,
+          adminNote,
+        },
+      },
+    });
+
+    if (doSendEmail) {
+      const invoiceLink = paymentUrl || `${PORTAL_URL}/portal/dashboard/files`;
+      waitUntil(
+        sendCareerEmail({
+          to: client.email,
+          trigger: 'MESSAGE_NOTIFY',
+          data: {
+            recipientName: client.name,
+            senderType: 'admin',
+            portalUrl: `${PORTAL_URL}/portal/dashboard/files`,
+            subject: `Catalyst — Quote Approved for Revision #${updatedRevision.id.slice(-6)}`,
+            body: `Hello ${client.name},\n\nYour out-of-scope revision request has been approved. \n\nQuote Amount: ${currencySymbol}${totalPayable.toFixed(2)} ${currencyCode}\nDeliverable / Service: ${description}\n${adminNote ? `\nTeam Note: "${adminNote}"\n` : ''}\nYou can complete payment directly in your portal or using the link below:\n${invoiceLink}\n\nOur team will commence work once payment is confirmed.`,
+          },
+        }).catch(err => console.error('[approve_paid email] error:', err))
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      revision: { ...updatedRevision, invoice },
+      invoice,
+    });
+  }
+
+  // ── STANDARD STATUS TRANSITIONS (APPROVED, DENIED, PENDING) ────────────────
   if (!revisionId || !['APPROVED', 'DENIED', 'PENDING'].includes(status ?? '')) {
     return NextResponse.json({ error: 'revisionId and valid status required' }, { status: 400 });
   }

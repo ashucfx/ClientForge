@@ -11,7 +11,6 @@ import { fetchPaymentLinkStatus } from '@/lib/razorpay';
 import { fetchPaypalInvoiceStatus } from '@/lib/paypal';
 import { sendPaymentConfirmationEmail, sendAdminPaymentAlert } from '@/lib/email';
 import { onboardFromInvoice } from '@/lib/career/onboarding';
-import { rnOnboardFromInvoice } from '@/lib/rn/onboarding';
 import type { Installment } from '@/types';
 
 export async function POST(
@@ -85,14 +84,10 @@ export async function POST(
             },
           });
           
-          if (allPaid) {
-            sendPaymentConfirmationEmail(updatedInvoice as any).catch(err => console.error(err));
-            if (updatedInvoice.brandId === 'ripple_nexus') {
-              rnOnboardFromInvoice(updatedInvoice as any).catch(err => console.error(err));
-            } else {
-              onboardFromInvoice(updatedInvoice).catch(err => console.error(err));
+            if (allPaid) {
+              sendPaymentConfirmationEmail(updatedInvoice as any).catch((err: any) => console.error(err));
+              onboardFromInvoice(updatedInvoice).catch((err: any) => console.error(err));
             }
-          }
           
           return NextResponse.json({ synced: true, newStatus, invoice: updatedInvoice });
         } else {
@@ -150,17 +145,8 @@ export async function POST(
         brandId: updatedInvoice.brandId ?? 'catalyst',
       }).catch(err => console.error('[mark-paid/sync] Admin alert failed:', err));
 
-      if (updatedInvoice.brandId === 'ripple_nexus') {
-        rnOnboardFromInvoice(updatedInvoice as any)
-          .catch(err => console.error('[mark-paid/sync] RN onboarding failed:', err));
-      } else {
-        onboardFromInvoice(updatedInvoice)
-          .then(async (result) => {
-            const { handleSalesFunnelPayment } = await import('@/lib/sales/paymentHooks');
-            await handleSalesFunnelPayment(updatedInvoice.id, result.clientId);
-          })
-          .catch(err => console.error('[mark-paid/sync] Career onboarding failed:', err));
-      }
+      onboardFromInvoice(updatedInvoice)
+        .catch(err => console.error('[mark-paid/sync] Career onboarding failed:', err));
     }
 
     prisma.auditLog.create({
@@ -217,17 +203,43 @@ export async function POST(
     brandId: updatedInvoice.brandId ?? 'catalyst',
   }).catch(err => console.error('[mark-paid/manual] Admin alert failed:', err));
   
-  if (updatedInvoice.brandId === 'ripple_nexus') {
-    rnOnboardFromInvoice(updatedInvoice as any)
-      .catch(err => console.error('[mark-paid/manual] RN onboarding failed:', err));
-  } else {
-    onboardFromInvoice(updatedInvoice)
-      .then(async (result) => {
-        const { handleSalesFunnelPayment } = await import('@/lib/sales/paymentHooks');
-        await handleSalesFunnelPayment(updatedInvoice.id, result.clientId);
-      })
-      .catch(err => console.error('[mark-paid/manual] Career onboarding failed:', err));
-  }
+  onboardFromInvoice(updatedInvoice)
+    .catch(err => console.error('[mark-paid/manual] Career onboarding failed:', err));
+
+  // If this invoice belongs to an out-of-scope/paid CareerRevision, activate it
+  syncRevisionOnPayment(updatedInvoice.id).catch(err => console.error('[mark-paid] syncRevisionOnPayment failed:', err));
 
   return NextResponse.json({ ok: true, invoice: updatedInvoice });
 }
+
+async function syncRevisionOnPayment(invoiceId: string) {
+  try {
+    const revision = await prisma.careerRevision.findFirst({
+      where: { invoiceId },
+    });
+    if (revision) {
+      await prisma.careerRevision.update({
+        where: { id: revision.id },
+        data: {
+          chargeStatus: 'PAID',
+          status: 'UNDER_PROCESS',
+        },
+      });
+      await prisma.careerClient.update({
+        where: { id: revision.clientId },
+        data: { status: 'UNDER_PROCESS', waitingOn: 'AGENCY' },
+      });
+      await prisma.careerActivityLog.create({
+        data: {
+          clientId: revision.clientId,
+          action: 'revision_payment_completed',
+          performedBy: 'system',
+          metadata: { revisionId: revision.id, invoiceId },
+        },
+      });
+    }
+  } catch (err) {
+    console.warn('[syncRevisionOnPayment] error:', err);
+  }
+}
+

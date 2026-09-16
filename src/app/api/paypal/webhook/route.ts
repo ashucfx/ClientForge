@@ -12,7 +12,6 @@ import { prisma } from '@/lib/db';
 import { verifyPaypalWebhook } from '@/lib/paypal';
 import { sendPaymentConfirmationEmail, sendAdminPaymentAlert } from '@/lib/email';
 import { onboardFromInvoice } from '@/lib/career/onboarding';
-import { rnOnboardFromInvoice } from '@/lib/rn/onboarding';
 import { sendCareerEmail } from '@/lib/career/email';
 import { ADMIN_EMAIL } from '@/lib/config';
 import { waitUntil } from '@vercel/functions';
@@ -121,19 +120,9 @@ export async function POST(request: NextRequest) {
           }).catch(err => console.error('[PayPal webhook] Admin alert failed:', err))
         );
 
-        if (updatedInvoice.brandId === 'ripple_nexus') {
-          waitUntil(
-            rnOnboardFromInvoice(updatedInvoice as any)
-              .catch(err => console.error('[PayPal webhook] RN onboarding failed:', err))
-          );
-        } else {
-          waitUntil(
-            onboardFromInvoice(updatedInvoice)
-              .then(async (result) => {
-                const { handleSalesFunnelPayment } = await import('@/lib/sales/paymentHooks');
-                await handleSalesFunnelPayment(updatedInvoice.id, result.clientId);
-              })
-              .catch(async (err) => {
+        waitUntil(
+          onboardFromInvoice(updatedInvoice)
+            .catch(async (err: any) => {
                 console.error('[PayPal webhook] Career onboarding failed:', err);
                 sendCareerEmail({
                   to: ADMIN_EMAIL,
@@ -147,7 +136,23 @@ export async function POST(request: NextRequest) {
                 }).catch(console.error);
               })
           );
-        }
+
+        waitUntil(
+          prisma.careerRevision.findFirst({ where: { invoiceId: updatedInvoice.id } })
+            .then(async (rev) => {
+              if (rev) {
+                await prisma.careerRevision.update({
+                  where: { id: rev.id },
+                  data: { chargeStatus: 'PAID', status: 'UNDER_PROCESS' },
+                });
+                await prisma.careerClient.update({
+                  where: { id: rev.clientId },
+                  data: { status: 'UNDER_PROCESS', waitingOn: 'AGENCY' },
+                });
+              }
+            })
+            .catch(err => console.error('[PayPal webhook] revision sync failed:', err))
+        );
       } else {
         // ── Installment payment — direct indexed lookup (no table scan) ──────
         const installmentRow = await prisma.invoiceInstallment.findFirst({
@@ -217,19 +222,9 @@ export async function POST(request: NextRequest) {
             }).catch(err => console.error('[PayPal webhook] Admin alert failed:', err))
           );
 
-          if (updatedInvoice.brandId === 'ripple_nexus') {
-            waitUntil(
-              rnOnboardFromInvoice(updatedInvoice as any)
-                .catch(err => console.error('[PayPal webhook] RN onboarding failed:', err))
-            );
-          } else {
-            waitUntil(
-              onboardFromInvoice(updatedInvoice)
-                .then(async (result) => {
-                  const { handleSalesFunnelPayment } = await import('@/lib/sales/paymentHooks');
-                  await handleSalesFunnelPayment(updatedInvoice.id, result.clientId);
-                })
-                .catch(async (err) => {
+          waitUntil(
+            onboardFromInvoice(updatedInvoice)
+              .catch(async (err: any) => {
                   console.error('[PayPal webhook] Career onboarding failed:', err);
                   sendCareerEmail({
                     to: ADMIN_EMAIL,
@@ -246,7 +241,6 @@ export async function POST(request: NextRequest) {
           }
         }
       }
-    }
 
     // ── INVOICE CANCELLED ──────────────────────────────────────────────────────
     if (eventType === 'INVOICES.CANCELLED') {

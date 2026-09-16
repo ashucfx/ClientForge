@@ -3,7 +3,6 @@ import { getAdminSession } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 import { sendPaymentConfirmationEmail } from '@/lib/email';
 import { onboardFromInvoice } from '@/lib/career/onboarding';
-import { rnOnboardFromInvoice } from '@/lib/rn/onboarding';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -64,11 +63,7 @@ export async function POST(
 
     // 3. Trigger async side-effects
     sendPaymentConfirmationEmail(result.updatedInvoice as any).catch(err => console.error(err));
-    if (result.updatedInvoice.brandId === 'ripple_nexus') {
-      rnOnboardFromInvoice(result.updatedInvoice as any).catch(err => console.error(err));
-    } else {
-      onboardFromInvoice(result.updatedInvoice as any).catch(err => console.error(err));
-    }
+    onboardFromInvoice(result.updatedInvoice as any).catch(err => console.error(err));
 
     return NextResponse.json({ ok: true, request: result.updatedReq });
   } catch (err: any) {

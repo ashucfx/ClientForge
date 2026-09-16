@@ -7,7 +7,6 @@ import { verifyWebhookSignature } from '@/lib/razorpay';
 import { sendPaymentConfirmationEmail, sendAdminPaymentAlert, derivePackageLabel } from '@/lib/email';
 import { parseInvoiceLineItems } from '@/lib/invoiceLineItems';
 import { onboardFromInvoice } from '@/lib/career/onboarding';
-import { rnOnboardFromInvoice } from '@/lib/rn/onboarding';
 import type { Installment } from '@/types';
 
 export const runtime = 'nodejs';
@@ -142,37 +141,43 @@ export async function POST(request: NextRequest) {
         })
       );
       
-      if (invoice.brandId === 'ripple_nexus') {
-        waitUntil(
-          rnOnboardFromInvoice(invoice as any)
-            .catch(err => console.error('[webhook] RN onboarding failed:', err))
-        );
-      } else {
-        waitUntil(
-          onboardFromInvoice({ ...invoice, razorpayPaymentId })
-            .then(async (result) => {
-              const { handleSalesFunnelPayment } = await import('@/lib/sales/paymentHooks');
-              await handleSalesFunnelPayment(invoice.id, result.clientId);
-            })
-            .catch(async (err) => {
-              console.error('[webhook] Career onboarding or funnel update failed:', err);
-              const { sendCareerEmail } = await import('@/lib/career/email');
-              const adminEmail = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
-              await sendCareerEmail({
-                to: adminEmail,
-                trigger: 'MESSAGE_NOTIFY',
-                data: {
-                  recipientName: 'Catalyst Team',
-                  senderType: 'admin',
-                  portalUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/career`,
-                  body: `⚠️ ONBOARDING FAILED for ${invoice.clientEmail} (Invoice ${invoice.id}). Error: ${String(err)}. Manual action required.`,
-                },
-              }).catch(console.error);
-            })
-        );
-      }
-    }
+      waitUntil(
+        onboardFromInvoice({ ...invoice, razorpayPaymentId })
+          .catch(async (err: any) => {
+            console.error('[webhook] Career onboarding failed:', err);
+            const { sendCareerEmail } = await import('@/lib/career/email');
+            const adminEmail = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
+            await sendCareerEmail({
+              to: adminEmail,
+              trigger: 'MESSAGE_NOTIFY',
+              data: {
+                recipientName: 'Catalyst Team',
+                senderType: 'admin',
+                portalUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com'}/career`,
+                subject: `⚠️ ONBOARDING FAILED for ${invoice.clientEmail}`,
+                body: `⚠️ ONBOARDING FAILED for ${invoice.clientEmail} (Invoice ${invoice.id}). Error: ${String(err)}. Manual action required.`,
+              },
+            }).catch(console.error);
+          })
+      );
 
+      waitUntil(
+        prisma.careerRevision.findFirst({ where: { invoiceId: invoice.id } })
+          .then(async (rev) => {
+            if (rev) {
+              await prisma.careerRevision.update({
+                where: { id: rev.id },
+                data: { chargeStatus: 'PAID', status: 'UNDER_PROCESS' },
+              });
+              await prisma.careerClient.update({
+                where: { id: rev.clientId },
+                data: { status: 'UNDER_PROCESS', waitingOn: 'AGENCY' },
+              });
+            }
+          })
+          .catch(err => console.error('[razorpay webhook] revision sync failed:', err))
+      );
+    }
   }
 
   // ── PAYMENT LINK EXPIRED ─────────────────────────────────────
