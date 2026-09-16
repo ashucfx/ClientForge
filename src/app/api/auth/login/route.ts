@@ -39,46 +39,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    // Resolve the portal for this account. If the requested brand isn't
-    // accessible but the account belongs to exactly one portal, sign them
-    // into that portal instead of dead-ending on a 403 (the login form's
-    // brand toggle defaults to Catalyst, which RN-only admins would trip on).
-    const isSuperAdmin = adminUser.role === 'SUPER_ADMIN';
-    let effectiveBrand = brand;
-    if (!isSuperAdmin && !adminUser.brandAccess.includes(brand)) {
-      if (adminUser.brandAccess.length === 1) {
-        effectiveBrand = adminUser.brandAccess[0];
-      } else {
-        return NextResponse.json(
-          { error: `Account does not have access to the ${brand === 'catalyst' ? 'Catalyst' : 'Ripple Nexus'} portal.` },
-          { status: 403 }
-        );
-      }
-    }
-
-    // Update last login
+    // Update last login timestamp
     await prisma.adminUser.update({
       where: { id: adminUser.id },
       data: { lastLoginAt: new Date() },
     });
 
+    // Record session login in audit logs with timestamp & IP
+    await prisma.auditLog.create({
+      data: {
+        tenantId: 'catalyst',
+        adminId: adminUser.id,
+        action: 'ADMIN_LOGIN',
+        entity: 'AdminUser',
+        entityId: adminUser.id,
+        changes: {
+          email: adminUser.email,
+          role: adminUser.role,
+          ip,
+          userAgent: request.headers.get('user-agent') ?? 'unknown',
+          loggedInAt: new Date().toISOString(),
+        },
+      },
+    }).catch(err => console.error('[login] AuditLog failed:', err));
+
     const token = await createAdminSessionToken({
       adminId: adminUser.id,
       email: adminUser.email,
       role: adminUser.role,
-      brandAccess: adminUser.brandAccess,
-      activeTenant: effectiveBrand, // 🔐 Cryptographically embedded — cannot be tampered via XSS
+      brandAccess: ['catalyst'],
+      activeTenant: 'catalyst',
     });
-
-    // Determine post-login redirect based on tenant
-    const redirectTo = effectiveBrand === 'ripple_nexus' ? '/rn/dashboard' : '/';
 
     const res = NextResponse.json({
       ok: true,
       role: adminUser.role,
-      brandAccess: adminUser.brandAccess,
-      brand: effectiveBrand,
-      redirectTo,
+      brandAccess: ['catalyst'],
+      brand: 'catalyst',
+      redirectTo: '/',
     });
 
 
@@ -95,7 +93,7 @@ export async function POST(request: NextRequest) {
     // Set the active brand cookie — now httpOnly so XSS cannot forge tenant context
     res.cookies.set({
       name:     'cf_active_brand',
-      value:    effectiveBrand,
+      value:    'catalyst',
       httpOnly: true, // 🔐 Fixed: was false — XSS could tamper brand context
       sameSite: 'lax',
       path:     '/',
