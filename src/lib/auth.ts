@@ -78,7 +78,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
 }
 
 export async function createAdminSessionToken(
-  payload: { adminId: string; email: string; role: string; brandAccess: string[]; activeTenant: string },
+  payload: { adminId: string; email: string; role: string; brandAccess: string[]; activeTenant: string; sessionId?: string },
   opts?: { ttlSeconds?: number }
 ): Promise<string> {
   const configuredTtl = process.env.ADMIN_SESSION_TTL_SECONDS
@@ -89,13 +89,41 @@ export async function createAdminSessionToken(
       ? opts.ttlSeconds
       : (Number.isFinite(configuredTtl) && (configuredTtl as number) > 0 ? (configuredTtl as number) : 60 * 60 * 8); // 8 hours default
 
-  return createSessionToken(getAdminSessionSecret(), { ...payload, activeTenant: payload.activeTenant }, { ttlSeconds });
+  return createSessionToken(getAdminSessionSecret(), { ...payload, activeTenant: payload.activeTenant, sessionId: payload.sessionId }, { ttlSeconds });
 }
 
+export async function isSessionRevoked(sessionId?: string): Promise<boolean> {
+  if (!sessionId) return false;
+  try {
+    const { getSetting } = await import('@/lib/systemSettings');
+    const revoked = await getSetting<string[]>('REVOKED_SESSIONS');
+    if (!Array.isArray(revoked)) return false;
+    return revoked.includes(sessionId);
+  } catch {
+    return false;
+  }
+}
+
+export async function isIpBlocked(ip: string): Promise<boolean> {
+  if (!ip) return false;
+  try {
+    const { getSetting } = await import('@/lib/systemSettings');
+    const blocked = await getSetting<string[]>('BLOCKED_IPS');
+    if (!Array.isArray(blocked)) return false;
+    return blocked.includes(ip.trim());
+  } catch {
+    return false;
+  }
+}
 
 export async function verifyAdminSessionToken(token: string): Promise<boolean> {
   const payload = await verifySessionToken(getAdminSessionSecret(), token);
-  return payload !== null;
+  if (!payload) return false;
+  const sid = payload.sessionId || (payload.jti as string);
+  if (sid && (await isSessionRevoked(sid))) {
+    return false;
+  }
+  return true;
 }
 
 export async function isAdminRequest(): Promise<boolean> {
@@ -108,12 +136,18 @@ export async function isAdminRequest(): Promise<boolean> {
   }
 }
 
-export async function getAdminSession(): Promise<{ adminId: string; role: string; brandAccess: string[]; activeTenant: string } | null> {
+export async function getAdminSession(): Promise<{ adminId: string; role: string; brandAccess: string[]; activeTenant: string; sessionId?: string } | null> {
   try {
     const token = cookies().get(COOKIE_NAME)?.value;
     if (!token) return null;
     const payload = await verifySessionToken(getAdminSessionSecret(), token);
     if (!payload) return null;
+
+    const sid = payload.sessionId || (payload.jti as string);
+    if (sid && (await isSessionRevoked(sid))) {
+      return null;
+    }
+
     // Derive activeTenant from JWT first (v3+), fall back to first brand in brandAccess for legacy tokens
     const brandAccess = Array.isArray(payload.brandAccess) ? payload.brandAccess : [];
     let activeTenant = payload.activeTenant as string;
@@ -125,6 +159,7 @@ export async function getAdminSession(): Promise<{ adminId: string; role: string
       role: payload.role,
       brandAccess,
       activeTenant,
+      sessionId: sid,
     };
   } catch {
     return null;

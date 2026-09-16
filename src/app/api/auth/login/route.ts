@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createAdminSessionToken, getAdminCookieName, verifyPassword } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import {
+  verifyPassword,
+  createAdminSessionToken,
+  getAdminCookieName,
+  isIpBlocked,
+} from '@/lib/auth';
 import { rateLimit } from '@/lib/ratelimit';
+import crypto from 'crypto';
 
 
 export const runtime = 'nodejs';
@@ -11,6 +17,14 @@ export async function POST(request: NextRequest) {
   try {
     const forwarded = request.headers.get('x-forwarded-for');
     const ip = (forwarded ? forwarded.split(',')[0].trim() : null) || request.headers.get('x-real-ip') || request.headers.get('cf-connecting-ip') || 'unknown';
+    
+    if (ip !== 'unknown' && (await isIpBlocked(ip))) {
+      return NextResponse.json(
+        { error: 'Access denied: This IP address has been blocked for security policy violations.' },
+        { status: 403 }
+      );
+    }
+
     const limit = await rateLimit(`admin_login:${ip}`, 'admin_login', 5, 15 * 60 * 1000);
     if (!limit.allowed) {
       return NextResponse.json(
@@ -46,7 +60,9 @@ export async function POST(request: NextRequest) {
       data: { lastLoginAt: new Date() },
     });
 
-    // Record session login in audit logs with timestamp & IP
+    const sessionId = crypto.randomUUID();
+
+    // Record session login in audit logs with timestamp, sessionId & IP
     await prisma.auditLog.create({
       data: {
         tenantId: 'catalyst',
@@ -55,11 +71,13 @@ export async function POST(request: NextRequest) {
         entity: 'AdminUser',
         entityId: adminUser.id,
         changes: {
+          sessionId,
           email: adminUser.email,
           role: adminUser.role,
           ip,
           userAgent: request.headers.get('user-agent') ?? 'unknown',
           loggedInAt: new Date().toISOString(),
+          status: 'ACTIVE',
         },
       },
     }).catch(err => console.error('[login] AuditLog failed:', err));
@@ -70,6 +88,7 @@ export async function POST(request: NextRequest) {
       role: adminUser.role,
       brandAccess: ['catalyst'],
       activeTenant: 'catalyst',
+      sessionId,
     });
 
     const res = NextResponse.json({

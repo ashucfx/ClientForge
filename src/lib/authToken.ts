@@ -8,6 +8,8 @@ export interface AdminSessionPayload extends JWTPayload {
   adminId: string;
   email: string;
   role: string;
+  /** Unique session ID for revoking single sessions */
+  sessionId?: string;
   /** The brand the admin actively logged into — cryptographically embedded, cannot be tampered */
   activeTenant?: string;
   /** All brands this admin has access to */
@@ -20,17 +22,22 @@ function getSecretKey(secret: string): Uint8Array {
 
 export async function createSessionToken(
   secret: string,
-  payload: { adminId: string; email: string; role: string; activeTenant?: string; brandAccess?: string[] },
+  payload: { adminId: string; email: string; role: string; activeTenant?: string; brandAccess?: string[]; sessionId?: string },
   opts?: { ttlSeconds?: number }
 ): Promise<string> {
   const ttlSeconds = opts?.ttlSeconds ?? 60 * 60 * 24 * 14; // 14 days
   const now = Math.floor(Date.now() / 1000);
   
-  return new SignJWT({ ...payload, v: 3 })
+  const jwt = new SignJWT({ ...payload, v: 3 })
     .setProtectedHeader({ alg: ALGORITHM })
     .setIssuedAt(now)
-    .setExpirationTime(now + ttlSeconds)
-    .sign(getSecretKey(secret));
+    .setExpirationTime(now + ttlSeconds);
+
+  if (payload.sessionId) {
+    jwt.setJti(payload.sessionId);
+  }
+
+  return jwt.sign(getSecretKey(secret));
 }
 
 export async function verifySessionToken(

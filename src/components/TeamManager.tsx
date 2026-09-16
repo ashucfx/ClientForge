@@ -16,6 +16,7 @@ type AdminUser = {
 
 type SessionLog = {
   id: string;
+  sessionId?: string;
   adminId: string;
   email: string;
   role: 'SUPER_ADMIN' | 'EDITOR' | 'VIEWER';
@@ -23,6 +24,10 @@ type SessionLog = {
   ip: string;
   userAgent: string;
   createdAt: string;
+  isRevoked?: boolean;
+  isBlocked?: boolean;
+  isCurrent?: boolean;
+  status?: 'ACTIVE' | 'REVOKED' | 'BLOCKED';
 };
 
 const PORTALS: { id: string; label: string; color: string }[] = [
@@ -92,6 +97,9 @@ export function TeamManager() {
     setLoading(false);
   }, []);
 
+  const [blockedIps, setBlockedIps] = useState<string[]>([]);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
   const fetchSessions = useCallback(async () => {
     setSessionsLoading(true);
     try {
@@ -99,12 +107,82 @@ export function TeamManager() {
       if (res.ok) {
         const data = await res.json();
         setSessions(data.sessions || []);
+        setBlockedIps(data.blockedIps || []);
       }
     } catch {
       // Ignore
     }
     setSessionsLoading(false);
   }, []);
+
+  const handleRevokeSession = async (session: SessionLog) => {
+    if (!confirm(`Revoke and terminate session for ${session.email} on ${session.ip}? That device will be logged out immediately.`)) return;
+    setActionLoading(session.id);
+    try {
+      const res = await fetch('/api/admin/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'REVOKE',
+          sessionId: session.sessionId ?? session.id,
+          logId: session.id,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to revoke session');
+      fetchSessions();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error revoking session');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleBlockIp = async (ip: string) => {
+    if (!ip || ip === 'unknown') return alert('Cannot block an unknown IP.');
+    if (!confirm(`Block IP address ${ip}? This will terminate all active sessions originating from this IP and block all future logins from it.`)) return;
+    setActionLoading(ip);
+    try {
+      const res = await fetch('/api/admin/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'BLOCK_IP',
+          ip,
+          reason: 'Suspicious / unrecognised session blocked by admin',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to block IP');
+      fetchSessions();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error blocking IP');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleUnblockIp = async (ip: string) => {
+    if (!confirm(`Unblock IP address ${ip}?`)) return;
+    setActionLoading(ip);
+    try {
+      const res = await fetch('/api/admin/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'UNBLOCK_IP',
+          ip,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to unblock IP');
+      fetchSessions();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error unblocking IP');
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const handleClearAllSessions = async () => {
     if (!confirm('Are you sure you want to clear all administrator login session logs?')) return;
@@ -563,8 +641,15 @@ export function TeamManager() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h2 className="text-sm sm:text-base font-bold text-slate-900">Administrator Login Sessions</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Audit log of authentications with device classification, IP address, and role.</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-bold text-slate-900">Administrator Login Sessions</h2>
+                {blockedIps.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300">
+                    {blockedIps.length} IP{blockedIps.length > 1 ? 's' : ''} Blocked
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">Audit log of authentications with device classification, IP address, and role. Revoke unrecognized sessions or block suspicious IPs.</p>
             </div>
             <div className="flex items-center gap-2 self-start sm:self-auto">
               {sessions.length > 0 && (
@@ -650,22 +735,79 @@ export function TeamManager() {
                           </div>
                         </td>
                         <td className="py-3.5 px-4 font-mono text-slate-600">
-                          {session.ip}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span>{session.ip}</span>
+                            {session.isBlocked && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
+                                BLOCKED
+                              </span>
+                            )}
+                          </div>
                         </td>
-                        <td className="py-3.5 px-4">
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            Authenticated
-                          </span>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          {session.isCurrent ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                              This Device (Current)
+                            </span>
+                          ) : session.isRevoked ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                              <span className="w-2 h-2 rounded-full bg-rose-500" />
+                              Revoked (Logged Out)
+                            </span>
+                          ) : session.isBlocked ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
+                              <span className="w-2 h-2 rounded-full bg-amber-500" />
+                              Terminated (Blocked IP)
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              Active
+                            </span>
+                          )}
                         </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <button
-                            onClick={() => handleDeleteSession(session.id)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                            title="Delete session log"
-                          >
-                            <IconTrash size={14} />
-                          </button>
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {!session.isCurrent && !session.isRevoked && (
+                              <button
+                                onClick={() => handleRevokeSession(session)}
+                                disabled={actionLoading === session.id}
+                                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors shadow-2xs disabled:opacity-50"
+                                title="Immediately revoke token and log out this session"
+                              >
+                                {actionLoading === session.id ? '…' : 'Revoke Session'}
+                              </button>
+                            )}
+                            {session.ip && session.ip !== 'unknown' && (
+                              session.isBlocked ? (
+                                <button
+                                  onClick={() => handleUnblockIp(session.ip)}
+                                  disabled={actionLoading === session.ip}
+                                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors shadow-2xs disabled:opacity-50"
+                                  title="Unblock this IP address"
+                                >
+                                  {actionLoading === session.ip ? '…' : 'Unblock IP'}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleBlockIp(session.ip)}
+                                  disabled={actionLoading === session.ip}
+                                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors shadow-2xs disabled:opacity-50"
+                                  title="Block this IP address and terminate all sessions from it"
+                                >
+                                  {actionLoading === session.ip ? '…' : 'Block IP'}
+                                </button>
+                              )
+                            )}
+                            <button
+                              onClick={() => handleDeleteSession(session.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              title="Delete log record"
+                            >
+                              <IconTrash size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

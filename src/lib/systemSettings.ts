@@ -10,7 +10,9 @@ import { Prisma } from '@prisma/client';
 export type SettingKey =
   | 'GLOBAL_CURRENCY_PRICING'
   | 'EXECUTIVE_CONNECT_PRICING'
-  | 'GLOBAL_PRICING_V2';
+  | 'GLOBAL_PRICING_V2'
+  | 'REVOKED_SESSIONS'
+  | 'BLOCKED_IPS';
 
 export type GlobalCurrencyPricingMap = {
   [currency: string]: {
@@ -33,7 +35,9 @@ const DEFAULTS: Record<SettingKey, unknown> = {
     CAD: 140,
     AED: 367,
     SGD: 135
-  }
+  },
+  REVOKED_SESSIONS: [],
+  BLOCKED_IPS: []
 };
 
 // ─── Generic helpers ─────────────────────────────────────────────────────────
