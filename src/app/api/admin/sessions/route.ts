@@ -50,3 +50,35 @@ export async function GET() {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  const session = await getAdminSession();
+  if (!session || session.role !== 'SUPER_ADMIN') {
+    return NextResponse.json({ error: 'Unauthorized. Super Admin access required.' }, { status: 401 });
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (id) {
+      await prisma.auditLog.deleteMany({
+        where: {
+          id,
+          action: 'ADMIN_LOGIN',
+        },
+      });
+      return NextResponse.json({ success: true, message: 'Session log deleted' });
+    } else {
+      await prisma.auditLog.deleteMany({
+        where: {
+          action: 'ADMIN_LOGIN',
+        },
+      });
+      return NextResponse.json({ success: true, message: 'All session logs cleared' });
+    }
+  } catch (error) {
+    console.error('Failed to delete session log(s):', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}

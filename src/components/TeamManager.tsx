@@ -29,6 +29,38 @@ const PORTALS: { id: string; label: string; color: string }[] = [
   { id: 'catalyst', label: 'Catalyst', color: 'var(--brand)' },
 ];
 
+function parseClientDevice(userAgent: string) {
+  if (!userAgent || userAgent === 'unknown') return { device: 'Unknown Device', browser: 'Browser', isMobile: false };
+  const ua = userAgent.toLowerCase();
+  
+  let device = 'Desktop';
+  let isMobile = false;
+  if (ua.includes('iphone')) {
+    device = 'iPhone';
+    isMobile = true;
+  } else if (ua.includes('ipad')) {
+    device = 'iPad';
+    isMobile = true;
+  } else if (ua.includes('android')) {
+    device = ua.includes('mobile') ? 'Android Mobile' : 'Android Tablet';
+    isMobile = true;
+  } else if (ua.includes('macintosh') || ua.includes('mac os')) {
+    device = 'macOS';
+  } else if (ua.includes('windows')) {
+    device = 'Windows PC';
+  } else if (ua.includes('linux')) {
+    device = 'Linux';
+  }
+
+  let browser = 'Browser';
+  if (ua.includes('edg/')) browser = 'Edge';
+  else if (ua.includes('chrome/') || ua.includes('crios/')) browser = 'Chrome';
+  else if (ua.includes('safari/') && !ua.includes('chrome')) browser = 'Safari';
+  else if (ua.includes('firefox/') || ua.includes('fxios/')) browser = 'Firefox';
+
+  return { device, browser, isMobile };
+}
+
 export function TeamManager() {
   const [activeTab, setActiveTab] = useState<'members' | 'sessions'>('members');
   const [admins, setAdmins] = useState<AdminUser[]>([]);
@@ -73,6 +105,34 @@ export function TeamManager() {
     }
     setSessionsLoading(false);
   }, []);
+
+  const handleClearAllSessions = async () => {
+    if (!confirm('Are you sure you want to clear all administrator login session logs?')) return;
+    try {
+      const res = await fetch('/api/admin/sessions', { method: 'DELETE' });
+      if (res.ok) {
+        setSessions([]);
+      } else {
+        alert('Failed to clear session logs.');
+      }
+    } catch {
+      alert('Error clearing session logs.');
+    }
+  };
+
+  const handleDeleteSession = async (id: string) => {
+    if (!confirm('Delete this session audit log entry?')) return;
+    try {
+      const res = await fetch(`/api/admin/sessions?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setSessions(prev => prev.filter(s => s.id !== id));
+      } else {
+        alert('Failed to delete session log.');
+      }
+    } catch {
+      alert('Error deleting session log.');
+    }
+  };
 
   useEffect(() => {
     fetchAdmins();
@@ -501,66 +561,115 @@ export function TeamManager() {
       ) : (
         /* ── Session Logs View ── */
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h2 className="text-sm sm:text-base font-bold text-slate-900">Administrator Login Sessions</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Audit log of administrator authentications with timestamps, IP addresses, and roles.</p>
+              <p className="text-xs text-slate-500 mt-0.5">Audit log of authentications with device classification, IP address, and role.</p>
             </div>
-            <button
-              onClick={fetchSessions}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition-colors"
-            >
-              Refresh
-            </button>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {sessions.length > 0 && (
+                <button
+                  onClick={handleClearAllSessions}
+                  className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition-colors flex items-center gap-1.5"
+                >
+                  <IconTrash size={13} />
+                  <span>Clear All Logs</span>
+                </button>
+              )}
+              <button
+                onClick={fetchSessions}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto w-full">
-            <table className="w-full text-left border-collapse min-w-[700px]">
+            <table className="w-full text-left border-collapse min-w-[760px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   <th className="py-3 px-4">Administrator</th>
                   <th className="py-3 px-4">Role</th>
-                  <th className="py-3 px-4">Login Date &amp; Time</th>
-                  <th className="py-3 px-4">Elapsed</th>
+                  <th className="py-3 px-4">Device & Client</th>
+                  <th className="py-3 px-4">Login Date & Time</th>
                   <th className="py-3 px-4">IP Address</th>
                   <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
                 {sessionsLoading ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-slate-400">Loading session logs...</td>
+                    <td colSpan={7} className="py-12 text-center text-slate-400">Loading session logs...</td>
                   </tr>
                 ) : sessions.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-slate-400">No session login logs recorded yet.</td>
+                    <td colSpan={7} className="py-12 text-center text-slate-400">No session login logs recorded yet.</td>
                   </tr>
                 ) : (
-                  sessions.map(session => (
-                    <tr key={session.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3.5 px-4 font-semibold text-slate-900">{session.email}</td>
-                      <td className="py-3.5 px-4">
-                        <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                          {session.role}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-600 font-mono">
-                        {format(new Date(session.createdAt), 'PPP p')}
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-500">
-                        {formatDistanceToNow(new Date(session.createdAt), { addSuffix: true })}
-                      </td>
-                      <td className="py-3.5 px-4 font-mono text-slate-600">
-                        {session.ip}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          Authenticated
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                  sessions.map(session => {
+                    const client = parseClientDevice(session.userAgent);
+                    return (
+                      <tr key={session.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3.5 px-4 font-semibold text-slate-900">{session.email}</td>
+                        <td className="py-3.5 px-4">
+                          <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            {session.role}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium ${
+                              client.isMobile 
+                                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' 
+                                : 'bg-slate-100 text-slate-700 border border-slate-200'
+                            }`}>
+                              {client.isMobile ? (
+                                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                                  <line x1="12" y1="18" x2="12.01" y2="18" strokeWidth="3" strokeLinecap="round" />
+                                </svg>
+                              ) : (
+                                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                                  <line x1="8" y1="21" x2="16" y2="21" />
+                                  <line x1="12" y1="17" x2="12" y2="21" />
+                                </svg>
+                              )}
+                              <span>{client.device}</span>
+                            </span>
+                            <span className="text-[11px] text-slate-400">·</span>
+                            <span className="text-[11px] text-slate-500 font-medium">{client.browser}</span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-600 font-mono">
+                          <div>{format(new Date(session.createdAt), 'PPP p')}</div>
+                          <div className="text-[10px] text-slate-400 font-sans mt-0.5">
+                            {formatDistanceToNow(new Date(session.createdAt), { addSuffix: true })}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-slate-600">
+                          {session.ip}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            Authenticated
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <button
+                            onClick={() => handleDeleteSession(session.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            title="Delete session log"
+                          >
+                            <IconTrash size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

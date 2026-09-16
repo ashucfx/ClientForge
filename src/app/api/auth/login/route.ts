@@ -9,7 +9,8 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
+    const forwarded = request.headers.get('x-forwarded-for');
+    const ip = (forwarded ? forwarded.split(',')[0].trim() : null) || request.headers.get('x-real-ip') || request.headers.get('cf-connecting-ip') || 'unknown';
     const limit = await rateLimit(`admin_login:${ip}`, 'admin_login', 5, 15 * 60 * 1000);
     if (!limit.allowed) {
       return NextResponse.json(
