@@ -11,7 +11,6 @@ import { InvoiceEmail } from '@/emails/invoice/InvoiceEmail';
 import { PaymentConfirmationEmail } from '@/emails/invoice/PaymentConfirmationEmail';
 import { CheckoutRecoveryEmail } from '@/emails/invoice/CheckoutRecoveryEmail';
 import { AdminPaymentAlertEmail } from '@/emails/invoice/AdminPaymentAlertEmail';
-import { sendRnEmail, isRnSmtpConfigured } from './rn/mailer';
 import { prisma } from './db';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY!;
@@ -93,18 +92,6 @@ export async function sendInvoiceEmail(
     ];
   }
 
-  if (invoice.brandId === 'ripple_nexus' && isRnSmtpConfigured()) {
-    // For Ripple Nexus, use SMTP to send the detailed HTML
-    await sendRnEmail({
-      clientId: invoice.clientEmail, // Fallback if clientId is missing on legacy invoices
-      to: invoice.clientEmail,
-      subject,
-      html,
-      trigger: 'INVOICE_SENT',
-      metadata: { invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber },
-    });
-    return;
-  }
 
   const res = await fetch('https://api.resend.com/emails', {
     method:  'POST',

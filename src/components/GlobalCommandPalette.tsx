@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useBrand } from '@/components/BrandProvider';
 
 interface SearchResult {
   type: string;
@@ -19,8 +18,6 @@ export function GlobalCommandPalette() {
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const { activeBrand } = useBrand();
-  const isRn = activeBrand === 'ripple_nexus';
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -92,32 +89,13 @@ export function GlobalCommandPalette() {
           {query.length === 0 && (
             <div className="p-4">
               <div className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">Quick Actions</div>
-              {isRn ? (
-                <>
-                  <button
-                    onClick={() => { router.push('/rn/projects/new'); setIsOpen(false); }}
-                    className="w-full text-left p-3 rounded-lg hover:bg-[#27272A] text-white flex items-center gap-3 transition-colors"
-                  >
-                    <div className="w-8 h-8 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center">+</div>
-                    Create New Project
-                  </button>
-                  <button
-                    onClick={() => { router.push('/rn/invoices/new'); setIsOpen(false); }}
-                    className="w-full text-left p-3 rounded-lg hover:bg-[#27272A] text-white flex items-center gap-3 transition-colors mt-1"
-                  >
-                    <div className="w-8 h-8 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center">+</div>
-                    Create New Invoice
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => { router.push('/invoices/new'); setIsOpen(false); }}
-                  className="w-full text-left p-3 rounded-lg hover:bg-[#27272A] text-white flex items-center gap-3 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded bg-blue-500/20 text-blue-400 flex items-center justify-center">+</div>
-                  Create New Invoice
-                </button>
-              )}
+              <button
+                onClick={() => { router.push('/invoices/new'); setIsOpen(false); }}
+                className="w-full text-left p-3 rounded-lg hover:bg-[#27272A] text-white flex items-center gap-3 transition-colors"
+              >
+                <div className="w-8 h-8 rounded bg-[#B8935B]/20 text-[#B8935B] flex items-center justify-center">+</div>
+                Create New Invoice
+              </button>
             </div>
           )}
 

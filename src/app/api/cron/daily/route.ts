@@ -14,7 +14,6 @@ import { GET as runInvoicesCron } from '../invoices/route';
 import { GET as runSlaCron } from '../sla/route';
 import { GET as runAbandonedCheckoutCron } from '../abandoned-checkout/route';
 import { GET as runUpsellCron } from '../upsell/route';
-import { GET as runScoreDecay } from '../../admin/flywheel/cron/score-decay/route';
 
 async function run(name: string, fn: () => Promise<Response>): Promise<[string, string | number]> {
   try {
@@ -38,7 +37,6 @@ export async function GET(req: NextRequest) {
     run('sla',               () => runSlaCron(r)),
     run('abandoned_checkout',() => runAbandonedCheckoutCron(r)),
     run('upsell',            () => runUpsellCron(r)),
-    run('score_decay',       () => runScoreDecay(req)),
   ]);
 
   const results: Record<string, string | number> = {};

@@ -7,59 +7,8 @@ interface LogoProps {
   brandId?: BrandId; // Defaults to catalyst
 }
 
-export function Logo({ variant = 'horizontal', size = 40, dark = false, brandId = 'catalyst' }: LogoProps) {
-  if (brandId === 'ripple_nexus') {
-    // Brand System §3: Nexus node + three rippling arcs on the signature
-    // gradient. Rendered inline (crisp at any size, no font-fallback issues),
-    // geometry matching 02-logos/logo-icon-mark.svg exactly.
-    const textColor = dark ? '#F4F5FA' : '#0A0B14';
-    const mark = (
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 64 64"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-      >
-        <defs>
-          <linearGradient id="rn-grad-live" x1="0%" y1="0%" x2="100%" y2="50%">
-            <stop offset="0%" stopColor="#7C5CFF" />
-            <stop offset="55%" stopColor="#B794FF" />
-            <stop offset="100%" stopColor="#22D3EE" />
-          </linearGradient>
-        </defs>
-        <circle cx="22" cy="32" r="5" fill="url(#rn-grad-live)" />
-        <path d="M 27 23.34 A 10 10 0 0 1 27 40.66" fill="none" stroke="url(#rn-grad-live)" strokeWidth="3" strokeLinecap="round" />
-        <path d="M 34.73 19.27 A 18 18 0 0 1 34.73 44.73" fill="none" stroke="url(#rn-grad-live)" strokeWidth="3" strokeLinecap="round" opacity="0.7" />
-        <path d="M 44.52 19 A 26 26 0 0 1 44.52 45" fill="none" stroke="url(#rn-grad-live)" strokeWidth="3" strokeLinecap="round" opacity="0.45" />
-      </svg>
-    );
-
-    if (variant === 'icon') return mark;
-
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: Math.round(size * 0.16) }} aria-label="Ripple Nexus">
-        {mark}
-        <span
-          style={{
-            fontFamily: 'Inter, ui-sans-serif, system-ui, Helvetica, Arial, sans-serif',
-            fontWeight: 800,
-            fontSize: Math.round(size * 0.58),
-            letterSpacing: '-0.035em',
-            color: textColor,
-            lineHeight: 1,
-            whiteSpace: 'nowrap',
-            userSelect: 'none',
-          }}
-        >
-          Ripple Nexus
-        </span>
-      </div>
-    );
-  }
-
-  // CATALYST (Default)
+export function Logo({ variant = 'horizontal', size = 40, dark = false }: LogoProps) {
+  // CATALYST Logo
   const strokeFill = dark ? '#F4F1EB' : '#0A0B0D';
   const dotFill    = dark ? '#0A0B0D' : '#F4F1EB';
   const markW      = Math.round(size * (192 / 240));

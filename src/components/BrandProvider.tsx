@@ -11,26 +11,8 @@ type BrandContextType = {
 
 const BrandContext = createContext<BrandContextType | null>(null);
 
-export function BrandProvider({ children, initialBrand }: { children: React.ReactNode, initialBrand?: string }) {
-  const { hasCatalystAccess, hasRnAccess, isSuperAdmin } = useAdmin();
-  
-  // Default to the brand from the cookie, or fallback to 'all' or specific brand based on access
-  const [activeBrand, setActiveBrand] = useState<BrandId | 'all'>(
-    (initialBrand as BrandId) || 'all'
-  );
-
-  useEffect(() => {
-    // If we have an initialBrand from the login cookie, we stick to it
-    if (initialBrand) {
-       setActiveBrand(initialBrand as BrandId);
-       return;
-    }
-
-    if (!isSuperAdmin) {
-      if (hasCatalystAccess && !hasRnAccess) setActiveBrand('catalyst');
-      if (hasRnAccess && !hasCatalystAccess) setActiveBrand('ripple_nexus');
-    }
-  }, [isSuperAdmin, hasCatalystAccess, hasRnAccess, initialBrand]);
+export function BrandProvider({ children }: { children: React.ReactNode, initialBrand?: string }) {
+  const [activeBrand, setActiveBrand] = useState<BrandId | 'all'>('catalyst');
 
   return (
     <BrandContext.Provider value={{ activeBrand, setActiveBrand }}>

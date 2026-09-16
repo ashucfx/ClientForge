@@ -1,8 +1,7 @@
 // src/lib/brand/types.ts
-// Brand system for ClientForge — supports Catalyst (sub-brand) + Ripple Nexus (parent brand)
-// This file is NEW — it does not modify any existing file.
+// Brand system for ClientForge — Catalyst TPA only
 
-export type BrandId = 'catalyst' | 'ripple_nexus';
+export type BrandId = 'catalyst';
 
 export interface BrandToken {
   /** Unique identifier */

@@ -19,7 +19,7 @@ import { getNextInvoiceNumber } from '@/lib/invoiceUtils';
 import {
   inquiryStatusToLeadStatus,
   inquiryStatusToLifecycleStage,
-} from '@/lib/flywheel/inquiryStatusMap';
+} from './inquiryStatusMap';
 import { findReferrerByCode, ensureReferralCode } from '@/lib/referral';
 import { sendCareerEmail } from '@/lib/career/email';
 import { notifyAllAdmins } from '@/lib/notifications';

@@ -21,19 +21,6 @@ export default function LoginClient() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [brand, setBrand] = useState<'catalyst' | 'ripple_nexus'>('catalyst');
-
-  // Preselect the portal: an /rn deep link wins, otherwise the last-used portal.
-  useEffect(() => {
-    if (nextUrl?.startsWith('/rn')) {
-      setBrand('ripple_nexus');
-      return;
-    }
-    try {
-      const last = localStorage.getItem(LAST_BRAND_KEY);
-      if (last === 'ripple_nexus' || last === 'catalyst') setBrand(last);
-    } catch { /* ignore */ }
-  }, [nextUrl]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,20 +30,13 @@ export default function LoginClient() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, brand }),
+        body: JSON.stringify({ email, password, brand: 'catalyst' }),
       });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? 'Login failed');
 
-      const effectiveBrand: string = data.brand ?? brand;
-      try { localStorage.setItem(LAST_BRAND_KEY, effectiveBrand); } catch { /* ignore */ }
-
-      // Honor a deep link only if it belongs to the portal we signed into;
-      // otherwise use the tenant-aware home from the API.
-      const nextMatchesBrand =
-        nextUrl && (effectiveBrand === 'ripple_nexus' ? nextUrl.startsWith('/rn') : !nextUrl.startsWith('/rn'));
-      const destination = (nextMatchesBrand && nextUrl) || data.redirectTo || '/';
+      const destination = nextUrl || data.redirectTo || '/';
       window.location.href = destination;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
@@ -83,20 +63,20 @@ export default function LoginClient() {
           <div className="relative hidden md:flex flex-col justify-between p-10" style={{ background: 'var(--brand-gradient-soft)' }}>
             <div>
               <div className="flex items-center gap-3">
-                <Logo variant="horizontal" size={44} brandId={brand} />
+                <Logo variant="horizontal" size={44} brandId="catalyst" />
               </div>
               <div className="mt-6" style={{ color: 'var(--text-primary)' }}>
                 <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.6px', lineHeight: 1.15 }}>
-                  {brand === 'catalyst' ? 'Catalyst ClientForge' : 'Ripple Nexus ClientForge'}
+                  Catalyst ClientForge
                 </div>
                 <div style={{ marginTop: 8, color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.5 }}>
-                  A light, modern admin workspace for {brand === 'catalyst' ? 'Career Booster operations' : 'B2B agency operations'}.
+                  Admin workspace for Catalyst Invoicing & Client Management operations.
                 </div>
               </div>
             </div>
 
             <div style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
-              Powered by <span style={{ color: 'var(--brand)', fontWeight: 700 }}>Ripple Nexus</span>
+              Catalyst TPA
             </div>
 
             <div
@@ -114,7 +94,7 @@ export default function LoginClient() {
 
           <div className="p-8 md:p-10">
             <div className="md:hidden flex justify-center mb-6">
-              <Logo variant="horizontal" size={42} brandId={brand} />
+              <Logo variant="horizontal" size={42} brandId="catalyst" />
             </div>
 
             <div style={{ textAlign: 'center', marginBottom: 26 }}>
@@ -122,35 +102,8 @@ export default function LoginClient() {
                 Admin Sign In
               </div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 6 }}>
-                Access your private workspace
+                Access Catalyst admin workspace
               </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, marginBottom: 24, padding: 4, background: 'var(--surface-2)', borderRadius: 12 }}>
-              <button
-                type="button"
-                onClick={() => setBrand('catalyst')}
-                style={{
-                  flex: 1, padding: '10px 0', fontSize: 13, fontWeight: 700, borderRadius: 8,
-                  background: brand === 'catalyst' ? 'var(--surface)' : 'transparent',
-                  color: brand === 'catalyst' ? 'var(--brand)' : 'var(--text-secondary)',
-                  boxShadow: brand === 'catalyst' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
-                }}
-              >
-                Catalyst
-              </button>
-              <button
-                type="button"
-                onClick={() => setBrand('ripple_nexus')}
-                style={{
-                  flex: 1, padding: '10px 0', fontSize: 13, fontWeight: 700, borderRadius: 8,
-                  background: brand === 'ripple_nexus' ? 'var(--surface)' : 'transparent',
-                  color: brand === 'ripple_nexus' ? '#7C5CFF' : 'var(--text-secondary)',
-                  boxShadow: brand === 'ripple_nexus' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
-                }}
-              >
-                Ripple Nexus
-              </button>
             </div>
 
             <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -214,8 +167,8 @@ export default function LoginClient() {
                   fontSize: 14,
                   fontWeight: 800,
                   letterSpacing: '.2px',
-                  background: busy ? 'var(--brand-dark)' : (brand === 'catalyst' ? 'var(--brand-gradient)' : '#7C5CFF'),
-                  boxShadow: busy ? 'none' : (brand === 'catalyst' ? '0 10px 28px rgba(31,86,212,.18)' : '0 10px 28px rgba(124,92,255,.2)'),
+                  background: busy ? 'var(--brand-dark)' : 'var(--brand-gradient)',
+                  boxShadow: busy ? 'none' : '0 10px 28px rgba(31,86,212,.18)',
                 }}
                 disabled={busy || !password}
               >
@@ -233,7 +186,7 @@ export default function LoginClient() {
             </form>
 
             <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--border)', textAlign: 'center', fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '.3px' }}>
-              Catalyst ClientForge · Powered by <span style={{ color: 'var(--brand)', fontWeight: 600 }}>Ripple Nexus</span>
+              Catalyst ClientForge
             </div>
           </div>
         </div>

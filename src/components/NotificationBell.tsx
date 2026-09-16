@@ -45,17 +45,12 @@ export default function NotificationBell({ direction = 'down', label }: { direct
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Determine which API to poll based on active brand
+  // Poll Catalyst unread summary
   const careerEndpoint = '/api/career/admin/unread-summary';
-  const rnEndpoint = '/api/rn/admin/unread-summary';
-
-  // Tenant separation: only ever poll the ACTIVE brand's feed. A Ripple Nexus
-  // session must never see (or request) Catalyst/career notifications.
-  const isRnBrand = activeBrand === 'ripple_nexus';
 
   const fetchSummary = useCallback(async () => {
     try {
-      const res = await fetch(isRnBrand ? rnEndpoint : careerEndpoint, { cache: 'no-store' });
+      const res = await fetch(careerEndpoint, { cache: 'no-store' });
       if (!res.ok) return;
       const data: UnreadSummary = await res.json();
 
@@ -68,7 +63,7 @@ export default function NotificationBell({ direction = 'down', label }: { direct
           unreadCount: 1,
           lastActivityAt: n.createdAt,
           lastPreview: n.message,
-          link: n.link || (isRnBrand ? '/rn/notifications' : '/notifications'),
+          link: n.link || '/notifications',
           isNotification: true,
         })));
       }
@@ -87,7 +82,7 @@ export default function NotificationBell({ direction = 'down', label }: { direct
     } catch {
       // Silently fail — badge just won't update
     }
-  }, [isRnBrand]);
+  }, []);
 
   const handleDeleteNotification = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -119,8 +114,7 @@ export default function NotificationBell({ direction = 'down', label }: { direct
   }, []);
 
   const totalBadge = (summary?.totalUnread ?? 0) + (summary?.unreadNotifications ?? 0);
-  const isRn = activeBrand === 'ripple_nexus';
-  const accentColor = isRn ? '#7C5CFF' : '#B8935B';
+  const accentColor = '#B8935B';
 
   return (
     <div ref={dropdownRef} style={label ? { position: 'relative', width: '100%' } : { position: 'relative' }}>
@@ -275,7 +269,7 @@ export default function NotificationBell({ direction = 'down', label }: { direct
             ) : (
               summary.clientsWithUnread.map(c => {
                 const isSystem = c.email === 'system';
-                const href = c.link || (isRn ? `/rn/clients/${c.id}` : `/career/${c.id}`);
+                const href = c.link || `/career/${c.id}`;
                 return (
                   <Link
                     key={c.id}
@@ -377,14 +371,14 @@ export default function NotificationBell({ direction = 'down', label }: { direct
           {/* Footer */}
           <div style={{ borderTop: '1px solid var(--border, #f1f5f9)', padding: '10px 14px' }}>
             <Link
-              href={isRn ? '/rn/inbox' : '/notifications'}
+              href="/notifications"
               onClick={() => setOpen(false)}
               style={{
                 fontSize: 12, fontWeight: 600, color: accentColor,
                 textDecoration: 'none', display: 'block', textAlign: 'center',
               }}
             >
-              {isRn ? 'Open inbox →' : 'View all notifications →'}
+              View all notifications →
             </Link>
           </div>
         </div>

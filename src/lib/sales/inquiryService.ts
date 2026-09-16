@@ -4,7 +4,7 @@ import { canTransitionInquiry } from './inquiryTransitions';
 import {
   inquiryStatusToLeadStatus,
   inquiryStatusToLifecycleStage,
-} from '@/lib/flywheel/inquiryStatusMap';
+} from './inquiryStatusMap';
 import {
   createWithGeneratedDisplayId,
   nextContactDisplayId,

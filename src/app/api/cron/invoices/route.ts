@@ -8,7 +8,7 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma as db } from '@/lib/db';
 import { onboardFromInvoice } from '@/lib/career/onboarding';
-import { rnOnboardFromInvoice } from '@/lib/rn/onboarding';
+
 import { fetchPaypalInvoiceStatus } from '@/lib/paypal';
 import { fetchPaymentLinkStatus } from '@/lib/razorpay';
 import type { Installment } from '@/types';
@@ -105,22 +105,10 @@ export async function GET(request: NextRequest) {
         });
         
         if (allPaid) {
-          if (updatedInvoice.brandId === 'ripple_nexus') {
-            await rnOnboardFromInvoice(updatedInvoice as any).catch(err => {
-              console.error(`[Invoice Cron] RN Onboarding failed for invoice ${invoice.id}:`, err);
-            });
-          } else {
-            const result = await onboardFromInvoice(updatedInvoice).catch(err => {
-              console.error(`[Invoice Cron] Career Onboarding failed for invoice ${invoice.id}:`, err);
-              return null;
-            });
-            if (result) {
-              const { handleSalesFunnelPayment } = await import('@/lib/sales/paymentHooks');
-              await handleSalesFunnelPayment(updatedInvoice.id, result.clientId).catch(err => {
-                console.error(`[Invoice Cron] Funnel hook failed for invoice ${invoice.id}:`, err);
-              });
-            }
-          }
+          const result = await onboardFromInvoice(updatedInvoice).catch((err: unknown) => {
+            console.error(`[Invoice Cron] Career Onboarding failed for invoice ${invoice.id}:`, err);
+            return null;
+          });
           synced++;
         }
       }

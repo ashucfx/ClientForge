@@ -9,7 +9,6 @@ type AdminContextType = {
   brandAccess: string[];
   isSuperAdmin: boolean;
   hasCatalystAccess: boolean;
-  hasRnAccess: boolean;
 };
 
 const AdminContext = createContext<AdminContextType | null>(null);
@@ -27,7 +26,6 @@ export function AdminProvider({
 }) {
   const isSuperAdmin = role === 'SUPER_ADMIN';
   const hasCatalystAccess = isSuperAdmin || brandAccess.includes('catalyst');
-  const hasRnAccess = isSuperAdmin || brandAccess.includes('ripple_nexus');
 
   return (
     <AdminContext.Provider
@@ -37,7 +35,6 @@ export function AdminProvider({
         brandAccess,
         isSuperAdmin,
         hasCatalystAccess,
-        hasRnAccess,
       }}
     >
       {children}
