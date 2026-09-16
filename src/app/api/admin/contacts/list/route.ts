@@ -10,6 +10,26 @@ export async function GET() {
     const contacts = await prisma.contact.findMany({
       orderBy: { createdAt: 'desc' },
       take: 200,
+      include: {
+        careerClients: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            status: true,
+            amountPaid: true,
+            currency: true,
+            createdAt: true,
+          },
+        },
+        salesInquiries: {
+          select: {
+            id: true,
+            displayId: true,
+            status: true,
+          },
+        },
+      },
     });
     return NextResponse.json(contacts);
   } catch (error: any) {

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import AppShell from '@/components/AppShell';
 import { useAdmin } from '@/components/AdminProvider';
 import { IconTrash, IconCheck, IconCopy, IconSearch, IconUser, IconRefresh } from '@/components/Icons';
@@ -63,13 +64,19 @@ export default function ContactsAdminPage() {
   const filteredContacts = contacts.filter(c => {
     const q = search.toLowerCase().trim();
     if (!q) return true;
+    const hasMatchingClient = c.careerClients?.some((cl: any) =>
+      (cl.id && cl.id.toLowerCase().includes(q)) ||
+      (cl.name && cl.name.toLowerCase().includes(q)) ||
+      (cl.email && cl.email.toLowerCase().includes(q))
+    );
     return (
       (c.id && c.id.toLowerCase().includes(q)) ||
       (c.displayId && c.displayId.toLowerCase().includes(q)) ||
       (c.name && c.name.toLowerCase().includes(q)) ||
       (c.email && c.email.toLowerCase().includes(q)) ||
       (c.phone && c.phone.toLowerCase().includes(q)) ||
-      (c.companyName && c.companyName.toLowerCase().includes(q))
+      (c.companyName && c.companyName.toLowerCase().includes(q)) ||
+      hasMatchingClient
     );
   });
 
@@ -148,54 +155,120 @@ export default function ContactsAdminPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 640 }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--border)', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted)' }}>
-                    <th style={{ padding: '12px 18px', width: 220 }}>Client / Contact ID</th>
+                    <th style={{ padding: '12px 18px', width: 220 }}>Mapped Customer / Client ID</th>
+                    <th style={{ padding: '12px 18px', width: 170 }}>Lead / Contact Ref</th>
                     <th style={{ padding: '12px 18px' }}>Client Info</th>
                     <th style={{ padding: '12px 18px' }}>Company</th>
-                    <th style={{ padding: '12px 18px', width: 120 }}>Status</th>
-                    <th style={{ padding: '12px 18px', textAlign: 'right', width: 100 }}>Actions</th>
+                    <th style={{ padding: '12px 18px', width: 130 }}>Type &amp; Status</th>
+                    <th style={{ padding: '12px 18px', textAlign: 'right', width: 140 }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredContacts.map((c, idx) => {
-                    const displayId = c.displayId || c.id;
-                    const isCopied = copiedId === displayId;
+                    const primaryClient = c.careerClients && c.careerClients.length > 0 ? c.careerClients[0] : null;
+                    const clientId = primaryClient?.id;
+                    const leadId = c.displayId || c.id;
+                    const isClientCopied = clientId && copiedId === clientId;
+                    const isLeadCopied = copiedId === leadId;
+
                     return (
                       <tr key={c.id} style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? '#fff' : '#fafbfc', transition: 'background .15s' }}>
+                        {/* 1. Mapped Customer / Client ID */}
+                        <td style={{ padding: '14px 18px' }}>
+                          {primaryClient ? (
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Link
+                                  href={`/career/${primaryClient.id}`}
+                                  className="hover:underline"
+                                  style={{
+                                    fontFamily: 'ui-monospace, monospace',
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    color: 'var(--brand)',
+                                    letterSpacing: '.2px',
+                                  }}
+                                  title="View Career Client Workspace"
+                                >
+                                  {primaryClient.id.slice(0, 14)}…
+                                </Link>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleCopy(primaryClient.id, e)}
+                                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 2, display: 'inline-flex' }}
+                                  title="Copy Customer ID"
+                                >
+                                  {isClientCopied ? <IconCheck size={13} style={{ color: '#16a34a' }} /> : <IconCopy size={13} style={{ color: '#94a3b8' }} />}
+                                </button>
+                              </div>
+                              <span style={{
+                                display: 'inline-block',
+                                marginTop: 4,
+                                padding: '1px 7px',
+                                borderRadius: 6,
+                                fontSize: 10,
+                                fontWeight: 800,
+                                background: '#ecfdf5',
+                                color: '#047857',
+                                border: '1px solid #a7f3d0',
+                              }}>
+                                ✓ Active Customer
+                              </span>
+                            </div>
+                          ) : (
+                            <div>
+                              <span style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic' }}>
+                                No customer record
+                              </span>
+                              <div>
+                                <span style={{
+                                  display: 'inline-block',
+                                  marginTop: 4,
+                                  padding: '1px 7px',
+                                  borderRadius: 6,
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  background: '#f1f5f9',
+                                  color: '#64748b',
+                                }}>
+                                  Lead only
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* 2. Lead / Contact Reference */}
                         <td style={{ padding: '14px 18px' }}>
                           <button
                             type="button"
-                            onClick={(e) => handleCopy(displayId, e)}
+                            onClick={(e) => handleCopy(leadId, e)}
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: 6,
-                              padding: '4px 8px',
-                              background: isCopied ? '#f0fdf4' : '#f1f5f9',
-                              border: `1px solid ${isCopied ? '#bbf7d0' : '#e2e8f0'}`,
-                              borderRadius: 8,
+                              padding: '3px 8px',
+                              background: isLeadCopied ? '#f0fdf4' : '#f8fafc',
+                              border: `1px solid ${isLeadCopied ? '#bbf7d0' : '#e2e8f0'}`,
+                              borderRadius: 6,
                               cursor: 'pointer',
-                              transition: 'all .15s ease',
                               maxWidth: '100%',
                             }}
-                            title="Click to copy ID"
+                            title="Click to copy Lead ID"
                           >
                             <span style={{
                               fontFamily: 'ui-monospace, monospace',
-                              fontSize: 12,
-                              fontWeight: 700,
-                              color: isCopied ? '#15803d' : '#334155',
-                              letterSpacing: '.2px',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              color: isLeadCopied ? '#15803d' : '#475569',
                             }}>
-                              {displayId}
+                              {leadId}
                             </span>
-                            <span style={{ display: 'flex', alignItems: 'center', color: isCopied ? '#16a34a' : '#64748b' }}>
-                              {isCopied ? <IconCheck size={13} strokeWidth={2.5} /> : <IconCopy size={13} />}
-                            </span>
+                            {isLeadCopied ? <IconCheck size={12} style={{ color: '#16a34a' }} /> : <IconCopy size={12} style={{ color: '#94a3b8' }} />}
                           </button>
                         </td>
+
+                        {/* 3. Client Info */}
                         <td style={{ padding: '14px 18px' }}>
                           <div style={{ fontWeight: 700, color: 'var(--text)' }}>{c.name || 'Unnamed'}</div>
                           <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -203,7 +276,11 @@ export default function ContactsAdminPage() {
                             {c.phone && <span>· {c.phone}</span>}
                           </div>
                         </td>
+
+                        {/* 4. Company */}
                         <td style={{ padding: '14px 18px', color: 'var(--text)' }}>{c.companyName || '—'}</td>
+
+                        {/* 5. Type & Status */}
                         <td style={{ padding: '14px 18px' }}>
                           <span style={{
                             display: 'inline-block',
@@ -212,21 +289,35 @@ export default function ContactsAdminPage() {
                             fontSize: 10,
                             fontWeight: 700,
                             textTransform: 'uppercase',
-                            background: c.deletedAt ? '#fee2e2' : '#f1f5f9',
-                            color: c.deletedAt ? '#b91c1c' : '#475569',
+                            background: c.deletedAt ? '#fee2e2' : primaryClient ? '#eff6ff' : '#f1f5f9',
+                            color: c.deletedAt ? '#b91c1c' : primaryClient ? '#1d4ed8' : '#475569',
                           }}>
-                            {c.deletedAt ? 'Deleted' : (c.status || 'Active')}
+                            {c.deletedAt ? 'Deleted' : (primaryClient ? 'Customer' : (c.status || 'Lead'))}
                           </span>
                         </td>
+
+                        {/* 6. Actions */}
                         <td style={{ padding: '14px 18px', textAlign: 'right' }}>
-                          <button
-                            onClick={() => handleDelete(c.id, c.name)}
-                            className="btn btn-ghost"
-                            style={{ padding: '5px 10px', color: '#dc2626', border: '1px solid #fecaca', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 5, borderRadius: 8 }}
-                            title="Permanently remove"
-                          >
-                            <IconTrash size={13} /> Delete
-                          </button>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            {primaryClient && (
+                              <Link
+                                href={`/career/${primaryClient.id}`}
+                                className="btn btn-ghost"
+                                style={{ padding: '5px 8px', fontSize: 11, color: 'var(--brand)', border: '1px solid rgba(184,147,91,0.3)', borderRadius: 8, textDecoration: 'none' }}
+                                title="Open customer workspace"
+                              >
+                                View Client →
+                              </Link>
+                            )}
+                            <button
+                              onClick={() => handleDelete(c.id, c.name)}
+                              className="btn btn-ghost"
+                              style={{ padding: '5px 8px', color: '#dc2626', border: '1px solid #fecaca', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4, borderRadius: 8 }}
+                              title="Permanently remove"
+                            >
+                              <IconTrash size={12} /> Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
