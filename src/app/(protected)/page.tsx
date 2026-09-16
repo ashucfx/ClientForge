@@ -47,6 +47,18 @@ function TierTag({ type }: { type: ClientType }) {
   );
 }
 
+interface ReconSummary {
+  totalTransactions: number;
+  reconciledCount: number;
+  unreconciledCount: number;
+  totalGrossInr: number;
+  totalNetInr: number;
+  totalSettledInr: number;
+  totalGapInr: number;
+  allTimeTotalGapInr?: number;
+  avgGapPct: number | null;
+}
+
 // ─── Executive KPI Card ───────────────────────────────────────────
 function KpiCard({
   label,
@@ -54,18 +66,20 @@ function KpiCard({
   sub,
   icon,
   accent,
+  href,
 }: {
   label: string;
   value: string | number;
   sub?: string;
   icon: React.ReactNode;
   accent?: boolean;
+  href?: string;
 }) {
-  return (
+  const content = (
     <div
-      className={`bg-white rounded-2xl p-5 sm:p-6 border transition-all duration-200 shadow-xs flex flex-col justify-between ${
+      className={`bg-white rounded-2xl p-5 sm:p-6 border transition-all duration-200 shadow-xs flex flex-col justify-between h-full ${
         accent ? 'border-[#B8935B]/40 ring-1 ring-[#B8935B]/15 bg-gradient-to-br from-white to-[#FDFBF7]' : 'border-slate-200/80'
-      }`}
+      } ${href ? 'hover:border-[#B8935B]/50 hover:shadow-sm cursor-pointer' : ''}`}
     >
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</span>
@@ -81,19 +95,31 @@ function KpiCard({
       </div>
     </div>
   );
+
+  return href ? <Link href={href} className="block">{content}</Link> : content;
 }
 
 export default function Dashboard() {
   const [invoices, setInvoices] = useState<InvoiceData[]>([]);
+  const [reconSummary, setReconSummary] = useState<ReconSummary | null>(null);
   const [loading, setLoading]   = useState(true);
 
-  const fetchInvoices = useCallback(async () => {
+  const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/invoices?limit=100', { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
+      const [invRes, reconRes] = await Promise.allSettled([
+        fetch('/api/invoices?limit=100', { cache: 'no-store' }),
+        fetch('/api/admin/reconciliation/dashboard', { cache: 'no-store' }),
+      ]);
+
+      if (invRes.status === 'fulfilled' && invRes.value.ok) {
+        const data = await invRes.value.json();
         setInvoices(data.invoices ?? []);
+      }
+
+      if (reconRes.status === 'fulfilled' && reconRes.value.ok) {
+        const reconData = await reconRes.value.json();
+        setReconSummary(reconData.summary ?? null);
       }
     } catch (err) {
       console.error('Failed to load dashboard invoices:', err);
@@ -103,8 +129,8 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    fetchInvoices();
-  }, [fetchInvoices]);
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   // Financial Metrics calculations
   const metrics = useMemo(() => {
@@ -112,8 +138,20 @@ export default function Dashboard() {
     const paidInvoices = invoices.filter(i => i.status === 'PAID');
     const pendingInvoices = invoices.filter(i => i.status === 'PENDING');
 
-    const totalCollectedInr = paidInvoices.reduce(
-      (sum, i) => sum + (i.amountSettledInr ?? i.totalPayable * (i.exchangeRate || 1)),
+    // Currency normalization helper:
+    // In Catalyst schema, exchangeRate represents foreign currency units per 1 INR (e.g., 0.012 for USD).
+    // Therefore, foreignAmount / exchangeRate converts back to INR.
+    const toInr = (amount: number, currency: string, rate?: number | null) => {
+      if (!amount || amount === 0) return 0;
+      const cur = (currency || 'INR').toUpperCase();
+      if (cur === 'INR') return amount;
+      if (rate && rate > 0) return amount / rate;
+      return amount;
+    };
+
+    // Total Settled Revenue: Prefer verified reconciliation ledger sum
+    const totalCollectedInr = reconSummary?.totalSettledInr ?? paidInvoices.reduce(
+      (sum, i) => sum + (i.amountSettledInr ?? toInr(i.subtotalConverted, i.currency, i.exchangeRate)),
       0
     );
 
@@ -124,22 +162,28 @@ export default function Dashboard() {
         const d = new Date(i.paidAt || i.createdAt);
         return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
       })
-      .reduce((sum, i) => sum + (i.amountSettledInr ?? i.totalPayable * (i.exchangeRate || 1)), 0);
+      .reduce((sum, i) => sum + (i.amountSettledInr ?? toInr(i.subtotalConverted, i.currency, i.exchangeRate)), 0);
 
     const pendingReceivablesInr = pendingInvoices.reduce(
-      (sum, i) => sum + i.totalPayable * (i.exchangeRate || 1),
+      (sum, i) => sum + toInr(i.totalPayable, i.currency, i.exchangeRate),
       0
     );
 
-    // Total settlement gap
-    const totalGapInr = invoices.reduce((sum, i) => {
-      if (i.amountSettledInr !== null) {
-        const invoicedInr = i.totalPayable * (i.exchangeRate || 1);
-        const gap = invoicedInr - i.amountSettledInr;
+    // True Settlement Fee Leakage:
+    // In Catalyst's zero-loss model, the processing fee is added to totalPayable so the client
+    // absorbs the gateway fee. subtotalConverted is the net revenue Catalyst expects to retain.
+    // If bank settlement equals or exceeds subtotalConverted, fee leakage is ₹0 (zero loss).
+    // Leakage only occurs if bank settlement falls short of the expected net subtotal.
+    const fallbackGapInr = invoices.reduce((sum, i) => {
+      if (i.amountSettledInr !== null && i.amountSettledInr !== undefined) {
+        const expectedNetInr = toInr(i.subtotalConverted, i.currency, i.exchangeRate);
+        const gap = expectedNetInr - i.amountSettledInr;
         if (gap > 0) return sum + gap;
       }
       return sum;
     }, 0);
+
+    const totalGapInr = reconSummary?.allTimeTotalGapInr ?? reconSummary?.totalGapInr ?? fallbackGapInr;
 
     return {
       totalInvoices,
@@ -148,10 +192,10 @@ export default function Dashboard() {
       totalCollectedInr,
       monthCollectedInr,
       pendingReceivablesInr,
-      totalGapInr,
+      totalGapInr: Math.max(0, totalGapInr),
       recentInvoices: invoices.slice(0, 6),
     };
-  }, [invoices]);
+  }, [invoices, reconSummary]);
 
   return (
     <AppShell>
@@ -193,8 +237,9 @@ export default function Dashboard() {
           <KpiCard
             label="Total Settled Revenue"
             value={loading ? '…' : `₹${Math.round(metrics.totalCollectedInr).toLocaleString('en-IN')}`}
-            sub="Reconciled lifetime revenue"
+            sub="Reconciled lifetime bank inflow"
             accent
+            href="/reconciliation?reconciled=yes"
             icon={
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -204,7 +249,8 @@ export default function Dashboard() {
           <KpiCard
             label="Collections This Month"
             value={loading ? '…' : `₹${Math.round(metrics.monthCollectedInr).toLocaleString('en-IN')}`}
-            sub={`${format(new Date(), 'MMMM yyyy')} inflow`}
+            sub={`${format(new Date(), 'MMMM yyyy')} collections`}
+            href="/reconciliation"
             icon={
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -215,6 +261,7 @@ export default function Dashboard() {
             label="Pending Receivables"
             value={loading ? '…' : `₹${Math.round(metrics.pendingReceivablesInr).toLocaleString('en-IN')}`}
             sub={`${metrics.pendingCount} invoices awaiting payment`}
+            href="/invoices?status=PENDING"
             icon={
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
@@ -225,7 +272,8 @@ export default function Dashboard() {
           <KpiCard
             label="Settlement Fee Leakage"
             value={loading ? '…' : `₹${Math.round(metrics.totalGapInr).toLocaleString('en-IN')}`}
-            sub="Gateway deductions & processing gap"
+            sub={metrics.totalGapInr > 0 ? "Gateway deductions & processing gap" : "Zero revenue loss (100% net match)"}
+            href="/reconciliation"
             icon={
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
