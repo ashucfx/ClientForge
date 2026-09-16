@@ -1,92 +1,75 @@
 'use client';
-// src/app/page.tsx — Enterprise Dashboard
+// src/app/page.tsx — Executive Command Center & Overview
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type { InvoiceData, ClientType, InvoiceStatus } from '@/types';
 import { formatCurrency, CLIENT_TYPE_LABELS } from '@/lib/pricing';
-import { IconCheck, IconDocument, IconPending, IconSearch, IconTrendUp } from '@/components/Icons';
+import { IconCheck, IconDocument, IconPending, IconSearch, IconTrendUp, IconPlus } from '@/components/Icons';
 import AppShell from '@/components/AppShell';
-import { isRnModuleEnabledClient } from '@/lib/brand/flags';
-import { useBrand } from '@/components/BrandProvider';
-import type { BrandId } from '@/lib/brand/types';
-import { useAdmin } from '@/components/AdminProvider';
 
-// ─── Toast ───────────────────────────────────────────────────────
-type ToastItem = { id: number; msg: string; type: 'success' | 'error' | 'warn' };
-function useToast() {
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const ref = useRef(0);
-  const show = useCallback((msg: string, type: ToastItem['type'] = 'success') => {
-    const id = ++ref.current;
-    setToasts(t => [...t, { id, msg, type }]);
-    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3800);
-  }, []);
-  return { toasts, show };
-}
-function ToastStack({ toasts }: { toasts: ToastItem[] }) {
-  if (!toasts.length) return null;
-  const icon = { success: '✓', error: '✕', warn: '!' };
-  return (
-    <div className="toast-stack">
-      {toasts.map(t => (
-        <div key={t.id} className={`toast toast-${t.type}`}>
-          <span style={{ fontWeight: 800, fontSize: 15 }}>{icon[t.type]}</span>
-          {t.msg}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── Status badge ─────────────────────────────────────────────────
-const STATUS_META: Record<InvoiceStatus, { label: string; bg: string; text: string; dot: string }> = {
-  PAID:           { label: 'Paid',           bg: 'bg-emerald-50',  text: 'text-emerald-700', dot: 'bg-emerald-500'  },
-  PARTIALLY_PAID: { label: 'Partial',        bg: 'bg-blue-50',     text: 'text-blue-700',    dot: 'bg-blue-500'     },
-  PENDING:        { label: 'Pending',        bg: 'bg-amber-50',    text: 'text-amber-700',   dot: 'bg-amber-400'    },
-  EXPIRED:        { label: 'Expired',        bg: 'bg-slate-100',   text: 'text-slate-500',   dot: 'bg-slate-400'    },
-  CANCELLED:      { label: 'Cancelled',      bg: 'bg-red-50',      text: 'text-red-600',     dot: 'bg-red-400'      },
+// ─── Status Badge ─────────────────────────────────────────────────
+const STATUS_CONFIG: Record<InvoiceStatus, { label: string; bg: string; text: string; dot: string; border: string }> = {
+  PAID:           { label: 'Paid',           bg: 'bg-emerald-50',  text: 'text-emerald-700', dot: 'bg-emerald-500', border: 'border-emerald-200' },
+  PARTIALLY_PAID: { label: 'Partial',        bg: 'bg-amber-50',    text: 'text-amber-700',   dot: 'bg-amber-500',   border: 'border-amber-200'   },
+  PENDING:        { label: 'Pending',        bg: 'bg-[#FBF8F3]',   text: 'text-[#9A7540]',   dot: 'bg-[#B8935B]',   border: 'border-[#EAE2D5]'   },
+  EXPIRED:        { label: 'Expired',        bg: 'bg-slate-100',   text: 'text-slate-500',   dot: 'bg-slate-400',   border: 'border-slate-200'   },
+  CANCELLED:      { label: 'Cancelled',      bg: 'bg-rose-50',     text: 'text-rose-600',     dot: 'bg-rose-400',    border: 'border-rose-200'    },
 };
+
 function StatusBadge({ status }: { status: InvoiceStatus }) {
-  const m = STATUS_META[status];
+  const m = STATUS_CONFIG[status] || STATUS_CONFIG.PENDING;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${m.bg} ${m.text}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${m.bg} ${m.text} ${m.border}`}>
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${m.dot}`} />
       {m.label}
     </span>
   );
 }
 
-// ─── Tier tag ─────────────────────────────────────────────────────
+// ─── Tier Tag ─────────────────────────────────────────────────────
 const TIER_COLORS: Record<ClientType, string> = {
-  FRESHER:        'bg-slate-100 text-slate-600',
-  MID_CAREER:     'bg-[#FBF8F3] text-[#9A7540] border border-[#E8DDD0]',
-  EXECUTIVE:      'bg-purple-50 text-purple-700 border border-purple-100',
-  EXECUTIVE_PLUS: 'bg-purple-100 text-purple-800 border border-purple-200',
-  AGENCY_CLIENT:  'bg-violet-100 text-violet-700 border border-violet-200',
+  FRESHER:        'bg-slate-100 text-slate-700 border-slate-200',
+  MID_CAREER:     'bg-[#FBF8F3] text-[#9A7540] border-[#E8DDD0]',
+  EXECUTIVE:      'bg-purple-50 text-purple-700 border-purple-200',
+  EXECUTIVE_PLUS: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  AGENCY_CLIENT:  'bg-slate-100 text-slate-700 border-slate-200',
 };
+
 function TierTag({ type }: { type: ClientType }) {
+  const label = CLIENT_TYPE_LABELS[type] ?? type;
+  const cls   = TIER_COLORS[type] ?? 'bg-slate-100 text-slate-600 border-slate-200';
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${TIER_COLORS[type] ?? 'bg-slate-100 text-slate-600'}`}>
-      {CLIENT_TYPE_LABELS[type]}
+    <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold border uppercase tracking-wider ${cls}`}>
+      {label}
     </span>
   );
 }
 
-// ─── KPI card ─────────────────────────────────────────────────────
-function KpiCard({ label, value, sub, icon, bg, accent }: {
-  label: string; value: string | number; sub?: string;
-  icon: React.ReactNode; bg: string; accent?: boolean;
+// ─── Executive KPI Card ───────────────────────────────────────────
+function KpiCard({
+  label,
+  value,
+  sub,
+  icon,
+  accent,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  icon: React.ReactNode;
+  accent?: boolean;
 }) {
   return (
-    <div className={`bg-white rounded-2xl p-5 sm:p-6 border transition-all duration-200 shadow-xs hover:shadow-md hover:border-slate-300 flex flex-col justify-between ${
-      accent ? 'border-[#B8935B]/40 ring-1 ring-[#B8935B]/20' : 'border-slate-200/80'
-    }`}>
+    <div
+      className={`bg-white rounded-2xl p-5 sm:p-6 border transition-all duration-200 shadow-xs flex flex-col justify-between ${
+        accent ? 'border-[#B8935B]/40 ring-1 ring-[#B8935B]/15 bg-gradient-to-br from-white to-[#FDFBF7]' : 'border-slate-200/80'
+      }`}
+    >
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span>
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-xs" style={{ background: bg }}>
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</span>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-[#FBF8F3] border border-[#EAE2D5] text-[#B8935B] shadow-xs">
           {icon}
         </div>
       </div>
@@ -100,463 +83,327 @@ function KpiCard({ label, value, sub, icon, bg, accent }: {
   );
 }
 
-// ─── Delete modal ─────────────────────────────────────────────────
-function DeleteModal({ inv, onCancel, onConfirm, busy }: {
-  inv: InvoiceData; onCancel(): void; onConfirm(): void; busy: boolean;
-}) {
-  return (
-    <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <div>
-            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--error-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 12 }}>🗑️</div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>Delete Invoice?</div>
-          </div>
-          <button className="btn btn-icon btn-ghost" onClick={onCancel} style={{ fontSize: 18, color: 'var(--text-tertiary)' }}>✕</button>
-        </div>
-        <div className="modal-body">
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-            Permanently delete <strong style={{ color: 'var(--text-primary)' }}>{inv.invoiceNumber}</strong> for{' '}
-            <strong style={{ color: 'var(--text-primary)' }}>{inv.clientName}</strong>?
-            {inv.razorpayLinkId && inv.status === 'PENDING' && (
-              <> The active Razorpay payment link will be <span style={{ color: 'var(--error)', fontWeight: 600 }}>cancelled</span>.</>
-            )}
-          </p>
-        </div>
-        <div className="modal-footer">
-          <button className="btn btn-ghost" onClick={onCancel} disabled={busy}>Cancel</button>
-          <button className="btn btn-danger-solid" onClick={onConfirm} disabled={busy}>
-            {busy ? 'Deleting…' : 'Delete permanently'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Mini revenue chart (SVG bar) ─────────────────────────────────
-function RevenueBar({ invoices }: { invoices: InvoiceData[] }) {
-  const paid = invoices.filter(i => i.status === 'PAID');
-  if (!paid.length) return null;
-
-  // Group by currency
-  const byCurrency: Record<string, number> = {};
-  paid.forEach(inv => {
-    byCurrency[inv.currency] = (byCurrency[inv.currency] ?? 0) + inv.totalPayable;
-  });
-
-  return (
-    <div className="card" style={{ padding: '18px 22px' }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: 14 }}>
-        Revenue Collected
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {Object.entries(byCurrency).map(([cur, total]) => {
-          const sym = paid.find(i => i.currency === cur)?.currencySymbol ?? cur;
-          return (
-            <div key={cur} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ minWidth: 40, fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)' }}>{cur}</span>
-              <div style={{ flex: 1, height: 6, background: 'var(--surface-3)', borderRadius: 99 }}>
-                <div style={{ height: '100%', background: 'var(--brand)', borderRadius: 99, width: '100%' }} />
-              </div>
-              <span style={{ minWidth: 80, textAlign: 'right', fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
-                {formatCurrency(total, sym)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── Main Component ───────────────────────────────────────────────
 export default function Dashboard() {
-  const { show, toasts } = useToast();
-  const router = useRouter();
-  const { activeBrand } = useBrand();
-
   const [invoices, setInvoices] = useState<InvoiceData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatus] = useState<string>('');
-  const [typeFilter, setType] = useState<string>('');
-  const [deleteTarget, setDeleteTarget] = useState<InvoiceData | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [loading, setLoading]   = useState(true);
 
   const fetchInvoices = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await fetch('/api/invoices', { cache: 'no-store' });
+      const res = await fetch('/api/invoices?limit=100', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setInvoices(data.invoices ?? []);
       }
-    } catch {
-      show('Failed to load invoices', 'error');
+    } catch (err) {
+      console.error('Failed to load dashboard invoices:', err);
     } finally {
       setLoading(false);
     }
-  }, [show]);
+  }, []);
 
-  useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
 
-  const stats = {
-    total: invoices.length,
-    paid: invoices.filter(i => i.status === 'PAID').length,
-    pending: invoices.filter(i => i.status === 'PENDING').length,
-    conversion: invoices.length ? Math.round((invoices.filter(i => i.status === 'PAID').length / invoices.length) * 100) : 0,
-  };
+  // Financial Metrics calculations
+  const metrics = useMemo(() => {
+    const totalInvoices = invoices.length;
+    const paidInvoices = invoices.filter(i => i.status === 'PAID');
+    const pendingInvoices = invoices.filter(i => i.status === 'PENDING');
 
-  const visible = invoices.filter(inv => {
-    if (statusFilter && inv.status !== statusFilter) return false;
-    if (typeFilter && inv.clientType !== typeFilter) return false;
-    const q = search.toLowerCase();
-    if (!q) return true;
-    return (
-      inv.invoiceNumber.toLowerCase().includes(q) ||
-      inv.clientName.toLowerCase().includes(q) ||
-      inv.clientEmail.toLowerCase().includes(q) ||
-      (inv.companyName ?? '').toLowerCase().includes(q)
+    const totalCollectedInr = paidInvoices.reduce(
+      (sum, i) => sum + (i.amountSettledInr ?? i.totalPayable * (i.exchangeRate || 1)),
+      0
     );
-  });
 
-  const handleResend = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const res = await fetch(`/api/invoices/${id}/resend-email`, { method: 'POST' });
-    show(res.ok ? 'Email resent successfully' : 'Failed to resend email', res.ok ? 'success' : 'error');
-  };
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    const monthCollectedInr = paidInvoices
+      .filter(i => {
+        const d = new Date(i.paidAt || i.createdAt);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      })
+      .reduce((sum, i) => sum + (i.amountSettledInr ?? i.totalPayable * (i.exchangeRate || 1)), 0);
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    const res = await fetch(`/api/invoices/${deleteTarget.id}`, { method: 'DELETE' });
-    if (res.ok) {
-      show(`${deleteTarget.invoiceNumber} deleted`);
-      setDeleteTarget(null);
-      fetchInvoices();
-    } else {
-      show('Delete failed', 'error');
-    }
-    setDeleting(false);
-  };
+    const pendingReceivablesInr = pendingInvoices.reduce(
+      (sum, i) => sum + i.totalPayable * (i.exchangeRate || 1),
+      0
+    );
+
+    // Total settlement gap
+    const totalGapInr = invoices.reduce((sum, i) => {
+      if (i.amountSettledInr !== null) {
+        const invoicedInr = i.totalPayable * (i.exchangeRate || 1);
+        const gap = invoicedInr - i.amountSettledInr;
+        if (gap > 0) return sum + gap;
+      }
+      return sum;
+    }, 0);
+
+    return {
+      totalInvoices,
+      paidCount: paidInvoices.length,
+      pendingCount: pendingInvoices.length,
+      totalCollectedInr,
+      monthCollectedInr,
+      pendingReceivablesInr,
+      totalGapInr,
+      recentInvoices: invoices.slice(0, 6),
+    };
+  }, [invoices]);
 
   return (
     <AppShell>
-      <div className="w-full max-w-7xl 2xl:max-w-[1680px] mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6">
-
-        {/* Page title row */}
+      <div className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 pb-16">
+        
+        {/* ── Top Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Operations Live</span>
+              <span>Operational Command Center</span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Mission Control</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Catalyst Overview</h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-              Catalyst Operations & Revenue Overview
+              High-level intelligence on collections, receivables, and client operations.
             </p>
           </div>
-          <Link 
-            href="/invoices/new" 
-            className="flex-shrink-0 px-4 py-2 bg-[#B8935B] text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-[#9A7540] transition-colors shadow-sm self-start sm:self-auto"
-          >
-            + New Invoice
-          </Link>
-        </div>
 
-        {/* KPI Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: '#B8935B' }} />} bg="#eff6ff" accent />
-          <KpiCard label="Pending Payment" value={stats.pending} icon={<IconPending style={{ color: '#B8935B' }} />} bg="#e0f2fe" sub="Action Required" />
-          <KpiCard label="Completed" value={stats.paid} icon={<IconCheck style={{ color: '#3FBD8B' }} />} bg="#d1fae5" sub="Paid in full" />
-          <KpiCard label="Collection Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: '#B8935B' }} />} bg="#fef3c7" sub={`${stats.paid} of ${stats.total} paid`} />
-        </div>
-
-        {/* Action Center & Revenue */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Action Center */}
-          <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-xs flex flex-col justify-between">
-            <div className="text-sm font-bold text-slate-900 mb-3 flex items-center justify-between">
-              <span>Action Required</span>
-              {stats.pending > 0 && <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-bold border border-amber-200">{stats.pending} Pending</span>}
-            </div>
-            {stats.pending > 0 ? (
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                <div>
-                  <div className="text-sm font-semibold text-slate-800">{stats.pending} Invoices Awaiting Payment</div>
-                  <div className="text-xs text-slate-400 mt-0.5">Review outstanding invoices and send reminders.</div>
-                </div>
-                <button className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all" onClick={() => setStatus('PENDING')}>Review</button>
-              </div>
-            ) : (
-              <div className="py-6 text-slate-400 text-center text-xs">
-                <span className="text-2xl block mb-1">🎉</span>
-                All caught up! No pending actions.
-              </div>
-            )}
-          </div>
-          
-          {/* Revenue bar */}
-          {!loading && <RevenueBar invoices={invoices} />}
-        </div>
-      </div>
-
-      <div className="page-body" style={{ paddingTop: 0 }}>
-
-        {/* All Invoices header */}
-        <div className="flex items-center justify-between mt-4 mb-4">
-          <h2 className="text-base font-bold text-slate-800">All Invoices</h2>
-        </div>
-
-        {/* Filter bar */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-5 flex items-center gap-3 flex-wrap shadow-sm">
-          <div className="relative flex-1" style={{ minWidth: 200 }}>
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" width="14" height="14" fill="none" viewBox="0 0 24 24">
-              <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-            </svg>
-            <input
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-[#B8935B] transition-colors placeholder:text-slate-300"
-              placeholder="Search client, email, invoice #..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
-          <select
-            className="px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-[#B8935B] transition-colors text-slate-600 bg-white"
-            style={{ minWidth: 130 }}
-            value={statusFilter} onChange={e => setStatus(e.target.value)}>
-            <option value="">All Status</option>
-            <option value="PENDING">Pending</option>
-            <option value="PAID">Paid</option>
-            <option value="EXPIRED">Expired</option>
-            <option value="CANCELLED">Cancelled</option>
-          </select>
-          <select
-            className="px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-[#B8935B] transition-colors text-slate-600 bg-white"
-            style={{ minWidth: 150 }}
-            value={typeFilter} onChange={e => setType(e.target.value)}>
-            <option value="">All Packages</option>
-            <option value="FRESHER">Fresher</option>
-            <option value="MID_CAREER">Mid-Career</option>
-            <option value="EXECUTIVE">Executive</option>
-            <option value="EXECUTIVE_PLUS">Executive Plus</option>
-          </select>
-          {(search || statusFilter || typeFilter) && (
-            <button onClick={() => { setSearch(''); setStatus(''); setType(''); }}
-              className="px-3 py-2 text-sm font-medium text-slate-500 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-1.5">
-              <svg width="10" height="10" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M18 6L6 18M6 6l12 12"/></svg>
-              Clear
-            </button>
-          )}
-          <span className="ml-auto text-xs text-slate-400 font-medium whitespace-nowrap">
-            {visible.length} of {stats.total}
-          </span>
-        </div>
-
-        {/* ── Mobile invoice cards (< md) ──────────────────────────── */}
-        {loading ? (
-          <div className="md:hidden space-y-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white border border-slate-200 rounded-2xl p-4 animate-pulse">
-                <div className="flex justify-between mb-2">
-                  <div className="h-3.5 w-28 bg-slate-100 rounded-full" />
-                  <div className="h-5 w-16 bg-slate-100 rounded-full" />
-                </div>
-                <div className="h-4 w-40 bg-slate-100 rounded-full mb-1" />
-                <div className="h-3 w-32 bg-slate-100 rounded-full" />
-              </div>
-            ))}
-          </div>
-        ) : visible.length === 0 ? (
-          <div className="md:hidden py-16 text-center">
-            <p className="text-sm font-semibold text-slate-700 mb-1">No invoices found</p>
-            <p className="text-xs text-slate-400 mb-4">Adjust filters or create a new invoice</p>
-            <Link href="/invoices/new" className="inline-flex items-center gap-2 px-4 py-2 bg-[#B8935B] text-white text-sm font-semibold rounded-xl">
-              <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M12 5v14m-7-7h14"/></svg>
-              New Invoice
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Link
+              href="/invoices"
+              className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+            >
+              <span>View Invoices Registry</span>
+              <span className="text-slate-400">→</span>
+            </Link>
+            <Link
+              href="/invoices/new"
+              className="px-4 py-2 rounded-xl bg-[#B8935B] hover:bg-[#9A7540] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+            >
+              <IconPlus size={14} />
+              <span>Create Invoice</span>
             </Link>
           </div>
-        ) : (
-          <div className="md:hidden space-y-2">
-            {visible.map(inv => {
-              const payLink = inv.paymentGateway === 'PAYPAL' ? inv.paypalPaymentUrl : inv.razorpayLinkUrl;
-              const isPending = inv.status === 'PENDING';
-              return (
-                <div key={inv.id} className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-                  <Link href={`/invoices/${inv.id}`} className="block p-4 hover:bg-[#FBF8F3]/40 transition-colors">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-mono font-bold text-[12px] text-[#B8935B]">{inv.invoiceNumber}</span>
-                          {inv.paymentGateway === 'PAYPAL'
-                            ? <span className="text-[9px] font-bold text-blue-500">PayPal</span>
-                            : <span className="text-[9px] font-bold text-orange-500">Razorpay</span>}
-                          {inv.customPricing && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[9px] font-bold">edited</span>}
-                        </div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{format(new Date(inv.invoiceDate), 'dd MMM yyyy')}</div>
-                      </div>
-                      <StatusBadge status={inv.status} />
-                    </div>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="font-semibold text-slate-900 text-sm truncate">{inv.clientName}</div>
-                        <div className="text-[11px] text-slate-400 truncate">{inv.clientEmail}</div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="font-bold text-slate-900 text-sm">{formatCurrency(inv.totalPayable, inv.currencySymbol)}</div>
-                        <div className="mt-0.5"><TierTag type={inv.clientType} /></div>
-                      </div>
-                    </div>
-                  </Link>
-                  <div className="border-t border-slate-100 px-4 py-2 flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                    <Link href={`/invoices/${inv.id}`}
-                      className="px-3 py-1.5 text-[11px] font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                      View
-                    </Link>
-                    {isPending && (
-                      <button onClick={e => handleResend(inv.id, e)} title="Resend email"
-                        className="p-1.5 text-slate-400 border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-[#B8935B] transition-colors">
-                        <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                      </button>
-                    )}
-                    {isPending && payLink && (
-                      <button onClick={() => { void navigator.clipboard.writeText(payLink); show('Payment link copied!'); }} title="Copy payment link"
-                        className="p-1.5 text-slate-400 border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">
-                        <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-                      </button>
-                    )}
-                    <button onClick={e => { e.stopPropagation(); setDeleteTarget(inv); }} title="Delete"
-                      className="ml-auto p-1.5 text-slate-400 border border-slate-200 rounded-lg hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors">
-                      <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ── Desktop invoice table (≥ md) ─────────────────────────── */}
-        <div className="hidden md:block bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70">
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Invoice</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Client</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Package</th>
-                <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Amount</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</th>
-                <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="border-b border-slate-100">
-                    {Array.from({ length: 7 }).map((_, j) => (
-                      <td key={j} className="px-4 py-3.5">
-                        <div className="h-3.5 rounded-full bg-slate-100 animate-pulse" style={{ width: j === 0 ? 100 : j === 1 ? 140 : 70 }} />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : visible.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-20 text-center">
-                    <div className="w-14 h-14 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-300">
-                      <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    </div>
-                    <p className="text-sm font-semibold text-slate-700 mb-1">No invoices found</p>
-                    <p className="text-xs text-slate-400 mb-5">Try adjusting your filters or create a new invoice</p>
-                    <Link href="/invoices/new" className="inline-flex items-center gap-2 px-4 py-2 bg-[#B8935B] text-white text-sm font-semibold rounded-xl hover:bg-[#9A7540] transition-colors">
-                      <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M12 5v14m-7-7h14"/></svg>
-                      New Invoice
-                    </Link>
-                  </td>
-                </tr>
-              ) : visible.map(inv => {
-                const payLink = inv.paymentGateway === 'PAYPAL' ? inv.paypalPaymentUrl : inv.razorpayLinkUrl;
-                const isPending = inv.status === 'PENDING';
-                return (
-                  <tr key={inv.id}
-                    onClick={() => router.push(`/invoices/${inv.id}`)}
-                    className="border-b border-slate-100 last:border-0 hover:bg-[#FBF8F3]/40 cursor-pointer transition-colors">
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono font-bold text-[12px] text-[#B8935B]">{inv.invoiceNumber}</span>
-                        {inv.brandId === 'ripple_nexus' && (
-                          <span className="px-1.5 py-0.5 bg-violet-100 text-violet-700 rounded text-[9px] font-bold">nexus</span>
-                        )}
-                        {inv.customPricing && (
-                          <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[9px] font-bold">edited</span>
-                        )}
-                      </div>
-                      <div className="mt-0.5">
-                        {inv.paymentGateway === 'PAYPAL' ? (
-                          <span className="text-[9px] font-semibold text-blue-500">PayPal</span>
-                        ) : (
-                          <span className="text-[9px] font-semibold text-orange-500">Razorpay</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="font-semibold text-slate-900 text-sm">{inv.clientName}</div>
-                      {inv.companyName && <div className="text-[11px] text-slate-400">{inv.companyName}</div>}
-                      <div className="text-[11px] text-slate-400">{inv.clientEmail}</div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <TierTag type={inv.clientType} />
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <div className="font-bold text-slate-900 text-sm">{formatCurrency(inv.totalPayable, inv.currencySymbol)}</div>
-                      <div className="text-[10px] text-slate-400">{inv.currency}</div>
-                    </td>
-                    <td className="px-4 py-3.5"><StatusBadge status={inv.status} /></td>
-                    <td className="px-4 py-3.5 text-xs text-slate-500 whitespace-nowrap">
-                      {format(new Date(inv.invoiceDate), 'dd MMM yyyy')}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
-                        <Link href={`/invoices/${inv.id}`}
-                          className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                          View
-                        </Link>
-                        {isPending && (
-                          <button onClick={e => handleResend(inv.id, e)}
-                            title="Resend payment email"
-                            className="p-1.5 text-slate-400 border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-[#B8935B] transition-colors">
-                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                          </button>
-                        )}
-                        {isPending && payLink && (
-                          <button
-                            onClick={() => { void navigator.clipboard.writeText(payLink); show('Payment link copied!'); }}
-                            title={`Copy ${inv.paymentGateway === 'PAYPAL' ? 'PayPal' : 'Razorpay'} payment link`}
-                            className="p-1.5 text-slate-400 border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors">
-                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-                          </button>
-                        )}
-                        <button
-                          title="Delete invoice"
-                          onClick={e => { e.stopPropagation(); setDeleteTarget(inv); }}
-                          className="p-1.5 text-slate-400 border border-slate-200 rounded-lg hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors">
-                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         </div>
-      </div>
 
-      {deleteTarget && (
-        <DeleteModal inv={deleteTarget} onCancel={() => setDeleteTarget(null)} onConfirm={handleDelete} busy={deleting} />
-      )}
-      <ToastStack toasts={toasts} />
+        {/* ── Executive KPI Grid ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard
+            label="Total Settled Revenue"
+            value={loading ? '…' : `₹${Math.round(metrics.totalCollectedInr).toLocaleString('en-IN')}`}
+            sub="Reconciled lifetime revenue"
+            accent
+            icon={
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+          />
+          <KpiCard
+            label="Collections This Month"
+            value={loading ? '…' : `₹${Math.round(metrics.monthCollectedInr).toLocaleString('en-IN')}`}
+            sub={`${format(new Date(), 'MMMM yyyy')} inflow`}
+            icon={
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            }
+          />
+          <KpiCard
+            label="Pending Receivables"
+            value={loading ? '…' : `₹${Math.round(metrics.pendingReceivablesInr).toLocaleString('en-IN')}`}
+            sub={`${metrics.pendingCount} invoices awaiting payment`}
+            icon={
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            }
+          />
+          <KpiCard
+            label="Settlement Fee Leakage"
+            value={loading ? '…' : `₹${Math.round(metrics.totalGapInr).toLocaleString('en-IN')}`}
+            sub="Gateway deductions & processing gap"
+            icon={
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            }
+          />
+        </div>
+
+        {/* ── Mid Section: Action Required & Quick Launcher ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          
+          {/* Action Required Widget */}
+          <div className="lg:col-span-1 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span>Action Required</span>
+                </span>
+                {metrics.pendingCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200">
+                    {metrics.pendingCount} Pending
+                  </span>
+                )}
+              </div>
+
+              <div className="py-4">
+                {metrics.pendingCount > 0 ? (
+                  <div className="space-y-2">
+                    <div className="text-sm font-semibold text-slate-900">
+                      {metrics.pendingCount} Outstanding Invoices
+                    </div>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Several client accounts have unpaid invoices awaiting settlement. Review and dispatch reminders directly from the registry.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-slate-400 text-xs">
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-2">
+                      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
+                    All caught up! No overdue actions required.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Link
+              href="/invoices"
+              className="w-full py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-bold transition-all text-center border border-slate-200"
+            >
+              Manage Outstanding Invoices →
+            </Link>
+          </div>
+
+          {/* Quick Operations Command Launcher */}
+          <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#B8935B]" />
+                <span>Executive Command Suite</span>
+              </span>
+              <span className="text-[11px] text-slate-400">Direct Navigation</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {[
+                { href: '/invoices', title: 'Invoices Registry', sub: 'Ledger & CSV export', icon: '📄' },
+                { href: '/reconciliation', title: 'Reconciliation', sub: 'Bank match & fee gap', icon: '💰' },
+                { href: '/career', title: 'Client Accounts', sub: 'Deliverables & CRM', icon: '👥' },
+                { href: '/career/kanban', title: 'Kanban Board', sub: 'Workflow pipeline', icon: '📊' },
+                { href: '/settings/global-pricing', title: 'Pricing Engine', sub: 'INR & USD rates', icon: '⚙️' },
+                { href: '/bugs', title: 'Bug Reports', sub: 'Client issue diagnostics', icon: '🛡️' },
+              ].map(item => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-[#B8935B] hover:bg-[#FDFBF7] transition-all group"
+                >
+                  <div className="text-sm font-bold text-slate-800 group-hover:text-[#B8935B] transition-colors">
+                    {item.title}
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">{item.sub}</div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Recent Invoices Widget ── */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">Recent Invoices</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Most recent client billings and active payment transactions.</p>
+            </div>
+            <Link
+              href="/invoices"
+              className="text-xs font-bold text-[#B8935B] hover:text-[#9A7540] flex items-center gap-1 transition-colors"
+            >
+              <span>View All Invoices in Registry</span>
+              <span>→</span>
+            </Link>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-700">
+              <thead className="bg-[#FAF9F6] border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <tr>
+                  <th className="py-3 px-4">Invoice #</th>
+                  <th className="py-3 px-4">Client</th>
+                  <th className="py-3 px-4">Package</th>
+                  <th className="py-3 px-4">Payable</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Gateway</th>
+                  <th className="py-3 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-400">
+                      Loading recent invoices…
+                    </td>
+                  </tr>
+                ) : metrics.recentInvoices.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-400">
+                      No invoices found. Click &quot;+ Create Invoice&quot; to issue your first invoice.
+                    </td>
+                  </tr>
+                ) : (
+                  metrics.recentInvoices.map(inv => (
+                    <tr
+                      key={inv.id}
+                      className="hover:bg-slate-50/70 transition-colors cursor-pointer group"
+                      onClick={() => window.location.href = `/invoices/${inv.id}`}
+                    >
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900 group-hover:text-[#B8935B] transition-colors">
+                        {inv.invoiceNumber}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="font-semibold text-slate-900">{inv.clientName}</div>
+                        <div className="text-[11px] text-slate-400 truncate max-w-[170px]">{inv.clientEmail}</div>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <TierTag type={inv.clientType} />
+                      </td>
+                      <td className="py-3.5 px-4 font-bold text-slate-900">
+                        {formatCurrency(inv.totalPayable, inv.currencySymbol)}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <StatusBadge status={inv.status} />
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                          {inv.paymentGateway}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right" onClick={e => e.stopPropagation()}>
+                        <Link
+                          href={`/invoices/${inv.id}`}
+                          className="px-2.5 py-1 rounded-lg bg-[#FAF9F6] border border-[#EAE2D5] text-[#9A7540] hover:bg-[#FBF8F3] text-[11px] font-bold transition-colors"
+                        >
+                          View →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
     </AppShell>
   );
 }
