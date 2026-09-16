@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-
 import { formatDistanceToNow, format } from 'date-fns';
+import { IconPlus, IconTrash, IconUser } from '@/components/Icons';
 
 type AdminUser = {
   id: string;
@@ -170,52 +170,113 @@ export function TeamManager() {
     );
   }
 
+  const superAdminsCount = admins.filter(a => a.role === 'SUPER_ADMIN').length;
+  const activeAdminsCount = admins.filter(a => a.isActive).length;
+
   return (
-    <div className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 pb-12">
+    <div className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 pb-16">
       
       {/* ── Top Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>Workspace Security</span>
+            <span className="w-2 h-2 rounded-full bg-[#B8935B]" />
+            <span>Workspace Security & Governance</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Team &amp; Access Control</h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Manage administrator credentials, portal tenancy access, and login sessions.</p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#FBF8F3] border border-[#EAE2D5] text-[#B8935B] flex items-center justify-center shadow-xs">
+              <IconUser size={18} />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Team &amp; Access Control</h1>
+          </div>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">Manage administrator credentials, portal tenancy access, and audit login sessions.</p>
         </div>
         {activeTab === 'members' && (
           <button
-            className="flex-shrink-0 px-4 py-2 rounded-lg bg-[#B8935B] hover:bg-[#9A7540] text-white text-xs sm:text-sm font-semibold transition-colors shadow-sm self-start sm:self-auto"
+            className="flex-shrink-0 px-4 py-2 rounded-xl bg-[#B8935B] hover:bg-[#9A7540] text-white text-xs sm:text-sm font-bold transition-all shadow-xs self-start sm:self-auto flex items-center gap-1.5"
             onClick={() => setShowInvite(true)}
           >
-            + Invite Admin
+            <IconPlus size={14} />
+            <span>Invite Admin</span>
           </button>
         )}
       </div>
 
+      {/* ── Metrics Strip ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Administrators</div>
+            <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5">{admins.length}</div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-600">
+            <IconUser size={18} />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-bold text-[#B8935B] uppercase tracking-wider">Super Admins</div>
+            <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5">{superAdminsCount}</div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-[#FBF8F3] border border-[#EAE2D5] flex items-center justify-center text-[#B8935B]">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Active Authentications</div>
+            <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5">{activeAdminsCount}</div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-600">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
       {/* ── Navigation Tabs ── */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+      <div className="flex items-center gap-2 border-b border-slate-200/80 pb-3">
         <button
           type="button"
           onClick={() => setActiveTab('members')}
-          className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
+          className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center gap-2 ${
             activeTab === 'members'
               ? 'bg-[#B8935B] text-white shadow-xs'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          Team Members ({admins.length})
+          <IconUser size={14} />
+          <span>Team Members</span>
+          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+            activeTab === 'members' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {admins.length}
+          </span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('sessions')}
-          className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
+          className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center gap-2 ${
             activeTab === 'sessions'
               ? 'bg-[#B8935B] text-white shadow-xs'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          Login Session Logs ({sessions.length})
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          <span>Session Logs</span>
+          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+            activeTab === 'sessions' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {sessions.length}
+          </span>
         </button>
       </div>
 
@@ -303,16 +364,20 @@ export function TeamManager() {
                 {/* Actions */}
                 <div className="flex items-center gap-2 pt-2.5 border-t border-slate-100">
                   <button
-                    className="flex-1 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold text-center transition-colors"
+                    className="flex-1 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold text-center transition-colors flex items-center justify-center gap-1.5"
                     onClick={() => handleResetPassword(admin.id, admin.email)}
                   >
-                    Reset Password
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                    <span>Reset Password</span>
                   </button>
                   <button
-                    className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold text-center transition-colors border border-rose-200"
+                    className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold text-center transition-colors border border-rose-200 flex items-center justify-center gap-1"
                     onClick={() => handleDelete(admin.id)}
                   >
-                    Delete
+                    <IconTrash size={12} />
+                    <span>Delete</span>
                   </button>
                 </div>
               </div>
@@ -407,16 +472,20 @@ export function TeamManager() {
                       <td className="px-5 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors"
+                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors flex items-center gap-1.5"
                             onClick={() => handleResetPassword(admin.id, admin.email)}
                           >
-                            Reset Password
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                            </svg>
+                            <span>Reset Password</span>
                           </button>
                           <button
-                            className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium transition-colors border border-rose-200"
+                            className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium transition-colors border border-rose-200 flex items-center gap-1"
                             onClick={() => handleDelete(admin.id)}
                           >
-                            Delete
+                            <IconTrash size={12} />
+                            <span>Delete</span>
                           </button>
                         </div>
                       </td>

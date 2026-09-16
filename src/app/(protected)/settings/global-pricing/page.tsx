@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import AppShell from '@/components/AppShell';
 import { useAdmin } from '@/components/AdminProvider';
@@ -94,29 +95,65 @@ export default function GlobalPricingPage() {
 
   return (
     <AppShell>
-      <div className="max-w-6xl mx-auto space-y-6 px-4 sm:px-6 py-6 sm:py-8">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Global Pricing Engine</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Manage base prices for Indian clients (INR) and the Global base (USD) used to auto-convert for 180+ international currencies.
-          </p>
-        </div>
+      <div className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 pb-16">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              <span className="w-2 h-2 rounded-full bg-[#B8935B]" />
+              <span>Revenue Engine & Monetization</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Global Pricing Engine</h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Manage base prices for Indian clients (INR) and the Global base (USD) used to auto-convert for 180+ international currencies.
+            </p>
+          </div>
 
-        <div className="flex justify-end">
           <button
             onClick={handleSave}
             disabled={saving || !isSuperAdmin}
-            className="px-4 py-2 bg-[#B8935B] hover:bg-[#9A7540] text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition-colors"
+            className="self-start sm:self-auto px-4 py-2 bg-[#B8935B] hover:bg-[#9A7540] text-white rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-colors disabled:opacity-50 flex items-center gap-1.5"
           >
-            {saving ? 'Saving...' : saveSuccess ? 'Saved ✓' : 'Save Configuration'}
+            {saving ? (
+              <span>Saving…</span>
+            ) : saveSuccess ? (
+              <>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Saved Configuration</span>
+              </>
+            ) : (
+              <span>Save Configuration</span>
+            )}
           </button>
         </div>
 
+        {/* ── Sub Navigation Tabs ── */}
+        <div className="flex items-center gap-2 border-b border-slate-200/80 pb-3">
+          <Link
+            href="/settings/global-pricing"
+            className="px-4 py-2 text-xs sm:text-sm font-bold rounded-xl bg-[#B8935B] text-white shadow-xs"
+          >
+            Base Pricing (INR &amp; USD Anchor)
+          </Link>
+          <Link
+            href="/settings/international-pricing"
+            className="px-4 py-2 text-xs sm:text-sm font-bold rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            Fixed International Overrides
+          </Link>
+        </div>
+
         {/* INR Base Prices */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
-            <h2 className="text-sm font-bold text-slate-900">🇮🇳 Indian Pricing (INR)</h2>
-            <p className="text-xs text-slate-500">Fixed prices charged to clients in India.</p>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 bg-[#FAF9F6] flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[#FBF8F3] border border-[#EAE2D5] text-[#B8935B] flex items-center justify-center font-bold text-xs">
+              ₹
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">Domestic Invoicing Base (INR)</h2>
+              <p className="text-xs text-slate-400">Fixed standard prices charged to clients in India.</p>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm whitespace-nowrap min-w-[800px]">
@@ -133,13 +170,13 @@ export default function GlobalPricingPage() {
                     {TIERS.map(tier => (
                       <td key={tier} className="px-6 py-4">
                         <div className="flex items-center gap-1">
-                          <span className="text-slate-400">₹</span>
+                          <span className="text-slate-400 font-medium">₹</span>
                           <input
                             type="number"
                             // @ts-ignore
                             value={config.basePrices.INR[svc]?.[tier] ?? 0}
                             onChange={(e) => updateBasePrice('INR', svc, tier, e.target.value)}
-                            className="w-24 px-2 py-1 rounded border border-slate-200 text-sm focus:ring-[#B8935B]"
+                            className="w-24 px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-[#B8935B] focus:ring-2 focus:ring-[#B8935B]/20"
                           />
                         </div>
                       </td>
@@ -152,10 +189,19 @@ export default function GlobalPricingPage() {
         </div>
 
         {/* USD Base Prices */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
-            <h2 className="text-sm font-bold text-slate-900">🌍 International Base Pricing (USD)</h2>
-            <p className="text-xs text-slate-500">Serves as the global anchor. Will be automatically converted to 180+ local currencies (EUR, GBP, CAD, etc.) at live rates.</p>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 bg-[#FAF9F6] flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[#FBF8F3] border border-[#EAE2D5] text-[#B8935B] flex items-center justify-center font-bold text-xs">
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="2" y1="12" x2="22" y2="12" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">Global Invoicing Base (USD Anchor)</h2>
+              <p className="text-xs text-slate-400">Serves as the global anchor. Auto-converted to 180+ local currencies (EUR, GBP, CAD, AED, etc.) at live rates.</p>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm whitespace-nowrap min-w-[800px]">
@@ -172,13 +218,13 @@ export default function GlobalPricingPage() {
                     {TIERS.map(tier => (
                       <td key={tier} className="px-6 py-4">
                         <div className="flex items-center gap-1">
-                          <span className="text-slate-400">$</span>
+                          <span className="text-slate-400 font-medium">$</span>
                           <input
                             type="number"
                             // @ts-ignore
                             value={config.basePrices.USD[svc]?.[tier] ?? 0}
                             onChange={(e) => updateBasePrice('USD', svc, tier, e.target.value)}
-                            className="w-24 px-2 py-1 rounded border border-slate-200 text-sm focus:ring-[#B8935B]"
+                            className="w-24 px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-[#B8935B] focus:ring-2 focus:ring-[#B8935B]/20"
                           />
                         </div>
                       </td>
@@ -191,10 +237,15 @@ export default function GlobalPricingPage() {
         </div>
 
         {/* Package Discounts */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
-            <h2 className="text-sm font-bold text-slate-900">📦 Package Discounts</h2>
-            <p className="text-xs text-slate-500">Percentage discount applied to standard upgrade packages.</p>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 bg-[#FAF9F6] flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[#FBF8F3] border border-[#EAE2D5] text-[#B8935B] flex items-center justify-center font-bold text-xs">
+              %
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">Standard Package Discounts</h2>
+              <p className="text-xs text-slate-400">Percentage discount applied to standard bundled packages.</p>
+            </div>
           </div>
           <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
