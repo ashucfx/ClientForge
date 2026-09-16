@@ -70,7 +70,11 @@ export function resolveSelfServiceServices(
   if (packageSlug === 'CUSTOM') {
     return customServices;
   }
-  return SELF_SERVICE_PACKAGES[packageSlug].services;
+  const base = [...SELF_SERVICE_PACKAGES[packageSlug].services];
+  if (customServices.includes('EXECUTIVE_CONNECT') && !base.includes('EXECUTIVE_CONNECT')) {
+    base.push('EXECUTIVE_CONNECT');
+  }
+  return base;
 }
 
 export function validateSelfServiceCheckout(input: {
@@ -92,7 +96,7 @@ export function validateSelfServiceCheckout(input: {
   }
 
   if (input.packageSlug === 'CUSTOM') {
-    const allowed = new Set(pkg.services);
+    const allowed = new Set([...pkg.services, 'EXECUTIVE_CONNECT' as ServiceSlug]);
     for (const s of resolved) {
       if (!allowed.has(s)) {
         return { valid: false, error: `Service ${s} is not available for self-service checkout.` };

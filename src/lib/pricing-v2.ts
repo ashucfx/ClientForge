@@ -16,7 +16,7 @@ export interface PricingConfig {
   packageDiscounts: Record<PackageSlug, number>; // Percentage off (e.g. 0.10 for 10% off)
 }
 
-import { getSetting } from './systemSettings';
+import { getSetting, getExecutiveConnectPricingMap } from './systemSettings';
 
 // These are base prices per currency. 
 // Having static USD prices allows for clean numbers (e.g. $149) rather than weird exchange rate fractions.
@@ -108,7 +108,27 @@ export const PRICING = DEFAULT_PRICING;
 
 export async function getGlobalPricing(): Promise<PricingConfig> {
   const config = await getSetting<PricingConfig>('GLOBAL_PRICING_V2');
-  return config ?? DEFAULT_PRICING;
+  const base: PricingConfig = config
+    ? JSON.parse(JSON.stringify(config))
+    : JSON.parse(JSON.stringify(DEFAULT_PRICING));
+
+  try {
+    const execPricing = await getExecutiveConnectPricingMap();
+    if (execPricing) {
+      if (typeof execPricing.INR === 'number' && base.basePrices?.INR?.EXECUTIVE_CONNECT) {
+        base.basePrices.INR.EXECUTIVE_CONNECT.EXECUTIVE = execPricing.INR;
+        base.basePrices.INR.EXECUTIVE_CONNECT.EXECUTIVE_PLUS = execPricing.INR;
+      }
+      if (typeof execPricing.USD === 'number' && base.basePrices?.USD?.EXECUTIVE_CONNECT) {
+        base.basePrices.USD.EXECUTIVE_CONNECT.EXECUTIVE = execPricing.USD;
+        base.basePrices.USD.EXECUTIVE_CONNECT.EXECUTIVE_PLUS = execPricing.USD;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to sync executive connect pricing in getGlobalPricing:', err);
+  }
+
+  return base;
 }
 
 /**

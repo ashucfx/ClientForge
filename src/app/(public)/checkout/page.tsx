@@ -34,7 +34,7 @@ function computePrice(
   tier: ExperienceKey,
   cur: 'INR' | 'USD',
   customSlugs: string[] = [],
-  pricingConfig: PricingConfig = DEFAULT_PRICING
+  pricingConfig: PricingConfig & { executiveConnectPricing?: Record<string, number> } = DEFAULT_PRICING
 ) {
   const prices = pricingConfig.basePrices[cur];
   const sym    = cur === 'INR' ? '₹' : '$';
@@ -48,12 +48,27 @@ function computePrice(
   }
 
   const complementarySet = new Set(PACKAGE_COMPLEMENTARY[pkg as PkgSlug] ?? []);
-  const services = slugs.map(slug => ({
-    slug,
-    label: SERVICE_LABELS[slug],
-    price: complementarySet.has(slug) ? 0 : (prices[slug]?.[tier] ?? 0),
-    complimentary: complementarySet.has(slug),
-  }));
+  const services = slugs.map(slug => {
+    let price = 0;
+    if (!complementarySet.has(slug)) {
+      if (slug === 'EXECUTIVE_CONNECT') {
+        const ecMap = pricingConfig.executiveConnectPricing;
+        if (ecMap && typeof ecMap[cur] === 'number') {
+          price = ecMap[cur];
+        } else {
+          price = prices[slug]?.[tier] ?? (cur === 'INR' ? 4999 : 100);
+        }
+      } else {
+        price = prices[slug]?.[tier] ?? 0;
+      }
+    }
+    return {
+      slug,
+      label: SERVICE_LABELS[slug],
+      price,
+      complimentary: complementarySet.has(slug),
+    };
+  });
   let discountableSubtotal = 0;
   let nonDiscountableSubtotal = 0;
   services.forEach(x => {
@@ -118,7 +133,7 @@ function CheckoutPageInner() {
     subtotalAfterDiscount: number; taxRate: number; taxAmount: number;
     finalPayable: number; isIndia: boolean; gateway: string;
   } | null>(null);
-  const [pricingConfig, setPricingConfig] = useState<PricingConfig>(DEFAULT_PRICING);
+  const [pricingConfig, setPricingConfig] = useState<PricingConfig & { executiveConnectPricing?: Record<string, number> }>(DEFAULT_PRICING);
   const [addExecutiveConnect, setAddExecutiveConnect] = useState(false);
   const [whatsapp, setWhatsapp] = useState('');
   const [website] = useState('');
@@ -695,16 +710,31 @@ function CheckoutPageInner() {
                 if (live.services.length === 0) return null;
                 // International clients see their local currency as the headline; USD is the reference.
                 const showLocal = !!(localRate && countryCode !== 'IN');
-                const toLocal = (n: number) => (showLocal ? Math.round(n * localRate!.rate) : n);
+                const toLocal = (n: number, slug?: string) => {
+                  if (!showLocal) return n;
+                  if (slug === 'EXECUTIVE_CONNECT' && pricingConfig.executiveConnectPricing?.[localRate!.code]) {
+                    return pricingConfig.executiveConnectPricing[localRate!.code];
+                  }
+                  return Math.round(n * localRate!.rate);
+                };
                 const priSym  = showLocal ? localRate!.symbol : live.sym;
                 const priCode = showLocal ? localRate!.code : (cur === 'INR' ? 'INR' : 'USD');
+                const ecPrice = toLocal(
+                  pricingConfig.executiveConnectPricing?.[cur] ?? (cur === 'INR' ? 4999 : 100),
+                  'EXECUTIVE_CONNECT'
+                );
                 return (
                   <div className="space-y-6">
                     {(experienceLevel === 'EXECUTIVE' || experienceLevel === 'EXECUTIVE_PLUS') && (
                       <div className="p-5 border border-brand-gold/30 bg-brand-gold/5 flex flex-col gap-3">
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <h3 className="font-semibold text-brand-obsidian text-sm uppercase tracking-wider mb-1">Add Executive Connect</h3>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold text-brand-obsidian text-sm uppercase tracking-wider">Add Executive Connect</h3>
+                              <span className="text-xs font-bold text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded">
+                                +{priSym}{ecPrice.toLocaleString()}
+                              </span>
+                            </div>
                             <p className="text-xs text-brand-obsidian/70 leading-relaxed">
                               A 45-minute 1-on-1 strategy session with our senior executive team to align your narrative before we start writing. Highly recommended for Director and C-suite roles.
                             </p>
@@ -727,7 +757,7 @@ function CheckoutPageInner() {
                           {s.complimentary ? (
                             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full leading-none">INCLUDED FREE</span>
                           ) : (
-                            <span className="font-medium text-brand-obsidian tabular-nums">{priSym}{toLocal(s.price).toLocaleString()}</span>
+                            <span className="font-medium text-brand-obsidian tabular-nums">{priSym}{toLocal(s.price, s.slug).toLocaleString()}</span>
                           )}
                         </div>
                       ))}

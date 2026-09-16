@@ -6,13 +6,27 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   IconGrid, IconPlus, IconList, IconLogout, IconTarget, IconUser,
-  IconTrendUp, IconMail, IconChevronDown,
+  IconTrendUp, IconMail, IconChevronDown, IconDocument,
 } from '@/components/Icons';
 import { Logo } from '@/components/Logo';
 import { useAdmin } from '@/components/AdminProvider';
 import NotificationBell from '@/components/NotificationBell';
 
 // ── Inline icons ──────────────────────────────────────────────────
+function IconInquiry({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
+      <path
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"
+      />
+    </svg>
+  );
+}
+
 function IconBug({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} fill="none" viewBox="0 0 24 24" aria-hidden>
@@ -123,7 +137,8 @@ function isActive(href: string, pathname: string) {
   if (href === '/invoices') return pathname.startsWith('/invoices') && pathname !== '/invoices/new';
   if (href === '/career') return pathname === '/career' || (pathname.startsWith('/career/') && !pathname.startsWith('/career/kanban') && !pathname.startsWith('/career/email-logs') && !pathname.startsWith('/career/calendar'));
   if (href === '/flywheel') return pathname === '/flywheel';
-  if (href === '/sales/inquiries') return pathname.startsWith('/sales');
+  if (href === '/sales/inquiries') return pathname.startsWith('/sales/inquiries');
+  if (href === '/sales/proposals') return pathname.startsWith('/sales/proposals');
   return pathname.startsWith(href);
 }
 
@@ -432,6 +447,22 @@ function SidebarContent({
         {/* Deliverables & Growth */}
         {hasCatalystAccess && (
           <NavGroup label="Deliverables & Growth" collapsed={collapsed}>
+            <NavLink
+              href="/sales/inquiries"
+              icon={<IconInquiry size={16} />}
+              label="Sales Inquiries"
+              active={isActive('/sales/inquiries', pathname)}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <NavLink
+              href="/sales/proposals"
+              icon={<IconDocument size={16} />}
+              label="Proposals"
+              active={isActive('/sales/proposals', pathname)}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
             <NavLink
               href="/career/calendar"
               icon={<IconCalendar size={16} />}
