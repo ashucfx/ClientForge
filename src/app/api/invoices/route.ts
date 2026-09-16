@@ -182,7 +182,8 @@ export async function POST(request: NextRequest) {
     const afterDiscount     = round2(grossSubtotal - discountAmount);
     const taxAmount         = round2(afterDiscount * taxRate / 100);
     const subtotalConverted = round2(afterDiscount + taxAmount);
-    const gateway: 'RAZORPAY' | 'PAYPAL' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' = requestedGateway ?? 'RAZORPAY';
+    const isIndia = country.trim().toLowerCase() === 'india' || currencyCode === 'INR';
+    const gateway: 'RAZORPAY' | 'PAYPAL' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' = isIndia ? 'RAZORPAY' : (requestedGateway ?? 'RAZORPAY');
     const processingFeeRate = currencyCode === 'INR' 
       ? FEE_RATES.RAZORPAY_DOMESTIC 
       : (

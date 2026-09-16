@@ -146,7 +146,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Already have premium plus' }, { status: 400 });
   }
   if (targetUpgrade === 'EXECUTIVE_CONNECT' && existingServices.includes('EXECUTIVE_CONNECT')) {
-    return NextResponse.json({ error: 'Already have Executive Connect' }, { status: 400 });
+    if (client.consultationStatus !== 'COMPLETED') {
+      return NextResponse.json({ error: 'You already have an active Executive Connect consultation.' }, { status: 400 });
+    }
   }
 
   const invoiceData  = client.invoiceLinks[0]?.invoice;
@@ -213,8 +215,8 @@ export async function GET(req: NextRequest) {
   } else if (targetUpgrade === 'EXECUTIVE_CONNECT') {
     const { getExecutiveConnectPricingMap } = require('@/lib/systemSettings');
     const pricingMap = await getExecutiveConnectPricingMap();
-    const cur = client.currency || (isIndia ? 'INR' : 'USD');
-    differenceBase = pricingMap[cur] || pricingMap['USD'] || 100;
+    const cur = isIndia ? 'INR' : (client.currency || 'USD');
+    differenceBase = pricingMap[cur] || pricingMap['USD'] || (isIndia ? 2999 : 99);
   } else {
     differenceBase = targetPrice - currentlyPaid;
   }
@@ -318,7 +320,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Already have premium plus' }, { status: 400 });
   }
   if (targetUpgrade === 'EXECUTIVE_CONNECT' && existingServices.includes('EXECUTIVE_CONNECT')) {
-    return NextResponse.json({ error: 'Already have Executive Connect' }, { status: 400 });
+    if (client.consultationStatus !== 'COMPLETED') {
+      return NextResponse.json({ error: 'You already have an active Executive Connect consultation.' }, { status: 400 });
+    }
   }
 
   const invoiceData = client.invoiceLinks[0]?.invoice;
@@ -357,8 +361,8 @@ export async function POST(req: NextRequest) {
   } else if (targetUpgrade === 'EXECUTIVE_CONNECT') {
     const { getExecutiveConnectPricingMap } = require('@/lib/systemSettings');
     const pricingMap = await getExecutiveConnectPricingMap();
-    const cur = client.currency || (isIndia ? 'INR' : 'USD');
-    differenceBase = pricingMap[cur] || pricingMap['USD'] || 100;
+    const cur = isIndia ? 'INR' : (client.currency || 'USD');
+    differenceBase = pricingMap[cur] || pricingMap['USD'] || (isIndia ? 2999 : 99);
   }
   
   if (differenceBase <= 0) {

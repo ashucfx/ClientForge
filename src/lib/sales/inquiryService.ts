@@ -375,7 +375,7 @@ export async function listSalesInquiries(filters: {
     ];
   }
 
-  const [data, total] = await Promise.all([
+  const [data, total, statusGroups] = await Promise.all([
     db.salesInquiry.findMany({
       where,
       orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
@@ -387,7 +387,32 @@ export async function listSalesInquiries(filters: {
       },
     }),
     db.salesInquiry.count({ where }),
+    db.salesInquiry.groupBy({
+      by: ['status'],
+      where: { channel: 'INQUIRE' },
+      _count: true,
+    }),
   ]);
+
+  const summary = {
+    total: 0,
+    newCount: 0,
+    underReviewCount: 0,
+    qualifiedCount: 0,
+    proposalSentCount: 0,
+    convertedCount: 0,
+    rejectedLostCount: 0,
+  };
+
+  for (const g of statusGroups) {
+    summary.total += g._count;
+    if (g.status === 'NEW') summary.newCount += g._count;
+    else if (g.status === 'UNDER_REVIEW' || g.status === 'REQUEST_INFO') summary.underReviewCount += g._count;
+    else if (g.status === 'QUALIFIED') summary.qualifiedCount += g._count;
+    else if (g.status === 'PROPOSAL_SENT') summary.proposalSentCount += g._count;
+    else if (g.status === 'CONVERTED' || g.status === 'APPROVED' || g.status === 'INVOICE_SENT') summary.convertedCount += g._count;
+    else if (g.status === 'REJECTED' || g.status === 'LOST') summary.rejectedLostCount += g._count;
+  }
 
   return {
     data,
@@ -397,6 +422,7 @@ export async function listSalesInquiries(filters: {
       total,
       totalPages: Math.ceil(total / pageSize),
     },
+    summary,
   };
 }
 

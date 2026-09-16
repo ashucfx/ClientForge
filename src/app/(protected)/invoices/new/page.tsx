@@ -1,7 +1,7 @@
 'use client';
 // src/app/invoices/new/page.tsx
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { COUNTRIES, ISO2_TO_COUNTRY } from '@/lib/currency';
@@ -525,7 +525,58 @@ export default function NewInvoicePage() {
   const [currencyInfo,    setCurrencyInfo]    = useState<CurrencyInfo | null>({ code: 'INR', symbol: '₹', name: 'Indian Rupee' });
   const [exchangeRate,    setExchangeRate]    = useState(1);   // INR → local
   const [usdExchangeRate, setUsdExchangeRate] = useState<number>(1);
-  const [pricingConfig, setPricingConfig] = useState<PricingConfig>(DEFAULT_PRICING);
+  const [pricingConfig, setPricingConfig] = useState<PricingConfig & { executiveConnectPricing?: Record<string, number> }>(DEFAULT_PRICING);
+
+  const isIndia = (country.trim().toLowerCase() === 'india') || (currencyInfo?.code ?? 'INR') === 'INR';
+
+  // Automatically enforce RAZORPAY when country is India or currency is INR
+  useEffect(() => {
+    if (isIndia && paymentGateway !== 'RAZORPAY') {
+      setPaymentGateway('RAZORPAY');
+    }
+  }, [isIndia, paymentGateway]);
+
+  // Dynamic Executive Connect pricing calculated according to selected currency/rates
+  const execConnectPrice = useMemo(() => {
+    const cur = currencyInfo?.code ?? 'INR';
+    if (cur === 'INR') {
+      return pricingConfig.executiveConnectPricing?.INR || pricingConfig.basePrices.INR.EXECUTIVE_CONNECT?.['EXECUTIVE'] || 2999;
+    }
+    const usdPrice = pricingConfig.executiveConnectPricing?.USD || pricingConfig.basePrices.USD.EXECUTIVE_CONNECT?.['EXECUTIVE'] || 99;
+    if (cur === 'USD') return usdPrice;
+    return round2(usdPrice * usdExchangeRate);
+  }, [currencyInfo, pricingConfig, usdExchangeRate]);
+
+  const execConnectPlusPrice = useMemo(() => {
+    const cur = currencyInfo?.code ?? 'INR';
+    if (cur === 'INR') return 4999;
+    if (cur === 'USD') return 149;
+    return round2(149 * usdExchangeRate);
+  }, [currencyInfo, usdExchangeRate]);
+
+  const hasExecConnect = useMemo(() => {
+    return lineItems.some(i => i.description.includes('Executive Connect Strategy Consultation'));
+  }, [lineItems]);
+
+  const hasExecConnectPlus = useMemo(() => {
+    return lineItems.some(i => i.description.includes('Executive Connect Plus'));
+  }, [lineItems]);
+
+  const toggleExecConnect = () => {
+    if (hasExecConnect) {
+      setLineItems(prev => prev.filter(i => !i.description.includes('Executive Connect Strategy Consultation')));
+    } else {
+      setLineItems(prev => [...prev, makeItem('Executive Connect Strategy Consultation', 1, execConnectPrice)]);
+    }
+  };
+
+  const toggleExecConnectPlus = () => {
+    if (hasExecConnectPlus) {
+      setLineItems(prev => prev.filter(i => !i.description.includes('Executive Connect Plus')));
+    } else {
+      setLineItems(prev => [...prev, makeItem('Executive Connect Plus Strategy & Leadership Advisory', 1, execConnectPlusPrice)]);
+    }
+  };
 
   useEffect(() => {
     fetch('/api/public/pricing')
@@ -1113,6 +1164,119 @@ export default function NewInvoicePage() {
 
 
 
+            {/* 2c. Executive Strategy Add-Ons (Catalyst Only) */}
+            {brandId === 'catalyst' && (
+              <SectionCard title="Executive Strategy Add-Ons" icon={<IconTarget />}>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.5 }}>
+                  Enhance the client&apos;s career progression with private 1-on-1 Executive Connect consultation and strategic leadership mentoring.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
+                  {/* Executive Connect */}
+                  <div
+                    style={{
+                      border: `2px solid ${hasExecConnect ? '#B8935B' : 'var(--border)'}`,
+                      background: hasExecConnect ? '#B8935B10' : '#fff',
+                      borderRadius: 12, padding: '14px',
+                      display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                      transition: 'all .15s',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: hasExecConnect ? '#9A7540' : 'var(--text)' }}>
+                            Executive Connect Strategy Session
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                            1-on-1 deep dive career &amp; leadership positioning call
+                          </div>
+                        </div>
+                        {(clientType === 'EXECUTIVE' || clientType === 'EXECUTIVE_PLUS') && (
+                          <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.4px', background: '#FBF8F3', color: '#B8935B', border: '1px solid #EAE2D5', padding: '2px 6px', borderRadius: 6, flexShrink: 0 }}>
+                            Recommended
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: '#B8935B', marginTop: 8 }}>
+                        {sym}{execConnectPrice.toLocaleString('en-US')}
+                        <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', marginLeft: 4 }}>
+                          ({currencyInfo?.code ?? 'INR'})
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleExecConnect}
+                      style={{
+                        marginTop: 12,
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all .15s',
+                        border: hasExecConnect ? '1.5px solid #B8935B' : '1px solid var(--border)',
+                        background: hasExecConnect ? '#B8935B' : '#fff',
+                        color: hasExecConnect ? '#fff' : 'var(--text)',
+                      }}
+                    >
+                      {hasExecConnect ? '✓ Added to Invoice' : '+ Add to Invoice'}
+                    </button>
+                  </div>
+
+                  {/* Executive Connect Plus */}
+                  <div
+                    style={{
+                      border: `2px solid ${hasExecConnectPlus ? '#B8935B' : 'var(--border)'}`,
+                      background: hasExecConnectPlus ? '#B8935B10' : '#fff',
+                      borderRadius: 12, padding: '14px',
+                      display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                      transition: 'all .15s',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: hasExecConnectPlus ? '#9A7540' : 'var(--text)' }}>
+                            Executive Connect Plus (Advisory)
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                            Multi-session strategy, board advisory &amp; executive narrative
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: '#B8935B', marginTop: 8 }}>
+                        {sym}{execConnectPlusPrice.toLocaleString('en-US')}
+                        <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', marginLeft: 4 }}>
+                          ({currencyInfo?.code ?? 'INR'})
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleExecConnectPlus}
+                      style={{
+                        marginTop: 12,
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all .15s',
+                        border: hasExecConnectPlus ? '1.5px solid #B8935B' : '1px solid var(--border)',
+                        background: hasExecConnectPlus ? '#B8935B' : '#fff',
+                        color: hasExecConnectPlus ? '#fff' : 'var(--text)',
+                      }}
+                    >
+                      {hasExecConnectPlus ? '✓ Added to Invoice' : '+ Add to Invoice'}
+                    </button>
+                  </div>
+                </div>
+              </SectionCard>
+            )}
+
             {/* 3. Line Items */}
             <SectionCard title="Line Items" icon={<IconList />} noPad>
               <div style={{ overflowX: 'auto' }}>
@@ -1279,44 +1443,64 @@ export default function NewInvoicePage() {
               </div>
             </SectionCard>
 
-            {/* 5. Payment Gateway — always accessible */}
+            {/* 5. Payment Gateway — Intelligent Country & Currency Rules */}
             <SectionCard title="Payment Gateway" icon={<IconCreditCard />}>
               <div style={{ marginBottom: 12, fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
-                Choose your checkout provider. Razorpay handles domestic UPI, cards &amp; international multi-currency. PayPal handles global cards &amp; wallets.
+                {isIndia
+                  ? 'Domestic Indian payment processing — restricted to Razorpay in accordance with RBI regulations.'
+                  : 'Multi-currency international checkout — choose cards, PayPal, or local/global bank wire.'}
               </div>
+
+              {/* India Domestic Regulatory Notice */}
+              {isIndia && (
+                <div style={{
+                  padding: '12px 14px', borderRadius: 10, border: '1px solid #EAE2D5',
+                  background: '#FBF8F3', marginBottom: 14, display: 'flex', gap: 10, alignItems: 'flex-start',
+                }}>
+                  <span style={{ color: '#B8935B', marginTop: 2 }}><IconCheck size={16} /></span>
+                  <div style={{ fontSize: 12, color: '#9A7540', lineHeight: 1.5 }}>
+                    <strong>India Domestic INR Rules:</strong> Under Indian payment guidelines, domestic payments in INR are exclusively processed through Razorpay (UPI, NetBanking, and domestic Debit/Credit cards). International rails (PayPal, foreign wire transfers) are automatically disabled for domestic transactions.
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 12 }}>
                 {([
                   {
                     value: 'RAZORPAY' as const,
-                    label: 'Razorpay Instant Link',
-                    sub: 'Cards, UPI & Multi-currency Checkout',
-                    fee: 'Standard Gateway Link',
+                    label: isIndia ? 'Razorpay Domestic Link' : 'Razorpay Multi-Currency',
+                    sub: isIndia ? 'UPI, NetBanking & Indian Cards' : 'Cards & Instant Local Currency Checkout',
+                    fee: isIndia ? 'Standard Domestic Fee (2.36%)' : 'International Multi-Currency',
                     color: '#B8935B',
-                    badge: 'Instant Links',
+                    badge: isIndia ? 'Exclusive for India' : 'Instant Links',
+                    disabled: false,
                   },
                   {
                     value: 'PAYPAL' as const,
                     label: 'PayPal Invoice',
-                    sub: 'Global PayPal & Cards (USD)',
+                    sub: isIndia ? 'Disabled for domestic INR accounts' : 'Global PayPal & Cards (USD)',
                     fee: 'Global Checkout',
                     color: '#003087',
-                    badge: 'International',
+                    badge: isIndia ? 'Restricted in India' : 'International',
+                    disabled: isIndia,
                   },
                   {
                     value: 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' as const,
                     label: 'Bank Transfer (Native Rails)',
-                    sub: 'ACH (US), SEPA (EU), BACS/FPS (UK), etc.',
+                    sub: isIndia ? 'Disabled for domestic accounts' : 'ACH (US), SEPA (EU), BACS/FPS (UK), etc.',
                     fee: '1.18% Fee (1% + 18% GST)',
                     color: '#059669',
-                    badge: 'Lowest Fee (1.18%)',
+                    badge: isIndia ? 'Restricted in India' : 'Lowest Fee (1.18%)',
+                    disabled: isIndia,
                   },
                   {
                     value: 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' as const,
                     label: 'Bank Transfer (Global SWIFT)',
-                    sub: 'International Wire Transfer via SWIFT',
+                    sub: isIndia ? 'Disabled for domestic accounts' : 'International Wire Transfer via SWIFT',
                     fee: '3.54% Fee (3% + 18% GST)',
                     color: '#0284c7',
-                    badge: 'Global Wire (3.54%)',
+                    badge: isIndia ? 'Restricted in India' : 'Global Wire (3.54%)',
+                    disabled: isIndia,
                   },
                 ] as const).map(opt => {
                   const sel = paymentGateway === opt.value;
@@ -1324,22 +1508,25 @@ export default function NewInvoicePage() {
                     <button
                       key={opt.value}
                       type="button"
-                      onClick={() => setPaymentGateway(opt.value)}
+                      disabled={opt.disabled}
+                      onClick={() => !opt.disabled && setPaymentGateway(opt.value)}
                       style={{
                         border: `2px solid ${sel ? opt.color : 'var(--border)'}`,
-                        background: sel ? `${opt.color}12` : '#fff',
+                        background: sel ? `${opt.color}12` : opt.disabled ? '#f8fafc' : '#fff',
                         borderRadius: 12, padding: '14px 16px',
-                        cursor: 'pointer', textAlign: 'left', transition: 'all .15s',
+                        cursor: opt.disabled ? 'not-allowed' : 'pointer',
+                        textAlign: 'left', transition: 'all .15s',
                         display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                         touchAction: 'manipulation',
+                        opacity: opt.disabled ? 0.45 : 1,
                       }}
                     >
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 6 }}>
                           {opt.badge ? (
                             <span style={{
-                              background: sel ? opt.color : '#f1f5f9',
-                              color: sel ? '#fff' : '#475569',
+                              background: sel ? opt.color : opt.disabled ? '#e2e8f0' : '#f1f5f9',
+                              color: sel ? '#fff' : opt.disabled ? '#64748b' : '#475569',
                               fontSize: 10, fontWeight: 700, borderRadius: 20,
                               padding: '2px 8px', letterSpacing: '.3px',
                             }}>
@@ -1355,7 +1542,9 @@ export default function NewInvoicePage() {
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, lineHeight: 1.4 }}>{opt.sub}</div>
                       </div>
-                      <div style={{ fontSize: 11, color: opt.color, fontWeight: 700, marginTop: 4 }}>{opt.fee}</div>
+                      <div style={{ fontSize: 11, color: opt.disabled ? 'var(--muted)' : opt.color, fontWeight: 700, marginTop: 4 }}>
+                        {opt.disabled ? 'Unavailable for INR' : opt.fee}
+                      </div>
                     </button>
                   );
                 })}
@@ -1363,9 +1552,9 @@ export default function NewInvoicePage() {
             </SectionCard>
 
             {/* PayPal unsupported currency warning */}
-            {paypalWillConvertToUsd && (
+            {!isIndia && paypalWillConvertToUsd && (
               <div style={{ padding: '12px 16px', background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 10, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 18, flexShrink: 0, lineHeight: 1 }}>⚠️</span>
+                <span style={{ color: '#d97706', marginTop: 2 }}><IconAlert size={18} /></span>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>
                     PayPal doesn&apos;t support {localCode} natively

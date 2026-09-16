@@ -19,6 +19,8 @@ const SERVICE_CATALOG = [
   { label: 'Cover Letter',            description: 'Cover Letter Writing',                 price: 299  },
   { label: 'Portfolio Website',       description: 'Portfolio Website',                    price: 4999 },
   { label: 'Career Consultation',     description: 'Career Consultation (1 hr)',           price: 999  },
+  { label: 'Executive Connect',       description: 'Executive Connect Strategy Consultation', price: 2999 },
+  { label: 'Executive Connect Plus',  description: 'Executive Connect Plus Strategy Consultation', price: 4999 },
   { label: 'ATS Audit & Fix',         description: 'ATS Audit & Fix',                     price: 299  },
   { label: 'Custom',                  description: '',                                     price: 0    },
 ];

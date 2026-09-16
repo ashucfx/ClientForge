@@ -884,9 +884,8 @@ export default function PortalDashboardPage() {
           const hasPortfolio = me.services?.some(s => s.slug === 'PORTFOLIO');
           const hasFull = hasResume && hasLinkedIn && hasCoverLetter;
           
-          const isExecutivePackage = me.packageType === 'EXECUTIVE' || me.packageType === 'EXECUTIVE_PLUS';
           const hasExecutiveService = me.services?.some(s => s.slug === 'EXECUTIVE_CONNECT');
-          const hasExecutiveAccess = isExecutivePackage || hasExecutiveService;
+          const hasExecutiveAccess = hasExecutiveService && me.consultationStatus !== 'COMPLETED';
           
           return (
             <div className="flex flex-col gap-5 mb-5">
@@ -894,7 +893,12 @@ export default function PortalDashboardPage() {
                 <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div>
                     <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-                      <span className="text-xl">🚀</span> Career Booster Upgrade
+                      <span className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 shrink-0">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                      </span>
+                      Career Booster Upgrade
                     </h3>
                     <p className="text-sm text-slate-500 mt-1">
                       Unlock the complete Career Booster package including Professional Resume, LinkedIn Optimization, and Cover Letter.
@@ -911,7 +915,12 @@ export default function PortalDashboardPage() {
                   <div className="absolute top-0 right-0 w-32 h-32 bg-[#B8935B]/10 rounded-full blur-2xl -translate-y-10 translate-x-10 pointer-events-none" />
                   <div className="relative z-10">
                     <h3 className="font-bold text-[#9A7540] text-lg flex items-center gap-2">
-                      <span className="text-xl">✨</span> Premium Plus Upgrade
+                      <span className="w-7 h-7 rounded-lg bg-[#B8935B]/15 flex items-center justify-center text-[#B8935B] shrink-0">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                        </svg>
+                      </span>
+                      Premium Plus Upgrade
                     </h3>
                     <p className="text-sm text-slate-600 mt-1">
                       Stand out with a stunning Personal Portfolio Website tailored to showcase your unique career journey.
@@ -927,14 +936,21 @@ export default function PortalDashboardPage() {
                 <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div>
                     <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-                      <span className="text-xl">🤝</span> Executive Connect
+                      <span className="w-7 h-7 rounded-lg bg-[#B8935B]/15 flex items-center justify-center text-[#B8935B] shrink-0">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      </span>
+                      Executive Connect
                     </h3>
                     <p className="text-sm text-slate-500 mt-1">
-                      Unlock 1-on-1 Executive Connect consultations with our career experts.
+                      {me.consultationStatus === 'COMPLETED'
+                        ? 'Book an additional 1-on-1 Executive Strategy session with our leadership career mentors.'
+                        : 'Unlock 1-on-1 Executive Connect strategy consultations with our leadership career mentors.'}
                     </p>
                   </div>
                   <button onClick={() => handleUpgrade('EXECUTIVE_CONNECT')} className="px-4 py-2 bg-white border border-[#B8935B] text-[#B8935B] font-bold rounded-xl text-sm whitespace-nowrap hover:bg-[#F0EAE0] transition-colors shadow-sm">
-                    Unlock Access
+                    {me.consultationStatus === 'COMPLETED' ? 'Book Another Session' : 'Unlock Access'}
                   </button>
                 </div>
               )}
@@ -946,7 +962,7 @@ export default function PortalDashboardPage() {
         {(() => {
           const isExecutivePackage = me.packageType === 'EXECUTIVE' || me.packageType === 'EXECUTIVE_PLUS';
           const hasExecutiveService = me.services?.some(s => s.slug === 'EXECUTIVE_CONNECT');
-          const hasExecutiveAccess = isExecutivePackage || hasExecutiveService;
+          const hasExecutiveAccess = hasExecutiveService || (isExecutivePackage && Boolean(me.consultationStatus));
           
           if (!hasExecutiveAccess) return null; // Don't show if they don't have access
 
