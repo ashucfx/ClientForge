@@ -49,7 +49,8 @@ export default function HolidayCalendarPage() {
     const res = await fetch('/api/admin/holidays');
     if (res.ok) {
       const d = await res.json();
-      setHolidays(d.holidays);
+      const list = (d.holidays || []).slice().sort((a: Holiday, b: Holiday) => a.date.localeCompare(b.date));
+      setHolidays(list);
     }
     setLoading(false);
   }, []);
@@ -158,19 +159,23 @@ export default function HolidayCalendarPage() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-5xl mx-auto space-y-8">
+      <div className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 sm:space-y-8 pb-16">
 
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Holiday Calendar</h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              <span className="w-2 h-2 rounded-full bg-[#B8935B]" />
+              <span>Deliverables & Operations</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Holiday Calendar</h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
               Manage public holidays and custom off-days. These are excluded from SLA working-day calculations and can be notified to all active clients.
             </p>
           </div>
           <button
             onClick={() => { setAdding(true); setForm({ date: '', name: '', description: '' }); }}
-            className="flex-shrink-0 inline-flex items-center gap-2 bg-[#B8935B] text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-[#9A7540] transition-colors"
+            className="w-full sm:w-auto flex-shrink-0 inline-flex items-center justify-center gap-2 bg-[#B8935B] text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-[#9A7540] transition-colors shadow-xs"
           >
             + Add Holiday
           </button>
@@ -254,7 +259,7 @@ export default function HolidayCalendarPage() {
               {/* Cells */}
               <div className="grid grid-cols-7">
                 {Array.from({ length: firstDay }).map((_, i) => (
-                  <div key={`empty-${i}`} className="border-r border-b border-slate-50 min-h-[56px]" />
+                  <div key={`empty-${i}`} className="border-r border-b border-slate-50 min-h-[46px] sm:min-h-[58px]" />
                 ))}
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                   const day  = i + 1;
@@ -264,20 +269,20 @@ export default function HolidayCalendarPage() {
                   const dow  = new Date(year, month, day).getDay();
                   const isWeekend = dow === 0 || dow === 6;
                   return (
-                    <div key={day} className={`border-r border-b border-slate-50 min-h-[56px] p-1.5 relative ${
+                    <div key={day} className={`border-r border-b border-slate-50 min-h-[46px] sm:min-h-[58px] p-1 sm:p-1.5 relative ${
                       isWeekend ? 'bg-slate-50/60' : ''
                     } ${h ? (h.isStatic ? 'bg-amber-50' : 'bg-rose-50') : ''}`}>
-                      <span className={`text-xs font-semibold leading-none block mb-1 ${
-                        isToday ? 'w-5 h-5 bg-[#B8935B] text-white rounded-full flex items-center justify-center text-[10px]' :
+                      <span className={`text-[10px] sm:text-xs font-semibold leading-none block mb-0.5 sm:mb-1 ${
+                        isToday ? 'w-4 h-4 sm:w-5 sm:h-5 bg-[#B8935B] text-white rounded-full flex items-center justify-center text-[9px] sm:text-[10px]' :
                         isWeekend ? 'text-slate-300' : 'text-slate-600'
                       }`}>{day}</span>
                       {h && (
-                        <span className={`text-[9px] font-semibold leading-tight block truncate ${h.isStatic ? 'text-amber-700' : 'text-rose-700'}`}>
+                        <span className={`text-[8px] sm:text-[9px] font-semibold leading-tight block truncate ${h.isStatic ? 'text-amber-700' : 'text-rose-700'}`} title={h.name}>
                           {h.name}
                         </span>
                       )}
                       {isWeekend && !h && (
-                        <span className="text-[9px] text-slate-300 leading-tight block">
+                        <span className="text-[8px] sm:text-[9px] text-slate-300 leading-tight block">
                           {dow === 6 ? 'Sat' : 'Sun'}
                         </span>
                       )}
@@ -347,33 +352,34 @@ export default function HolidayCalendarPage() {
         <div>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">All Holidays ({holidays.length})</p>
           <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-sm">
-            <table className="w-full text-sm">
-              <thead className="border-b border-slate-100 bg-slate-50">
-                <tr>
-                  {['Date', 'Holiday', 'Type', 'Notes', 'Clients Notified', ''].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wide">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {loading ? (
-                  <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400 text-sm">Loading…</td></tr>
-                ) : holidays.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400 text-sm">No holidays configured.</td></tr>
-                ) : (
-                  holidays.map(h => (
-                    <tr key={h.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3 text-slate-700 font-medium whitespace-nowrap">
-                        {new Date(h.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </td>
-                      <td className="px-4 py-3 text-slate-900 font-semibold">{h.name}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
-                          h.isStatic ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'
-                        }`}>
-                          {h.isStatic ? 'National' : 'Custom'}
-                        </span>
-                      </td>
+            <div className="overflow-x-auto w-full">
+              <table className="w-full text-xs sm:text-sm min-w-[640px]">
+                <thead className="border-b border-slate-100 bg-slate-50">
+                  <tr>
+                    {['Date', 'Holiday', 'Type', 'Notes', 'Clients Notified', ''].map(h => (
+                      <th key={h} className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wide">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {loading ? (
+                    <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400 text-sm">Loading…</td></tr>
+                  ) : holidays.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400 text-sm">No holidays configured.</td></tr>
+                  ) : (
+                    [...holidays].sort((a, b) => a.date.localeCompare(b.date)).map(h => (
+                      <tr key={h.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3 text-slate-700 font-medium whitespace-nowrap">
+                          {new Date(h.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td className="px-4 py-3 text-slate-900 font-semibold">{h.name}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                            h.isStatic ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'
+                          }`}>
+                            {h.isStatic ? 'National' : 'Custom'}
+                          </span>
+                        </td>
                       <td className="px-4 py-3 text-slate-400 text-xs">{h.description ?? '—'}</td>
                       <td className="px-4 py-3 text-xs">
                         {h.notifiedAt ? (
@@ -398,10 +404,11 @@ export default function HolidayCalendarPage() {
                         )}
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

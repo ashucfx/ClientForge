@@ -33,7 +33,8 @@ export async function GET() {
     notifiedAt: h.notifiedAt?.toISOString() ?? null,
   }));
 
-  return NextResponse.json({ holidays: [...staticList, ...dbList] });
+  const allHolidays = [...staticList, ...dbList].sort((a, b) => a.date.localeCompare(b.date));
+  return NextResponse.json({ holidays: allHolidays });
 }
 
 export async function POST(req: NextRequest) {

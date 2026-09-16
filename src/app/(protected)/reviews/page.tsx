@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import AppShell from '@/components/AppShell';
+import { IconCheck, IconCopy } from '@/components/Icons';
 
 interface ReviewRow {
   id: string;
@@ -71,6 +73,7 @@ export default function ReviewsPage() {
       setTimeout(() => setCopied(false), 2000);
     });
   };
+
   const load = useCallback(async () => {
     setLoading(true);
     const res = await fetch('/api/admin/reviews');
@@ -107,195 +110,144 @@ export default function ReviewsPage() {
     : null;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <AppShell>
+      <div className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 pb-16">
 
-      {/* ── Hero Header ─────────────────────────────────────────── */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        {/* Decorative background quote */}
-        <div aria-hidden className="absolute right-10 top-1/2 -translate-y-1/2 text-[200px] leading-none font-serif text-white opacity-[0.03] select-none pointer-events-none">
-          &ldquo;
-        </div>
-        <div className="relative max-w-6xl mx-auto px-6 py-10">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+        {/* ── Hero Header ── */}
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-5 sm:p-8 text-white shadow-md">
+          {/* Decorative background quote */}
+          <div aria-hidden className="absolute right-6 top-1/2 -translate-y-1/2 text-[140px] sm:text-[180px] leading-none font-serif text-white opacity-[0.03] select-none pointer-events-none">
+            &ldquo;
+          </div>
+          <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#B8935B]" />
-                <span className="text-[#B8935B] text-xs font-semibold tracking-widest uppercase">Client Voice</span>
+                <span className="text-[#B8935B] text-xs font-bold tracking-widest uppercase">Deliverables & Growth</span>
               </div>
-              <h1 className="text-3xl font-bold text-white tracking-tight">Testimonials</h1>
-              <p className="text-slate-400 text-sm mt-1.5 max-w-md">
-                Authentic feedback from clients. Publish to your website to build trust and convert prospects.
+              <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Client Testimonials</h1>
+              <p className="text-slate-400 text-xs sm:text-sm mt-1.5 max-w-lg">
+                Authentic feedback from verified clients. Publish to your public testimonials page to showcase social proof and build trust.
               </p>
             </div>
 
             {/* Stat pills */}
-            <div className="flex flex-wrap gap-3">
-              <div className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-xl px-4 py-3 text-center min-w-[80px]">
-                <p className="text-2xl font-bold text-white">{reviews.length}</p>
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Total</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 w-full lg:w-auto">
+              <div className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-xl px-3.5 py-2.5 text-center">
+                <p className="text-lg sm:text-2xl font-extrabold text-white">{reviews.length}</p>
+                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mt-0.5">Total</p>
               </div>
-              <div className="bg-emerald-500/20 backdrop-blur-sm border border-emerald-500/20 rounded-xl px-4 py-3 text-center min-w-[80px]">
-                <p className="text-2xl font-bold text-emerald-400">{publishedCount}</p>
-                <p className="text-[10px] text-emerald-300 uppercase tracking-wider mt-0.5">Live</p>
+              <div className="bg-emerald-500/20 backdrop-blur-sm border border-emerald-500/20 rounded-xl px-3.5 py-2.5 text-center">
+                <p className="text-lg sm:text-2xl font-extrabold text-emerald-400">{publishedCount}</p>
+                <p className="text-[10px] text-emerald-300 uppercase font-bold tracking-wider mt-0.5">Live</p>
               </div>
-              <div className="bg-[#B8935B]/20 backdrop-blur-sm border border-[#B8935B]/30 rounded-xl px-4 py-3 text-center min-w-[80px]">
-                <p className="text-2xl font-bold text-[#B8935B]">{avgRating ?? '—'}</p>
-                <p className="text-[10px] text-[#B8935B]/80 uppercase tracking-wider mt-0.5">Avg ★</p>
+              <div className="bg-[#B8935B]/20 backdrop-blur-sm border border-[#B8935B]/30 rounded-xl px-3.5 py-2.5 text-center">
+                <p className="text-lg sm:text-2xl font-extrabold text-[#B8935B]">{avgRating ?? '—'}</p>
+                <p className="text-[10px] text-[#B8935B]/80 uppercase font-bold tracking-wider mt-0.5">Avg ★</p>
               </div>
-              <div className="bg-amber-500/10 backdrop-blur-sm border border-amber-500/20 rounded-xl px-4 py-3 text-center min-w-[80px]">
-                <p className="text-2xl font-bold text-amber-400">{fiveStarCount}</p>
-                <p className="text-[10px] text-amber-300 uppercase tracking-wider mt-0.5">5-Star</p>
+              <div className="bg-amber-500/10 backdrop-blur-sm border border-amber-500/20 rounded-xl px-3.5 py-2.5 text-center">
+                <p className="text-lg sm:text-2xl font-extrabold text-amber-400">{fiveStarCount}</p>
+                <p className="text-[10px] text-amber-300 uppercase font-bold tracking-wider mt-0.5">5-Star</p>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ── Content ─────────────────────────────────────────────── */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
-
-        {/* Share bar */}
-        <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 mb-6 shadow-sm flex-wrap">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-[#B8935B]/10 flex items-center justify-center">
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#B8935B" strokeWidth="2" strokeLinecap="round">
-                <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
-                <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
-              </svg>
-            </span>
-            <span className="text-xs text-slate-400 font-medium flex-shrink-0">Public page:</span>
-            <a
-              href="/testimonials"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-slate-700 font-mono truncate hover:text-[#B8935B] transition-colors"
-            >
-              {publicUrl}
-            </a>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <a
-              href="/testimonials"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-            >
-              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
-                <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-              </svg>
-              Preview
-            </a>
-            <button
-              onClick={copyLink}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                copied
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-[#B8935B] text-white hover:bg-[#9A7540]'
-              }`}
-            >
-              {copied ? (
-                <>
-                  <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-                  </svg>
-                  Copy link
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Filter tabs */}
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-          <div className="flex gap-1.5 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
-            {([
-              { key: 'all',         label: 'All',         count: reviews.length },
-              { key: 'published',   label: 'Published',   count: publishedCount },
-              { key: 'unpublished', label: 'Pending',     count: reviews.length - publishedCount },
-            ] as const).map(({ key, label, count }) => (
+        {/* ── Filter bar & Public link ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+          {/* Status filter tabs */}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl self-start sm:self-auto overflow-x-auto max-w-full">
+            {(['all', 'published', 'unpublished'] as const).map(tab => (
               <button
-                key={key}
-                onClick={() => setFilter(key)}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                  filter === key
-                    ? 'bg-slate-900 text-white shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
+                key={tab}
+                onClick={() => setFilter(tab)}
+                className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap capitalize ${
+                  filter === tab
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
-                {label}
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  filter === key ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
-                }`}>{count}</span>
+                {tab === 'all' && `All (${reviews.length})`}
+                {tab === 'published' && `Live (${publishedCount})`}
+                {tab === 'unpublished' && `Pending (${reviews.length - publishedCount})`}
               </button>
             ))}
           </div>
 
-          {publishedCount > 0 && filter !== 'unpublished' && (
-            <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">
-              <PublishedDot />
-              <span className="font-medium">{publishedCount} testimonial{publishedCount > 1 ? 's' : ''} live on your site</span>
-            </div>
-          )}
+          {/* Copy public link */}
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={copyLink}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
+              title="Copy public testimonials URL"
+            >
+              {copied ? <IconCheck size={13} className="text-emerald-600" /> : <IconCopy size={13} />}
+              <span>{copied ? 'Copied Link!' : 'Public Page Link'}</span>
+            </button>
+            <a
+              href="/testimonials"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-2 rounded-xl bg-[#B8935B] hover:bg-[#9A7540] text-white transition-colors shadow-xs"
+            >
+              <span>View Live</span>
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          </div>
         </div>
 
-        {/* Grid / List */}
+        {/* ── Testimonials Grid ── */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-52 bg-white rounded-2xl border border-slate-200 animate-pulse shadow-sm" />
+              <div key={i} className="h-48 bg-white rounded-2xl border border-slate-200 animate-pulse shadow-xs" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-24 bg-white rounded-2xl border border-dashed border-slate-200">
-            <div className="text-6xl font-serif text-slate-200 mb-4">&ldquo;&rdquo;</div>
-            <p className="text-slate-500 font-semibold">No testimonials here yet</p>
-            <p className="text-sm text-slate-400 mt-1">
+          <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200 shadow-xs">
+            <div className="text-5xl font-serif text-slate-200 mb-3">&ldquo;&rdquo;</div>
+            <p className="text-slate-700 font-bold text-base">No testimonials found</p>
+            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
               {filter === 'published'
-                ? 'Publish a testimonial to make it visible on your site.'
+                ? 'No reviews have been marked live yet. Publish a review below to feature it.'
                 : filter === 'unpublished'
-                ? 'All testimonials have been published.'
-                : 'Client testimonials submitted through the portal will appear here.'}
+                ? 'All testimonials have already been published live!'
+                : 'Client reviews submitted through their portal will appear here.'}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {filtered.map(r => {
               const client = r.careerClient ?? r.rnClient;
               const clientType = r.careerClient ? 'Career Booster' : 'Ripple Nexus';
-              const clientHref = r.careerClient ? `/career/${r.careerClient.id}` : `/rn/clients`;
-              const name = client?.name ?? 'Unknown';
+              const clientHref = r.careerClient ? `/career/${r.careerClient.id}` : `/career`;
+              const name = client?.name ?? 'Anonymous Client';
               const gradient = avatarGradient(name);
 
               return (
                 <div
                   key={r.id}
-                  className={`relative bg-white rounded-2xl border shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md group ${
-                    r.isPublished ? 'border-slate-200' : 'border-slate-200 border-dashed'
+                  className={`relative bg-white rounded-2xl border shadow-xs overflow-hidden transition-all duration-200 hover:shadow-md group flex flex-col justify-between ${
+                    r.isPublished ? 'border-slate-200/90' : 'border-slate-200 border-dashed'
                   }`}
                 >
-                  {/* Published stripe */}
+                  {/* Published top stripe */}
                   {r.isPublished && (
-                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-400" />
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#B8935B] via-emerald-500 to-teal-400" />
                   )}
 
-                  <div className="p-5">
+                  <div className="p-5 space-y-3.5">
                     {/* Header row */}
-                    <div className="flex items-start justify-between gap-3 mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${gradient} text-white flex items-center justify-center font-bold text-sm flex-shrink-0 shadow-sm`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} text-white flex items-center justify-center font-bold text-sm flex-shrink-0 shadow-xs`}>
                           {name[0]?.toUpperCase() ?? '?'}
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-bold text-slate-900">{name}</span>
+                            <span className="text-sm font-bold text-slate-900 truncate">{name}</span>
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full ${
                               r.isPublished
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -306,65 +258,52 @@ export default function ReviewsPage() {
                             </span>
                           </div>
                           {(r.designation || r.company) && (
-                            <p className="text-xs text-slate-400 mt-0.5">
+                            <p className="text-xs text-slate-400 mt-0.5 truncate">
                               {[r.designation, r.company].filter(Boolean).join(' · ')}
                             </p>
                           )}
                         </div>
                       </div>
 
-                      {/* Decorative large quote */}
-                      <span className="text-4xl font-serif text-slate-100 leading-none select-none flex-shrink-0 group-hover:text-[#B8935B]/20 transition-colors">
-                        &ldquo;
-                      </span>
+                      <div className="flex-shrink-0">
+                        <StarRating rating={r.rating} size="md" />
+                      </div>
                     </div>
 
-                    {/* Stars */}
-                    <StarRating rating={r.rating} size="md" />
-
-                    {/* Testimonial */}
-                    <p className="mt-3 text-sm text-slate-700 leading-relaxed line-clamp-4">
-                      {r.testimonial}
+                    {/* Testimonial Quote */}
+                    <p className="text-xs sm:text-sm text-slate-700 leading-relaxed italic">
+                      &ldquo;{r.testimonial}&rdquo;
                     </p>
-
-                    {/* LinkedIn */}
-                    {r.linkedinUrl && (
-                      <a href={r.linkedinUrl} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 mt-3 text-[11px] font-medium text-[#0A66C2] hover:underline">
-                        <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/>
-                          <circle cx="4" cy="4" r="2"/>
-                        </svg>
-                        View on LinkedIn
-                      </a>
-                    )}
                   </div>
 
-                  {/* Footer */}
-                  <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-medium text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full">
+                  {/* Footer Action Bar */}
+                  <div className="px-5 py-3 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap text-xs">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full">
                         {clientType}
                       </span>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-[10px] text-slate-400 font-medium">
                         {new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <a href={clientHref}
-                        className="px-2.5 py-1 text-[11px] font-semibold border border-slate-200 rounded-lg text-slate-600 hover:bg-white hover:border-slate-300 transition-colors bg-white">
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={clientHref}
+                        className="px-2.5 py-1 text-[11px] font-semibold border border-slate-200 rounded-lg text-slate-700 hover:bg-white hover:border-slate-300 transition-colors bg-white shadow-2xs"
+                      >
                         Profile
                       </a>
                       <button
                         onClick={() => void togglePublish(r.id, r.isPublished)}
                         disabled={togglingId === r.id}
-                        className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all disabled:opacity-50 ${
+                        className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all shadow-2xs disabled:opacity-50 ${
                           r.isPublished
-                            ? 'bg-amber-500 text-white hover:bg-amber-600'
-                            : 'bg-emerald-500 text-white hover:bg-emerald-600'
-                        }`}>
-                        {togglingId === r.id ? '…' : r.isPublished ? 'Unpublish' : 'Publish'}
+                            ? 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
+                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        }`}
+                      >
+                        {togglingId === r.id ? '…' : r.isPublished ? 'Unpublish' : 'Publish Live'}
                       </button>
                     </div>
                   </div>
@@ -374,13 +313,13 @@ export default function ReviewsPage() {
           </div>
         )}
 
-        {/* Bottom tip */}
+        {/* Bottom Tip */}
         {!loading && reviews.length > 0 && (
-          <p className="text-center text-xs text-slate-400 mt-8">
-            Publish testimonials to feature them publicly. Unpublished ones are only visible to you.
+          <p className="text-center text-xs text-slate-400 mt-6">
+            Published testimonials automatically appear on your client-facing website. Unpublished reviews remain strictly confidential.
           </p>
         )}
       </div>
-    </div>
+    </AppShell>
   );
 }
