@@ -12,7 +12,7 @@ export async function GET() {
     orderBy: { createdAt: 'desc' },
   });
 
-  return NextResponse.json(accounts);
+  return NextResponse.json({ accounts, success: true });
 }
 
 export async function POST(req: NextRequest) {

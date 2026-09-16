@@ -55,6 +55,7 @@ export default function BankAccountsSettingsPage() {
   const [formData, setFormData] = useState<any>(DEFAULT_FORM);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   const loadAccounts = () => {
     if (isSuperAdmin) {
@@ -62,10 +63,28 @@ export default function BankAccountsSettingsPage() {
       fetch('/api/admin/international-payment-accounts')
         .then(res => res.json())
         .then(data => {
-          if (data.accounts) setAccounts(data.accounts);
+          const list = Array.isArray(data) ? data : (data.accounts || []);
+          setAccounts(list);
           setLoading(false);
         })
         .catch(() => setLoading(false));
+    }
+  };
+
+  const handleAutoSync = async () => {
+    if (!confirm('Sync and restore standard verified international bank accounts (USD, GBP, EUR, CAD, AUD, DKK)?')) return;
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/admin/international-payment-accounts/seed', { method: 'POST' });
+      if (res.ok) {
+        loadAccounts();
+      } else {
+        alert('Failed to sync bank accounts');
+      }
+    } catch {
+      alert('Error connecting to sync service');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -194,6 +213,15 @@ export default function BankAccountsSettingsPage() {
 
           <div className="flex items-center gap-2.5">
             <button 
+              onClick={handleAutoSync}
+              disabled={syncing}
+              className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold transition-all shadow-xs flex items-center gap-1.5"
+              title="Populate or restore standard international bank transfer receiving accounts"
+            >
+              <IconRefresh size={14} className={syncing ? 'animate-spin text-[#B8935B]' : 'text-slate-500'} />
+              <span>{syncing ? 'Syncing...' : '⚡ Restore Verified Accounts'}</span>
+            </button>
+            <button 
               onClick={openAddModal}
               className="px-4 py-2 rounded-xl bg-[#B8935B] hover:bg-[#9A7540] text-white text-xs sm:text-sm font-bold transition-all shadow-xs flex items-center gap-1.5"
             >
@@ -255,12 +283,22 @@ export default function BankAccountsSettingsPage() {
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto mb-5">
               Add verified international banking details for incoming client wire transfers and invoice payment links.
             </p>
-            <button
-              onClick={openAddModal}
-              className="px-4 py-2.5 rounded-xl bg-[#B8935B] hover:bg-[#9A7540] text-white text-xs font-bold transition-all shadow-xs"
-            >
-              + Add Bank Account
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-2.5">
+              <button
+                onClick={handleAutoSync}
+                disabled={syncing}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+              >
+                <IconRefresh size={13} className={syncing ? 'animate-spin text-[#B8935B]' : 'text-slate-500'} />
+                <span>{syncing ? 'Restoring Accounts...' : '⚡ Restore Verified Accounts'}</span>
+              </button>
+              <button
+                onClick={openAddModal}
+                className="px-4 py-2.5 rounded-xl bg-[#B8935B] hover:bg-[#9A7540] text-white text-xs font-bold transition-all shadow-xs"
+              >
+                + Add Bank Account
+              </button>
+            </div>
           </div>
         ) : (
           <>
