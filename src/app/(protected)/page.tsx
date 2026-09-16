@@ -175,7 +175,6 @@ export default function Dashboard() {
   const { show, toasts } = useToast();
   const router = useRouter();
   const { activeBrand } = useBrand();
-  const { hasRnAccess } = useAdmin();
 
   const [invoices, setInvoices] = useState<InvoiceData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -254,7 +253,7 @@ export default function Dashboard() {
             </div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Mission Control</h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-              {activeBrand === 'ripple_nexus' ? 'Ripple Nexus Operations Overview' : 'Catalyst Operations & Revenue Overview'}
+              Catalyst Operations & Revenue Overview
             </p>
           </div>
           <Link 
@@ -265,23 +264,12 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {/* KPI Row - Matches Active Brand Style */}
+        {/* KPI Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {activeBrand === 'ripple_nexus' ? (
-            <>
-              <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: '#7C5CFF' }} />} bg="#f3f0ff" accent />
-              <KpiCard label="Pending Payment" value={stats.pending} icon={<IconPending style={{ color: '#7C5CFF' }} />} bg="#e0e7ff" sub="Action Required" />
-              <KpiCard label="Completed" value={stats.paid} icon={<IconCheck style={{ color: '#7C5CFF' }} />} bg="#ede9fe" sub="Paid in full" />
-              <KpiCard label="Collection Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: '#7C5CFF' }} />} bg="#f5f3ff" sub={`${stats.paid} of ${stats.total} paid`} />
-            </>
-          ) : (
-            <>
-              <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: '#B8935B' }} />} bg="#eff6ff" accent />
-              <KpiCard label="Pending Payment" value={stats.pending} icon={<IconPending style={{ color: '#B8935B' }} />} bg="#e0f2fe" sub="Action Required" />
-              <KpiCard label="Completed" value={stats.paid} icon={<IconCheck style={{ color: '#3FBD8B' }} />} bg="#d1fae5" sub="Paid in full" />
-              <KpiCard label="Collection Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: '#B8935B' }} />} bg="#eef2ff" sub={`${stats.paid} of ${stats.total} paid`} />
-            </>
-          )}
+          <KpiCard label="Total Invoices" value={stats.total} icon={<IconDocument style={{ color: '#B8935B' }} />} bg="#eff6ff" accent />
+          <KpiCard label="Pending Payment" value={stats.pending} icon={<IconPending style={{ color: '#B8935B' }} />} bg="#e0f2fe" sub="Action Required" />
+          <KpiCard label="Completed" value={stats.paid} icon={<IconCheck style={{ color: '#3FBD8B' }} />} bg="#d1fae5" sub="Paid in full" />
+          <KpiCard label="Collection Rate" value={`${stats.conversion}%`} icon={<IconTrendUp style={{ color: '#B8935B' }} />} bg="#fef3c7" sub={`${stats.paid} of ${stats.total} paid`} />
         </div>
 
         {/* Action Center & Revenue */}
@@ -348,16 +336,10 @@ export default function Dashboard() {
             style={{ minWidth: 150 }}
             value={typeFilter} onChange={e => setType(e.target.value)}>
             <option value="">All Packages</option>
-            {activeBrand === 'ripple_nexus' ? (
-              <option value="AGENCY_CLIENT">Agency Client</option>
-            ) : (
-              <>
-                <option value="FRESHER">Fresher</option>
-                <option value="MID_CAREER">Mid-Career</option>
-                <option value="EXECUTIVE">Executive</option>
-                <option value="EXECUTIVE_PLUS">Executive Plus</option>
-              </>
-            )}
+            <option value="FRESHER">Fresher</option>
+            <option value="MID_CAREER">Mid-Career</option>
+            <option value="EXECUTIVE">Executive</option>
+            <option value="EXECUTIVE_PLUS">Executive Plus</option>
           </select>
           {(search || statusFilter || typeFilter) && (
             <button onClick={() => { setSearch(''); setStatus(''); setType(''); }}

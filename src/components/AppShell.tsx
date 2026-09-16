@@ -6,10 +6,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   IconGrid, IconPlus, IconList, IconLogout, IconTarget, IconUser,
-  IconTrendUp, IconMail, IconZap, IconInbox, IconChevronDown,
+  IconTrendUp, IconMail, IconChevronDown,
 } from '@/components/Icons';
 import { Logo } from '@/components/Logo';
-import { useBrand } from '@/components/BrandProvider';
 import { useAdmin } from '@/components/AdminProvider';
 import NotificationBell from '@/components/NotificationBell';
 
@@ -184,93 +183,8 @@ function Badge({ count, accent, collapsed }: { count: number; accent?: string; c
 }
 
 // ── localStorage helpers ──────────────────────────────────────────
-const STORAGE_KEY = 'cf_sidebar_sections';
 const COLLAPSED_STORAGE_KEY = 'cf_sidebar_collapsed';
 
-function readSidebarState(): Record<string, boolean> {
-  if (typeof window === 'undefined') return {};
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
-}
-
-function writeSidebarState(key: string, open: boolean) {
-  if (typeof window === 'undefined') return;
-  try {
-    const state = readSidebarState();
-    state[key] = open;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch { /* ignore */ }
-}
-
-// ── Collapsible section ───────────────────────────────────────────
-function NavSection({
-  id, label, color, defaultOpen, hasActiveChild, badge, children, collapsed,
-}: {
-  id: string; label: string; color?: string; defaultOpen?: boolean;
-  hasActiveChild?: boolean; badge?: number; children: React.ReactNode; collapsed?: boolean;
-}) {
-  const [open, setOpen] = useState(() => {
-    const saved = readSidebarState();
-    return id in saved ? saved[id] : (defaultOpen ?? false);
-  });
-
-  const prevActive = useRef(hasActiveChild);
-  useEffect(() => {
-    if (hasActiveChild && !prevActive.current) {
-      setOpen(true);
-      writeSidebarState(id, true);
-    }
-    prevActive.current = hasActiveChild;
-  }, [hasActiveChild, id]);
-
-  const toggle = () => {
-    setOpen(o => {
-      const next = !o;
-      writeSidebarState(id, next);
-      return next;
-    });
-  };
-
-  if (collapsed) {
-    return (
-      <div className="nav-section-container">
-        <div className="nav-section-divider" title={label} />
-        <div className="w-full flex flex-col items-center">{children}</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="nav-section-container" style={{ marginTop: 4 }}>
-      <button
-        onClick={toggle}
-        className="nav-section-header"
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '6px 10px', borderRadius: 6, border: 'none',
-          background: hasActiveChild ? `${color ?? 'var(--brand)'}12` : 'none',
-          cursor: 'pointer', color: hasActiveChild ? (color ?? 'var(--brand)') : (color ?? 'var(--text-tertiary)'),
-          fontSize: 10, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.9px',
-          marginBottom: 2, transition: 'background 0.15s',
-        }}
-      >
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {hasActiveChild && (
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: color ?? 'var(--brand)', display: 'inline-block', flexShrink: 0 }} />
-          )}
-          {label}
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {badge ? <Badge count={badge} accent={color} /> : null}
-          <IconChevronDown
-            size={12}
-            style={{ transition: 'transform 0.2s', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', opacity: 0.6 }}
-          />
-        </span>
-      </button>
-      {open && <div className="space-y-0.5">{children}</div>}
-    </div>
-  );
-}
 
 // ── Nav link ─────────────────────────────────────────────────────
 function NavLink({
@@ -325,30 +239,64 @@ function NavLink({
 // ── Sidebar inner content ─────────────────────────────────────────
 interface SidebarProps {
   pathname: string;
-  activeBrand: string;
   hasCatalystAccess: boolean;
-  hasRnAccess: boolean;
   isSuperAdmin: boolean;
   careerUnread: number;
   onNavigate: () => void;
   onLogout: () => void;
-  onSwitchTenant: () => void;
-  switching: boolean;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+  isMobileDrawer?: boolean;
+}
+
+function NavGroup({
+  label,
+  collapsed,
+  children,
+}: {
+  label: string;
+  collapsed?: boolean;
+  children: React.ReactNode;
+}) {
+  if (collapsed) {
+    return (
+      <div className="py-2 w-full flex flex-col items-center">
+        <div className="w-6 h-[1px] bg-slate-200/80 my-1" title={label} />
+        {children}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-4">
+      <div className="px-3 py-1.5 text-[10px] font-bold tracking-[1.2px] text-slate-400 uppercase select-none">
+        {label}
+      </div>
+      <div className="space-y-0.5">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ── Sidebar inner content ─────────────────────────────────────────
+interface SidebarProps {
+  pathname: string;
+  hasCatalystAccess: boolean;
+  isSuperAdmin: boolean;
+  careerUnread: number;
+  onNavigate: () => void;
+  onLogout: () => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   isMobileDrawer?: boolean;
 }
 
 function SidebarContent({
-  pathname, activeBrand, hasCatalystAccess, hasRnAccess,
-  careerUnread, onNavigate, onLogout, onSwitchTenant, switching, isSuperAdmin,
+  pathname, hasCatalystAccess,
+  careerUnread, onNavigate, onLogout, isSuperAdmin,
   collapsed = false, onToggleCollapse, isMobileDrawer = false,
 }: SidebarProps) {
-  const inFinance = ['/invoices', '/analytics', '/reconciliation', '/bank-transfers'].some(p => pathname.startsWith(p));
-  const inCareer  = pathname.startsWith('/career');
-  const inGrowth  = pathname.startsWith('/flywheel') || pathname.startsWith('/sales');
-  const inTools   = pathname.startsWith('/bugs') || pathname.startsWith('/referrals') || pathname.startsWith('/team') || pathname.startsWith('/reviews') || pathname.startsWith('/settings');
-
   return (
     <>
       <div className="sidebar-logo">
@@ -357,12 +305,12 @@ function SidebarContent({
             href="/"
             onClick={onNavigate}
             style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}
-            aria-label={activeBrand === 'ripple_nexus' ? 'Ripple Nexus · ClientForge' : 'Catalyst · ClientForge'}
+            aria-label="Catalyst TPA · ClientForge"
           >
             <Logo
               variant={collapsed ? 'icon' : 'horizontal'}
               size={collapsed ? 28 : 34}
-              brandId={activeBrand === 'ripple_nexus' ? 'ripple_nexus' : 'catalyst'}
+              brandId="catalyst"
               dark={false}
             />
           </Link>
@@ -404,124 +352,194 @@ function SidebarContent({
       </div>
 
       <nav className="sidebar-nav">
-        {/* Overview */}
-        <NavLink
-          href="/"
-          icon={<IconGrid size={16} />}
-          label="Dashboard"
-          active={isActive('/', pathname)}
-          onClick={onNavigate}
-          collapsed={collapsed}
-        />
+        {/* Operations */}
+        <NavGroup label="Operations" collapsed={collapsed}>
+          <NavLink
+            href="/"
+            icon={<IconGrid size={16} />}
+            label="Dashboard"
+            active={isActive('/', pathname)}
+            onClick={onNavigate}
+            collapsed={collapsed}
+          />
+          {hasCatalystAccess && (
+            <>
+              <NavLink
+                href="/career/kanban"
+                icon={<IconKanban size={16} />}
+                label="Kanban Board"
+                active={isActive('/career/kanban', pathname)}
+                onClick={onNavigate}
+                collapsed={collapsed}
+              />
+              <NavLink
+                href="/career"
+                icon={<IconTarget size={16} />}
+                label="Client Accounts"
+                active={isActive('/career', pathname)}
+                badge={careerUnread}
+                onClick={onNavigate}
+                collapsed={collapsed}
+              />
+            </>
+          )}
+        </NavGroup>
 
-        {/* Finance */}
-        <NavSection id="finance" label="Finance" defaultOpen={true} hasActiveChild={inFinance} collapsed={collapsed}>
-          <NavLink href="/invoices/new" icon={<IconPlus size={16} />} label="New Invoice"
-            active={isActive('/invoices/new', pathname)} onClick={onNavigate} collapsed={collapsed} />
-          <NavLink href="/invoices" icon={<IconList size={16} />} label="All Invoices"
-            active={isActive('/invoices', pathname)} onClick={onNavigate} collapsed={collapsed} />
-          <NavLink href="/analytics" icon={<IconAnalytics size={16} />} label="Analytics"
-            active={isActive('/analytics', pathname)} onClick={onNavigate} collapsed={collapsed} />
-          <NavLink href="/reconciliation" icon={<IconTrendUp size={16} />} label="Reconciliation"
-            active={isActive('/reconciliation', pathname)} onClick={onNavigate} collapsed={collapsed} />
-          <NavLink href="/bank-transfers" icon={<IconList size={16} />} label="Bank Transfers"
-            active={isActive('/bank-transfers', pathname)} onClick={onNavigate} collapsed={collapsed} />
-        </NavSection>
+        {/* Finance & Invoicing */}
+        <NavGroup label="Financial Suite" collapsed={collapsed}>
+          <NavLink
+            href="/invoices"
+            icon={<IconList size={16} />}
+            label="All Invoices"
+            active={isActive('/invoices', pathname)}
+            onClick={onNavigate}
+            collapsed={collapsed}
+          />
+          <NavLink
+            href="/invoices/new"
+            icon={<IconPlus size={16} />}
+            label="Create Invoice"
+            active={isActive('/invoices/new', pathname)}
+            onClick={onNavigate}
+            collapsed={collapsed}
+          />
+          <NavLink
+            href="/reconciliation"
+            icon={<IconTrendUp size={16} />}
+            label="Reconciliation"
+            active={isActive('/reconciliation', pathname)}
+            onClick={onNavigate}
+            collapsed={collapsed}
+          />
+          <NavLink
+            href="/bank-transfers"
+            icon={<IconList size={16} />}
+            label="Bank Transfers"
+            active={isActive('/bank-transfers', pathname)}
+            onClick={onNavigate}
+            collapsed={collapsed}
+          />
+          <NavLink
+            href="/analytics"
+            icon={<IconAnalytics size={16} />}
+            label="Revenue Analytics"
+            active={isActive('/analytics', pathname)}
+            onClick={onNavigate}
+            collapsed={collapsed}
+          />
+        </NavGroup>
 
-        {/* Branding Suite */}
+        {/* Deliverables & Growth */}
         {hasCatalystAccess && (
-          <NavSection id="career" label="Branding Suite" color="#B8935B"
-            defaultOpen={inCareer} hasActiveChild={inCareer} badge={careerUnread} collapsed={collapsed}>
-            <NavLink href="/career" icon={<IconTarget size={16} />} label="Clients"
-              active={isActive('/career', pathname)} accent="#B8935B" badge={careerUnread} onClick={onNavigate} collapsed={collapsed} />
-            <NavLink href="/career/kanban" icon={<IconKanban size={16} />} label="Kanban Board"
-              active={isActive('/career/kanban', pathname)} accent="#B8935B" onClick={onNavigate} collapsed={collapsed} />
-            <NavLink href="/career/email-logs" icon={<IconMail size={16} />} label="Email Logs"
-              active={isActive('/career/email-logs', pathname)} accent="#B8935B" onClick={onNavigate} collapsed={collapsed} />
-            <NavLink href="/career/calendar" icon={<IconCalendar size={16} />} label="Holiday Calendar"
-              active={isActive('/career/calendar', pathname)} accent="#B8935B" onClick={onNavigate} collapsed={collapsed} />
-            <NavLink href="/checkout" icon={<IconCheckout size={16} />} label="Self-Service Checkout"
-              active={false} accent="#B8935B" external onClick={onNavigate} collapsed={collapsed} />
-          </NavSection>
+          <NavGroup label="Deliverables & Growth" collapsed={collapsed}>
+            <NavLink
+              href="/career/calendar"
+              icon={<IconCalendar size={16} />}
+              label="Holiday Calendar"
+              active={isActive('/career/calendar', pathname)}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <NavLink
+              href="/career/email-logs"
+              icon={<IconMail size={16} />}
+              label="Email Dispatch Logs"
+              active={isActive('/career/email-logs', pathname)}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <NavLink
+              href="/checkout"
+              icon={<IconCheckout size={16} />}
+              label="Self-Service Portal"
+              active={false}
+              external
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <NavLink
+              href="/referrals"
+              icon={<IconReferral size={16} />}
+              label="Client Referrals"
+              active={isActive('/referrals', pathname)}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+            <NavLink
+              href="/reviews"
+              icon={<IconStar size={16} />}
+              label="Testimonials"
+              active={isActive('/reviews', pathname)}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
+          </NavGroup>
         )}
 
-        {/* Growth */}
-        <NavSection id="growth" label="Growth" color="#10B981"
-          defaultOpen={inGrowth} hasActiveChild={inGrowth} collapsed={collapsed}>
-          <NavLink href="/flywheel" icon={<IconZap size={16} />} label="Flywheel"
-            active={isActive('/flywheel', pathname)} accent="#10B981" onClick={onNavigate} collapsed={collapsed} />
-          <NavLink href="/sales/inquiries" icon={<IconInbox size={16} />} label="Sales Leads"
-            active={isActive('/sales/inquiries', pathname)} accent="#10B981" onClick={onNavigate} collapsed={collapsed} />
-          <NavLink href="/inquire" icon={<IconInquire size={16} />} label="Inquiry Form"
-            active={false} accent="#10B981" external onClick={onNavigate} collapsed={collapsed} />
-          <NavLink href="/flywheel/pipeline" icon={<IconPipeline size={16} />} label="Pipeline"
-            active={isActive('/flywheel/pipeline', pathname)} accent="#10B981" onClick={onNavigate} collapsed={collapsed} />
-          <NavLink href="/flywheel/leads" icon={<IconUser size={16} />} label="Audience"
-            active={isActive('/flywheel/leads', pathname)} accent="#10B981" onClick={onNavigate} collapsed={collapsed} />
-          <NavLink href="/flywheel/campaigns" icon={<IconMail size={16} />} label="Campaigns"
-            active={isActive('/flywheel/campaigns', pathname)} accent="#10B981" onClick={onNavigate} collapsed={collapsed} />
-          <NavLink href="/flywheel/merge-queue" icon={<IconUser size={16} />} label="Merge Queue"
-            active={isActive('/flywheel/merge-queue', pathname)} accent="#10B981" onClick={onNavigate} collapsed={collapsed} />
-          <NavLink href="/flywheel/analytics" icon={<IconAnalytics size={16} />} label="Flywheel Analytics"
-            active={isActive('/flywheel/analytics', pathname)} accent="#10B981" onClick={onNavigate} collapsed={collapsed} />
-        </NavSection>
-
-        {/* Tools */}
-        <NavSection id="tools" label="Tools" defaultOpen={inTools} hasActiveChild={inTools} collapsed={collapsed}>
-          <NavLink href="/bugs" icon={<IconBug size={16} />} label="Bug Reports"
-            active={isActive('/bugs', pathname)} onClick={onNavigate} collapsed={collapsed} />
-          <NavLink href="/referrals" icon={<IconReferral size={16} />} label="Referrals"
-            active={isActive('/referrals', pathname)} onClick={onNavigate} collapsed={collapsed} />
-          <NavLink href="/reviews" icon={<IconStar size={16} />} label="Testimonials"
-            active={isActive('/reviews', pathname)} onClick={onNavigate} collapsed={collapsed} />
-          <NavLink href="/team" icon={<IconTeam size={16} />} label="Team & Access"
-            active={isActive('/team', pathname)} onClick={onNavigate} collapsed={collapsed} />
+        {/* Administration & Security */}
+        <NavGroup label="Administration" collapsed={collapsed}>
+          <NavLink
+            href="/settings/contacts"
+            icon={<IconUser size={16} />}
+            label="Global Contacts"
+            active={isActive('/settings/contacts', pathname)}
+            onClick={onNavigate}
+            collapsed={collapsed}
+          />
+          <NavLink
+            href="/team"
+            icon={<IconTeam size={16} />}
+            label="Team & Session Logs"
+            active={isActive('/team', pathname)}
+            onClick={onNavigate}
+            collapsed={collapsed}
+          />
+          <NavLink
+            href="/settings/global-pricing"
+            icon={<IconGrid size={16} />}
+            label="Global Pricing"
+            active={isActive('/settings/global-pricing', pathname)}
+            onClick={onNavigate}
+            collapsed={collapsed}
+          />
+          <NavLink
+            href="/settings/bank-accounts"
+            icon={<IconList size={16} />}
+            label="Bank Accounts"
+            active={isActive('/settings/bank-accounts', pathname)}
+            onClick={onNavigate}
+            collapsed={collapsed}
+          />
           {isSuperAdmin && (
-            <>
-              <NavLink href="/settings/executive-connect" icon={
+            <NavLink
+              href="/settings/executive-connect"
+              icon={
                 <svg width={16} height={16} fill="none" viewBox="0 0 24 24" aria-hidden>
                   <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="3" />
                     <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
                   </g>
                 </svg>
-              } label="Exec Connect"
-                active={isActive('/settings/executive-connect', pathname)} onClick={onNavigate} collapsed={collapsed} />
-
-              <NavLink href="/settings/global-pricing" icon={<IconGrid size={16} />} label="Global Pricing"
-                active={isActive('/settings/global-pricing', pathname)} onClick={onNavigate} collapsed={collapsed} />
-              
-              <NavLink href="/settings/bank-accounts" icon={<IconList size={16} />} label="Bank Accounts"
-                active={isActive('/settings/bank-accounts', pathname)} onClick={onNavigate} collapsed={collapsed} />
-                
-              <NavLink href="/settings/contacts" icon={<IconUser size={16} />} label="Global Contacts"
-                active={isActive('/settings/contacts', pathname)} onClick={onNavigate} collapsed={collapsed} />
-            </>
+              }
+              label="Executive Connect"
+              active={isActive('/settings/executive-connect', pathname)}
+              onClick={onNavigate}
+              collapsed={collapsed}
+            />
           )}
-        </NavSection>
+          <NavLink
+            href="/bugs"
+            icon={<IconBug size={16} />}
+            label="Bug Reports"
+            active={isActive('/bugs', pathname)}
+            onClick={onNavigate}
+            collapsed={collapsed}
+          />
+        </NavGroup>
       </nav>
 
       <div className="sidebar-footer">
         <NotificationBell direction="up" label={collapsed ? undefined : 'Notifications'} />
-        {hasRnAccess && (
-          <button
-            className="nav-item"
-            onClick={onSwitchTenant}
-            disabled={switching}
-            title={collapsed ? (switching ? 'Switching…' : 'Switch to Ripple Nexus') : undefined}
-            style={{ marginBottom: 2, width: '100%' }}
-          >
-            <span className="nav-icon" style={{ display: 'inline-flex' }}>
-              <svg width={16} height={16} fill="none" viewBox="0 0 24 24" aria-hidden>
-                <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M8 3L4 7l4 4" /><path d="M4 7h16" />
-                  <path d="M16 21l4-4-4-4" /><path d="M20 17H4" />
-                </g>
-              </svg>
-            </span>
-            {!collapsed && (switching ? 'Switching…' : 'Switch to Ripple Nexus')}
-          </button>
-        )}
         <button
           className="nav-item"
           onClick={onLogout}
@@ -529,11 +547,11 @@ function SidebarContent({
           style={{ marginBottom: 6 }}
         >
           <span className="nav-icon" style={{ display: 'inline-flex' }}><IconLogout size={16} /></span>
-          {!collapsed && 'Logout'}
+          {!collapsed && 'Sign Out'}
         </button>
         {!collapsed && (
           <span className="sidebar-version">
-            ClientForge · {activeBrand === 'ripple_nexus' ? 'B2B Agency' : 'Career Booster'}
+            Catalyst TPA · ClientForge v5
           </span>
         )}
       </div>
@@ -541,14 +559,12 @@ function SidebarContent({
   );
 }
 
-// ── AppShell ──────────────────────────────────────────────────────
+// ── AppShell ──────────────────────────────────────────────
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [switching, setSwitching] = useState(false);
-  const { activeBrand } = useBrand();
   const pathname = usePathname();
-  const { hasCatalystAccess, hasRnAccess, isSuperAdmin } = useAdmin();
+  const { hasCatalystAccess, isSuperAdmin } = useAdmin();
   const { careerUnread } = useUnreadSummary();
 
   // Load collapsed state from localStorage
@@ -596,34 +612,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     window.location.href = '/login';
   };
 
-  const handleSwitchTenant = async () => {
-    if (switching) return;
-    setSwitching(true);
-    try {
-      const res = await fetch('/api/auth/switch-tenant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brand: 'ripple_nexus' }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.redirectTo) {
-        window.location.href = data.redirectTo;
-        return;
-      }
-    } catch { /* ignore */ }
-    setSwitching(false);
-  };
-
   const baseSidebarProps = {
     pathname,
-    activeBrand,
     hasCatalystAccess,
-    hasRnAccess,
     isSuperAdmin,
     careerUnread,
     onLogout: handleLogout,
-    onSwitchTenant: handleSwitchTenant,
-    switching,
   };
 
   return (
@@ -661,8 +655,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <span /><span /><span />
         </button>
         <div className="topbar-logo">
-          <Logo variant="icon" size={28}
-            brandId={activeBrand === 'ripple_nexus' ? 'ripple_nexus' : 'catalyst'} dark={false} />
+          <Logo variant="icon" size={28} brandId="catalyst" dark={false} />
         </div>
         <div style={{ width: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <NotificationBell />
