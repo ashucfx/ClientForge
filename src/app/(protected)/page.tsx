@@ -381,7 +381,43 @@ export default function Dashboard() {
             </Link>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Mobile card list (< md) */}
+          <div className="block md:hidden">
+            {loading ? (
+              <div className="p-10 text-center text-slate-400 text-sm">Loading recent invoices…</div>
+            ) : metrics.recentInvoices.length === 0 ? (
+              <div className="p-10 text-center text-slate-400 text-sm">No invoices found.</div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {metrics.recentInvoices.map(inv => (
+                  <div
+                    key={inv.id}
+                    className="p-4 space-y-2.5 hover:bg-slate-50/70 cursor-pointer transition-colors"
+                    onClick={() => window.location.href = `/invoices/${inv.id}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-mono font-bold text-slate-900 text-sm group-hover:text-[#B8935B]">{inv.invoiceNumber}</div>
+                        <div className="font-semibold text-slate-800 text-xs mt-0.5">{inv.clientName}</div>
+                        <div className="text-[11px] text-slate-400 truncate max-w-[200px]">{inv.clientEmail}</div>
+                      </div>
+                      <StatusBadge status={inv.status} />
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-100">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <TierTag type={inv.clientType} />
+                        <span className="text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{inv.paymentGateway}</span>
+                      </div>
+                      <span className="font-bold text-slate-900 text-sm">{formatCurrency(inv.totalPayable, inv.currencySymbol)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop table (≥ md) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-700">
               <thead className="bg-[#FAF9F6] border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 <tr>

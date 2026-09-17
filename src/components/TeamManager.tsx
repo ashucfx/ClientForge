@@ -641,7 +641,7 @@ export function TeamManager() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-sm sm:text-base font-bold text-slate-900">Administrator Login Sessions</h2>
                 {blockedIps.length > 0 && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300">
@@ -651,7 +651,7 @@ export function TeamManager() {
               </div>
               <p className="text-xs text-slate-500 mt-0.5">Audit log of authentications with device classification, IP address, and role. Revoke unrecognized sessions or block suspicious IPs.</p>
             </div>
-            <div className="flex items-center gap-2 self-start sm:self-auto">
+            <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
               {sessions.length > 0 && (
                 <button
                   onClick={handleClearAllSessions}
@@ -670,7 +670,116 @@ export function TeamManager() {
             </div>
           </div>
 
-          <div className="overflow-x-auto w-full">
+          {/* ── Mobile Session Card View (< md) ── */}
+          <div className="block md:hidden">
+            {sessionsLoading ? (
+              <div className="p-12 text-center text-slate-400 text-sm">Loading session logs...</div>
+            ) : sessions.length === 0 ? (
+              <div className="p-12 text-center text-slate-400 text-sm">No session login logs recorded yet.</div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {sessions.map(session => {
+                  const client = parseClientDevice(session.userAgent);
+                  const sessionStatus = session.isCurrent
+                    ? { label: 'This Device', cls: 'bg-emerald-50 text-emerald-800 border-emerald-300', dot: 'bg-emerald-500 animate-pulse' }
+                    : session.isRevoked
+                    ? { label: 'Revoked', cls: 'bg-rose-50 text-rose-700 border-rose-200', dot: 'bg-rose-500' }
+                    : session.isBlocked
+                    ? { label: 'Blocked IP', cls: 'bg-amber-50 text-amber-800 border-amber-300', dot: 'bg-amber-500' }
+                    : { label: 'Active', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' };
+                  return (
+                    <div key={session.id} className="p-4 space-y-3">
+                      {/* Row 1: email + status badge */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-sm text-slate-900 truncate">{session.email}</div>
+                          <div className="text-xs text-slate-400 mt-0.5">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">{session.role}</span>
+                          </div>
+                        </div>
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border shrink-0 ${sessionStatus.cls}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${sessionStatus.dot}`} />
+                          {sessionStatus.label}
+                        </span>
+                      </div>
+
+                      {/* Row 2: device + time + IP */}
+                      <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100">
+                        <div>
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Device</div>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border ${
+                              client.isMobile ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-slate-700 border-slate-200'
+                            }`}>
+                              {client.device}
+                            </span>
+                            <span className="text-slate-400">·</span>
+                            <span className="text-slate-500">{client.browser}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">IP Address</div>
+                          <div className="font-mono text-slate-600 text-[11px] flex items-center gap-1 flex-wrap">
+                            <span>{session.ip}</span>
+                            {session.isBlocked && (
+                              <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">BLOCKED</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="col-span-2">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Login Time</div>
+                          <div className="font-mono text-[11px] text-slate-600">{format(new Date(session.createdAt), 'dd MMM yyyy, HH:mm')}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">{formatDistanceToNow(new Date(session.createdAt), { addSuffix: true })}</div>
+                        </div>
+                      </div>
+
+                      {/* Row 3: action buttons */}
+                      <div className="flex items-center gap-2 pt-2 border-t border-slate-100 flex-wrap">
+                        {!session.isCurrent && !session.isRevoked && (
+                          <button
+                            onClick={() => handleRevokeSession(session)}
+                            disabled={actionLoading === session.id}
+                            className="flex-1 py-1.5 text-xs font-bold rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors disabled:opacity-50"
+                          >
+                            {actionLoading === session.id ? '…' : 'Revoke Session'}
+                          </button>
+                        )}
+                        {session.ip && session.ip !== 'unknown' && (
+                          session.isBlocked ? (
+                            <button
+                              onClick={() => handleUnblockIp(session.ip)}
+                              disabled={actionLoading === session.ip}
+                              className="flex-1 py-1.5 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors disabled:opacity-50"
+                            >
+                              {actionLoading === session.ip ? '…' : 'Unblock IP'}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleBlockIp(session.ip)}
+                              disabled={actionLoading === session.ip}
+                              className="flex-1 py-1.5 text-xs font-bold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors disabled:opacity-50"
+                            >
+                              {actionLoading === session.ip ? '…' : 'Block IP'}
+                            </button>
+                          )
+                        )}
+                        <button
+                          onClick={() => handleDeleteSession(session.id)}
+                          className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors border border-slate-200"
+                          title="Delete log record"
+                        >
+                          <IconTrash size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── Desktop Session Table View (≥ md) ── */}
+          <div className="hidden md:block overflow-x-auto w-full">
             <table className="w-full text-left border-collapse min-w-[760px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
