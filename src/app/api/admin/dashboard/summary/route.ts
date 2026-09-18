@@ -5,6 +5,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
+import { amountToInr } from '@/lib/fx';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,8 +43,7 @@ export async function GET() {
   const paidCount = countMap['PAID'] ?? 0;
   const pendingCount = countMap['PENDING'] ?? 0;
 
-  // ── 2. Lightweight fetch of all PAID invoices for revenue calculations ───────
-  // Only the 6 fields needed — far lighter than a full invoice fetch.
+  // ── 2. Fetch all PAID invoices for revenue & leakage calculations ────────────
   const paidInvoices = await db.invoice.findMany({
     where: { status: 'PAID' },
     select: {
@@ -57,10 +57,36 @@ export async function GET() {
     },
   });
 
-  // ── 3. Total Settled Revenue ─────────────────────────────────────────────────
+  // ── 3. Fetch manual Career & RN clients (not linked to an invoice) ───────────
+  const manualCareer = await db.careerClient.findMany({
+    where: {
+      invoiceId: null,
+      amountPaid: { gt: 0 },
+    },
+    select: {
+      amountPaid: true,
+      currency: true,
+      amountSettledInr: true,
+      createdAt: true,
+    },
+  });
+
+  const manualRn = await db.rnClient.findMany({
+    where: {
+      invoiceId: null,
+      amountPaid: { gt: 0 },
+    },
+    select: {
+      amountPaid: true,
+      currency: true,
+      amountSettledInr: true,
+      createdAt: true,
+    },
+  });
+
+  // ── 4. Total Settled Revenue ─────────────────────────────────────────────────
   // Reconciled invoices: use actual amountSettledInr (real bank deposit).
   // Unreconciled paid invoices: use snapshotToInr(subtotalConverted) as best estimate.
-  // This ensures the number is always complete (all paid invoices counted).
   let totalCollectedInr = 0;
   for (const inv of paidInvoices) {
     if (inv.amountSettledInr != null) {
@@ -69,9 +95,22 @@ export async function GET() {
       totalCollectedInr += snapshotToInr(inv.subtotalConverted, inv.currency, inv.exchangeRate);
     }
   }
+  for (const c of manualCareer) {
+    if (c.amountSettledInr != null) {
+      totalCollectedInr += c.amountSettledInr;
+    } else {
+      totalCollectedInr += await amountToInr(c.amountPaid, c.currency ?? 'INR');
+    }
+  }
+  for (const r of manualRn) {
+    if (r.amountSettledInr != null) {
+      totalCollectedInr += r.amountSettledInr;
+    } else {
+      totalCollectedInr += await amountToInr(r.amountPaid, r.currency ?? 'INR');
+    }
+  }
 
-  // ── 4. Collections This Month ────────────────────────────────────────────────
-  // DB-level month filter — not limited to 100 rows.
+  // ── 5. Collections This Month ────────────────────────────────────────────────
   let monthCollectedInr = 0;
   for (const inv of paidInvoices) {
     const d = new Date(inv.paidAt ?? inv.createdAt);
@@ -83,10 +122,28 @@ export async function GET() {
       }
     }
   }
+  for (const c of manualCareer) {
+    const d = new Date(c.createdAt);
+    if (d >= monthStart && d <= monthEnd) {
+      if (c.amountSettledInr != null) {
+        monthCollectedInr += c.amountSettledInr;
+      } else {
+        monthCollectedInr += await amountToInr(c.amountPaid, c.currency ?? 'INR');
+      }
+    }
+  }
+  for (const r of manualRn) {
+    const d = new Date(r.createdAt);
+    if (d >= monthStart && d <= monthEnd) {
+      if (r.amountSettledInr != null) {
+        monthCollectedInr += r.amountSettledInr;
+      } else {
+        monthCollectedInr += await amountToInr(r.amountPaid, r.currency ?? 'INR');
+      }
+    }
+  }
 
-  // ── 5. Pending Receivables ───────────────────────────────────────────────────
-  // Uses totalPayable (what the client is being billed — accounts receivable convention).
-  // In zero-loss model, client pays totalPayable = subtotalConverted + gateway fee.
+  // ── 6. Pending Receivables ───────────────────────────────────────────────────
   const pendingInvoices = await db.invoice.findMany({
     where: { status: 'PENDING' },
     select: {
@@ -100,10 +157,8 @@ export async function GET() {
     pendingReceivablesInr += snapshotToInr(inv.totalPayable, inv.currency, inv.exchangeRate);
   }
 
-  // ── 6. Settlement Fee Leakage ────────────────────────────────────────────────
-  // Only sum POSITIVE gaps (real underpayments).
-  // Negative gaps (bank overcollections) are NOT subtracted — they're separate windfalls.
-  // This gives the true "unrecovered revenue" figure, never artificially reduced.
+  // ── 7. Settlement Fee Leakage (Across Invoices + Manual Clients) ──────────────
+  // Real money deducted by payment gateways (positive gaps only).
   let totalLeakageInr = 0;
   for (const inv of paidInvoices) {
     if (inv.amountSettledInr != null) {
@@ -112,8 +167,22 @@ export async function GET() {
       if (gap > 0) totalLeakageInr += gap;
     }
   }
+  for (const c of manualCareer) {
+    if (c.amountSettledInr != null) {
+      const netExpected = await amountToInr(c.amountPaid, c.currency ?? 'INR');
+      const gap = netExpected - c.amountSettledInr;
+      if (gap > 0) totalLeakageInr += gap;
+    }
+  }
+  for (const r of manualRn) {
+    if (r.amountSettledInr != null) {
+      const netExpected = await amountToInr(r.amountPaid, r.currency ?? 'INR');
+      const gap = netExpected - r.amountSettledInr;
+      if (gap > 0) totalLeakageInr += gap;
+    }
+  }
 
-  // ── 7. Recent Invoices (last 6, all statuses) ────────────────────────────────
+  // ── 8. Recent Invoices (last 6, all statuses) ────────────────────────────────
   const recentInvoices = await db.invoice.findMany({
     orderBy: { createdAt: 'desc' },
     take: 6,

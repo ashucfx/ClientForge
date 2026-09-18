@@ -284,34 +284,41 @@ export async function GET(req: NextRequest) {
 
   // ── 6. All-Time Leakage (if filtered by date) ──────────────────────────────
   let allTimeTotalGapInr = Math.round(totalGapInr);
+  let allTimeLeakageInr = Math.round(totalLeakageInr);
   
   if (fromDate || toDate) {
-    // We need to quickly calculate all-time leakage without re-fetching everything
-    // For performance, we can run a separate quick calculation for invoices and manual entries
     const allReconciledInvoices = await db.invoice.findMany({
       where: { status: 'PAID', amountSettledInr: { not: null } },
-      // Include exchangeRate snapshot so we use the locked rate, not live FX
       select: { subtotalConverted: true, currency: true, exchangeRate: true, amountSettledInr: true }
     });
     const allReconciledCareer = await db.careerClient.findMany({
-      where: { amountPaid: { gt: 0 }, amountSettledInr: { not: null } },
+      where: { invoiceId: null, amountPaid: { gt: 0 }, amountSettledInr: { not: null } },
       select: { amountPaid: true, currency: true, amountSettledInr: true }
     });
     const allReconciledRn = await db.rnClient.findMany({
-      where: { amountPaid: { gt: 0 }, amountSettledInr: { not: null } },
+      where: { invoiceId: null, amountPaid: { gt: 0 }, amountSettledInr: { not: null } },
       select: { amountPaid: true, currency: true, amountSettledInr: true }
     });
 
+    let allTimeLeak = 0;
     let allTimeNet = 0;
     for (const inv of allReconciledInvoices) {
-      // Use snapshot rate — keeps all-time leakage stable across FX movements
-      allTimeNet += await snapshotToInr(inv.subtotalConverted, inv.currency, inv.exchangeRate);
+      const net = await snapshotToInr(inv.subtotalConverted, inv.currency, inv.exchangeRate);
+      allTimeNet += net;
+      const gap = net - (inv.amountSettledInr ?? 0);
+      if (gap > 0) allTimeLeak += gap;
     }
     for (const c of allReconciledCareer) {
-      allTimeNet += await amountToInr(c.amountPaid, c.currency ?? 'INR');
+      const net = await amountToInr(c.amountPaid, c.currency ?? 'INR');
+      allTimeNet += net;
+      const gap = net - (c.amountSettledInr ?? 0);
+      if (gap > 0) allTimeLeak += gap;
     }
     for (const c of allReconciledRn) {
-      allTimeNet += await amountToInr(c.amountPaid, c.currency ?? 'INR');
+      const net = await amountToInr(c.amountPaid, c.currency ?? 'INR');
+      allTimeNet += net;
+      const gap = net - (c.amountSettledInr ?? 0);
+      if (gap > 0) allTimeLeak += gap;
     }
     
     const allTimeSettled = 
@@ -320,6 +327,7 @@ export async function GET(req: NextRequest) {
       allReconciledRn.reduce((s, i) => s + (i.amountSettledInr ?? 0), 0);
       
     allTimeTotalGapInr = Math.round(allTimeNet - allTimeSettled);
+    allTimeLeakageInr = Math.round(allTimeLeak);
   }
 
   return NextResponse.json({
@@ -335,6 +343,7 @@ export async function GET(req: NextRequest) {
       totalLeakageInr: Math.round(totalLeakageInr),   // positive gaps only — real underpayments
       totalOvercollectedInr: Math.round(totalOvercollectedInr), // negative gaps — bank paid extra
       allTimeTotalGapInr,
+      allTimeLeakageInr,
       avgGapPct,
       byGateway,
     },

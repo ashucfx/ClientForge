@@ -34,7 +34,10 @@ interface Summary {
   totalNetInr: number;
   totalSettledInr: number;
   totalGapInr: number;
+  totalLeakageInr?: number;
+  totalOvercollectedInr?: number;
   allTimeTotalGapInr?: number;
+  allTimeLeakageInr?: number;
   avgGapPct: number | null;
   byGateway: { gateway: string; netInr: number; settledInr: number; gapInr: number; effectiveFeeRate: number; count: number }[];
 }
@@ -535,50 +538,46 @@ export default function ReconciliationPage() {
             </div>
 
             {/* Fee Leakage / Net Surplus */}
-            <div className={`relative overflow-hidden rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between border ${
-              summary.totalGapInr > 0
-                ? 'bg-rose-50/40 border-rose-200/80 text-rose-950'
-                : 'bg-emerald-50/40 border-emerald-200/80 text-emerald-950'
-            }`}>
-              <div className="flex justify-between items-start mb-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                  {summary.totalGapInr < 0
-                    ? ((from || to) ? 'Period Net Surplus' : 'All-Time Net Surplus')
-                    : ((from || to) ? 'Period Fee Leakage' : 'All-Time Leakage')}
-                </span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                  summary.totalGapInr > 0
-                    ? 'bg-rose-100 text-rose-700'
-                    : summary.totalGapInr < 0
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-slate-100 text-slate-600'
+            {(() => {
+              const leakage = summary.totalLeakageInr ?? (summary.totalGapInr > 0 ? summary.totalGapInr : 0);
+              const overcollected = summary.totalOvercollectedInr ?? (summary.totalGapInr < 0 ? Math.abs(summary.totalGapInr) : 0);
+              return (
+                <div className={`relative overflow-hidden rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between border ${
+                  leakage > 0
+                    ? 'bg-rose-50/40 border-rose-200/80 text-rose-950'
+                    : 'bg-emerald-50/40 border-emerald-200/80 text-emerald-950'
                 }`}>
-                  {summary.totalGapInr > 0
-                    ? `${summary.avgGapPct ?? 0}% loss`
-                    : summary.totalGapInr < 0
-                    ? `+${Math.abs(summary.avgGapPct ?? 0)}% surplus`
-                    : '0% Leakage'}
-                </span>
-              </div>
-              <div>
-                <div className={`text-2xl sm:text-3xl font-extrabold tracking-tight mb-1 ${
-                  summary.totalGapInr > 0 ? 'text-rose-600' : 'text-emerald-600'
-                }`}>
-                  {summary.totalGapInr < 0
-                    ? `+${fmt(Math.abs(summary.totalGapInr))}`
-                    : summary.totalGapInr > 0
-                    ? `−${fmt(summary.totalGapInr)}`
-                    : '₹0'}
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                      {(from || to) ? 'Period Fee Leakage' : 'All-Time Leakage'}
+                    </span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                      leakage > 0
+                        ? 'bg-rose-100 text-rose-700'
+                        : 'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      {leakage > 0
+                        ? `${summary.avgGapPct ?? 0}% loss`
+                        : '0% Leakage'}
+                    </span>
+                  </div>
+                  <div>
+                    <div className={`text-2xl sm:text-3xl font-extrabold tracking-tight mb-1 ${
+                      leakage > 0 ? 'text-rose-600' : 'text-emerald-600'
+                    }`}>
+                      {leakage > 0 ? `−${fmt(leakage)}` : '₹0'}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {(from || to) && (summary.allTimeLeakageInr !== undefined || summary.allTimeTotalGapInr !== undefined)
+                        ? `All-Time Leakage: ${fmt(summary.allTimeLeakageInr ?? summary.allTimeTotalGapInr ?? 0)}`
+                        : overcollected > 0
+                        ? `Surplus / Overcollected: +${fmt(overcollected)}`
+                        : 'Target: ₹0 gateway fee loss'}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-xs text-slate-500">
-                  {summary.totalGapInr < 0
-                    ? 'Surplus: Bank settled exceeded expected net'
-                    : (from || to) && summary.allTimeTotalGapInr !== undefined
-                    ? `All-Time Gap: ${fmt(summary.allTimeTotalGapInr)}`
-                    : 'Target: ₹0 gateway fee loss'}
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Action Required */}
             <div className="relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
