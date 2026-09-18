@@ -7,6 +7,32 @@ import { getAdminSession } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 import { amountToInr } from '@/lib/fx';
 
+/**
+ * Convert a foreign-currency amount to INR using the SNAPSHOT exchange rate
+ * stored on the invoice at creation time.
+ *
+ * The schema stores exchangeRate as "foreign units per 1 INR" (e.g. USD 0.012 means
+ * 1 INR = 0.012 USD, so 1 USD = 1/0.012 INR ≈ 83.33 INR).
+ *
+ * Using the snapshot rate makes leakage stable and deterministic — it never
+ * fluctuates with live FX movement after the invoice is settled.
+ *
+ * Falls back to live amountToInr() when no snapshot rate is available.
+ */
+async function snapshotToInr(
+  amount: number,
+  currency: string,
+  snapshotRate: number | null | undefined,
+): Promise<number> {
+  if (!amount || amount === 0) return 0;
+  const upper = (currency ?? 'INR').toUpperCase();
+  if (upper === 'INR') return amount;
+  // Use stored snapshot rate: rate = foreign / INR → INR = foreign / rate
+  if (snapshotRate && snapshotRate > 0) return amount / snapshotRate;
+  // Fallback to live rate if no snapshot (legacy invoices without exchangeRate)
+  return amountToInr(amount, currency);
+}
+
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -115,8 +141,9 @@ export async function GET(req: NextRequest) {
   // ── 4. Convert all to INR and compute gaps ──────────────────────────────────
   const invoiceRows = await Promise.all(
     invoices.map(async (inv) => {
-      const grossInr = Math.round(await amountToInr(inv.totalPayable, inv.currency));
-      const netInr = Math.round(await amountToInr(inv.subtotalConverted, inv.currency));
+      // Use stored snapshot exchange rate so leakage never fluctuates with live FX.
+      const grossInr = Math.round(await snapshotToInr(inv.totalPayable, inv.currency, inv.exchangeRate));
+      const netInr = Math.round(await snapshotToInr(inv.subtotalConverted, inv.currency, inv.exchangeRate));
       const feeInr = grossInr - netInr;
       const settledInr = inv.amountSettledInr ?? null;
       const gapInr = settledInr !== null ? netInr - settledInr : null;
@@ -251,7 +278,8 @@ export async function GET(req: NextRequest) {
     // For performance, we can run a separate quick calculation for invoices and manual entries
     const allReconciledInvoices = await db.invoice.findMany({
       where: { status: 'PAID', amountSettledInr: { not: null } },
-      select: { subtotalConverted: true, currency: true, amountSettledInr: true }
+      // Include exchangeRate snapshot so we use the locked rate, not live FX
+      select: { subtotalConverted: true, currency: true, exchangeRate: true, amountSettledInr: true }
     });
     const allReconciledCareer = await db.careerClient.findMany({
       where: { amountPaid: { gt: 0 }, amountSettledInr: { not: null } },
@@ -264,7 +292,8 @@ export async function GET(req: NextRequest) {
 
     let allTimeNet = 0;
     for (const inv of allReconciledInvoices) {
-      allTimeNet += await amountToInr(inv.subtotalConverted, inv.currency);
+      // Use snapshot rate — keeps all-time leakage stable across FX movements
+      allTimeNet += await snapshotToInr(inv.subtotalConverted, inv.currency, inv.exchangeRate);
     }
     for (const c of allReconciledCareer) {
       allTimeNet += await amountToInr(c.amountPaid, c.currency ?? 'INR');
