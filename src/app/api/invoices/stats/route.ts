@@ -17,18 +17,22 @@ export async function GET() {
     prisma.invoice.count({ where: { status: 'EXPIRED' } }),
   ]);
 
-  // Revenue grouped by currency (paid invoices only)
+  // Revenue grouped by currency (paid invoices only).
+  // Uses subtotalConverted = net revenue Catalyst retains (after gateway fee absorbed by client).
+  // totalPayable is the gross billed amount; subtotalConverted is what Catalyst actually pockets.
   const paidInvoices = await prisma.invoice.findMany({
     where: { status: 'PAID' },
-    select: { currency: true, totalPayable: true, currencySymbol: true },
+    select: { currency: true, totalPayable: true, subtotalConverted: true, currencySymbol: true },
   });
 
-  const revenue: Record<string, { amount: number; symbol: string }> = {};
+  const revenue: Record<string, { amount: number; grossAmount: number; symbol: string }> = {};
   for (const inv of paidInvoices) {
     if (!revenue[inv.currency]) {
-      revenue[inv.currency] = { amount: 0, symbol: inv.currencySymbol };
+      revenue[inv.currency] = { amount: 0, grossAmount: 0, symbol: inv.currencySymbol };
     }
-    revenue[inv.currency].amount += inv.totalPayable;
+    // net = what Catalyst retains; gross = what client was billed
+    revenue[inv.currency].amount += inv.subtotalConverted;
+    revenue[inv.currency].grossAmount += inv.totalPayable;
   }
 
   // Client type breakdown

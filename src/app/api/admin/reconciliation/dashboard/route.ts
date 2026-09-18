@@ -245,7 +245,19 @@ export async function GET(req: NextRequest) {
   const totalGrossInr = allRows.reduce((s, r) => s + r.grossInr, 0);
   const totalNetInr = allRows.reduce((s, r) => s + r.netInr, 0);
   const totalSettledInr = reconciledRows.reduce((s, r) => s + (r.settledInr ?? 0), 0);
-  const totalGapInr = reconciledRows.reduce((s, r) => s + (r.gapInr ?? 0), 0);
+
+  // BUG 6 FIX: Only sum POSITIVE gaps (real underpayments) for leakage.
+  // Negative gaps (bank overcollections) are tracked separately — they must
+  // NOT cancel out real leakage. Both are surfaced individually.
+  let totalLeakageInr = 0; // positive gaps only — real fee underpayments
+  let totalOvercollectedInr = 0; // negative gaps — bank paid more than expected
+  for (const r of reconciledRows) {
+    const gap = r.gapInr ?? 0;
+    if (gap > 0) totalLeakageInr += gap;
+    else if (gap < 0) totalOvercollectedInr += Math.abs(gap);
+  }
+  // Keep totalGapInr as net for backward compat (used in row-level display)
+  const totalGapInr = totalLeakageInr - totalOvercollectedInr;
   const avgGapPct = reconciledRows.length > 0
     ? Math.round(
         (reconciledRows.reduce((s, r) => s + (r.gapPct ?? 0), 0) / reconciledRows.length) * 10
@@ -319,7 +331,9 @@ export async function GET(req: NextRequest) {
       totalGrossInr: Math.round(totalGrossInr),
       totalNetInr: Math.round(totalNetInr),
       totalSettledInr: Math.round(totalSettledInr),
-      totalGapInr: Math.round(totalGapInr),
+      totalGapInr: Math.round(totalGapInr),           // net (can be negative if overcollected)
+      totalLeakageInr: Math.round(totalLeakageInr),   // positive gaps only — real underpayments
+      totalOvercollectedInr: Math.round(totalOvercollectedInr), // negative gaps — bank paid extra
       allTimeTotalGapInr,
       avgGapPct,
       byGateway,

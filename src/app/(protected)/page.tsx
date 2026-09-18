@@ -1,21 +1,21 @@
 'use client';
 // src/app/page.tsx — Executive Command Center & Overview
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import type { InvoiceData, ClientType, InvoiceStatus } from '@/types';
+import type { ClientType, InvoiceStatus } from '@/types';
 import { formatCurrency, CLIENT_TYPE_LABELS } from '@/lib/pricing';
-import { IconCheck, IconDocument, IconPending, IconSearch, IconTrendUp, IconPlus } from '@/components/Icons';
+import { IconPlus } from '@/components/Icons';
 import AppShell from '@/components/AppShell';
 
 // ─── Status Badge ─────────────────────────────────────────────────
 const STATUS_CONFIG: Record<InvoiceStatus, { label: string; bg: string; text: string; dot: string; border: string }> = {
-  PAID:           { label: 'Paid',           bg: 'bg-emerald-50',  text: 'text-emerald-700', dot: 'bg-emerald-500', border: 'border-emerald-200' },
-  PARTIALLY_PAID: { label: 'Partial',        bg: 'bg-amber-50',    text: 'text-amber-700',   dot: 'bg-amber-500',   border: 'border-amber-200'   },
-  PENDING:        { label: 'Pending',        bg: 'bg-[#FBF8F3]',   text: 'text-[#9A7540]',   dot: 'bg-[#B8935B]',   border: 'border-[#EAE2D5]'   },
-  EXPIRED:        { label: 'Expired',        bg: 'bg-slate-100',   text: 'text-slate-500',   dot: 'bg-slate-400',   border: 'border-slate-200'   },
-  CANCELLED:      { label: 'Cancelled',      bg: 'bg-rose-50',     text: 'text-rose-600',     dot: 'bg-rose-400',    border: 'border-rose-200'    },
+  PAID:           { label: 'Paid',      bg: 'bg-emerald-50',  text: 'text-emerald-700', dot: 'bg-emerald-500', border: 'border-emerald-200' },
+  PARTIALLY_PAID: { label: 'Partial',   bg: 'bg-amber-50',    text: 'text-amber-700',   dot: 'bg-amber-500',   border: 'border-amber-200'   },
+  PENDING:        { label: 'Pending',   bg: 'bg-[#FBF8F3]',   text: 'text-[#9A7540]',   dot: 'bg-[#B8935B]',   border: 'border-[#EAE2D5]'   },
+  EXPIRED:        { label: 'Expired',   bg: 'bg-slate-100',   text: 'text-slate-500',   dot: 'bg-slate-400',   border: 'border-slate-200'   },
+  CANCELLED:      { label: 'Cancelled', bg: 'bg-rose-50',     text: 'text-rose-600',    dot: 'bg-rose-400',    border: 'border-rose-200'    },
 };
 
 function StatusBadge({ status }: { status: InvoiceStatus }) {
@@ -45,18 +45,6 @@ function TierTag({ type }: { type: ClientType }) {
       {label}
     </span>
   );
-}
-
-interface ReconSummary {
-  totalTransactions: number;
-  reconciledCount: number;
-  unreconciledCount: number;
-  totalGrossInr: number;
-  totalNetInr: number;
-  totalSettledInr: number;
-  totalGapInr: number;
-  allTimeTotalGapInr?: number;
-  avgGapPct: number | null;
 }
 
 // ─── Executive KPI Card ───────────────────────────────────────────
@@ -99,30 +87,48 @@ function KpiCard({
   return href ? <Link href={href} className="block">{content}</Link> : content;
 }
 
+// ─── Types ────────────────────────────────────────────────────────
+interface DashboardSummary {
+  totalInvoices: number;
+  paidCount: number;
+  pendingCount: number;
+  totalCollectedInr: number;
+  monthCollectedInr: number;
+  pendingReceivablesInr: number;
+  totalLeakageInr: number;
+}
+
+interface RecentInvoice {
+  id: string;
+  invoiceNumber: string;
+  clientName: string;
+  clientEmail: string;
+  clientType: ClientType;
+  totalPayable: number;
+  currency: string;
+  currencySymbol: string;
+  status: InvoiceStatus;
+  paymentGateway: string;
+  createdAt: string;
+  paidAt: string | null;
+}
+
 export default function Dashboard() {
-  const [invoices, setInvoices] = useState<InvoiceData[]>([]);
-  const [reconSummary, setReconSummary] = useState<ReconSummary | null>(null);
-  const [loading, setLoading]   = useState(true);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [recentInvoices, setRecentInvoices] = useState<RecentInvoice[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const [invRes, reconRes] = await Promise.allSettled([
-        fetch('/api/invoices?limit=100', { cache: 'no-store' }),
-        fetch('/api/admin/reconciliation/dashboard', { cache: 'no-store' }),
-      ]);
-
-      if (invRes.status === 'fulfilled' && invRes.value.ok) {
-        const data = await invRes.value.json();
-        setInvoices(data.invoices ?? []);
-      }
-
-      if (reconRes.status === 'fulfilled' && reconRes.value.ok) {
-        const reconData = await reconRes.value.json();
-        setReconSummary(reconData.summary ?? null);
+      const res = await fetch('/api/admin/dashboard/summary', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        setSummary(data.summary ?? null);
+        setRecentInvoices(data.recentInvoices ?? []);
       }
     } catch (err) {
-      console.error('Failed to load dashboard invoices:', err);
+      console.error('Failed to load dashboard:', err);
     } finally {
       setLoading(false);
     }
@@ -132,70 +138,11 @@ export default function Dashboard() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Financial Metrics calculations
-  const metrics = useMemo(() => {
-    const totalInvoices = invoices.length;
-    const paidInvoices = invoices.filter(i => i.status === 'PAID');
-    const pendingInvoices = invoices.filter(i => i.status === 'PENDING');
-
-    // Currency normalization helper:
-    // In Catalyst schema, exchangeRate represents foreign currency units per 1 INR (e.g., 0.012 for USD).
-    // Therefore, foreignAmount / exchangeRate converts back to INR.
-    const toInr = (amount: number, currency: string, rate?: number | null) => {
-      if (!amount || amount === 0) return 0;
-      const cur = (currency || 'INR').toUpperCase();
-      if (cur === 'INR') return amount;
-      if (rate && rate > 0) return amount / rate;
-      return amount;
-    };
-
-    // Total Settled Revenue: Prefer verified reconciliation ledger sum
-    const totalCollectedInr = reconSummary?.totalSettledInr ?? paidInvoices.reduce(
-      (sum, i) => sum + (i.amountSettledInr ?? toInr(i.subtotalConverted, i.currency, i.exchangeRate)),
-      0
-    );
-
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-    const monthCollectedInr = paidInvoices
-      .filter(i => {
-        const d = new Date(i.paidAt || i.createdAt);
-        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-      })
-      .reduce((sum, i) => sum + (i.amountSettledInr ?? toInr(i.subtotalConverted, i.currency, i.exchangeRate)), 0);
-
-    const pendingReceivablesInr = pendingInvoices.reduce(
-      (sum, i) => sum + toInr(i.totalPayable, i.currency, i.exchangeRate),
-      0
-    );
-
-    // True Settlement Fee Leakage:
-    // In Catalyst's zero-loss model, the processing fee is added to totalPayable so the client
-    // absorbs the gateway fee. subtotalConverted is the net revenue Catalyst expects to retain.
-    // If bank settlement equals or exceeds subtotalConverted, fee leakage is ₹0 (zero loss).
-    // Leakage only occurs if bank settlement falls short of the expected net subtotal.
-    const fallbackGapInr = invoices.reduce((sum, i) => {
-      if (i.amountSettledInr !== null && i.amountSettledInr !== undefined) {
-        const expectedNetInr = toInr(i.subtotalConverted, i.currency, i.exchangeRate);
-        const gap = expectedNetInr - i.amountSettledInr;
-        if (gap > 0) return sum + gap;
-      }
-      return sum;
-    }, 0);
-
-    const totalGapInr = reconSummary?.allTimeTotalGapInr ?? reconSummary?.totalGapInr ?? fallbackGapInr;
-
-    return {
-      totalInvoices,
-      paidCount: paidInvoices.length,
-      pendingCount: pendingInvoices.length,
-      totalCollectedInr,
-      monthCollectedInr,
-      pendingReceivablesInr,
-      totalGapInr: Math.max(0, totalGapInr),
-      recentInvoices: invoices.slice(0, 6),
-    };
-  }, [invoices, reconSummary]);
+  const totalCollectedInr = summary?.totalCollectedInr ?? 0;
+  const monthCollectedInr = summary?.monthCollectedInr ?? 0;
+  const pendingReceivablesInr = summary?.pendingReceivablesInr ?? 0;
+  const totalLeakageInr = summary?.totalLeakageInr ?? 0;
+  const pendingCount = summary?.pendingCount ?? 0;
 
   return (
     <AppShell>
@@ -236,8 +183,8 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
             label="Total Settled Revenue"
-            value={loading ? '…' : `₹${Math.round(metrics.totalCollectedInr).toLocaleString('en-IN')}`}
-            sub="Reconciled lifetime bank inflow"
+            value={loading ? '…' : `₹${totalCollectedInr.toLocaleString('en-IN')}`}
+            sub="All-time collected (reconciled + estimated)"
             accent
             href="/reconciliation?reconciled=yes"
             icon={
@@ -248,7 +195,7 @@ export default function Dashboard() {
           />
           <KpiCard
             label="Collections This Month"
-            value={loading ? '…' : `₹${Math.round(metrics.monthCollectedInr).toLocaleString('en-IN')}`}
+            value={loading ? '…' : `₹${monthCollectedInr.toLocaleString('en-IN')}`}
             sub={`${format(new Date(), 'MMMM yyyy')} collections`}
             href="/reconciliation"
             icon={
@@ -259,8 +206,8 @@ export default function Dashboard() {
           />
           <KpiCard
             label="Pending Receivables"
-            value={loading ? '…' : `₹${Math.round(metrics.pendingReceivablesInr).toLocaleString('en-IN')}`}
-            sub={`${metrics.pendingCount} invoices awaiting payment`}
+            value={loading ? '…' : `₹${pendingReceivablesInr.toLocaleString('en-IN')}`}
+            sub={`${pendingCount} invoice${pendingCount !== 1 ? 's' : ''} awaiting payment`}
             href="/invoices?status=PENDING"
             icon={
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -271,8 +218,8 @@ export default function Dashboard() {
           />
           <KpiCard
             label="Settlement Fee Leakage"
-            value={loading ? '…' : `₹${Math.round(metrics.totalGapInr).toLocaleString('en-IN')}`}
-            sub={metrics.totalGapInr > 0 ? "Gateway deductions & processing gap" : "Zero revenue loss (100% net match)"}
+            value={loading ? '…' : `₹${totalLeakageInr.toLocaleString('en-IN')}`}
+            sub={totalLeakageInr > 0 ? 'Gateway underpayment vs net expected' : 'Zero revenue loss (100% net match)'}
             href="/reconciliation"
             icon={
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -293,18 +240,18 @@ export default function Dashboard() {
                   <span className="w-2 h-2 rounded-full bg-amber-500" />
                   <span>Action Required</span>
                 </span>
-                {metrics.pendingCount > 0 && (
+                {pendingCount > 0 && (
                   <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200">
-                    {metrics.pendingCount} Pending
+                    {pendingCount} Pending
                   </span>
                 )}
               </div>
 
               <div className="py-4">
-                {metrics.pendingCount > 0 ? (
+                {pendingCount > 0 ? (
                   <div className="space-y-2">
                     <div className="text-sm font-semibold text-slate-900">
-                      {metrics.pendingCount} Outstanding Invoices
+                      {pendingCount} Outstanding Invoice{pendingCount !== 1 ? 's' : ''}
                     </div>
                     <p className="text-xs text-slate-500 leading-relaxed">
                       Several client accounts have unpaid invoices awaiting settlement. Review and dispatch reminders directly from the registry.
@@ -385,11 +332,11 @@ export default function Dashboard() {
           <div className="block md:hidden">
             {loading ? (
               <div className="p-10 text-center text-slate-400 text-sm">Loading recent invoices…</div>
-            ) : metrics.recentInvoices.length === 0 ? (
+            ) : recentInvoices.length === 0 ? (
               <div className="p-10 text-center text-slate-400 text-sm">No invoices found.</div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {metrics.recentInvoices.map(inv => (
+                {recentInvoices.map(inv => (
                   <div
                     key={inv.id}
                     className="p-4 space-y-2.5 hover:bg-slate-50/70 cursor-pointer transition-colors"
@@ -397,7 +344,7 @@ export default function Dashboard() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="font-mono font-bold text-slate-900 text-sm group-hover:text-[#B8935B]">{inv.invoiceNumber}</div>
+                        <div className="font-mono font-bold text-slate-900 text-sm">{inv.invoiceNumber}</div>
                         <div className="font-semibold text-slate-800 text-xs mt-0.5">{inv.clientName}</div>
                         <div className="text-[11px] text-slate-400 truncate max-w-[200px]">{inv.clientEmail}</div>
                       </div>
@@ -437,14 +384,14 @@ export default function Dashboard() {
                       Loading recent invoices…
                     </td>
                   </tr>
-                ) : metrics.recentInvoices.length === 0 ? (
+                ) : recentInvoices.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-slate-400">
                       No invoices found. Click &quot;+ Create Invoice&quot; to issue your first invoice.
                     </td>
                   </tr>
                 ) : (
-                  metrics.recentInvoices.map(inv => (
+                  recentInvoices.map(inv => (
                     <tr
                       key={inv.id}
                       className="hover:bg-slate-50/70 transition-colors cursor-pointer group"
