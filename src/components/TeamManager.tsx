@@ -527,15 +527,15 @@ export function TeamManager() {
       {/* ── Desktop Team Table View (>= md screens) ── */}
       <div className="hidden md:block bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto w-full">
-          <table className="w-full text-left border-collapse min-w-[760px]">
+          <table className="w-full text-left border-collapse min-w-[850px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                <th className="px-5 py-3">Administrator</th>
-                <th className="px-4 py-3">Role</th>
-                <th className="px-4 py-3">Portal Access</th>
-                <th className="px-4 py-3 text-center">Status</th>
-                <th className="px-4 py-3">Last Login</th>
-                <th className="px-5 py-3 text-right">Actions</th>
+                <th className="px-5 py-3 whitespace-nowrap">Administrator</th>
+                <th className="px-4 py-3 whitespace-nowrap">Role</th>
+                <th className="px-4 py-3 whitespace-nowrap">Portal Access</th>
+                <th className="px-4 py-3 text-center whitespace-nowrap">Status</th>
+                <th className="px-4 py-3 whitespace-nowrap">Last Login</th>
+                <th className="px-5 py-3 text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
@@ -547,10 +547,10 @@ export function TeamManager() {
                 admins.map((admin) => {
                   return (
                     <tr key={admin.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="px-5 py-3.5">
+                      <td className="px-5 py-3.5 whitespace-nowrap">
                         <span className="font-semibold text-slate-900">{admin.email}</span>
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-4 py-3.5 whitespace-nowrap">
                         <select 
                           className="px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
                           value={admin.role}
@@ -561,16 +561,16 @@ export function TeamManager() {
                           <option value="VIEWER">Viewer</option>
                         </select>
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-4 py-3.5 whitespace-nowrap">
                         {admin.role === 'SUPER_ADMIN' ? (
-                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-xs font-medium">All portals</span>
+                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-xs font-medium whitespace-nowrap">All portals</span>
                         ) : (
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 whitespace-nowrap">
                             {PORTALS.map(portal => {
                               const access = admin.brandAccess ?? [];
                               const checked = access.includes(portal.id);
                               return (
-                                <label key={portal.id} className="inline-flex items-center gap-1.5 text-xs font-medium cursor-pointer">
+                                <label key={portal.id} className="inline-flex items-center gap-1.5 text-xs font-medium cursor-pointer whitespace-nowrap">
                                   <input
                                     type="checkbox"
                                     checked={checked}
@@ -591,9 +591,9 @@ export function TeamManager() {
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3.5 text-center">
+                      <td className="px-4 py-3.5 text-center whitespace-nowrap">
                         <button 
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-colors ${
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-colors whitespace-nowrap ${
                             admin.isActive 
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
                               : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
@@ -607,10 +607,10 @@ export function TeamManager() {
                       <td className="px-4 py-3.5 text-slate-500 text-xs whitespace-nowrap" suppressHydrationWarning>
                         {admin.lastLoginAt ? `${format(new Date(admin.lastLoginAt), 'dd MMM yyyy, HH:mm')}` : 'Never'}
                       </td>
-                      <td className="px-5 py-3.5 text-right">
+                      <td className="px-5 py-3.5 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors flex items-center gap-1.5"
+                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap"
                             onClick={() => handleResetPassword(admin.id, admin.email)}
                           >
                             <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -619,7 +619,7 @@ export function TeamManager() {
                             <span>Reset Password</span>
                           </button>
                           <button
-                            className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium transition-colors border border-rose-200 flex items-center gap-1"
+                            className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium transition-colors border border-rose-200 flex items-center gap-1 whitespace-nowrap"
                             onClick={() => handleDelete(admin.id)}
                           >
                             <IconTrash size={12} />
@@ -655,7 +655,7 @@ export function TeamManager() {
               {sessions.length > 0 && (
                 <button
                   onClick={handleClearAllSessions}
-                  className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-2xs"
                 >
                   <IconTrash size={13} />
                   <span>Clear All Logs</span>
@@ -663,7 +663,7 @@ export function TeamManager() {
               )}
               <button
                 onClick={fetchSessions}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition-colors"
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition-colors shadow-2xs"
               >
                 Refresh
               </button>
@@ -681,7 +681,7 @@ export function TeamManager() {
                 {sessions.map(session => {
                   const client = parseClientDevice(session.userAgent);
                   const sessionStatus = session.isCurrent
-                    ? { label: 'This Device', cls: 'bg-emerald-50 text-emerald-800 border-emerald-300', dot: 'bg-emerald-500 animate-pulse' }
+                    ? { label: 'This Device (Current)', cls: 'bg-emerald-50 text-emerald-800 border-emerald-300', dot: 'bg-emerald-500 animate-pulse' }
                     : session.isRevoked
                     ? { label: 'Revoked', cls: 'bg-rose-50 text-rose-700 border-rose-200', dot: 'bg-rose-500' }
                     : session.isBlocked
@@ -692,12 +692,12 @@ export function TeamManager() {
                       {/* Row 1: email + status badge */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="font-semibold text-sm text-slate-900 truncate">{session.email}</div>
+                          <div className="font-semibold text-sm text-slate-900 break-all">{session.email}</div>
                           <div className="text-xs text-slate-400 mt-0.5">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">{session.role}</span>
+                            <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">{session.role}</span>
                           </div>
                         </div>
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border shrink-0 ${sessionStatus.cls}`}>
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border shrink-0 whitespace-nowrap ${sessionStatus.cls}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${sessionStatus.dot}`} />
                           {sessionStatus.label}
                         </span>
@@ -707,14 +707,14 @@ export function TeamManager() {
                       <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100">
                         <div>
                           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Device</div>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border ${
                               client.isMobile ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-slate-700 border-slate-200'
                             }`}>
                               {client.device}
                             </span>
                             <span className="text-slate-400">·</span>
-                            <span className="text-slate-500">{client.browser}</span>
+                            <span className="text-slate-500 font-medium">{client.browser}</span>
                           </div>
                         </div>
                         <div>
@@ -739,7 +739,7 @@ export function TeamManager() {
                           <button
                             onClick={() => handleRevokeSession(session)}
                             disabled={actionLoading === session.id}
-                            className="flex-1 py-1.5 text-xs font-bold rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors disabled:opacity-50"
+                            className="flex-1 py-1.5 text-xs font-bold rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors disabled:opacity-50 whitespace-nowrap"
                           >
                             {actionLoading === session.id ? '…' : 'Revoke Session'}
                           </button>
@@ -749,7 +749,7 @@ export function TeamManager() {
                             <button
                               onClick={() => handleUnblockIp(session.ip)}
                               disabled={actionLoading === session.ip}
-                              className="flex-1 py-1.5 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors disabled:opacity-50"
+                              className="flex-1 py-1.5 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors disabled:opacity-50 whitespace-nowrap"
                             >
                               {actionLoading === session.ip ? '…' : 'Unblock IP'}
                             </button>
@@ -757,7 +757,7 @@ export function TeamManager() {
                             <button
                               onClick={() => handleBlockIp(session.ip)}
                               disabled={actionLoading === session.ip}
-                              className="flex-1 py-1.5 text-xs font-bold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors disabled:opacity-50"
+                              className="flex-1 py-1.5 text-xs font-bold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors disabled:opacity-50 whitespace-nowrap"
                             >
                               {actionLoading === session.ip ? '…' : 'Block IP'}
                             </button>
@@ -780,16 +780,16 @@ export function TeamManager() {
 
           {/* ── Desktop Session Table View (≥ md) ── */}
           <div className="hidden md:block overflow-x-auto w-full">
-            <table className="w-full text-left border-collapse min-w-[760px]">
+            <table className="w-full text-left border-collapse min-w-[960px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3 px-4">Administrator</th>
-                  <th className="py-3 px-4">Role</th>
-                  <th className="py-3 px-4">Device & Client</th>
-                  <th className="py-3 px-4">Login Date & Time</th>
-                  <th className="py-3 px-4">IP Address</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Action</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Administrator</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Role</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Device &amp; Client</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Login Date &amp; Time</th>
+                  <th className="py-3 px-4 whitespace-nowrap">IP Address</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Status</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -806,15 +806,17 @@ export function TeamManager() {
                     const client = parseClientDevice(session.userAgent);
                     return (
                       <tr key={session.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="py-3.5 px-4 font-semibold text-slate-900">{session.email}</td>
-                        <td className="py-3.5 px-4">
-                          <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                        <td className="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">
+                          {session.email}
+                        </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className="inline-block px-2.5 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">
                             {session.role}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium ${
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5 whitespace-nowrap">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium whitespace-nowrap ${
                               client.isMobile 
                                 ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' 
                                 : 'bg-slate-100 text-slate-700 border border-slate-200'
@@ -834,20 +836,20 @@ export function TeamManager() {
                               <span>{client.device}</span>
                             </span>
                             <span className="text-[11px] text-slate-400">·</span>
-                            <span className="text-[11px] text-slate-500 font-medium">{client.browser}</span>
+                            <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap">{client.browser}</span>
                           </div>
                         </td>
-                        <td className="py-3.5 px-4 text-slate-600 font-mono">
-                          <div>{format(new Date(session.createdAt), 'PPP p')}</div>
-                          <div className="text-[10px] text-slate-400 font-sans mt-0.5">
+                        <td className="py-3.5 px-4 text-slate-600 font-mono whitespace-nowrap">
+                          <div className="whitespace-nowrap">{format(new Date(session.createdAt), 'dd MMM yyyy, HH:mm')}</div>
+                          <div className="text-[10px] text-slate-400 font-sans mt-0.5 whitespace-nowrap">
                             {formatDistanceToNow(new Date(session.createdAt), { addSuffix: true })}
                           </div>
                         </td>
-                        <td className="py-3.5 px-4 font-mono text-slate-600">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span>{session.ip}</span>
+                        <td className="py-3.5 px-4 font-mono text-slate-600 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5 whitespace-nowrap">
+                            <span className="whitespace-nowrap">{session.ip}</span>
                             {session.isBlocked && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300 whitespace-nowrap">
                                 BLOCKED
                               </span>
                             )}
@@ -855,34 +857,34 @@ export function TeamManager() {
                         </td>
                         <td className="py-3.5 px-4 whitespace-nowrap">
                           {session.isCurrent ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 whitespace-nowrap">
                               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                               This Device (Current)
                             </span>
                           ) : session.isRevoked ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap">
                               <span className="w-2 h-2 rounded-full bg-rose-500" />
                               Revoked (Logged Out)
                             </span>
                           ) : session.isBlocked ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 whitespace-nowrap">
                               <span className="w-2 h-2 rounded-full bg-amber-500" />
                               Terminated (Blocked IP)
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                               Active
                             </span>
                           )}
                         </td>
                         <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1.5">
+                          <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
                             {!session.isCurrent && !session.isRevoked && (
                               <button
                                 onClick={() => handleRevokeSession(session)}
                                 disabled={actionLoading === session.id}
-                                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors shadow-2xs disabled:opacity-50"
+                                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors shadow-2xs disabled:opacity-50 whitespace-nowrap"
                                 title="Immediately revoke token and log out this session"
                               >
                                 {actionLoading === session.id ? '…' : 'Revoke Session'}
@@ -893,7 +895,7 @@ export function TeamManager() {
                                 <button
                                   onClick={() => handleUnblockIp(session.ip)}
                                   disabled={actionLoading === session.ip}
-                                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors shadow-2xs disabled:opacity-50"
+                                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors shadow-2xs disabled:opacity-50 whitespace-nowrap"
                                   title="Unblock this IP address"
                                 >
                                   {actionLoading === session.ip ? '…' : 'Unblock IP'}
@@ -902,7 +904,7 @@ export function TeamManager() {
                                 <button
                                   onClick={() => handleBlockIp(session.ip)}
                                   disabled={actionLoading === session.ip}
-                                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors shadow-2xs disabled:opacity-50"
+                                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors shadow-2xs disabled:opacity-50 whitespace-nowrap"
                                   title="Block this IP address and terminate all sessions from it"
                                 >
                                   {actionLoading === session.ip ? '…' : 'Block IP'}
