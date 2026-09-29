@@ -370,6 +370,17 @@ export default function CareerClientDetailPage() {
                 </div>
               );
             }
+            if (client.status === 'COMPLETED') {
+              return (
+                <div className="mt-4 flex items-center justify-between px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                  <div className="flex items-center gap-2 text-slate-700 font-medium">
+                    <span className="w-2 h-2 rounded-full bg-slate-400" />
+                    <span>Historical Client · Fulfilled under Baseline Service Terms</span>
+                  </div>
+                  <span className="text-[11px] text-slate-500">Service Completed</span>
+                </div>
+              );
+            }
             return (
               <div className="mt-4 flex items-center justify-between px-4 py-2.5 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs">
                 <div className="flex items-center gap-2 text-amber-800 font-semibold">

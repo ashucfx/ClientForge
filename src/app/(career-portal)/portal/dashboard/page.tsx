@@ -438,7 +438,9 @@ export default function PortalDashboardPage() {
     ]);
     if (!meData.hasPinSet) { router.replace('/portal/setup-pin'); return; }
     setMe(meData);
-    if (!meData.slaAccepted) {
+    // Enforce SLA agreement for active/ongoing clients.
+    // Completed clients are not interrupted from viewing historical deliverables.
+    if (!meData.slaAccepted && meData.status !== 'COMPLETED' && !meData.completedAt) {
       setShowSlaModal(true);
     }
     setFiles(filesData.files ?? []);
