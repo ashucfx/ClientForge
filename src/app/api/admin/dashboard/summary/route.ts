@@ -195,6 +195,7 @@ export async function GET() {
       totalPayable: true,
       currency: true,
       currencySymbol: true,
+      exchangeRate: true,
       status: true,
       paymentGateway: true,
       createdAt: true,

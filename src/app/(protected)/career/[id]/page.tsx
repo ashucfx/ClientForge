@@ -3598,6 +3598,7 @@ type UpgradeInvoice = {
 function UpgradeInvoicesTab({ clientId }: { clientId: string }) {
   const [invoices, setInvoices] = useState<UpgradeInvoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/career/admin/clients/${clientId}/upgrade-invoices`)
@@ -3606,131 +3607,280 @@ function UpgradeInvoicesTab({ clientId }: { clientId: string }) {
       .catch(() => setLoading(false));
   }, [clientId]);
 
+  const copyLink = (id: string, url: string) => {
+    void navigator.clipboard.writeText(url);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   const statusColor = (s: string, dueDate: string) => {
-    if (s === 'PAID') return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+    if (s === 'PAID') return 'bg-emerald-50 text-emerald-700 border-emerald-200/80';
     if (s === 'CANCELLED') return 'bg-slate-100 text-slate-500 border-slate-200';
-    if (new Date(dueDate) < new Date()) return 'bg-red-50 text-red-600 border-red-100';
-    return 'bg-amber-50 text-amber-700 border-amber-100';
+    if (new Date(dueDate) < new Date()) return 'bg-red-50 text-red-600 border-red-200/80';
+    return 'bg-amber-50 text-amber-700 border-amber-200/80';
   };
 
   const statusLabel = (s: string, dueDate: string) => {
-    if (s === 'PAID') return 'Paid';
+    if (s === 'PAID') return 'Paid & Settled';
     if (s === 'CANCELLED') return 'Cancelled';
     if (new Date(dueDate) < new Date()) return 'Expired';
-    return 'Pending';
+    return 'Payment Pending';
   };
 
-  if (loading) return <div className="py-12 text-center text-sm text-slate-400">Loading invoices…</div>;
-
-  if (invoices.length === 0) {
+  if (loading) {
     return (
-      <div className="py-16 text-center">
-        <p className="text-slate-500 font-semibold text-sm">No invoices found for this client.</p>
-        <p className="text-slate-400 text-xs mt-1">Invoices created during onboarding, portal upgrades, or revision quotes will appear here.</p>
+      <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-sm text-slate-400 shadow-2xs">
+        <div className="w-7 h-7 rounded-full border-2 border-[#B8935B] border-t-transparent animate-spin mx-auto mb-2" />
+        <span>Loading client invoices &amp; records…</span>
       </div>
     );
   }
 
+  const paidCount = invoices.filter(i => i.status === 'PAID').length;
+  const pendingCount = invoices.filter(i => i.status !== 'PAID' && i.status !== 'CANCELLED').length;
+  const totalSettledVal = invoices
+    .filter(i => i.status === 'PAID')
+    .reduce((acc, i) => acc + (i.totalPayable || 0), 0);
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between pb-1">
+    <div className="space-y-5">
+      {/* ── Header with Executive Metrics ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-100">
         <div>
-          <h3 className="text-sm font-bold text-slate-900">Client Invoices &amp; Official Receipts</h3>
-          <p className="text-xs text-slate-400">All payment records, package invoices, and legal receipts linked to this client.</p>
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-[#8C6933] mb-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#B8935B]" />
+            <span>Account Financial Ledger</span>
+          </div>
+          <h3 className="text-base font-bold text-slate-900">Client Invoices &amp; Official Receipts</h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Legal receipts, service invoices, portal upgrades, and revision billings for this client.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/invoices/new"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#B8935B] to-[#9A7540] hover:opacity-95 text-white text-xs font-bold transition-all shadow-2xs"
+          >
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>+ Issue Invoice</span>
+          </Link>
+          <Link
+            href="/invoices"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-2xs"
+          >
+            <span>All Invoices</span>
+            <span>→</span>
+          </Link>
         </div>
       </div>
-      {invoices.map(inv => {
-        const label = statusLabel(inv.status, inv.dueDate);
-        const colorClass = statusColor(inv.status, inv.dueDate);
-        const isSynthetic = inv.id.startsWith('client-');
-        const isUpgrade = inv.notes?.includes('Portal automated upgrade');
-        const isRevision = inv.notes?.includes('Revision');
-        const displayType = isSynthetic
-          ? 'Historical Service Enrollment (Direct Onboarding)'
-          : isUpgrade
-          ? `Portal Upgrade · ${inv.notes?.match(/Target:\s*(\S+)/)?.[1] ?? 'Add-on Service'}`
-          : isRevision
-          ? 'Revision Service Quote'
-          : (inv.notes || 'Primary Account Service Invoice');
 
-        return (
-          <div key={inv.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-            <div className="flex items-start justify-between gap-3 flex-wrap">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-bold text-slate-900 font-mono">{inv.invoiceNumber}</span>
-                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${colorClass}`}>{label}</span>
-                </div>
-                <p className="text-xs text-slate-600 font-medium">
-                  {displayType}
-                  {inv.clientType && (
-                    <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500">
-                      {inv.clientType === 'FRESHER' ? 'Fresher' : inv.clientType === 'MID_CAREER' ? 'Mid-Career' : inv.clientType === 'EXECUTIVE' ? 'Executive' : inv.clientType === 'EXECUTIVE_PLUS' ? 'Exec+' : inv.clientType}
-                    </span>
-                  )}
-                </p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Issued: {new Date(inv.invoiceDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  {' · '}Due: {new Date(inv.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  {inv.paidAt && <span className="text-emerald-600 font-medium"> · Settled: {new Date(inv.paidAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
-                </p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-lg font-bold text-slate-900">{inv.currencySymbol}{inv.totalPayable.toLocaleString('en-IN')}</p>
-                <p className="text-[11px] text-slate-400 font-medium">{inv.currency}</p>
-              </div>
-            </div>
-            {inv.razorpayLinkUrl && inv.status !== 'PAID' && (
-              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-3">
-                <a href={inv.razorpayLinkUrl} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs font-semibold text-[#B8935B] hover:underline">
-                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                  Open Razorpay Link
-                </a>
-                <button
-                  onClick={() => { void navigator.clipboard.writeText(inv.razorpayLinkUrl!); }}
-                  className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
-                  Copy link
-                </button>
-              </div>
-            )}
-            {(inv.status === 'PAID' || isSynthetic) && (
-              <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2">
-                <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  Paid &amp; Settled
-                </span>
-                <div className="flex items-center gap-2">
-                  <a
-                    href={`/api/invoices/${inv.id}/pdf`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download={`Invoice-${inv.invoiceNumber}-PAID.pdf`}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FAF9F6] border border-[#EAE2D5] text-[#9A7540] hover:bg-[#F0EAE0] text-xs font-bold transition-all shadow-2xs"
-                  >
-                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    <span>Download Official Receipt (PDF)</span>
-                  </a>
-                  {!isSynthetic && (
-                    <Link
-                      href={`/invoices/${inv.id}`}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold transition-colors"
-                    >
-                      <span>Registry Details</span>
-                      <span>→</span>
-                    </Link>
-                  )}
-                </div>
-              </div>
-            )}
-            {inv.razorpayPaymentId && (
-              <p className="text-[11px] text-slate-400 mt-2">Payment ID: <span className="font-mono">{inv.razorpayPaymentId}</span></p>
-            )}
+      {/* ── Summary Stats Pills ── */}
+      {invoices.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Records</span>
+            <span className="text-lg font-extrabold text-slate-900 mt-0.5 block">{invoices.length}</span>
+            <span className="text-[10px] text-slate-400">All issued invoices</span>
           </div>
-        );
-      })}
+          <div className="bg-white p-3.5 rounded-xl border border-emerald-200/70 shadow-2xs bg-gradient-to-br from-white to-emerald-50/20">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">Settled</span>
+            <span className="text-lg font-extrabold text-emerald-900 mt-0.5 block">{paidCount}</span>
+            <span className="text-[10px] text-emerald-600">Paid &amp; verified</span>
+          </div>
+          <div className="bg-white p-3.5 rounded-xl border border-amber-200/70 shadow-2xs bg-gradient-to-br from-white to-amber-50/20">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#9A7540] block">Pending</span>
+            <span className="text-lg font-extrabold text-[#9A7540] mt-0.5 block">{pendingCount}</span>
+            <span className="text-[10px] text-amber-700/80">Awaiting payment</span>
+          </div>
+          <div className="bg-white p-3.5 rounded-xl border border-[#B8935B]/30 shadow-2xs bg-gradient-to-br from-white to-[#FAF6EE]/50">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#8C6933] block">Settled Total</span>
+            <span className="text-lg font-extrabold text-slate-900 mt-0.5 block">
+              ₹{totalSettledVal.toLocaleString('en-IN')}
+            </span>
+            <span className="text-[10px] text-[#8C6933]">Reconciled to date</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Empty State ── */}
+      {invoices.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-12 text-center shadow-2xs">
+          <div className="w-12 h-12 rounded-2xl bg-[#FAF6EE] border border-[#E8DEC8] text-[#8C6933] flex items-center justify-center mx-auto mb-3 shadow-2xs">
+            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h4 className="font-bold text-slate-900 text-sm">No Invoices on File Yet</h4>
+          <p className="text-slate-400 text-xs mt-1 max-w-sm mx-auto">
+            Invoices created during onboarding, client portal upgrades, or revision quotes will automatically appear here.
+          </p>
+          <div className="mt-4">
+            <Link
+              href="/invoices/new"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#B8935B] hover:bg-[#9A7540] text-white text-xs font-bold transition-all shadow-xs"
+            >
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Issue New Invoice</span>
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3.5">
+          {invoices.map(inv => {
+            const label = statusLabel(inv.status, inv.dueDate);
+            const colorClass = statusColor(inv.status, inv.dueDate);
+            const isSynthetic = inv.id.startsWith('client-');
+            const isUpgrade = inv.notes?.includes('Portal automated upgrade');
+            const isRevision = inv.notes?.includes('Revision');
+            const isPaid = inv.status === 'PAID' || isSynthetic;
+
+            const displayType = isSynthetic
+              ? 'Historical Service Enrollment (Direct Onboarding)'
+              : isUpgrade
+              ? `Portal Upgrade · ${inv.notes?.match(/Target:\s*(\S+)/)?.[1] ?? 'Add-on Service'}`
+              : isRevision
+              ? 'Revision Service Quote'
+              : (inv.notes || 'Primary Account Service Invoice');
+
+            return (
+              <div
+                key={inv.id}
+                className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group"
+              >
+                {/* Left vertical color accent */}
+                <div
+                  className={`absolute top-0 left-0 bottom-0 w-1.5 ${
+                    isPaid ? 'bg-emerald-500' : inv.status === 'CANCELLED' ? 'bg-slate-300' : 'bg-[#B8935B]'
+                  }`}
+                />
+
+                <div className="flex items-start justify-between gap-4 flex-wrap pl-1.5">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
+                      <span className="font-mono font-bold text-slate-900 text-sm bg-slate-100/90 border border-slate-200/80 px-2 py-0.5 rounded-md">
+                        {inv.invoiceNumber}
+                      </span>
+                      <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${colorClass} flex items-center gap-1.5`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isPaid ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
+                        {label}
+                      </span>
+                      {inv.clientType && (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#FAF6EE] text-[#8C6933] border border-[#E8DEC8]">
+                          {inv.clientType === 'FRESHER' ? 'Fresher' : inv.clientType === 'MID_CAREER' ? 'Mid-Career' : inv.clientType === 'EXECUTIVE' ? 'Executive' : inv.clientType === 'EXECUTIVE_PLUS' ? 'Exec+' : inv.clientType}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-slate-700 font-semibold mb-1">
+                      {displayType}
+                    </p>
+
+                    <div className="flex items-center gap-3 text-[11px] text-slate-400 flex-wrap">
+                      <span>Issued: {new Date(inv.invoiceDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      <span>·</span>
+                      <span>Due: {new Date(inv.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      {inv.paidAt && (
+                        <>
+                          <span>·</span>
+                          <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                            ✓ Settled {new Date(inv.paidAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </span>
+                        </>
+                      )}
+                      {inv.razorpayPaymentId && (
+                        <>
+                          <span>·</span>
+                          <span className="font-mono text-slate-400">ID: {inv.razorpayPaymentId}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-xl font-black text-slate-900">
+                      {inv.currencySymbol}{inv.totalPayable.toLocaleString('en-IN')}
+                    </p>
+                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">{inv.currency}</p>
+                  </div>
+                </div>
+
+                {/* ── Actions & Gateway Section ── */}
+                <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2.5 pl-1.5">
+                  <div className="flex items-center gap-2">
+                    {isPaid ? (
+                      <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/60">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        Official Paid Receipt Available
+                      </span>
+                    ) : (
+                      <span className="text-xs text-amber-700 font-semibold flex items-center gap-1.5 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/60">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                        Invoice Awaiting Client Settlement
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Razorpay Gateway Link */}
+                    {inv.razorpayLinkUrl && !isPaid && (
+                      <>
+                        <button
+                          onClick={() => copyLink(inv.id, inv.razorpayLinkUrl!)}
+                          className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold flex items-center gap-1 transition-colors shadow-2xs"
+                        >
+                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          <span>{copiedId === inv.id ? 'Copied!' : 'Copy Link'}</span>
+                        </button>
+                        <a
+                          href={inv.razorpayLinkUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 rounded-lg bg-[#FAF6EE] border border-[#E8DEC8] text-[#8C6933] hover:bg-[#F0EAE0] text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
+                        >
+                          <span>Open Gateway</span>
+                          <span>↗</span>
+                        </a>
+                      </>
+                    )}
+
+                    {/* Official PDF Receipt Download */}
+                    <a
+                      href={`/api/invoices/${inv.id}/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download={`Invoice-${inv.invoiceNumber}-OFFICIAL.pdf`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#B8935B] to-[#9A7540] hover:opacity-95 text-white text-xs font-bold transition-all shadow-2xs"
+                    >
+                      <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      <span>Download PDF</span>
+                    </a>
+
+                    {/* Link to Full Invoice Registry */}
+                    {!isSynthetic && (
+                      <Link
+                        href={`/invoices/${inv.id}`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold transition-colors"
+                      >
+                        <span>Registry Details</span>
+                        <span>→</span>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

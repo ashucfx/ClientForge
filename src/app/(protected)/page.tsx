@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import type { ClientType, InvoiceStatus } from '@/types';
 import { formatCurrency, CLIENT_TYPE_LABELS } from '@/lib/pricing';
+import { convertForeignToInr } from '@/lib/currency';
 import { IconPlus } from '@/components/Icons';
 import AppShell from '@/components/AppShell';
 
@@ -107,6 +108,7 @@ interface RecentInvoice {
   totalPayable: number;
   currency: string;
   currencySymbol: string;
+  exchangeRate?: number | null;
   status: InvoiceStatus;
   paymentGateway: string;
   createdAt: string;
@@ -313,52 +315,129 @@ export default function Dashboard() {
         </div>
 
         {/* ── Recent Invoices Widget ── */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900">Recent Invoices</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Most recent client billings and active payment transactions.</p>
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-100 bg-gradient-to-r from-white via-[#FDFBF7]/50 to-white flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#FAF6EE] border border-[#E8DEC8] flex items-center justify-center text-[#B8935B] shadow-2xs">
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-slate-900 tracking-tight">Recent Invoices</h2>
+                  {!loading && recentInvoices.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FAF6EE] text-[#8C6933] border border-[#E8DEC8]">
+                      {recentInvoices.length} Recent
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">Live transaction activity, client billing records, and gateway statuses.</p>
+              </div>
             </div>
-            <Link
-              href="/invoices"
-              className="text-xs font-bold text-[#B8935B] hover:text-[#9A7540] flex items-center gap-1 transition-colors"
-            >
-              <span>View All Invoices in Registry</span>
-              <span>→</span>
-            </Link>
+
+            <div className="flex items-center gap-3">
+              {!loading && recentInvoices.length > 0 && (
+                <div className="hidden sm:flex items-center gap-2 text-[11px] font-semibold">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    {recentInvoices.filter(i => i.status === 'PAID').length} Settled
+                  </span>
+                  {recentInvoices.some(i => i.status === 'PENDING') && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200/80">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      {recentInvoices.filter(i => i.status === 'PENDING').length} Pending
+                    </span>
+                  )}
+                </div>
+              )}
+              <Link
+                href="/invoices"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-[#FAF6EE] text-slate-700 hover:text-[#8C6933] border border-slate-200 hover:border-[#E8DEC8] text-xs font-bold transition-all shadow-2xs group"
+              >
+                <span>Full Registry</span>
+                <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+              </Link>
+            </div>
           </div>
 
           {/* Mobile card list (< md) */}
           <div className="block md:hidden">
             {loading ? (
-              <div className="p-10 text-center text-slate-400 text-sm">Loading recent invoices…</div>
+              <div className="p-10 text-center text-slate-400 text-sm">
+                <div className="w-7 h-7 rounded-full border-2 border-[#B8935B] border-t-transparent animate-spin mx-auto mb-2" />
+                <span>Loading recent invoices…</span>
+              </div>
             ) : recentInvoices.length === 0 ? (
               <div className="p-10 text-center text-slate-400 text-sm">No invoices found.</div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {recentInvoices.map(inv => (
-                  <div
-                    key={inv.id}
-                    className="p-4 space-y-2.5 hover:bg-slate-50/70 cursor-pointer transition-colors"
-                    onClick={() => window.location.href = `/invoices/${inv.id}`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="font-mono font-bold text-slate-900 text-sm">{inv.invoiceNumber}</div>
-                        <div className="font-semibold text-slate-800 text-xs mt-0.5">{inv.clientName}</div>
-                        <div className="text-[11px] text-slate-400 truncate max-w-[200px]">{inv.clientEmail}</div>
+                {recentInvoices.map(inv => {
+                  const initials = inv.clientName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+                  return (
+                    <div
+                      key={inv.id}
+                      className="p-4 space-y-3 hover:bg-slate-50/70 cursor-pointer transition-colors"
+                      onClick={() => window.location.href = `/invoices/${inv.id}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#B8935B]/20 to-[#B8935B]/40 text-[#8C6933] font-bold text-xs flex items-center justify-center flex-shrink-0 border border-[#B8935B]/30">
+                            {initials || 'CL'}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-mono font-bold text-slate-900 text-xs bg-slate-100/90 border border-slate-200/80 px-1.5 py-0.5 rounded">
+                              {inv.invoiceNumber}
+                            </span>
+                            <div className="font-semibold text-slate-800 text-xs mt-1 truncate">{inv.clientName}</div>
+                            <div className="text-[11px] text-slate-400 truncate max-w-[190px]">{inv.clientEmail}</div>
+                          </div>
+                        </div>
+                        <StatusBadge status={inv.status} />
                       </div>
-                      <StatusBadge status={inv.status} />
-                    </div>
-                    <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-100">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <TierTag type={inv.clientType} />
-                        <span className="text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{inv.paymentGateway}</span>
+
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <TierTag type={inv.clientType} />
+                          <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                            {inv.paymentGateway}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-bold text-slate-900 text-sm">{formatCurrency(inv.totalPayable, inv.currencySymbol)}</span>
+                          {inv.currency !== 'INR' ? (
+                            <span className="text-[10px] text-slate-500 font-medium block">
+                              ≈ ₹{convertForeignToInr(inv.totalPayable, inv.currency, inv.exchangeRate).toLocaleString('en-IN')}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 block">{format(new Date(inv.createdAt), 'dd MMM yyyy')}</span>
+                          )}
+                        </div>
                       </div>
-                      <span className="font-bold text-slate-900 text-sm">{formatCurrency(inv.totalPayable, inv.currencySymbol)}</span>
+
+                      <div className="flex items-center justify-end gap-2 pt-1" onClick={e => e.stopPropagation()}>
+                        <a
+                          href={`/api/invoices/${inv.id}/pdf`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download={`Invoice-${inv.invoiceNumber}.pdf`}
+                          className="px-2.5 py-1 rounded-lg border border-[#B8935B]/30 bg-[#FAF6EE] text-[#8C6933] hover:bg-[#F3EBD9] text-xs font-bold flex items-center gap-1 transition-all"
+                        >
+                          <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          <span>PDF</span>
+                        </a>
+                        <Link
+                          href={`/invoices/${inv.id}`}
+                          className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors"
+                        >
+                          Details →
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -374,60 +453,101 @@ export default function Dashboard() {
                   <th className="py-3 px-4">Payable</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Gateway</th>
-                  <th className="py-3 px-4 text-right">Action</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400">
-                      Loading recent invoices…
+                    <td colSpan={7} className="py-12 text-center text-slate-400">
+                      <div className="w-7 h-7 rounded-full border-2 border-[#B8935B] border-t-transparent animate-spin mx-auto mb-2" />
+                      <span>Loading recent invoices…</span>
                     </td>
                   </tr>
                 ) : recentInvoices.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400">
+                    <td colSpan={7} className="py-12 text-center text-slate-400">
                       No invoices found. Click &quot;+ Create Invoice&quot; to issue your first invoice.
                     </td>
                   </tr>
                 ) : (
-                  recentInvoices.map(inv => (
-                    <tr
-                      key={inv.id}
-                      className="hover:bg-slate-50/70 transition-colors cursor-pointer group"
-                      onClick={() => window.location.href = `/invoices/${inv.id}`}
-                    >
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900 group-hover:text-[#B8935B] transition-colors">
-                        {inv.invoiceNumber}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-slate-900">{inv.clientName}</div>
-                        <div className="text-[11px] text-slate-400 truncate max-w-[170px]">{inv.clientEmail}</div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <TierTag type={inv.clientType} />
-                      </td>
-                      <td className="py-3.5 px-4 font-bold text-slate-900">
-                        {formatCurrency(inv.totalPayable, inv.currencySymbol)}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <StatusBadge status={inv.status} />
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
-                          {inv.paymentGateway}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right" onClick={e => e.stopPropagation()}>
-                        <Link
-                          href={`/invoices/${inv.id}`}
-                          className="px-2.5 py-1 rounded-lg bg-[#FAF9F6] border border-[#EAE2D5] text-[#9A7540] hover:bg-[#FBF8F3] text-[11px] font-bold transition-colors"
-                        >
-                          View →
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
+                  recentInvoices.map(inv => {
+                    const initials = inv.clientName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+                    return (
+                      <tr
+                        key={inv.id}
+                        className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                        onClick={() => window.location.href = `/invoices/${inv.id}`}
+                      >
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className="font-mono font-bold text-slate-900 bg-slate-100/90 border border-slate-200/80 px-2 py-0.5 rounded-md group-hover:border-[#B8935B]/40 group-hover:text-[#B8935B] transition-colors">
+                            {inv.invoiceNumber}
+                          </span>
+                          <span className="block text-[10px] text-slate-400 mt-1">
+                            {format(new Date(inv.createdAt), 'dd MMM yyyy')}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#B8935B]/20 to-[#B8935B]/40 text-[#8C6933] font-bold text-[11px] flex items-center justify-center flex-shrink-0 border border-[#B8935B]/30">
+                              {initials || 'CL'}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-slate-900 truncate max-w-[160px]">{inv.clientName}</div>
+                              <div className="text-[11px] text-slate-400 truncate max-w-[160px]">{inv.clientEmail}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <TierTag type={inv.clientType} />
+                        </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className="font-bold text-slate-900 text-sm">
+                            {formatCurrency(inv.totalPayable, inv.currencySymbol)}
+                          </span>
+                          {inv.currency !== 'INR' ? (
+                            <span className="text-[10px] text-slate-500 font-medium block">
+                              ≈ ₹{convertForeignToInr(inv.totalPayable, inv.currency, inv.exchangeRate).toLocaleString('en-IN')}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-medium block">
+                              {inv.currency}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <StatusBadge status={inv.status} />
+                        </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/60">
+                            {inv.paymentGateway}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <a
+                              href={`/api/invoices/${inv.id}/pdf`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download={`Invoice-${inv.invoiceNumber}.pdf`}
+                              className="p-1.5 rounded-lg border border-slate-200 hover:bg-[#FAF6EE] hover:border-[#E8DEC8] text-slate-600 hover:text-[#8C6933] transition-colors"
+                              title="Download Official PDF Invoice"
+                            >
+                              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                            </a>
+                            <Link
+                              href={`/invoices/${inv.id}`}
+                              className="px-2.5 py-1 rounded-lg bg-[#FAF9F6] border border-[#EAE2D5] text-[#9A7540] hover:bg-[#F0EAE0] text-[11px] font-bold transition-colors"
+                            >
+                              View →
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
