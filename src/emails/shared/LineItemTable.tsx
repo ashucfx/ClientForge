@@ -108,6 +108,11 @@ export function LineItemTable({
                   <Text style={{ margin: 0, fontSize: '14px', color: '#0f172a', fontWeight: 600, lineHeight: '1.4', wordBreak: 'break-word' as const }}>
                     {item.description}
                   </Text>
+                  {item.shortDescription && (
+                    <Text style={{ margin: '3px 0 0', fontSize: '12px', color: '#64748b', lineHeight: '1.4', wordBreak: 'break-word' as const }}>
+                      {item.shortDescription}
+                    </Text>
+                  )}
                   {item.qty > 1 && (
                     <Text style={{ margin: '3px 0 0', fontSize: '11px', color: '#94a3b8' }}>
                       Qty: {item.qty} × {fmt(item.unitPrice)}

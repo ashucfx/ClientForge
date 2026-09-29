@@ -9,6 +9,7 @@ import { InvoiceEmail } from '@/emails/invoice/InvoiceEmail';
 import type { InvoiceData, ClientType, LineItem } from '@/types';
 import { FEE_RATES, round2 } from '@/lib/pricing';
 import { prisma } from '@/lib/db';
+import { resolveBankAccountForInvoice } from '@/lib/bankRouting';
 import { addDays } from 'date-fns';
 
 export async function POST(req: NextRequest) {
@@ -154,12 +155,11 @@ export async function POST(req: NextRequest) {
     };
 
     let bankAccount = null;
-    if (paymentGateway.startsWith('RAZORPAY_INTERNATIONAL_BANK_TRANSFER')) {
-      bankAccount = await prisma.internationalBankAccount.findFirst({
-        where: {
-          currency: emailCurrency,
-          isActive: true,
-        },
+    if (paymentGateway.startsWith('RAZORPAY_INTERNATIONAL_BANK_TRANSFER') || paymentGateway === 'BANK_TRANSFER') {
+      bankAccount = await resolveBankAccountForInvoice({
+        currency: emailCurrency,
+        country,
+        paymentGateway,
       });
     }
 

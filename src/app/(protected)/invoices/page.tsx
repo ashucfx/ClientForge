@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import type { InvoiceData, ClientType, InvoiceStatus } from '@/types';
 import { formatCurrency, CLIENT_TYPE_LABELS } from '@/lib/pricing';
+import { convertForeignToInr } from '@/lib/currency';
 import AppShell from '@/components/AppShell';
 import { IconCheck, IconSearch, IconPlus, IconRefresh, IconCopy, IconMail } from '@/components/Icons';
 
@@ -148,7 +149,7 @@ export default function InvoicesPage() {
     const pendingCount = invoices.filter(i => i.status === 'PENDING').length;
     const totalCollectedInr = invoices
       .filter(i => i.status === 'PAID')
-      .reduce((acc, i) => acc + (i.amountSettledInr ?? i.totalPayable * (i.exchangeRate || 1)), 0);
+      .reduce((acc, i) => acc + (i.amountSettledInr ?? convertForeignToInr(i.totalPayable, i.currency, i.exchangeRate)), 0);
 
     return { totalCount, paidCount, pendingCount, totalCollectedInr };
   }, [invoices]);
@@ -405,7 +406,7 @@ export default function InvoicesPage() {
                           </div>
                           {inv.currency !== 'INR' && (
                             <div className="text-[10px] text-slate-400">
-                              ≈ ₹{Math.round(inv.totalPayable * (inv.exchangeRate || 1)).toLocaleString('en-IN')}
+                              ≈ ₹{convertForeignToInr(inv.totalPayable, inv.currency, inv.exchangeRate).toLocaleString('en-IN')}
                             </div>
                           )}
                         </td>
@@ -477,6 +478,11 @@ export default function InvoicesPage() {
                       <span className="font-bold text-slate-900 text-sm">
                         {formatCurrency(inv.totalPayable, inv.currencySymbol)}
                       </span>
+                      {inv.currency !== 'INR' && (
+                        <span className="block text-[10px] text-slate-400">
+                          ≈ ₹{convertForeignToInr(inv.totalPayable, inv.currency, inv.exchangeRate).toLocaleString('en-IN')}
+                        </span>
+                      )}
                     </div>
                     <TierTag type={inv.clientType} />
                   </div>

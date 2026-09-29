@@ -93,6 +93,14 @@ export async function onboardFromInvoice(invoice: {
       select: { id: true },
     });
     if (byInvoice) {
+      await tx.careerActivityLog.create({
+        data: {
+          clientId:    byInvoice.id,
+          action:      'invoice_payment_completed',
+          performedBy: 'system',
+          metadata:    { invoiceId: invoice.id, amount: invoice.totalPayable, currency: invoice.currency, paymentId: invoice.razorpayPaymentId || null },
+        },
+      }).catch(() => null);
       return { created: false, reason: 'already_done' as const, clientId: byInvoice.id };
     }
 

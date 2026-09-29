@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       forms: { orderBy: [{ formType: 'asc' }, { version: 'desc' }] },
       deliverables: { orderBy: { createdAt: 'desc' } },
       emailLogs: { orderBy: { sentAt: 'desc' }, take: 20 },
-      activityLogs: { orderBy: { createdAt: 'desc' }, take: 30 },
+      activityLogs: { orderBy: { createdAt: 'desc' }, take: 100 },
       services: { select: { service: { select: { slug: true, name: true } } } },
       Feedback: true,
       Review: true,

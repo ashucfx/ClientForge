@@ -9,6 +9,7 @@ import type { CareerStatus, CareerPackage, FormType } from '@/lib/career/types';
 import { PACKAGE_LABELS, STATUS_LABELS } from '@/lib/career/types';
 import { DeliverableViewer } from '@/components/DeliverableViewer';
 import { ClientFeedbackForms } from '@/components/ClientFeedbackForms';
+import { ClientSlaModal } from '@/components/ClientSlaModal';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,9 @@ interface Me {
   consultationStatus?: string | null;
   consultationScheduledAt?: string | null;
   consultationJoinUrl?: string | null;
+  slaAccepted?: boolean;
+  slaAcceptedAt?: string | null;
+  slaVersion?: string | null;
 }
 interface ReferralStats {
   referralCode: string | null;
@@ -265,6 +269,7 @@ function portalChipIcon(type: string) {
 export default function PortalDashboardPage() {
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
+  const [showSlaModal, setShowSlaModal] = useState(false);
   const [files, setFiles] = useState<DeliverableItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [comments, setComments] = useState<CommentItem[]>([]);
@@ -433,6 +438,9 @@ export default function PortalDashboardPage() {
     ]);
     if (!meData.hasPinSet) { router.replace('/portal/setup-pin'); return; }
     setMe(meData);
+    if (!meData.slaAccepted) {
+      setShowSlaModal(true);
+    }
     setFiles(filesData.files ?? []);
     setComments(commentsData.comments ?? []);
     setReferral(referralData);
@@ -541,6 +549,17 @@ export default function PortalDashboardPage() {
   if (!me) return null;
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(160deg, #F8F5F1 0%, #FAF8F4 60%, #F5F1EB 100%)' }}>
+
+      {/* Mandatory SLA Agreement Modal */}
+      <ClientSlaModal
+        clientName={me.name}
+        clientEmail={me.email}
+        isOpen={showSlaModal}
+        onAccepted={() => {
+          setShowSlaModal(false);
+          setMe(prev => prev ? { ...prev, slaAccepted: true } : prev);
+        }}
+      />
 
       {/* ── Navbar ── */}
       <header className="bg-white/90 backdrop-blur-md border-b border-[#EDE6DA] sticky top-0 z-20 shadow-[0_1px_0_rgba(10,11,13,0.04)]">
@@ -873,6 +892,44 @@ export default function PortalDashboardPage() {
                 ))}
               </div>
             )}
+
+            {/* SLA Assent Status & Invoice Receipt */}
+            <div className="mt-4 pt-3.5 border-t border-white/10 flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${me.slaAccepted ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
+                <span className="text-[11px] text-white/70">
+                  {me.slaAccepted ? `Master Services & Turnaround SLA Bound (${me.slaVersion || 'v2026.1'})` : 'Awaiting SLA Acceptance'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/career/portal/invoice/pdf');
+                    if (res.ok) {
+                      const blob = await res.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `Catalyst-Official-Invoice-PAID.pdf`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    } else {
+                      alert('Invoice receipt is being prepared. Please check back in a moment.');
+                    }
+                  } catch {
+                    alert('Could not download invoice. Please try again.');
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-[#B8935B]/40 text-[#E0C59E] hover:text-white text-[11px] font-semibold transition-all cursor-pointer"
+              >
+                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>Download Official Receipt (PDF)</span>
+              </button>
+            </div>
           </div>
         </div>
 

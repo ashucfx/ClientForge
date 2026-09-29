@@ -20,11 +20,12 @@ export interface Installment {
 
 // ─── Line Item ─────────────────────────────────────────────────
 export interface LineItem {
-  id:          string;
-  description: string;
-  qty:         number;
-  unitPrice:   number;   // in client's display currency
-  lineTotal:   number;   // qty × unitPrice (computed)
+  id:                string;
+  description:       string;
+  shortDescription?: string;
+  qty:               number;
+  unitPrice:         number;   // in client's display currency
+  lineTotal:         number;   // qty × unitPrice (computed)
 }
 
 // ─── Pricing calculation result ────────────────────────────────

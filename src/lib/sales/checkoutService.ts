@@ -276,15 +276,18 @@ export async function createCheckoutSession(input: CheckoutSessionInput) {
   });
 
   // Send invoice email using the already-committed invoice data — no extra DB round-trip
-  if (result.invoice.clientEmail && paymentUrl) {
+  if (result.invoice.clientEmail) {
     try {
       // Only set the URL for the gateway actually used — the email template
       // derives its "via Razorpay/PayPal" copy from which field is present.
       await sendInvoiceEmail({
         ...result.invoice,
+        paymentGateway,
         ...(paymentGateway === 'PAYPAL'
           ? { paypalPaymentUrl: paymentUrl }
-          : { razorpayLinkUrl: paymentUrl }),
+          : paymentGateway === 'RAZORPAY'
+          ? { razorpayLinkUrl: paymentUrl }
+          : {}),
       } as unknown as Parameters<typeof sendInvoiceEmail>[0]);
       db.sysEmailLog.create({ data: {
         to: result.invoice.clientEmail,

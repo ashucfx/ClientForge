@@ -102,13 +102,7 @@ const FORM_TYPE_LABELS: Record<string, string> = {
   linkedin_profile:  'LinkedIn Profile Optimisation Brief',
   portfolio_website: 'Portfolio Website Development Brief',
 };
-const ACTION_LABELS: Record<string, string> = {
-  client_created: 'Client created',
-  status_changed: 'Status updated',
-  file_uploaded: 'File uploaded',
-  form_submitted: 'Form submitted',
-  email_sent_manual: 'Email sent (manual)',
-};
+
 
 type Tab = 'overview' | 'forms' | 'files' | 'emails' | 'activity' | 'revisions' | 'comments' | 'invoices';
 
@@ -359,6 +353,33 @@ export default function CareerClientDetailPage() {
             {/* Editable SLA Deadline */}
             <SlaDeadlineCell client={client} onUpdated={(d) => setClient(prev => prev ? { ...prev, slaDeadline: d, expectedDeliveryAt: d } : prev)} />
           </div>
+
+          {/* SLA Agreement Status for Admin */}
+          {(() => {
+            const slaLog = client.activityLogs?.find(l => l.action === 'sla_agreement_accepted');
+            if (slaLog) {
+              return (
+                <div className="mt-4 flex items-center justify-between px-4 py-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl text-xs">
+                  <div className="flex items-center gap-2 text-emerald-800 font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span>Master Services Agreement &amp; Turnaround SLA Bound ({String(slaLog.metadata?.version || 'v2026.1')})</span>
+                  </div>
+                  <span className="text-[11px] text-slate-500">
+                    Accepted on {fmt(slaLog.createdAt, true)}
+                  </span>
+                </div>
+              );
+            }
+            return (
+              <div className="mt-4 flex items-center justify-between px-4 py-2.5 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs">
+                <div className="flex items-center gap-2 text-amber-800 font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span>SLA Agreement: Pending Client Intake Acceptance</span>
+                </div>
+                <span className="text-[11px] text-amber-700">Client will be prompted on portal access</span>
+              </div>
+            );
+          })()}
 
           {client.notes && (
             <div className="mt-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
@@ -2375,15 +2396,42 @@ function EmailsTab({ logs }: { logs: EmailLog[] }) {
 
 // ── Activity Tab ──────────────────────────────────────────────────────────────
 
+const ACTION_LABELS: Record<string, string> = {
+  status_changed:            'Status Changed',
+  email_sent_manual:         'Manual Email Dispatched',
+  email_sent_auto:           'Automated Email Dispatched',
+  file_uploaded:             'File Uploaded',
+  form_submitted:            'Intake Form Submitted',
+  revision_created:          'Revision Requested',
+  revision_requested:        'Revision Requested',
+  paid_revision_requested:   'Out-of-Scope / Paid Revision Requested',
+  revision_actioned:         'Revision Actioned',
+  deliverable_approved:      'Client Approved Final Deliverable',
+  client_created:            'Client Onboarded',
+  client_upgraded:           'Services Upgraded / Add-on Added',
+  client_repurchased:        'Client Repurchased Service',
+  sla_agreement_accepted:    'Master Services Agreement & Turnaround SLA Accepted',
+  invoice_payment_completed: 'Invoice Payment Completed',
+  revision_payment_completed:'Revision Payment Completed',
+};
+
 const ACTIVITY_STYLE: Record<string, { dot: string; border: string; icon: string }> = {
-  status_changed:    { dot: 'bg-[#B8935B]',   border: 'border-l-[#B8935B]',   icon: '→' },
-  email_sent_manual: { dot: 'bg-blue-400',     border: 'border-l-blue-400',     icon: '✉' },
-  email_sent_auto:   { dot: 'bg-blue-300',     border: 'border-l-blue-300',     icon: '✉' },
-  file_uploaded:     { dot: 'bg-emerald-500',  border: 'border-l-emerald-500',  icon: '↑' },
-  form_submitted:    { dot: 'bg-purple-500',   border: 'border-l-purple-500',   icon: '✓' },
-  revision_created:  { dot: 'bg-amber-500',    border: 'border-l-amber-500',    icon: '↺' },
-  revision_actioned: { dot: 'bg-amber-400',    border: 'border-l-amber-400',    icon: '↺' },
-  client_created:    { dot: 'bg-[#B8935B]',   border: 'border-l-[#B8935B]',   icon: '★' },
+  status_changed:            { dot: 'bg-[#B8935B]',   border: 'border-l-[#B8935B]',   icon: '→' },
+  email_sent_manual:         { dot: 'bg-blue-400',     border: 'border-l-blue-400',     icon: '✉' },
+  email_sent_auto:           { dot: 'bg-blue-300',     border: 'border-l-blue-300',     icon: '✉' },
+  file_uploaded:             { dot: 'bg-emerald-500',  border: 'border-l-emerald-500',  icon: '↑' },
+  form_submitted:            { dot: 'bg-purple-500',   border: 'border-l-purple-500',   icon: '✓' },
+  revision_created:          { dot: 'bg-amber-500',    border: 'border-l-amber-500',    icon: '↺' },
+  revision_requested:        { dot: 'bg-amber-500',    border: 'border-l-amber-500',    icon: '↺' },
+  paid_revision_requested:   { dot: 'bg-orange-500',   border: 'border-l-orange-500',   icon: '↺' },
+  revision_actioned:         { dot: 'bg-amber-400',    border: 'border-l-amber-400',    icon: '↺' },
+  deliverable_approved:      { dot: 'bg-emerald-500',  border: 'border-l-emerald-500',  icon: '★' },
+  client_created:            { dot: 'bg-[#B8935B]',   border: 'border-l-[#B8935B]',   icon: '★' },
+  client_upgraded:           { dot: 'bg-violet-500',   border: 'border-l-violet-500',   icon: '▲' },
+  client_repurchased:        { dot: 'bg-sky-500',      border: 'border-l-sky-500',      icon: '✚' },
+  sla_agreement_accepted:    { dot: 'bg-emerald-600',  border: 'border-l-emerald-600',  icon: '⚖' },
+  invoice_payment_completed: { dot: 'bg-emerald-500',  border: 'border-l-emerald-500',  icon: '₹' },
+  revision_payment_completed:{ dot: 'bg-emerald-600',  border: 'border-l-emerald-600',  icon: '₹' },
 };
 const DEFAULT_ACTIVITY_STYLE = { dot: 'bg-slate-300', border: 'border-l-slate-200', icon: '·' };
 
@@ -2405,14 +2453,26 @@ function ActivityTab({ logs }: { logs: ActivityLog[] }) {
               <p className="text-sm font-semibold text-slate-800">
                 {ACTION_LABELS[log.action] ?? log.action.replace(/_/g, ' ')}
               </p>
-              {log.metadata && Object.keys(log.metadata).length > 0 && (
+              {log.action === 'sla_agreement_accepted' && log.metadata ? (
+                <div className="mt-1.5 p-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-lg text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 text-emerald-800 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    <span>Legally Enforceable Clickwrap Assent</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-600 font-mono">
+                    <div>Version: <span className="text-slate-900 font-bold">{String(log.metadata.version || 'v2026.1')}</span></div>
+                    <div>IP: <span className="text-slate-900">{String(log.metadata.ipAddress || 'unknown')}</span></div>
+                    <div className="truncate sm:col-span-2">SHA-256: <span className="text-slate-700" title={String(log.metadata.checksum || '')}>{String(log.metadata.checksum || '').slice(0, 28)}…</span></div>
+                  </div>
+                </div>
+              ) : log.metadata && Object.keys(log.metadata).length > 0 ? (
                 <p className="text-xs text-slate-400 mt-0.5">
                   {Object.entries(log.metadata)
                     .filter(([k]) => !['error'].includes(k))
                     .map(([k, v]) => `${k}: ${v}`)
                     .join(' · ')}
                 </p>
-              )}
+              ) : null}
             </div>
             <div className="text-right flex-shrink-0">
               <p className="text-xs text-slate-400" title={fmt(log.createdAt, true)}>{relativeTime(log.createdAt)}</p>
@@ -3553,6 +3613,25 @@ function UpgradeInvoicesTab({ clientId }: { clientId: string }) {
                   className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
                   Copy link
                 </button>
+              </div>
+            )}
+            {inv.status === 'PAID' && (
+              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  Paid &amp; Settled
+                </span>
+                <a
+                  href={`/api/invoices/${inv.id}/pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#FAF9F6] border border-[#EAE2D5] text-[#9A7540] hover:bg-[#F0EAE0] text-xs font-bold transition-colors"
+                >
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <span>Download PDF Receipt</span>
+                </a>
               </div>
             )}
             {inv.razorpayPaymentId && (

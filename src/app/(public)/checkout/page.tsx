@@ -149,6 +149,7 @@ function CheckoutPageInner() {
   const [showTierConfirm, setShowTierConfirm] = useState(false);
   const [gatewaySwitching, setGatewaySwitching] = useState(false);
   const [localRate, setLocalRate] = useState<{ rate: number; code: string; symbol: string } | null>(null);
+  const [slaAgreed, setSlaAgreed] = useState(false);
 
   useEffect(() => {
     fetch('/api/public/pricing')
@@ -1029,11 +1030,26 @@ function CheckoutPageInner() {
             </div>
           )}
 
+          {/* SLA Agreement Acceptance */}
+          <div className="mt-6 p-4 rounded-xl border border-brand-parchment bg-[#FAF9F6] text-xs">
+            <label className="flex items-start gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={slaAgreed}
+                onChange={(e) => setSlaAgreed(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-brand-parchment text-brand-gold focus:ring-brand-gold accent-[#B8935B]"
+              />
+              <span className="text-brand-obsidian/80 leading-relaxed">
+                I agree to the <strong className="text-brand-obsidian">Catalyst Master Services Agreement &amp; Turnaround SLAs</strong> (5–7 working days for initial drafts, up to 2 complimentary revision cycles within 7 days of delivery).
+              </span>
+            </label>
+          </div>
+
           {/* Confirm button */}
           <button
             onClick={handleConfirmPayment}
-            disabled={loading || gatewaySwitching}
-            className="w-full mt-8 inline-flex items-center justify-center gap-2 bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest hover:bg-brand-graphite disabled:opacity-50 transition-colors"
+            disabled={loading || gatewaySwitching || !slaAgreed}
+            className="w-full mt-6 inline-flex items-center justify-center gap-2 bg-brand-obsidian text-brand-bone py-4 font-semibold uppercase tracking-widest hover:bg-brand-graphite disabled:opacity-50 transition-colors"
           >
             {loading || gatewaySwitching ? (
               <Loader2 className="w-4 h-4 animate-spin" />

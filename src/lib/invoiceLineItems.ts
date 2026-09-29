@@ -10,6 +10,10 @@ function normalizeItem(value: unknown): LineItem | null {
   const description = typeof item.description === 'string' ? item.description : '';
   if (!description.trim()) return null;
 
+  const shortDescription = typeof item.shortDescription === 'string' && item.shortDescription.trim()
+    ? item.shortDescription.trim()
+    : undefined;
+
   const qty = Math.max(1, asNumber(item.qty));
   const unitPrice = asNumber(item.unitPrice);
   const lineTotal = asNumber(item.lineTotal) || qty * unitPrice;
@@ -17,6 +21,7 @@ function normalizeItem(value: unknown): LineItem | null {
   return {
     id: typeof item.id === 'string' ? item.id : crypto.randomUUID(),
     description,
+    ...(shortDescription ? { shortDescription } : {}),
     qty,
     unitPrice,
     lineTotal,

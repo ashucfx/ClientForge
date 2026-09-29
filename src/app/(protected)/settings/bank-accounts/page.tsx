@@ -18,6 +18,7 @@ type BankAccount = {
   swiftBic: string;
   bankAddress: string;
   isActive: boolean;
+  isSwiftAvailable: boolean;
 };
 
 const DEFAULT_FORM = {
@@ -34,15 +35,16 @@ const DEFAULT_FORM = {
   country: 'US',
   bankAddress: '',
   isActive: true,
+  isSwiftAvailable: false,
 };
 
-const CURRENCY_PRESETS: Record<string, { transferRail: string; routingType: string; bankName?: string; country?: string }> = {
-  USD: { transferRail: 'ACH', routingType: 'ach_routing_number', bankName: 'Community Federal Savings Bank', country: 'US' },
-  GBP: { transferRail: 'FPS / BACS / CHAPS', routingType: 'Sort_Code', bankName: 'Banking Circle S.A. UK Branch', country: 'GB' },
-  EUR: { transferRail: 'SEPA / SEPA Instant', routingType: 'BIC_SWIFT', bankName: 'Banking Circle Germany', country: 'EU' },
-  CAD: { transferRail: 'EFT', routingType: 'routing_code', bankName: 'Digital Commerce Bank', country: 'CA' },
-  AUD: { transferRail: 'NPP / BECS / Osko', routingType: 'BSB Number', bankName: 'BC Payments Australia Pty Ltd', country: 'AU' },
-  DKK: { transferRail: 'DKK Local', routingType: 'BIC_SWIFT', bankName: 'Banking Circle Denmark', country: 'DK' },
+const CURRENCY_PRESETS: Record<string, { transferRail: string; routingType: string; bankName?: string; country?: string; swiftBic?: string; isSwiftAvailable?: boolean }> = {
+  USD: { transferRail: 'ACH', routingType: 'ach_routing_number', bankName: 'Community Federal Savings Bank', country: 'US', swiftBic: 'CFSBUS33', isSwiftAvailable: true },
+  GBP: { transferRail: 'FPS / BACS / CHAPS', routingType: 'Sort_Code', bankName: 'Banking Circle S.A. UK Branch', country: 'GB', swiftBic: 'SXPYGB2L', isSwiftAvailable: true },
+  EUR: { transferRail: 'SEPA / SEPA Instant', routingType: 'BIC_SWIFT', bankName: 'Banking Circle Germany', country: 'EU', swiftBic: 'SXPYDEHH', isSwiftAvailable: true },
+  CAD: { transferRail: 'EFT', routingType: 'routing_code', bankName: 'Digital Commerce Bank', country: 'CA', swiftBic: 'DCBCCAA2', isSwiftAvailable: true },
+  AUD: { transferRail: 'NPP / BECS / Osko', routingType: 'BSB Number', bankName: 'BC Payments Australia Pty Ltd', country: 'AU', swiftBic: 'SXPYAU2S', isSwiftAvailable: true },
+  DKK: { transferRail: 'DKK Local', routingType: 'BIC_SWIFT', bankName: 'Banking Circle Denmark', country: 'DK', swiftBic: 'SXPYDKKK', isSwiftAvailable: true },
   AED: { transferRail: 'FTS', routingType: 'routing_code', country: 'AE' },
   SGD: { transferRail: 'GIRO', routingType: 'routing_code', country: 'SG' },
 };
@@ -108,6 +110,8 @@ export default function BankAccountsSettingsPage() {
         transferRail: preset.transferRail,
         routingType: preset.routingType,
         ...(modalMode === 'add' && preset.bankName ? { bankName: preset.bankName } : {}),
+        ...(modalMode === 'add' && preset.swiftBic ? { swiftBic: preset.swiftBic } : {}),
+        ...(modalMode === 'add' && preset.isSwiftAvailable !== undefined ? { isSwiftAvailable: preset.isSwiftAvailable } : {}),
         ...(preset.country ? { country: preset.country } : {}),
       } : {}),
     });
@@ -422,8 +426,15 @@ export default function BankAccountsSettingsPage() {
                               {acc.currency}
                             </span>
                           </td>
-                          <td className="px-4 py-3.5 font-semibold text-slate-800">
-                            {acc.transferRail}
+                          <td className="px-4 py-3.5">
+                            <div className="font-semibold text-slate-800 flex items-center gap-1.5 flex-wrap">
+                              <span>{acc.transferRail}</span>
+                              {acc.isSwiftAvailable && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">
+                                  SWIFT
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3.5">
                             <div className="font-bold text-slate-900">{acc.bankName || 'N/A'}</div>
@@ -666,18 +677,33 @@ export default function BankAccountsSettingsPage() {
                   />
                 </div>
 
-                <div className="flex items-center gap-2 pt-1">
-                  <input
-                    disabled={modalMode === 'view'}
-                    type="checkbox"
-                    id="isActive"
-                    checked={formData.isActive}
-                    onChange={e => setFormData({...formData, isActive: e.target.checked})}
-                    className="w-4 h-4 rounded text-[#B8935B] focus:ring-[#B8935B]"
-                  />
-                  <label htmlFor="isActive" className="text-xs font-semibold text-slate-800 cursor-pointer">
-                    Active for client wire transfers
-                  </label>
+                <div className="flex items-center gap-5 pt-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <input
+                      disabled={modalMode === 'view'}
+                      type="checkbox"
+                      id="isActive"
+                      checked={formData.isActive}
+                      onChange={e => setFormData({...formData, isActive: e.target.checked})}
+                      className="w-4 h-4 rounded text-[#B8935B] focus:ring-[#B8935B]"
+                    />
+                    <label htmlFor="isActive" className="text-xs font-semibold text-slate-800 cursor-pointer">
+                      Active for client wire transfers
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      disabled={modalMode === 'view'}
+                      type="checkbox"
+                      id="isSwiftAvailable"
+                      checked={Boolean(formData.isSwiftAvailable)}
+                      onChange={e => setFormData({...formData, isSwiftAvailable: e.target.checked})}
+                      className="w-4 h-4 rounded text-[#0284c7] focus:ring-[#0284c7]"
+                    />
+                    <label htmlFor="isSwiftAvailable" className="text-xs font-semibold text-slate-800 cursor-pointer">
+                      Available for Global SWIFT Wire Transfers
+                    </label>
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">

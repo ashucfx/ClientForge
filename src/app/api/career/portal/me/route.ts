@@ -276,12 +276,20 @@ export async function GET(req: NextRequest) {
     fallbackDeliveryAt = d.toISOString();
   }
 
+  const slaLog = await db.careerActivityLog.findFirst({
+    where: { clientId: client.id, action: 'sla_agreement_accepted' },
+    orderBy: { createdAt: 'desc' },
+  });
+
   return NextResponse.json({
     id: client.id,
     name: client.name,
     email: client.email,
     phone: client.phone ?? null,
     country: client.contact?.country ?? null,
+    slaAccepted: Boolean(slaLog),
+    slaAcceptedAt: slaLog?.createdAt ?? null,
+    slaVersion: (slaLog?.metadata as any)?.version ?? null,
     packageType: pkg,
     packageLabel,
     status,

@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { COUNTRIES, ISO2_TO_COUNTRY } from '@/lib/currency';
 import { parsePhoneNumberFromString } from 'libphonenumber-js/min';
-import { CLIENT_TYPE_LABELS, FEE_RATES, round2 } from '@/lib/pricing';
+import { CLIENT_TYPE_LABELS, FEE_RATES, round2, getServiceDescription } from '@/lib/pricing';
+import type { BankRoutingIntelligence } from '@/lib/bankRouting';
 import { DEFAULT_PRICING, PACKAGE_COMPLEMENTARY } from '@/lib/pricing-v2';
 import type { ServiceSlug, PackageSlug, PricingConfig } from '@/lib/pricing-v2';
 import { getCallingCodeForCountryName, normalizePhoneE164 } from '@/lib/phone';
@@ -37,8 +38,8 @@ function fmt(n: number, sym: string) {
   return `${sym}${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function makeItem(description = '', qty = 1, unitPrice = 0): LineItem {
-  return { id: uid(), description, qty, unitPrice, lineTotal: round2(qty * unitPrice) };
+function makeItem(description = '', qty = 1, unitPrice = 0, shortDescription = ''): LineItem {
+  return { id: uid(), description, shortDescription, qty, unitPrice, lineTotal: round2(qty * unitPrice) };
 }
 
 const PKG_SERVICES: Record<Exclude<PackageSlug, 'CUSTOM'>, ServiceSlug[]> = {
@@ -68,7 +69,7 @@ function defaultItemsForPackage(
   usdToLocalRate: number,  // USD → local (used for all other currencies)
   pricingConfig: PricingConfig = DEFAULT_PRICING
 ): LineItem[] {
-  if (packageSlug === 'CUSTOM') return [makeItem()];
+  if (packageSlug === 'CUSTOM') return [makeItem('', 1, 0, '')];
   const isInr = currencyCode === 'INR';
   const baseCurrency: 'INR' | 'USD' = isInr ? 'INR' : 'USD';
   const convRate = isInr ? inrToLocalRate : usdToLocalRate;
@@ -77,7 +78,13 @@ function defaultItemsForPackage(
     const isComplimentary = complementarySet.has(slug);
     const basePrice = isComplimentary ? 0 : (pricingConfig.basePrices[baseCurrency][slug][clientType] ?? 0);
     const finalPrice = isInr ? basePrice : round2(basePrice * convRate);
-    return makeItem(SERVICE_LABELS[slug] + (isComplimentary ? ' (Complimentary)' : ''), 1, finalPrice);
+    const shortDesc = getServiceDescription(slug, clientType);
+    return makeItem(
+      SERVICE_LABELS[slug] + (isComplimentary ? ' (Complimentary)' : ''),
+      1,
+      finalPrice,
+      shortDesc
+    );
   });
 }
 
@@ -525,6 +532,7 @@ export default function NewInvoicePage() {
   const [currencyInfo,    setCurrencyInfo]    = useState<CurrencyInfo | null>({ code: 'INR', symbol: '₹', name: 'Indian Rupee' });
   const [exchangeRate,    setExchangeRate]    = useState(1);   // INR → local
   const [usdExchangeRate, setUsdExchangeRate] = useState<number>(1);
+  const [bankRouting,     setBankRouting]     = useState<BankRoutingIntelligence | null>(null);
   const [pricingConfig, setPricingConfig] = useState<PricingConfig & { executiveConnectPricing?: Record<string, number> }>(DEFAULT_PRICING);
 
   const isIndia = (country.trim().toLowerCase() === 'india') || (currencyInfo?.code ?? 'INR') === 'INR';
@@ -566,7 +574,8 @@ export default function NewInvoicePage() {
     if (hasExecConnect) {
       setLineItems(prev => prev.filter(i => !i.description.includes('Executive Connect Strategy Consultation')));
     } else {
-      setLineItems(prev => [...prev, makeItem('Executive Connect Strategy Consultation', 1, execConnectPrice)]);
+      const shortDesc = getServiceDescription('EXECUTIVE_CONNECT', clientType);
+      setLineItems(prev => [...prev, makeItem('Executive Connect Strategy Consultation', 1, execConnectPrice, shortDesc)]);
     }
   };
 
@@ -574,7 +583,8 @@ export default function NewInvoicePage() {
     if (hasExecConnectPlus) {
       setLineItems(prev => prev.filter(i => !i.description.includes('Executive Connect Plus')));
     } else {
-      setLineItems(prev => [...prev, makeItem('Executive Connect Plus Strategy & Leadership Advisory', 1, execConnectPlusPrice)]);
+      const shortDesc = getServiceDescription('EXECUTIVE_CONNECT_PLUS', clientType);
+      setLineItems(prev => [...prev, makeItem('Executive Connect Plus Strategy & Leadership Advisory', 1, execConnectPlusPrice, shortDesc)]);
     }
   };
 
@@ -613,6 +623,19 @@ export default function NewInvoicePage() {
       if (data.currency)     setCurrencyInfo(data.currency);
       if (data.exchangeRate) setExchangeRate(data.exchangeRate);
       if (data.usdRate)      setUsdExchangeRate(data.usdRate);
+      if (data.bankRouting) {
+        setBankRouting(data.bankRouting);
+        // Automatic intelligent fallback: if selected gateway is not available, gracefully switch
+        setPaymentGateway(prev => {
+          if (prev === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' && !data.bankRouting.nativeTransfer.available) {
+            return data.bankRouting.swiftTransfer.available ? 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' : 'RAZORPAY';
+          }
+          if (prev === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' && !data.bankRouting.swiftTransfer.available) {
+            return data.bankRouting.nativeTransfer.available ? 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' : 'RAZORPAY';
+          }
+          return prev;
+        });
+      }
     } catch { /* silent */ }
     finally { setRateLoading(false); }
   }, [country, currencyOverride]);
@@ -1304,6 +1327,37 @@ export default function NewInvoicePage() {
                               onChange={e => updateItem(item.id, 'description', e.target.value)}
                               placeholder="Service description…"
                             />
+                            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <input
+                                className="input"
+                                style={{ margin: 0, padding: '5px 8px', fontSize: 11, color: '#334155', background: '#f8fafc', flex: 1, border: '1px solid #e2e8f0' }}
+                                type="text"
+                                value={item.shortDescription || ''}
+                                onChange={e => updateItem(item.id, 'shortDescription', e.target.value)}
+                                placeholder="Short deliverable / component description (pre-filled from tier profile)…"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const auto = getServiceDescription(item.description, clientType);
+                                  if (auto) updateItem(item.id, 'shortDescription', auto);
+                                }}
+                                title="Pre-fill short description based on service name & client tier"
+                                style={{
+                                  padding: '3px 8px',
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  color: '#B8935B',
+                                  background: '#B8935B12',
+                                  border: '1px solid #B8935B30',
+                                  borderRadius: 6,
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                ↺ Pre-fill
+                              </button>
+                            </div>
                           </td>
                           <td style={{ padding: '8px 8px', borderBottom: '1px solid var(--border)', textAlign: 'center' }}>
                             <input
@@ -1487,20 +1541,38 @@ export default function NewInvoicePage() {
                   {
                     value: 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' as const,
                     label: 'Bank Transfer (Native Rails)',
-                    sub: isIndia ? 'Disabled for domestic accounts' : 'ACH (US), SEPA (EU), BACS/FPS (UK), etc.',
+                    sub: isIndia
+                      ? 'Disabled for domestic accounts'
+                      : (bankRouting && !bankRouting.nativeTransfer.available)
+                        ? (bankRouting.nativeTransfer.disabledReason || `No local bank account for ${currencyInfo?.code ?? 'this currency'}`)
+                        : (bankRouting?.nativeTransfer?.railName
+                          ? `${bankRouting.nativeTransfer.railName} (${currencyInfo?.code ?? ''})`
+                          : 'ACH (US), SEPA (EU), BACS/FPS (UK), etc.'),
                     fee: '1.18% Fee (1% + 18% GST)',
                     color: '#059669',
-                    badge: isIndia ? 'Restricted in India' : 'Lowest Fee (1.18%)',
-                    disabled: isIndia,
+                    badge: isIndia
+                      ? 'Restricted in India'
+                      : (bankRouting && !bankRouting.nativeTransfer.available)
+                        ? 'No Native Route'
+                        : 'Lowest Fee (1.18%)',
+                    disabled: isIndia || (bankRouting ? !bankRouting.nativeTransfer.available : false),
                   },
                   {
                     value: 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' as const,
                     label: 'Bank Transfer (Global SWIFT)',
-                    sub: isIndia ? 'Disabled for domestic accounts' : 'International Wire Transfer via SWIFT',
+                    sub: isIndia
+                      ? 'Disabled for domestic accounts'
+                      : (bankRouting && !bankRouting.swiftTransfer.available)
+                        ? (bankRouting.swiftTransfer.disabledReason || `SWIFT wire not configured for ${currencyInfo?.code ?? 'this currency'}`)
+                        : `International Wire Transfer via SWIFT${bankRouting?.swiftTransfer?.swiftBic ? ` (${bankRouting.swiftTransfer.swiftBic})` : ''}`,
                     fee: '3.54% Fee (3% + 18% GST)',
                     color: '#0284c7',
-                    badge: isIndia ? 'Restricted in India' : 'Global Wire (3.54%)',
-                    disabled: isIndia,
+                    badge: isIndia
+                      ? 'Restricted in India'
+                      : (bankRouting && !bankRouting.swiftTransfer.available)
+                        ? 'SWIFT Unavailable'
+                        : 'Global Wire (3.54%)',
+                    disabled: isIndia || (bankRouting ? !bankRouting.swiftTransfer.available : false),
                   },
                 ] as const).map(opt => {
                   const sel = paymentGateway === opt.value;

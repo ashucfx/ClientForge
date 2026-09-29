@@ -67,6 +67,9 @@ export const SERVICE_DESCRIPTIONS: Record<ClientType, {
   resume: string;
   linkedin: string;
   coverLetter: string;
+  portfolio: string;
+  executiveConnect: string;
+  executiveConnectPlus: string;
 }> = {
   FRESHER: {
     resume:
@@ -75,6 +78,12 @@ export const SERVICE_DESCRIPTIONS: Record<ClientType, {
       'LinkedIn profile overhaul focused on building recruiter visibility, keyword optimization for your target industry, and a headline that gets noticed.',
     coverLetter:
       'Professionally crafted cover letter template — customizable for each application, showcasing your potential and motivation.',
+    portfolio:
+      'Personal portfolio website showcasing education, academic/industry projects, and technical skill credentials.',
+    executiveConnect:
+      '1-on-1 career coaching and interview preparation consultation.',
+    executiveConnectPlus:
+      'Comprehensive career roadmap & interview strategy session.',
   },
   MID_CAREER: {
     resume:
@@ -83,6 +92,12 @@ export const SERVICE_DESCRIPTIONS: Record<ClientType, {
       'Strategic LinkedIn transformation emphasizing career growth, measurable outcomes, and personal brand to attract senior roles and executive headhunters.',
     coverLetter:
       'Compelling cover letter that bridges your experience to your target role, demonstrating value with concrete examples.',
+    portfolio:
+      'Professional portfolio website featuring selected case studies, measurable outcomes, and project deliverables.',
+    executiveConnect:
+      'Mid-career strategy consultation and compensation negotiation blueprint.',
+    executiveConnectPlus:
+      'Multi-session career trajectory guidance & executive search positioning.',
   },
   EXECUTIVE: {
     resume:
@@ -91,6 +106,12 @@ export const SERVICE_DESCRIPTIONS: Record<ClientType, {
       'High-authority LinkedIn presence built for thought leadership — positioning you as an industry expert that executive search firms compete to place.',
     coverLetter:
       'Board-ready cover letter articulating your strategic vision, leadership philosophy, and transformative impact.',
+    portfolio:
+      'Executive bio & media portfolio website highlighting enterprise exits, scale, key milestones, and board readiness.',
+    executiveConnect:
+      '1-on-1 strategic executive positioning and board advisory consultation.',
+    executiveConnectPlus:
+      'Executive Connect Plus: Comprehensive executive advisory, board positioning, and leadership roadmap.',
   },
   EXECUTIVE_PLUS: {
     resume:
@@ -99,13 +120,34 @@ export const SERVICE_DESCRIPTIONS: Record<ClientType, {
       'Full LinkedIn brand architecture — complete profile, Featured section, About narrative, and ongoing optimization strategy for maximum C-suite and board visibility.',
     coverLetter:
       'Bespoke cover letter for each target organization — researched, personalized, and positioning you as the definitive strategic hire.',
+    portfolio:
+      'White-glove executive brand hub with custom domain, private credentials, board case studies, and press citations.',
+    executiveConnect:
+      'Bespoke C-Suite advisory & private board candidacy positioning.',
+    executiveConnectPlus:
+      'Executive Connect Plus: Full advisory partnership covering board appointments, investor narrative, and C-suite succession.',
   },
   AGENCY_CLIENT: {
     resume: 'Custom Ripple Nexus Services',
-    linkedin: '',
-    coverLetter: '',
+    linkedin: 'Custom Ripple Nexus LinkedIn Solutions',
+    coverLetter: 'Custom Ripple Nexus Professional Correspondence',
+    portfolio: 'Enterprise Digital Showcase & Brand Hub',
+    executiveConnect: 'Strategic Business & Advisory Consultation',
+    executiveConnectPlus: 'Enterprise Advisory Partnership',
   },
 };
+
+export function getServiceDescription(serviceIdentifier: string, clientType: ClientType): string {
+  const descriptions = SERVICE_DESCRIPTIONS[clientType] ?? SERVICE_DESCRIPTIONS.MID_CAREER;
+  const normalized = serviceIdentifier.toUpperCase().replace(/[\s-]+/g, '_');
+  if (normalized.includes('EXECUTIVE_CONNECT_PLUS')) return descriptions.executiveConnectPlus;
+  if (normalized.includes('EXECUTIVE_CONNECT') || normalized.includes('STRATEGY_CONSULTATION')) return descriptions.executiveConnect;
+  if (normalized.includes('RESUME')) return descriptions.resume;
+  if (normalized.includes('LINKEDIN')) return descriptions.linkedin;
+  if (normalized.includes('COVER_LETTER') || normalized.includes('COVER')) return descriptions.coverLetter;
+  if (normalized.includes('PORTFOLIO')) return descriptions.portfolio;
+  return '';
+}
 
 // ─────────────────────────────────────────────
 // FEE RATES (BLENDED ZERO-LOSS RATES)

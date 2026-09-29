@@ -261,3 +261,70 @@ export async function getExchangeRate(baseCurrency: string, targetCurrency: stri
     return fallbackRate;
   }
 }
+
+/**
+ * Robust conversion of any foreign currency amount to INR.
+ * Handles:
+ * - Foreign-per-INR stored rates (e.g. 0.012 for USD where INR = amount / rate)
+ * - INR-per-foreign rates (e.g. 83.5 for USD where INR = amount * rate)
+ * - Erroneous/fallback rate=1 for foreign currencies by using curated parity fallback
+ */
+export function convertForeignToInr(
+  amount: number,
+  currency?: string | null,
+  exchangeRate?: number | null
+): number {
+  if (!amount || isNaN(amount)) return 0;
+  const cur = (currency || 'INR').trim().toUpperCase();
+  if (cur === 'INR') return amount;
+
+  const usdFallbacks: Record<string, number> = {
+    INR: 83.5, GBP: 0.79, EUR: 0.92, AED: 3.67,
+    SGD: 1.35, CAD: 1.37, AUD: 1.50, SAR: 3.75,
+    MYR: 4.70, HKD: 7.80, JPY: 155.0, QAR: 3.64,
+    NZD: 1.66, CHF: 0.91, SEK: 10.8, NOK: 10.9, DKK: 6.9,
+    ZAR: 18.5, NGN: 1580.0, KES: 129.0, BDT: 110.0,
+    PKR: 278.0, LKR: 310.0, NPR: 133.0, KRW: 1370.0,
+    KWD: 0.307, BHD: 0.377, OMR: 0.385, CNY: 7.25,
+    THB: 35.5, PHP: 56.5, IDR: 16200.0, VND: 25400.0,
+  };
+
+  const rate = Number(exchangeRate);
+
+  // If rate is provided and valid
+  if (rate && !isNaN(rate) && rate > 0) {
+    // For major currencies where 1 foreign unit > 1 INR (USD, EUR, GBP, AED, SAR, etc.)
+    const strongCurrencies = new Set(['USD', 'EUR', 'GBP', 'AED', 'SAR', 'SGD', 'CAD', 'AUD', 'QAR', 'CHF', 'KWD', 'BHD', 'OMR', 'NZD']);
+    if (strongCurrencies.has(cur)) {
+      if (rate < 1) {
+        // Stored as foreign-per-INR (e.g. 0.012 USD/INR) -> INR = amount / rate
+        return Math.round(amount / rate);
+      } else if (rate > 5) {
+        // Stored as INR-per-foreign (e.g. 83.5 INR/USD) -> INR = amount * rate
+        return Math.round(amount * rate);
+      }
+      // If rate === 1 for USD/GBP/etc., it's a dummy default, fall through to fallback
+    } else {
+      // For other currencies (like JPY, KRW, VND where rate is typically > 1)
+      if (rate < 0.1) {
+        return Math.round(amount / rate);
+      }
+      const curPerUsd = usdFallbacks[cur];
+      if (curPerUsd) {
+        // Expected foreign units per INR = curPerUsd / 83.5
+        const expectedRate = curPerUsd / 83.5;
+        // If rate is close to foreign-per-INR
+        if (Math.abs(rate - expectedRate) < expectedRate * 0.8) {
+          return Math.round(amount / rate);
+        }
+      }
+    }
+  }
+
+  // Fallback using curated parity rates
+  const curPerUsd = usdFallbacks[cur] ?? 1;
+  const inrPerUsd = usdFallbacks['INR'] ?? 83.5;
+  const inrPerCur = inrPerUsd / curPerUsd;
+  return Math.round(amount * inrPerCur);
+}
+

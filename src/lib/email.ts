@@ -12,6 +12,7 @@ import { PaymentConfirmationEmail } from '@/emails/invoice/PaymentConfirmationEm
 import { CheckoutRecoveryEmail } from '@/emails/invoice/CheckoutRecoveryEmail';
 import { AdminPaymentAlertEmail } from '@/emails/invoice/AdminPaymentAlertEmail';
 import { prisma } from './db';
+import { resolveBankAccountForInvoice } from './bankRouting';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY!;
 
@@ -51,10 +52,11 @@ export async function sendInvoiceEmail(
   const subject = `Invoice ${invoice.invoiceNumber}: Your ${subjectPkgLabel} — ${brand.name}`;
 
   let bankAccount = null;
-  if (invoice.paymentGateway?.startsWith('RAZORPAY_INTERNATIONAL_BANK_TRANSFER')) {
-    bankAccount = await prisma.internationalBankAccount.findFirst({
-      where: { currency: invoice.currency, isActive: true },
-      orderBy: { createdAt: 'desc' }
+  if (invoice.paymentGateway?.startsWith('RAZORPAY_INTERNATIONAL_BANK_TRANSFER') || invoice.paymentGateway === 'BANK_TRANSFER') {
+    bankAccount = await resolveBankAccountForInvoice({
+      currency: invoice.currency,
+      country: invoice.country,
+      paymentGateway: invoice.paymentGateway,
     });
   }
 
@@ -169,6 +171,21 @@ export async function sendPaymentConfirmationEmail(invoice: InvoiceData): Promis
     .catch(() => buildConfirmationEmailHTML(invoice));
   const text = buildConfirmationEmailText(invoice);
 
+  // Generate official paid PDF receipt
+  let attachments: Array<{ filename: string; content: string }> | undefined = undefined;
+  try {
+    const { generatePaidInvoicePdfBuffer } = await import('@/lib/pdf/generateInvoicePdf');
+    const pdfBuffer = await generatePaidInvoicePdfBuffer(invoice);
+    attachments = [
+      {
+        filename: `Invoice-${invoice.invoiceNumber}-PAID.pdf`,
+        content: pdfBuffer.toString('base64'),
+      },
+    ];
+  } catch (pdfErr) {
+    console.warn('[sendPaymentConfirmationEmail] PDF generation failed, sending without attachment:', pdfErr);
+  }
+
   const res = await fetch('https://api.resend.com/emails', {
     method:  'POST',
     headers: {
@@ -182,6 +199,7 @@ export async function sendPaymentConfirmationEmail(invoice: InvoiceData): Promis
       subject:  `Payment Received — ${invoice.invoiceNumber} | ${brand.id === 'catalyst' ? 'Your Career Boost is Underway' : 'Project Kickoff Initiated'}`,
       html,
       text,
+      ...(attachments ? { attachments } : {}),
       headers: {
         'List-Unsubscribe':      `<mailto:${brand.replyTo}?subject=unsubscribe>`,
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
@@ -300,13 +318,12 @@ TOTAL PAYABLE                      ${fmt(invoice.totalPayable)} ${invoice.curren
 ─────────────────────────────────────
 ${invoice.razorpayLinkUrl ? `PAY NOW: ${invoice.razorpayLinkUrl}` : invoice.paypalPaymentUrl ? `PAY NOW: ${invoice.paypalPaymentUrl}` : ''}
 ${bankAccount ? `
-BANK TRANSFER INSTRUCTIONS:
+BANK TRANSFER INSTRUCTIONS (${bankAccount.transferRail || 'Wire Transfer'}):
 Account Name: ${bankAccount.accountName}
 Bank Name: ${bankAccount.bankName || 'N/A'}
 Account Number / IBAN: ${bankAccount.accountNumber || bankAccount.iban || 'N/A'}
-Routing / Sort Code: ${bankAccount.routingNumber || bankAccount.sortCode || 'N/A'}
-SWIFT/BIC: ${bankAccount.swiftBic || 'N/A'}
-
+Routing / Sort Code: ${bankAccount.routingNumber || bankAccount.sortCode || 'N/A'}${bankAccount.routingType ? ` (${bankAccount.routingType})` : ''}
+${bankAccount.swiftBic ? `SWIFT/BIC: ${bankAccount.swiftBic}\n` : ''}${bankAccount.bankAddress ? `Bank Address: ${bankAccount.bankAddress}\n` : ''}${bankAccount.paymentInstructions ? `Instructions: ${bankAccount.paymentInstructions}\n` : ''}
 *IMPORTANT*: Please include your invoice number (${invoice.invoiceNumber}) in the payment reference.
 ` : ''}
 Terms: No refunds after work commences. Delivery within 2–4 business days. 2 revisions included.
@@ -399,22 +416,30 @@ function buildInvoiceEmailHTML(invoice: InvoiceData, bankAccount?: any): string 
         <!--<![endif]-->`
     : '';
 
+  const isSwiftWire = invoice.paymentGateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' || Boolean(bankAccount?.swiftBic);
   const bankDetailsHTML = bankAccount ? `
     <tr>
       <td class="mobile-pad" style="padding:28px 36px 8px;">
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;">
-          <h3 style="margin:0 0 12px;font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#0f1c3d;">Bank Transfer Instructions</h3>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3 style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#0f1c3d;">
+              ${isSwiftWire ? 'Global SWIFT Wire Transfer' : 'Local Bank Transfer'} Instructions
+            </h3>
+            ${bankAccount.transferRail ? `<span style="font-family:Helvetica,Arial,sans-serif;font-size:10px;font-weight:700;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:12px;">${bankAccount.transferRail}</span>` : ''}
+          </div>
           <p style="margin:0 0 16px;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#64748b;">
             Please transfer <strong>${fmt(invoice.totalPayable)} ${invoice.currency}</strong> to the following account. 
             <span style="color:#dc2626;font-weight:bold;">Include your invoice number (${invoice.invoiceNumber}) in the reference.</span>
           </p>
           <table width="100%" cellpadding="0" cellspacing="0" style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#334155;">
-            <tr><td style="padding:4px 0;border-bottom:1px solid #f1f5f9;"><strong>Account Name:</strong></td><td align="right" style="padding:4px 0;border-bottom:1px solid #f1f5f9;">${bankAccount.accountName}</td></tr>
-            <tr><td style="padding:4px 0;border-bottom:1px solid #f1f5f9;"><strong>Bank Name:</strong></td><td align="right" style="padding:4px 0;border-bottom:1px solid #f1f5f9;">${bankAccount.bankName || 'N/A'}</td></tr>
-            <tr><td style="padding:4px 0;border-bottom:1px solid #f1f5f9;"><strong>Account / IBAN:</strong></td><td align="right" style="padding:4px 0;border-bottom:1px solid #f1f5f9;">${bankAccount.accountNumber || bankAccount.iban || 'N/A'}</td></tr>
-            <tr><td style="padding:4px 0;border-bottom:1px solid #f1f5f9;"><strong>Routing / Sort Code:</strong></td><td align="right" style="padding:4px 0;border-bottom:1px solid #f1f5f9;">${bankAccount.routingNumber || bankAccount.sortCode || 'N/A'}</td></tr>
-            ${bankAccount.swiftBic ? `<tr><td style="padding:4px 0;border-bottom:1px solid #f1f5f9;"><strong>SWIFT / BIC:</strong></td><td align="right" style="padding:4px 0;border-bottom:1px solid #f1f5f9;">${bankAccount.swiftBic}</td></tr>` : ''}
+            <tr><td style="padding:5px 0;border-bottom:1px solid #f1f5f9;"><strong>Account Name:</strong></td><td align="right" style="padding:5px 0;border-bottom:1px solid #f1f5f9;">${bankAccount.accountName}</td></tr>
+            <tr><td style="padding:5px 0;border-bottom:1px solid #f1f5f9;"><strong>Bank Name:</strong></td><td align="right" style="padding:5px 0;border-bottom:1px solid #f1f5f9;">${bankAccount.bankName || 'N/A'}</td></tr>
+            <tr><td style="padding:5px 0;border-bottom:1px solid #f1f5f9;"><strong>Account / IBAN:</strong></td><td align="right" style="padding:5px 0;border-bottom:1px solid #f1f5f9;font-family:monospace;">${bankAccount.accountNumber || bankAccount.iban || 'N/A'}</td></tr>
+            <tr><td style="padding:5px 0;border-bottom:1px solid #f1f5f9;"><strong>Routing / Sort Code:</strong></td><td align="right" style="padding:5px 0;border-bottom:1px solid #f1f5f9;font-family:monospace;">${bankAccount.routingNumber || bankAccount.sortCode || 'N/A'} ${bankAccount.routingType ? `(${bankAccount.routingType})` : ''}</td></tr>
+            ${bankAccount.swiftBic ? `<tr><td style="padding:5px 0;border-bottom:1px solid #f1f5f9;"><strong>SWIFT / BIC:</strong></td><td align="right" style="padding:5px 0;border-bottom:1px solid #f1f5f9;font-family:monospace;font-weight:bold;color:#0369a1;">${bankAccount.swiftBic}</td></tr>` : ''}
+            ${bankAccount.bankAddress ? `<tr><td style="padding:5px 0;border-bottom:1px solid #f1f5f9;"><strong>Bank Address:</strong></td><td align="right" style="padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:11px;color:#64748b;max-width:240px;">${bankAccount.bankAddress}</td></tr>` : ''}
           </table>
+          ${bankAccount.paymentInstructions ? `<div style="margin-top:12px;padding:8px 12px;background:#fff;border:1px dashed #cbd5e1;border-radius:8px;font-size:11px;color:#475569;font-family:Helvetica,Arial,sans-serif;">${bankAccount.paymentInstructions}</div>` : ''}
         </div>
       </td>
     </tr>
@@ -439,7 +464,8 @@ function buildInvoiceEmailHTML(invoice: InvoiceData, bankAccount?: any): string 
               </td>
               <td style="padding-left:10px;" valign="middle">
                 <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#0f1c3d;font-weight:600;">${item.description}</div>
-                ${item.qty !== 1 ? `<div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#6b7280;margin-top:1px;">Qty: ${item.qty} &times; ${fmt(item.unitPrice)}</div>` : ''}
+                ${item.shortDescription ? `<div style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#64748b;margin-top:2px;line-height:1.4;">${item.shortDescription}</div>` : ''}
+                ${item.qty !== 1 ? `<div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#6b7280;margin-top:2px;">Qty: ${item.qty} &times; ${fmt(item.unitPrice)}</div>` : ''}
               </td>
               <td align="right" valign="middle" style="white-space:nowrap;">
                 ${isFree

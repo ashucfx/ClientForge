@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getCurrencyForCountry, getExchangeRate } from '@/lib/currency';
 import { FEE_RATES, round2 } from '@/lib/pricing';
+import { getBankRoutingIntelligence } from '@/lib/bankRouting';
 import { createRazorpayPaymentLink, createRazorpayInstallmentLink } from '@/lib/razorpay';
 import { createPaypalInvoice, createPaypalInstallmentInvoice, PAYPAL_SUPPORTED_CURRENCIES } from '@/lib/paypal';
 import { getNextInvoiceNumber } from '@/lib/invoiceUtils';
@@ -25,11 +26,12 @@ export const dynamic = 'force-dynamic';
 
 // ─── Validation ────────────────────────────────
 const LineItemSchema = z.object({
-  id:          z.string(),
-  description: z.string().min(1),
-  qty:         z.number().min(0.01),
-  unitPrice:   z.number().min(0),
-  lineTotal:   z.number(),
+  id:               z.string(),
+  description:      z.string().min(1),
+  shortDescription: z.string().optional(),
+  qty:              z.number().min(0.01),
+  unitPrice:        z.number().min(0),
+  lineTotal:        z.number(),
 });
 
 const CreateInvoiceSchema = z.object({
@@ -184,6 +186,22 @@ export async function POST(request: NextRequest) {
     const subtotalConverted = round2(afterDiscount + taxAmount);
     const isIndia = country.trim().toLowerCase() === 'india' || currencyCode === 'INR';
     const gateway: 'RAZORPAY' | 'PAYPAL' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' = isIndia ? 'RAZORPAY' : (requestedGateway ?? 'RAZORPAY');
+
+    // Validate bank routing capabilities
+    if (gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' || gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT') {
+      const routing = await getBankRoutingIntelligence({ currency: currencyCode, country });
+      if (gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' && !routing.nativeTransfer.available) {
+        return NextResponse.json({
+          error: routing.nativeTransfer.disabledReason || `Native bank transfer is not available for ${currencyCode}.`,
+        }, { status: 400 });
+      }
+      if (gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' && !routing.swiftTransfer.available) {
+        return NextResponse.json({
+          error: routing.swiftTransfer.disabledReason || `SWIFT wire transfer is not configured for ${currencyCode}.`,
+        }, { status: 400 });
+      }
+    }
+
     const processingFeeRate = currencyCode === 'INR' 
       ? FEE_RATES.RAZORPAY_DOMESTIC 
       : (

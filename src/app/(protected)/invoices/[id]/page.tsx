@@ -928,6 +928,20 @@ export default function InvoiceDetailPage() {
               </button>
             )}
 
+            {invoice.status === 'PAID' && (
+              <a
+                href={`/api/invoices/${invoice.id}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 rounded-xl bg-[#0A0B0D] hover:bg-black text-[#F4F1EB] border border-[#B8935B]/40 text-xs font-bold transition-all shadow-xs flex items-center gap-2 active:scale-95"
+              >
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#B8935B" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>Download PDF Receipt</span>
+              </a>
+            )}
+
             {invoice.razorpayLinkId && invoice.status !== 'PAID' && (
               <button
                 className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-2 active:scale-95 disabled:opacity-50"
@@ -989,6 +1003,20 @@ export default function InvoiceDetailPage() {
               <IconCheck size={15} className="text-white" />
               <span>{markingPaid ? 'Updating Status…' : 'Mark as Paid'}</span>
             </button>
+          )}
+
+          {invoice.status === 'PAID' && (
+            <a
+              href={`/api/invoices/${invoice.id}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-2.5 rounded-xl bg-[#0A0B0D] text-[#F4F1EB] border border-[#B8935B]/40 text-xs font-bold shadow-xs flex items-center justify-center gap-2 active:scale-98 text-center"
+            >
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#B8935B" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Download Official PDF Receipt</span>
+            </a>
           )}
 
           {/* Secondary Mobile Buttons Grid */}
@@ -1194,9 +1222,16 @@ export default function InvoiceDetailPage() {
                     return (
                       <div key={item.id ?? idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-1.5">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="font-bold text-xs text-slate-900 flex-1 leading-snug">
-                            <span className="text-[#B8935B] font-mono mr-1">#{idx + 1}</span>
-                            {item.description}
+                          <div className="flex-1 leading-snug">
+                            <div className="font-bold text-xs text-slate-900">
+                              <span className="text-[#B8935B] font-mono mr-1">#{idx + 1}</span>
+                              {item.description}
+                            </div>
+                            {item.shortDescription && (
+                              <div className="text-[11px] text-slate-500 mt-1 leading-normal font-normal">
+                                {item.shortDescription}
+                              </div>
+                            )}
                           </div>
                           {isFree ? (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
@@ -1250,8 +1285,13 @@ export default function InvoiceDetailPage() {
                             <td className="px-4 py-3.5 text-center font-mono text-xs text-slate-400 font-bold">
                               {idx + 1}
                             </td>
-                            <td className="px-4 py-3.5 font-semibold text-slate-800">
-                              {item.description}
+                            <td className="px-4 py-3.5">
+                              <div className="font-semibold text-slate-800">{item.description}</div>
+                              {item.shortDescription && (
+                                <div className="text-xs text-slate-500 mt-0.5 leading-relaxed font-normal">
+                                  {item.shortDescription}
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-3.5 text-center text-slate-600 font-mono">
                               {item.qty}
