@@ -293,11 +293,11 @@ export function convertForeignToInr(
 
   // If rate is provided and valid
   if (rate && !isNaN(rate) && rate > 0) {
-    // For major currencies where 1 foreign unit > 1 INR (USD, EUR, GBP, AED, SAR, etc.)
-    const strongCurrencies = new Set(['USD', 'EUR', 'GBP', 'AED', 'SAR', 'SGD', 'CAD', 'AUD', 'QAR', 'CHF', 'KWD', 'BHD', 'OMR', 'NZD']);
+    // For major currencies where 1 foreign unit > 1 INR (USD, EUR, GBP, AED, SAR, MYR, etc.)
+    const strongCurrencies = new Set(['USD', 'EUR', 'GBP', 'AED', 'SAR', 'SGD', 'CAD', 'AUD', 'QAR', 'CHF', 'KWD', 'BHD', 'OMR', 'NZD', 'MYR']);
     if (strongCurrencies.has(cur)) {
       if (rate < 1) {
-        // Stored as foreign-per-INR (e.g. 0.012 USD/INR) -> INR = amount / rate
+        // Stored as foreign-per-INR (e.g. 0.012 USD/INR, 0.04293 MYR/INR) -> INR = amount / rate
         return Math.round(amount / rate);
       } else if (rate > 5) {
         // Stored as INR-per-foreign (e.g. 83.5 INR/USD) -> INR = amount * rate
@@ -326,5 +326,44 @@ export function convertForeignToInr(
   const inrPerUsd = usdFallbacks['INR'] ?? 83.5;
   const inrPerCur = inrPerUsd / curPerUsd;
   return Math.round(amount * inrPerCur);
+}
+
+/**
+ * Converts an INR amount to the invoice's foreign currency.
+ */
+export function convertInrToForeign(
+  inrAmount: number,
+  currency?: string | null,
+  exchangeRate?: number | null
+): number {
+  if (!inrAmount || isNaN(inrAmount)) return 0;
+  const cur = (currency || 'INR').trim().toUpperCase();
+  if (cur === 'INR') return inrAmount;
+
+  const rate = Number(exchangeRate);
+  if (rate && !isNaN(rate) && rate > 0) {
+    if (rate < 1) {
+      // Stored as foreign-per-INR (e.g. 0.04293 MYR/INR, 0.012 USD/INR)
+      return Number((inrAmount * rate).toFixed(2));
+    } else if (rate > 5) {
+      // Stored as INR-per-foreign (e.g. 83.5 INR/USD)
+      return Number((inrAmount / rate).toFixed(2));
+    }
+  }
+
+  const usdFallbacks: Record<string, number> = {
+    INR: 83.5, GBP: 0.79, EUR: 0.92, AED: 3.67,
+    SGD: 1.35, CAD: 1.37, AUD: 1.50, SAR: 3.75,
+    MYR: 4.70, HKD: 7.80, JPY: 155.0, QAR: 3.64,
+    NZD: 1.66, CHF: 0.91, SEK: 10.8, NOK: 10.9, DKK: 6.9,
+    ZAR: 18.5, NGN: 1580.0, KES: 129.0, BDT: 110.0,
+    PKR: 278.0, LKR: 310.0, NPR: 133.0, KRW: 1370.0,
+    KWD: 0.307, BHD: 0.377, OMR: 0.385, CNY: 7.25,
+    THB: 35.5, PHP: 56.5, IDR: 16200.0, VND: 25400.0,
+  };
+  const curPerUsd = usdFallbacks[cur] ?? 1;
+  const inrPerUsd = usdFallbacks['INR'] ?? 83.5;
+  const foreignPerInr = curPerUsd / inrPerUsd;
+  return Number((inrAmount * foreignPerInr).toFixed(2));
 }
 

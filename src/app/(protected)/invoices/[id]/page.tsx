@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import type { InvoiceData, InvoiceStatus } from '@/types';
 import { CLIENT_TYPE_LABELS, formatCurrency, BASE_PRICING, REVISION_FEE, round2 } from '@/lib/pricing';
+import { convertForeignToInr, convertInrToForeign } from '@/lib/currency';
 import { Logo } from '@/components/Logo';
 import AppShell from '@/components/AppShell';
 import {
@@ -465,7 +466,7 @@ function SettlementPanel({
   onSaved: (updated: { amountSettledInr: number | null; settlementNote: string | null; settledAt: Date | null }) => void;
 }) {
   const [open, setOpen] = useState(invoice.amountSettledInr !== null);
-  const [amount, setAmount] = useState(invoice.amountSettledInr?.toString() ?? '');
+  const [amountInr, setAmountInr] = useState(invoice.amountSettledInr?.toString() ?? '');
   const [note, setNote] = useState(invoice.settlementNote ?? '');
   const [settledAt, setSettledAt] = useState(
     invoice.settledAt
@@ -478,19 +479,67 @@ function SettlementPanel({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
-  // Net INR reference — subtotalConverted is already in invoice.currency units; we show in currency
-  const netAmount = invoice.subtotalConverted;
-  const grossAmount = invoice.totalPayable;
-  const parsedAmount = amount !== '' ? parseFloat(amount) : null;
+  const isForeign = invoice.currency !== 'INR';
+  const sym = invoice.currencySymbol || invoice.currency;
 
-  // Gap relative to net subtotal — shown in invoice currency
-  const gap = parsedAmount !== null ? netAmount - parsedAmount : null;
-  const gapPct = gap !== null && netAmount > 0 ? (gap / netAmount * 100).toFixed(2) : null;
+  // Expected revenues in invoice currency:
+  const grossForeign = invoice.totalPayable;
+  const netForeign = invoice.subtotalConverted;
+  const feeForeign = invoice.processingFeeConverted;
+
+  // Expected revenues in INR (Indian bank settlement rail):
+  const grossInr = isForeign ? convertForeignToInr(grossForeign, invoice.currency, invoice.exchangeRate) : grossForeign;
+  const netInr = isForeign ? convertForeignToInr(netForeign, invoice.currency, invoice.exchangeRate) : netForeign;
+  const feeInr = isForeign ? convertForeignToInr(feeForeign, invoice.currency, invoice.exchangeRate) : feeForeign;
+
+  // Amount credited in INR
+  const parsedInr = amountInr !== '' ? parseFloat(amountInr) : null;
+  const equivalentForeign = parsedInr !== null && isForeign
+    ? convertInrToForeign(parsedInr, invoice.currency, invoice.exchangeRate)
+    : null;
+
+  // Accurate Gap: Target Net INR minus Actual Settled INR
+  const gapInr = parsedInr !== null ? netInr - parsedInr : null;
+  const gapPct = gapInr !== null && netInr > 0 ? ((gapInr / netInr) * 100).toFixed(2) : null;
+  const gapForeign = gapInr !== null && isForeign
+    ? convertInrToForeign(Math.abs(gapInr), invoice.currency, invoice.exchangeRate)
+    : null;
+
+  // Dual Currency Mode toggle
+  const [inputMode, setInputMode] = useState<'INR' | 'FOREIGN'>('INR');
+  const [foreignInputVal, setForeignInputVal] = useState(
+    invoice.amountSettledInr !== null && isForeign
+      ? convertInrToForeign(invoice.amountSettledInr, invoice.currency, invoice.exchangeRate).toString()
+      : ''
+  );
+
+  const handleInrChange = (val: string) => {
+    setAmountInr(val);
+    setSaved(false);
+    if (val !== '' && !isNaN(parseFloat(val))) {
+      const p = parseFloat(val);
+      setForeignInputVal(convertInrToForeign(p, invoice.currency, invoice.exchangeRate).toString());
+    } else {
+      setForeignInputVal('');
+    }
+  };
+
+  const handleForeignChange = (val: string) => {
+    setForeignInputVal(val);
+    setSaved(false);
+    if (val !== '' && !isNaN(parseFloat(val))) {
+      const p = parseFloat(val);
+      const computedInr = convertForeignToInr(p, invoice.currency, invoice.exchangeRate);
+      setAmountInr(computedInr.toString());
+    } else {
+      setAmountInr('');
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
     setError('');
-    if (parsedAmount !== null && (isNaN(parsedAmount) || parsedAmount < 0)) {
+    if (parsedInr !== null && (isNaN(parsedInr) || parsedInr < 0)) {
       setError('Enter a valid non-negative amount');
       setSaving(false);
       return;
@@ -500,7 +549,7 @@ function SettlementPanel({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amountSettledInr: parsedAmount,
+          amountSettledInr: parsedInr,
           settlementNote: note || null,
           settledAt: settledAt || null,
         }),
@@ -509,7 +558,7 @@ function SettlementPanel({
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
       onSaved({
-        amountSettledInr: parsedAmount,
+        amountSettledInr: parsedInr,
         settlementNote: note || null,
         settledAt: settledAt ? new Date(settledAt) : null,
       });
@@ -519,8 +568,6 @@ function SettlementPanel({
       setSaving(false);
     }
   };
-
-  const sym = invoice.currencySymbol;
 
   return (
     <div className="border-t border-slate-200">
@@ -538,9 +585,11 @@ function SettlementPanel({
           </span>
           <div>
             <div className="text-xs font-semibold text-slate-800">Settlement Reconciliation</div>
-            <div className="text-[10px] text-slate-400">
+            <div className="text-[10px] text-slate-500 font-medium">
               {invoice.amountSettledInr !== null
-                ? `Settled: ${sym}${invoice.amountSettledInr.toLocaleString()} · Gap: ${gap !== null ? `${sym}${Math.abs(gap).toLocaleString()} (${gapPct}%)` : '—'}`
+                ? isForeign
+                  ? `Settled: ₹${invoice.amountSettledInr.toLocaleString('en-IN')} (≈ ${sym}${convertInrToForeign(invoice.amountSettledInr, invoice.currency, invoice.exchangeRate).toLocaleString('en-US', { minimumFractionDigits: 2 })}) · Gap: ${gapInr !== null ? (gapInr >= 0 ? `₹${gapInr.toLocaleString('en-IN')} (≈ ${sym}${gapForeign})` : `-₹${Math.abs(gapInr).toLocaleString('en-IN')}`) : '—'} (${gapPct}%)`
+                  : `Settled: ₹${invoice.amountSettledInr.toLocaleString('en-IN')} · Gap: ${gapInr !== null ? `₹${Math.abs(gapInr).toLocaleString('en-IN')}` : '—'} (${gapPct}%)`
                 : 'Enter actual amount credited to your bank account'}
             </div>
           </div>
@@ -553,15 +602,31 @@ function SettlementPanel({
           {/* Reference table */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-4 text-xs">
             {[
-              { label: 'Invoiced (gross)', val: `${sym}${grossAmount.toLocaleString()}`, sub: 'incl. fees & tax' },
-              { label: 'Net Revenue', val: `${sym}${netAmount.toLocaleString()}`, sub: 'your subtotal' },
-              { label: 'Processing Fee', val: `${sym}${invoice.processingFeeConverted.toLocaleString()}`, sub: 'in invoice currency' },
-              { label: 'Gateway', val: invoice.paymentGateway, sub: 'payment processor' },
+              {
+                label: 'Invoiced (gross)',
+                val: `${sym}${grossForeign.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                sub: isForeign ? `≈ ₹${grossInr.toLocaleString('en-IN')} (incl. tax & fees)` : 'incl. fees & tax',
+              },
+              {
+                label: 'Net Revenue',
+                val: `${sym}${netForeign.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                sub: isForeign ? `≈ ₹${netInr.toLocaleString('en-IN')} (target net)` : 'your subtotal',
+              },
+              {
+                label: 'Processing Fee',
+                val: `${sym}${feeForeign.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                sub: isForeign ? `≈ ₹${feeInr.toLocaleString('en-IN')}` : 'in invoice currency',
+              },
+              {
+                label: 'Gateway',
+                val: invoice.paymentGateway || 'Razorpay',
+                sub: isForeign ? 'Bank credit in INR' : 'payment processor',
+              },
             ].map(item => (
               <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-3">
                 <div className="text-slate-400">{item.label}</div>
                 <div className="font-semibold text-slate-800 mt-0.5">{item.val}</div>
-                <div className="text-[10px] text-slate-300 mt-0.5">{item.sub}</div>
+                <div className="text-[10px] text-slate-500 mt-0.5">{item.sub}</div>
               </div>
             ))}
           </div>
@@ -569,40 +634,112 @@ function SettlementPanel({
           {/* Form */}
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                Actual Amount Received ({invoice.currency}) <span className="text-red-500">*</span>
-              </label>
-              <p className="text-[10px] text-slate-400 mb-1.5">Enter the exact amount that was credited to your bank account (after gateway deductions)</p>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-medium text-sm">{sym}</span>
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={e => { setAmount(e.target.value); setSaved(false); }}
-                  className="w-full pl-8 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#B8935B]/30 focus:border-[#B8935B] bg-white"
-                  placeholder={`e.g. ${(netAmount * 0.98).toFixed(0)}`}
-                  step="0.01"
-                  min={0}
-                />
+              <div className="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+                <label className="block text-xs font-semibold text-slate-800">
+                  {inputMode === 'INR'
+                    ? 'Actual Amount Credited to Bank Account (INR ₹)'
+                    : `Actual Amount Received (${invoice.currency} ${sym})`}{' '}
+                  <span className="text-red-500">*</span>
+                </label>
+
+                {isForeign && (
+                  <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg text-[10px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setInputMode('INR')}
+                      className={`px-2 py-0.5 rounded-md transition-all ${
+                        inputMode === 'INR'
+                          ? 'bg-white text-slate-900 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      ₹ INR (Bank Credit)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInputMode('FOREIGN')}
+                      className={`px-2 py-0.5 rounded-md transition-all ${
+                        inputMode === 'FOREIGN'
+                          ? 'bg-white text-slate-900 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {sym} {invoice.currency} (Invoice)
+                    </button>
+                  </div>
+                )}
               </div>
 
+              <p className="text-[10px] text-slate-500 mb-1.5">
+                {isForeign
+                  ? inputMode === 'INR'
+                    ? `International invoice in ${invoice.currency}. Enter the exact INR amount deposited into your Indian bank account by ${invoice.paymentGateway || 'gateway'}.`
+                    : `Enter the amount in ${invoice.currency}. It will be converted to INR at the invoice FX rate (1 INR = ${invoice.exchangeRate} ${invoice.currency}).`
+                  : 'Enter the exact amount that was credited to your bank account (after gateway deductions).'}
+              </p>
+
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">
+                  {inputMode === 'INR' ? '₹' : sym}
+                </span>
+                {inputMode === 'INR' ? (
+                  <input
+                    type="number"
+                    value={amountInr}
+                    onChange={e => handleInrChange(e.target.value)}
+                    className="w-full pl-8 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#B8935B]/30 focus:border-[#B8935B] bg-white shadow-2xs"
+                    placeholder={`e.g. ${Math.round(netInr * 0.98)}`}
+                    step="0.01"
+                    min={0}
+                  />
+                ) : (
+                  <input
+                    type="number"
+                    value={foreignInputVal}
+                    onChange={e => handleForeignChange(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#B8935B]/30 focus:border-[#B8935B] bg-white shadow-2xs"
+                    placeholder={`e.g. ${(netForeign * 0.98).toFixed(2)}`}
+                    step="0.01"
+                    min={0}
+                  />
+                )}
+              </div>
+
+              {/* Real-time currency parity indicator */}
+              {isForeign && parsedInr !== null && (
+                <div className="mt-1 text-[11px] text-slate-500 font-medium flex items-center justify-between">
+                  <span>
+                    {inputMode === 'INR'
+                      ? `Equivalent in ${invoice.currency}: ≈ ${sym}${equivalentForeign?.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                      : `Credited to Indian bank: ≈ ₹${parsedInr.toLocaleString('en-IN')}`}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    1 INR = {invoice.exchangeRate} {invoice.currency}
+                  </span>
+                </div>
+              )}
+
               {/* Live gap indicator */}
-              {gap !== null && (
-                <div className={`mt-2 flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg ${
-                  gap > 0 ? 'bg-red-50 text-red-700' : gap < 0 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'
-                }`}>
-                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                    {gap === 0 ? (
-                      <polyline points="20 6 9 17 4 12" />
-                    ) : (
-                      <circle cx="12" cy="12" r="10" />
-                    )}
+              {gapInr !== null && (
+                <div
+                  className={`mt-2.5 flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border ${
+                    gapInr > 0
+                      ? 'bg-amber-50 text-amber-800 border-amber-200/80'
+                      : gapInr < 0
+                      ? 'bg-blue-50 text-blue-800 border-blue-200/80'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-200/80'
+                  }`}
+                >
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    {gapInr === 0 ? <polyline points="20 6 9 17 4 12" /> : <circle cx="12" cy="12" r="10" />}
                   </svg>
-                  {gap > 0
-                    ? `Fee leakage: ${sym}${gap.toLocaleString()} (${gapPct}% lost to ${invoice.paymentGateway})`
-                    : gap < 0
-                    ? `Amount entered is ${sym}${Math.abs(gap).toLocaleString()} MORE than net — double-check`
-                    : 'Zero fee gap — perfect match!'}
+                  <span>
+                    {gapInr > 0
+                      ? `Gateway fee deduction: ₹${gapInr.toLocaleString('en-IN')}${isForeign ? ` (≈ ${sym}${gapForeign})` : ''} · ${gapPct}% deduction by ${invoice.paymentGateway || 'gateway'}`
+                      : gapInr < 0
+                      ? `Settlement surplus: ₹${Math.abs(gapInr).toLocaleString('en-IN')}${isForeign ? ` (≈ ${sym}${gapForeign})` : ''} above target net revenue`
+                      : 'Zero fee gap — exact 100% reconciliation match!'}
+                  </span>
                 </div>
               )}
             </div>
@@ -614,7 +751,7 @@ function SettlementPanel({
                   type="date"
                   value={settledAt}
                   onChange={e => setSettledAt(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#B8935B]/30 focus:border-[#B8935B] bg-white"
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#B8935B]/30 focus:border-[#B8935B] bg-white shadow-2xs"
                 />
               </div>
               <div>
@@ -623,7 +760,7 @@ function SettlementPanel({
                   type="text"
                   value={note}
                   onChange={e => setNote(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#B8935B]/30 focus:border-[#B8935B] bg-white"
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#B8935B]/30 focus:border-[#B8935B] bg-white shadow-2xs"
                   placeholder="e.g. Razorpay batch #RZP-20260820"
                 />
               </div>
@@ -646,7 +783,8 @@ function SettlementPanel({
               {invoice.amountSettledInr !== null && (
                 <button
                   onClick={() => {
-                    setAmount('');
+                    setAmountInr('');
+                    setForeignInputVal('');
                     setNote('');
                     setSaved(false);
                   }}
