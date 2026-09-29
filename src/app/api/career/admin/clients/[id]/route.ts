@@ -24,13 +24,40 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  // Fetch linked invoice separately (no Prisma relation defined on CareerClient.invoiceId)
-  const linkedInvoice = client.invoiceId
+  // Fetch linked invoice separately (with fallback to links/email or synthetic receipt for legacy/finished clients)
+  let linkedInvoice = client.invoiceId
     ? await db.invoice.findUnique({
         where: { id: client.invoiceId },
-        select: { invoiceNumber: true, totalPayable: true, currency: true, status: true },
+        select: { id: true, invoiceNumber: true, totalPayable: true, currency: true, status: true },
       })
     : null;
+
+  if (!linkedInvoice) {
+    const link = await db.invoiceClientLink.findFirst({
+      where: { clientId: client.id },
+      include: { invoice: { select: { id: true, invoiceNumber: true, totalPayable: true, currency: true, status: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (link?.invoice) linkedInvoice = link.invoice;
+  }
+
+  if (!linkedInvoice) {
+    linkedInvoice = await db.invoice.findFirst({
+      where: { clientEmail: { equals: client.email, mode: 'insensitive' } },
+      select: { id: true, invoiceNumber: true, totalPayable: true, currency: true, status: true },
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+    });
+  }
+
+  if (!linkedInvoice && (client.amountPaid > 0 || client.status === 'COMPLETED')) {
+    linkedInvoice = {
+      id: `client-${client.id}`,
+      invoiceNumber: `CAT-${new Date(client.createdAt).getFullYear()}-${client.id.slice(-6).toUpperCase()}`,
+      totalPayable: client.amountPaid || 0,
+      currency: client.currency || 'INR',
+      status: 'PAID',
+    };
+  }
 
   const { services, forms, ...rest } = client as any;
 

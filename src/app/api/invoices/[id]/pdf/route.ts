@@ -20,9 +20,69 @@ export async function GET(
       return new NextResponse('Invoice ID required', { status: 400 });
     }
 
-    const invoice = await db.invoice.findUnique({
+    let invoice: any = await db.invoice.findUnique({
       where: { id: invoiceId },
     });
+
+    if (!invoice) {
+      const clientId = invoiceId.startsWith('client-') ? invoiceId.replace('client-', '') : invoiceId;
+      const client = await db.careerClient.findUnique({
+        where: { id: clientId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          packageType: true,
+          amountPaid: true,
+          currency: true,
+          status: true,
+          createdAt: true,
+          completedAt: true,
+          contact: { select: { country: true } },
+          services: { select: { service: { select: { name: true } } } },
+        },
+      });
+
+      if (client) {
+        const serviceNames = client.services?.map(s => s.service.name).join(', ') || client.packageType || 'Career Booster Services';
+        invoice = {
+          id: client.id,
+          invoiceNumber: `CAT-${new Date(client.createdAt).getFullYear()}-${client.id.slice(-6).toUpperCase()}`,
+          clientName: client.name,
+          clientEmail: client.email,
+          clientPhone: client.phone || '',
+          clientType: client.packageType || 'MID_CAREER',
+          country: client.contact?.country || 'India',
+          currency: client.currency || 'INR',
+          currencySymbol: client.currency === 'USD' ? '$' : '₹',
+          exchangeRate: 1,
+          lineItems: [
+            {
+              id: '1',
+              description: serviceNames,
+              qty: 1,
+              unitPrice: client.amountPaid || 0,
+              lineTotal: client.amountPaid || 0,
+            },
+          ],
+          discountRate: 0,
+          taxRate: 0,
+          discountAmount: 0,
+          taxAmount: 0,
+          subtotalConverted: client.amountPaid || 0,
+          processingFeeRate: 0,
+          processingFeeConverted: 0,
+          totalPayable: client.amountPaid || 0,
+          status: 'PAID',
+          paidAt: client.completedAt || client.createdAt,
+          invoiceDate: client.createdAt,
+          dueDate: client.createdAt,
+          paymentGateway: 'ONLINE',
+          notes: 'Official Tax Invoice / Payment Receipt',
+        };
+      }
+    }
 
     if (!invoice) {
       return new NextResponse('Invoice not found', { status: 404 });

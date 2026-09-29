@@ -55,7 +55,7 @@ interface ClientDetail {
   services: { slug: string; name: string }[];
   Feedback?: { id: string; npsScore: number; rating: number; submittedAt: string } | null;
   Review?: { id: string; content: string; permissionToUse: boolean; submittedAt: string } | null;
-  invoice?: { invoiceNumber: string; totalPayable: number; currency: string; status: string } | null;
+  invoice?: { id?: string; invoiceNumber: string; totalPayable: number; currency: string; status: string } | null;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -388,6 +388,61 @@ export default function CareerClientDetailPage() {
                   <span>SLA Agreement: Pending Client Intake Acceptance</span>
                 </div>
                 <span className="text-[11px] text-amber-700">Client will be prompted on portal access</span>
+              </div>
+            );
+          })()}
+
+          {/* Billing & Official Invoice Receipt Card for Admin */}
+          {client.invoice && (() => {
+            const invoiceId = client.invoice.id || client.invoiceId || `client-${client.id}`;
+            const isSynthetic = invoiceId.startsWith('client-');
+            return (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white border border-slate-200 rounded-xl shadow-xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#FAF9F6] border border-[#EAE2D5] flex items-center justify-center text-[#9A7540] font-bold">
+                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-800">{client.invoice.invoiceNumber}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.2 rounded-full border ${
+                        client.invoice.status === 'PAID'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}>
+                        {client.invoice.status}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Billed: <span className="font-semibold text-slate-700">{client.invoice.currency} {client.invoice.totalPayable.toLocaleString('en-IN')}</span>
+                      {isSynthetic ? ' · Historical Enrollment' : ' · Primary Account Invoice'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`/api/invoices/${invoiceId}/pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FAF9F6] border border-[#EAE2D5] text-[#9A7540] hover:bg-[#F0EAE0] text-xs font-bold transition-all shadow-2xs"
+                  >
+                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>Download PDF Receipt</span>
+                  </a>
+                  {!isSynthetic && (
+                    <Link
+                      href={`/invoices/${invoiceId}`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold transition-colors"
+                    >
+                      <span>Registry</span>
+                      <span>→</span>
+                    </Link>
+                  )}
+                </div>
               </div>
             );
           })()}
@@ -3570,46 +3625,59 @@ function UpgradeInvoicesTab({ clientId }: { clientId: string }) {
   if (invoices.length === 0) {
     return (
       <div className="py-16 text-center">
-        <p className="text-slate-400 text-sm">No upgrade invoices found.</p>
-        <p className="text-slate-300 text-xs mt-1">Auto-generated upgrade invoices appear here when the client initiates an upgrade from the portal.</p>
+        <p className="text-slate-500 font-semibold text-sm">No invoices found for this client.</p>
+        <p className="text-slate-400 text-xs mt-1">Invoices created during onboarding, portal upgrades, or revision quotes will appear here.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-slate-400">
-        These invoices are created automatically when a client initiates an upgrade from the client portal. No manual action needed — Razorpay handles payment collection.
-      </p>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between pb-1">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900">Client Invoices &amp; Official Receipts</h3>
+          <p className="text-xs text-slate-400">All payment records, package invoices, and legal receipts linked to this client.</p>
+        </div>
+      </div>
       {invoices.map(inv => {
         const label = statusLabel(inv.status, inv.dueDate);
         const colorClass = statusColor(inv.status, inv.dueDate);
-        const target = inv.notes?.match(/Target:\s*(\S+)/)?.[1] ?? '—';
+        const isSynthetic = inv.id.startsWith('client-');
+        const isUpgrade = inv.notes?.includes('Portal automated upgrade');
+        const isRevision = inv.notes?.includes('Revision');
+        const displayType = isSynthetic
+          ? 'Historical Service Enrollment (Direct Onboarding)'
+          : isUpgrade
+          ? `Portal Upgrade · ${inv.notes?.match(/Target:\s*(\S+)/)?.[1] ?? 'Add-on Service'}`
+          : isRevision
+          ? 'Revision Service Quote'
+          : (inv.notes || 'Primary Account Service Invoice');
+
         return (
-          <div key={inv.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div key={inv.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-bold text-slate-800">{inv.invoiceNumber}</span>
+                  <span className="text-sm font-bold text-slate-900 font-mono">{inv.invoiceNumber}</span>
                   <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${colorClass}`}>{label}</span>
                 </div>
-                <p className="text-xs text-slate-500">
-                  Upgrade target: <span className="font-medium text-slate-700">{target === 'FULL_PACKAGE' ? 'Career Booster Package' : target === 'PREMIUM_PLUS' ? 'Premium Plus Package' : target}</span>
+                <p className="text-xs text-slate-600 font-medium">
+                  {displayType}
                   {inv.clientType && (
                     <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500">
                       {inv.clientType === 'FRESHER' ? 'Fresher' : inv.clientType === 'MID_CAREER' ? 'Mid-Career' : inv.clientType === 'EXECUTIVE' ? 'Executive' : inv.clientType === 'EXECUTIVE_PLUS' ? 'Exec+' : inv.clientType}
                     </span>
                   )}
                 </p>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Created {new Date(inv.invoiceDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  {' · '}Due {new Date(inv.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  {inv.paidAt && <span className="text-emerald-600"> · Paid {new Date(inv.paidAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+                <p className="text-xs text-slate-400 mt-1">
+                  Issued: {new Date(inv.invoiceDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {' · '}Due: {new Date(inv.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {inv.paidAt && <span className="text-emerald-600 font-medium"> · Settled: {new Date(inv.paidAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
                 </p>
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-lg font-bold text-slate-900">{inv.currencySymbol}{inv.totalPayable.toLocaleString('en-IN')}</p>
-                <p className="text-[11px] text-slate-400">{inv.currency}</p>
+                <p className="text-[11px] text-slate-400 font-medium">{inv.currency}</p>
               </div>
             </div>
             {inv.razorpayLinkUrl && inv.status !== 'PAID' && (
@@ -3626,23 +3694,35 @@ function UpgradeInvoicesTab({ clientId }: { clientId: string }) {
                 </button>
               </div>
             )}
-            {inv.status === 'PAID' && (
-              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+            {(inv.status === 'PAID' || isSynthetic) && (
+              <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2">
                 <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
                   Paid &amp; Settled
                 </span>
-                <a
-                  href={`/api/invoices/${inv.id}/pdf`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#FAF9F6] border border-[#EAE2D5] text-[#9A7540] hover:bg-[#F0EAE0] text-xs font-bold transition-colors"
-                >
-                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  <span>Download PDF Receipt</span>
-                </a>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`/api/invoices/${inv.id}/pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={`Invoice-${inv.invoiceNumber}-PAID.pdf`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FAF9F6] border border-[#EAE2D5] text-[#9A7540] hover:bg-[#F0EAE0] text-xs font-bold transition-all shadow-2xs"
+                  >
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>Download Official Receipt (PDF)</span>
+                  </a>
+                  {!isSynthetic && (
+                    <Link
+                      href={`/invoices/${inv.id}`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold transition-colors"
+                    >
+                      <span>Registry Details</span>
+                      <span>→</span>
+                    </Link>
+                  )}
+                </div>
               </div>
             )}
             {inv.razorpayPaymentId && (

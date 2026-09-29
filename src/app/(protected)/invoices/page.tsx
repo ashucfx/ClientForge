@@ -423,6 +423,16 @@ export default function InvoicesPage() {
                         </td>
                         <td className="py-3.5 px-4 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1.5">
+                            <a
+                              href={`/api/invoices/${inv.id}/pdf`}
+                              download={`Invoice-${inv.invoiceNumber}.pdf`}
+                              className="p-1.5 rounded-lg border border-slate-200 hover:bg-[#B8935B]/10 hover:border-[#B8935B]/40 text-slate-600 hover:text-[#B8935B] transition-colors"
+                              title="Download Official PDF Invoice"
+                            >
+                              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                            </a>
                             <button
                               onClick={e => handleCopyLink(inv, e)}
                               className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors"
@@ -490,6 +500,16 @@ export default function InvoicesPage() {
                   <div className="flex items-center justify-between pt-1 text-[11px] text-slate-400" onClick={e => e.stopPropagation()}>
                     <span>{format(new Date(inv.createdAt), 'dd MMM yyyy')}</span>
                     <div className="flex items-center gap-2">
+                      <a
+                        href={`/api/invoices/${inv.id}/pdf`}
+                        download={`Invoice-${inv.invoiceNumber}.pdf`}
+                        className="px-2.5 py-1 rounded-lg border border-[#B8935B]/30 bg-[#B8935B]/10 text-[#9A7540] font-bold text-xs flex items-center gap-1"
+                      >
+                        <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span>PDF</span>
+                      </a>
                       <button
                         onClick={e => handleCopyLink(inv, e)}
                         className="px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 font-semibold text-xs flex items-center gap-1"
