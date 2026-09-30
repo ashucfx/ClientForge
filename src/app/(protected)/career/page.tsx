@@ -7,6 +7,7 @@ import AppShell from '@/components/AppShell';
 import { STATUS_LABELS, SERVICE_LABELS, PACKAGE_LABELS } from '@/lib/career/types';
 import type { CareerStatus, CareerServiceSlug, CareerPackage } from '@/lib/career/types';
 import { SUPPORTED_CURRENCIES, getCurrencyByCode } from '@/lib/currency';
+import { expandServiceSlugs } from '@/lib/career/services';
 
 const STATUS_COLORS: Record<CareerStatus, string> = {
   NOT_STARTED:        'bg-slate-100 text-slate-600',
@@ -18,12 +19,12 @@ const STATUS_COLORS: Record<CareerStatus, string> = {
 };
 
 const ALL_SERVICES: { slug: CareerServiceSlug; label: string }[] = [
-  { slug: 'RESUME',       label: 'Resume Writing' },
+  { slug: 'RESUME',       label: 'Resume Rewrite' },
+  { slug: 'LINKEDIN',     label: 'LinkedIn Profile Optimization' },
   { slug: 'COVER_LETTER', label: 'Cover Letter' },
-  { slug: 'LINKEDIN',     label: 'LinkedIn Optimisation' },
   { slug: 'PORTFOLIO',    label: 'Portfolio Website' },
-  { slug: 'FULL_PACKAGE', label: 'Career Booster Package' },
-  { slug: 'PREMIUM_PLUS', label: 'Premium Plus Package' },
+  { slug: 'FULL_PACKAGE', label: 'Career Booster Package (3 components)' },
+  { slug: 'PREMIUM_PLUS', label: 'Premium Plus Package (4 components)' },
 ];
 
 interface ServiceInfo { slug: string; name: string }
@@ -313,8 +314,26 @@ function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
   const toggleService = (slug: CareerServiceSlug) => {
     setSelectedServices(prev => {
       const next = new Set(prev);
-      if (next.has(slug)) next.delete(slug);
-      else next.add(slug);
+      if (slug === 'FULL_PACKAGE') {
+        const boosterSlugs: CareerServiceSlug[] = ['RESUME', 'LINKEDIN', 'COVER_LETTER'];
+        const allSelected = boosterSlugs.every(s => next.has(s));
+        if (allSelected) {
+          boosterSlugs.forEach(s => next.delete(s));
+        } else {
+          boosterSlugs.forEach(s => next.add(s));
+        }
+      } else if (slug === 'PREMIUM_PLUS') {
+        const plusSlugs: CareerServiceSlug[] = ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'];
+        const allSelected = plusSlugs.every(s => next.has(s));
+        if (allSelected) {
+          plusSlugs.forEach(s => next.delete(s));
+        } else {
+          plusSlugs.forEach(s => next.add(s));
+        }
+      } else {
+        if (next.has(slug)) next.delete(slug);
+        else next.add(slug);
+      }
       return next;
     });
   };
@@ -357,7 +376,8 @@ function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedServices.size === 0) {
+    const finalSlugs = expandServiceSlugs(Array.from(selectedServices));
+    if (finalSlugs.length === 0) {
       setError('Select at least one service');
       return;
     }
@@ -370,7 +390,7 @@ function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
         name: form.name,
         email: form.email,
         phone: form.phone || undefined,
-        services: Array.from(selectedServices),
+        services: finalSlugs,
         amountPaid: Number(form.amountPaid) || 0,
         currency: form.currency,
         notes: form.notes || undefined,
@@ -479,7 +499,11 @@ function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
             </label>
             <div className="space-y-2">
               {ALL_SERVICES.map(({ slug, label }) => {
-                const checked = selectedServices.has(slug);
+                const checked = slug === 'FULL_PACKAGE'
+                  ? (['RESUME', 'LINKEDIN', 'COVER_LETTER'] as CareerServiceSlug[]).every(s => selectedServices.has(s))
+                  : slug === 'PREMIUM_PLUS'
+                  ? (['RESUME', 'LINKEDIN', 'COVER_LETTER', 'PORTFOLIO'] as CareerServiceSlug[]).every(s => selectedServices.has(s))
+                  : selectedServices.has(slug);
                 return (
                   <button
                     key={slug}

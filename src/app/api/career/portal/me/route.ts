@@ -15,6 +15,7 @@ import type { CareerPackage, CareerStatus, CareerServiceSlug } from '@/lib/caree
 
 import { waitUntil } from '@vercel/functions';
 import { sendCareerEmail } from '@/lib/career/email';
+import { expandClientServices, migrateClientToComponentServices } from '@/lib/career/services';
 
 export async function GET(req: NextRequest) {
   void req;
@@ -122,31 +123,44 @@ export async function GET(req: NextRequest) {
   }
   // ─────────────────────────────────────────────────────────────────────────────
 
-  // Determine available forms — services first, fall back to packageType
+  // Determine available forms and clean component services
   const pkg = client.packageType as CareerPackage | null;
   const status = client.status as CareerStatus;
 
-  let availableForms: import('@/lib/career/types').FormType[];
-  let packageLabel: string;
+  const rawServices = client.services.map(s => ({
+    slug: s.service.slug,
+    name: s.service.name,
+  }));
+  const expandedServices = expandClientServices(rawServices, pkg);
 
-  if (client.services.length > 0) {
-    const slugs = client.services.map(s => s.service.slug as CareerServiceSlug);
-    availableForms = getFormsForServices(slugs);
-    const hasCareerBooster = slugs.includes('FULL_PACKAGE') || ['RESUME', 'COVER_LETTER', 'LINKEDIN'].every(s => slugs.includes(s as CareerServiceSlug));
-    if (slugs.includes('PREMIUM_PLUS') || (hasCareerBooster && slugs.includes('PORTFOLIO'))) {
-      packageLabel = 'Premium Plus Package';
-    } else if (hasCareerBooster) {
-      packageLabel = 'Career Booster Package';
-    } else {
-      packageLabel = slugs
-        .map(slug => SERVICE_LABELS[slug] ?? slug)
-        .join(', ');
-    }
+  // If client has legacy bundle slugs (FULL_PACKAGE, PREMIUM_PLUS), migrate to component records in background
+  const hasBundleSlug = rawServices.some(s => s.slug === 'FULL_PACKAGE' || s.slug === 'PREMIUM_PLUS');
+  if (hasBundleSlug) {
+    waitUntil(
+      migrateClientToComponentServices(client.id, expandedServices).catch(err => {
+        console.error('[portal/me] Migration failed:', err);
+      })
+    );
+  }
+
+  const componentSlugs = expandedServices.map(s => s.slug as CareerServiceSlug);
+  const availableForms = getFormsForServices(componentSlugs);
+
+  const hasCareerBooster = componentSlugs.includes('RESUME') &&
+                           componentSlugs.includes('LINKEDIN') &&
+                           componentSlugs.includes('COVER_LETTER');
+  const hasPortfolio = componentSlugs.includes('PORTFOLIO');
+
+  let packageLabel: string;
+  if (hasCareerBooster && hasPortfolio) {
+    packageLabel = 'Premium Plus Package';
+  } else if (hasCareerBooster) {
+    packageLabel = 'Career Booster Package';
+  } else if (expandedServices.length > 0) {
+    packageLabel = expandedServices.map(s => s.name).join(', ');
   } else if (pkg) {
-    availableForms = getFormsForPackage(pkg);
     packageLabel = PACKAGE_LABELS[pkg] ?? pkg;
   } else {
-    availableForms = [];
     packageLabel = 'Career Services';
   }
 
@@ -162,99 +176,32 @@ export async function GET(req: NextRequest) {
     formType: normalizeFormType(f.formType),
   }));
 
-  // Per-service revision counters
+  // Per-service revision counters: strictly 2 free revisions per individual component
   const revisionsList = await db.careerRevision.findMany({
     where: { clientId: client.id, requestedBy: 'client' },
     select: { serviceSlug: true, chargeStatus: true }
   });
 
   const FREE_LIMIT = 2;
-  const serviceSlugs = new Set(client.services.map(s => s.service.slug));
-  const isSingleService = client.services.length === 1;
+  const revisionSummary = expandedServices.map((comp, idx) => {
+    const slug = comp.slug;
+    const slugFreeUsed = revisionsList.filter(
+      r => (r.serviceSlug === slug || (idx === 0 && (!r.serviceSlug || r.serviceSlug === 'GENERAL' || r.serviceSlug === 'FULL_PACKAGE' || r.serviceSlug === 'PREMIUM_PLUS'))) && r.chargeStatus === 'FREE'
+    ).length;
+    const paidUsed = revisionsList.filter(
+      r => (r.serviceSlug === slug || (idx === 0 && (!r.serviceSlug || r.serviceSlug === 'GENERAL' || r.serviceSlug === 'FULL_PACKAGE' || r.serviceSlug === 'PREMIUM_PLUS'))) && r.chargeStatus !== 'FREE'
+    ).length;
+    return {
+      slug,
+      name: comp.name,
+      freeLimit: FREE_LIMIT,
+      freeUsed: slugFreeUsed,
+      revisionsLeft: Math.max(0, FREE_LIMIT - slugFreeUsed),
+      paidUsed,
+    };
+  });
 
-  // Revisions with 'GENERAL' slug (legacy default when service wasn't mapped yet)
-  const generalFreeUsed = revisionsList.filter(
-    r => r.chargeStatus === 'FREE' && (!r.serviceSlug || r.serviceSlug === 'GENERAL' || !serviceSlugs.has(r.serviceSlug))
-  ).length;
-
-  // ── Legacy packageType → synthetic service component list ────────────────────
-  // Used when client has no services linked (old clients stored with packageType only).
-  // Each component gets its own 0/2 bar. GENERAL bucket revisions are attributed
-  // to the first component only (consistent with existing multi-service logic below).
-  const LEGACY_PACKAGE_COMPONENTS: Record<string, { slug: string; name: string }[]> = {
-    RESUME:        [{ slug: 'RESUME',       name: 'Resume Writing' }],
-    LINKEDIN:      [{ slug: 'LINKEDIN',     name: 'LinkedIn Optimisation' }],
-    COVER_LETTER:  [{ slug: 'COVER_LETTER', name: 'Cover Letter' }],
-    // Career Booster: Resume + Cover Letter + LinkedIn
-    FULL:          [
-      { slug: 'RESUME',       name: 'Resume Writing' },
-      { slug: 'COVER_LETTER', name: 'Cover Letter' },
-      { slug: 'LINKEDIN',     name: 'LinkedIn Optimisation' },
-    ],
-    // Executive Package: Resume + LinkedIn (no cover letter)
-    EXECUTIVE:     [
-      { slug: 'RESUME',       name: 'Resume Writing' },
-      { slug: 'LINKEDIN',     name: 'LinkedIn Optimisation' },
-    ],
-    // Executive Plus = Premium Plus legacy: Resume + Cover Letter + LinkedIn + Portfolio
-    EXECUTIVE_PLUS: [
-      { slug: 'RESUME',       name: 'Resume Writing' },
-      { slug: 'COVER_LETTER', name: 'Cover Letter' },
-      { slug: 'LINKEDIN',     name: 'LinkedIn Optimisation' },
-      { slug: 'PORTFOLIO',    name: 'Portfolio Website' },
-    ],
-  };
-
-  // Calculate usage per service — GENERAL revisions count toward the primary service
-  // for single-service clients (prevents showing 2/2 when 1 GENERAL revision exists)
-  let revisionSummary: {
-    slug: string; name: string; freeLimit: number;
-    freeUsed: number; revisionsLeft: number; paidUsed: number;
-  }[];
-
-  if (client.services.length > 0) {
-    // Modern path: services are linked — use actual service records
-    revisionSummary = client.services.map((s, idx) => {
-      const slug = s.service.slug;
-      const slugFreeUsed = revisionsList.filter(r => r.serviceSlug === slug && r.chargeStatus === 'FREE').length;
-      const freeUsed = isSingleService
-        ? slugFreeUsed + generalFreeUsed
-        : (idx === 0 ? slugFreeUsed + generalFreeUsed : slugFreeUsed);
-      const paidUsed = revisionsList.filter(r => r.serviceSlug === slug && r.chargeStatus !== 'FREE').length;
-      return {
-        slug,
-        name: SERVICE_LABELS[slug as CareerServiceSlug] ?? s.service.name,
-        freeLimit: FREE_LIMIT,
-        freeUsed,
-        revisionsLeft: Math.max(0, FREE_LIMIT - freeUsed),
-        paidUsed,
-      };
-    });
-  } else if (pkg && LEGACY_PACKAGE_COMPONENTS[pkg]) {
-    // Legacy path: no services linked — derive components from packageType
-    // All existing revisions are GENERAL bucket; attribute to first component only.
-    const components = LEGACY_PACKAGE_COMPONENTS[pkg];
-    revisionSummary = components.map((comp, idx) => {
-      const freeUsed = idx === 0 ? generalFreeUsed : 0;
-      const paidUsed = idx === 0
-        ? revisionsList.filter(r => r.chargeStatus !== 'FREE').length
-        : 0;
-      return {
-        slug: comp.slug,
-        name: comp.name,
-        freeLimit: FREE_LIMIT,
-        freeUsed,
-        revisionsLeft: Math.max(0, FREE_LIMIT - freeUsed),
-        paidUsed,
-      };
-    });
-  } else {
-    revisionSummary = [];
-  }
-
-  // Global fallback counters (used by legacy single-counter UI path)
-  const globalFreeUsed = revisionsList.filter(r => r.chargeStatus === 'FREE').length;
-  const revisionsLeft = Math.max(0, FREE_LIMIT - globalFreeUsed);
+  const totalRevisionsLeft = revisionSummary.reduce((acc, s) => acc + s.revisionsLeft, 0);
   const revisionCount = revisionsList.length;
 
   // Fallback for legacy clients without expectedDeliveryAt
@@ -300,17 +247,14 @@ export async function GET(req: NextRequest) {
     createdAt: client.createdAt,
     expectedDeliveryAt: client.expectedDeliveryAt ?? fallbackDeliveryAt,
     revisionCount,
-    revisionsLeft,
+    revisionsLeft: totalRevisionsLeft,
     revisionSummary,
     completedAt: client.completedAt,
     firstCompletedAt: client.firstCompletedAt,
     availableForms,
     submittedForms: Array.from(submittedFormsNormalized),
     forms: formsNormalized,
-    services: client.services.map(s => ({
-      slug: s.service.slug,
-      name: SERVICE_LABELS[s.service.slug as CareerServiceSlug] ?? s.service.name,
-    })),
+    services: expandedServices,
     unreadMessages: client.ConversationReadState?.unreadByClient ?? 0,
     hasSubmittedFeedback: !!client.Feedback,
     hasSubmittedReview: !!client.Review,

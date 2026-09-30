@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { PACKAGE_LABELS, SERVICE_LABELS, STATUS_LABELS, parseRevisionNote, OUT_OF_SCOPE_CATEGORIES } from '@/lib/career/types';
 import type { CareerStatus, CareerPackage, CareerServiceSlug, EmailTrigger, OutOfScopeCategoryKey } from '@/lib/career/types';
 import { TRIGGER_LABELS } from '@/lib/career/triggerLabels';
+import { expandClientServices } from '@/lib/career/services';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -2589,14 +2590,45 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
   type RevSummaryRow = { slug: string; name: string; freeLimit: number; freeUsed: number; revisionsLeft: number; paidUsed: number };
   const [revSummary, setRevSummary] = useState<RevSummaryRow[]>([]);
 
+  // Decompose client services into component services (Resume Rewrite, LinkedIn Profile Optimization, etc.)
+  // Never show 'Full Career Package' or bundle rows
+  const componentServices = useMemo(() => {
+    if (revSummary && revSummary.length > 0) {
+      return revSummary.map(s => ({
+        slug: s.slug,
+        name: s.name,
+        revisionsLeft: s.revisionsLeft,
+        freeLimit: s.freeLimit,
+        freeUsed: s.freeUsed,
+        paidUsed: s.paidUsed,
+      }));
+    }
+    return expandClientServices(services, clientPackage).map(s => ({
+      slug: s.slug,
+      name: s.name,
+      revisionsLeft: 2,
+      freeLimit: 2,
+      freeUsed: 0,
+      paidUsed: 0,
+    }));
+  }, [revSummary, services, clientPackage]);
+
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
-  useEffect(() => {
+  const refreshRevisions = useCallback(() => {
     fetch(`/api/career/admin/clients/${clientId}/revisions`)
       .then(r => r.json() as Promise<{ revisions: RevisionItem[]; revisionSummary?: RevSummaryRow[] }>)
-      .then(d => { setRevisions(d.revisions ?? []); setRevSummary(d.revisionSummary ?? []); setLoading(false); })
+      .then(d => {
+        setRevisions(d.revisions ?? []);
+        if (d.revisionSummary) setRevSummary(d.revisionSummary);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [clientId]);
+
+  useEffect(() => {
+    refreshRevisions();
+  }, [refreshRevisions]);
 
   const submitRevision = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2605,12 +2637,12 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-      note: note.trim(),
-      fileLabel: fileLabel.trim() || undefined,
-      sendEmail,
-      countAsClient,
-      serviceSlug: countAsClient ? (serviceSlug || undefined) : undefined,
-    }),
+        note: note.trim(),
+        fileLabel: fileLabel.trim() || undefined,
+        sendEmail,
+        countAsClient,
+        serviceSlug: countAsClient ? (serviceSlug || undefined) : undefined,
+      }),
     });
     setSaving(false);
     if (res.ok) {
@@ -2618,6 +2650,7 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
       setRevisions(prev => [d.revision, ...prev]);
       setNote(''); setFileLabel(''); setServiceSlug(''); setCountAsClient(false); setShowForm(false);
       showToast(sendEmail ? 'Revision created · email sent' : 'Revision created');
+      refreshRevisions();
     } else {
       const d = await res.json().catch(() => ({})) as { error?: string };
       setError(d.error ?? 'Failed. Please try again.');
@@ -2644,6 +2677,7 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
       const label = confirmDecision === 'APPROVED' ? 'approved' : 'denied';
       showToast(`Revision ${label}${confirmEmail ? ' - email sent' : ''}`);
       setConfirmId(null); setConfirmDecision(null); setConfirmNote('');
+      refreshRevisions();
     }
   };
 
@@ -2655,6 +2689,7 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
     if (res.ok) {
       setRevisions(prev => prev.filter(r => r.id !== id));
       showToast('Revision deleted');
+      refreshRevisions();
     } else {
       const d = await res.json().catch(() => ({})) as { error?: string };
       showToast(d.error ?? 'Delete failed');
@@ -2842,10 +2877,10 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
         </button>
       </div>
 
-      {/* Free-revision usage per service */}
-      {revSummary.length > 0 && (
+      {/* Free-revision usage per component service */}
+      {componentServices.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {revSummary.map(s => {
+          {componentServices.map(s => {
             const exhausted = s.revisionsLeft === 0;
             const pct = Math.min(100, Math.round((s.freeUsed / s.freeLimit) * 100));
             return (
@@ -2914,22 +2949,24 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
                   className="w-4 h-4 rounded border-amber-300 accent-amber-600" />
                 Count against client&apos;s free revision limit
               </label>
-              <p className="text-xs text-amber-600 pl-6">Use when the client requested this via chat or call — prevents them from bypassing the 2-revision cap.</p>
-              {countAsClient && services.length > 0 && (
+              <p className="text-xs text-amber-600 pl-6">Use when the client requested this via chat or call — prevents them from bypassing the 2-revision cap per component.</p>
+              {countAsClient && componentServices.length > 0 && (
                 <div className="pl-6">
-                  <label className="block text-xs font-semibold text-amber-700 mb-1">Which service? *</label>
+                  <label className="block text-xs font-semibold text-amber-700 mb-1">Which component / service? *</label>
                   <select required value={serviceSlug} onChange={e => setServiceSlug(e.target.value)}
                     className="w-full px-3 py-2 text-sm border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
-                    <option value="">Select service…</option>
-                    {services.map(s => (
-                      <option key={s.slug} value={s.slug}>{s.name}</option>
+                    <option value="">Select component…</option>
+                    {componentServices.map(s => (
+                      <option key={s.slug} value={s.slug} disabled={s.revisionsLeft === 0}>
+                        {s.name} ({s.revisionsLeft} left)
+                      </option>
                     ))}
                   </select>
                 </div>
               )}
             </div>
             <div className="flex gap-2">
-              <button type="submit" disabled={saving || note.trim().length < 5 || (countAsClient && services.length > 0 && !serviceSlug)}
+              <button type="submit" disabled={saving || note.trim().length < 5 || (countAsClient && componentServices.length > 0 && !serviceSlug)}
                 className="px-5 py-2 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center gap-2">
                 {saving && <Spinner />}
                 {saving ? 'Creating…' : 'Create Revision'}

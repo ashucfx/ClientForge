@@ -27,15 +27,18 @@ function detectSlugsFromLineItems(lineItems: LineItem[]): CareerServiceSlug[] {
 
   for (const item of lineItems) {
     const d = item.description.toLowerCase();
-    // Portfolio is an add-on that is NEVER part of the base Career Booster, so it
-    // must be detected independently. Otherwise an upgrade line like "Premium Plus
-    // (Career Booster + Portfolio)" matches "career booster" and the portfolio the
-    // client just paid for is silently dropped.
     if (/portfolio/i.test(d)) slugs.add('PORTFOLIO');
     if (/executive.?connect|strategy.?consultation/i.test(d)) slugs.add('EXECUTIVE_CONNECT');
 
-    if (/full.?career|career.?booster|full.?package|premium.?plus/i.test(d)) {
-      slugs.add('FULL_PACKAGE');
+    if (/premium.?plus/i.test(d)) {
+      slugs.add('RESUME');
+      slugs.add('LINKEDIN');
+      slugs.add('COVER_LETTER');
+      slugs.add('PORTFOLIO');
+    } else if (/full.?career|career.?booster|full.?package/i.test(d)) {
+      slugs.add('RESUME');
+      slugs.add('LINKEDIN');
+      slugs.add('COVER_LETTER');
     } else {
       if (/linkedin/i.test(d))       slugs.add('LINKEDIN');
       if (/cover.?letter/i.test(d))  slugs.add('COVER_LETTER');
@@ -43,7 +46,7 @@ function detectSlugsFromLineItems(lineItems: LineItem[]): CareerServiceSlug[] {
     }
   }
 
-  return slugs.size > 0 ? Array.from(slugs) : ['FULL_PACKAGE'];
+  return slugs.size > 0 ? Array.from(slugs) : ['RESUME', 'LINKEDIN', 'COVER_LETTER'];
 }
 
 export interface OnboardResult {

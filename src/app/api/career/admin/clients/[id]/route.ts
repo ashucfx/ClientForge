@@ -5,6 +5,7 @@ export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
+import { expandClientServices, migrateClientToComponentServices } from '@/lib/career/services';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -81,6 +82,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return { ...f, formData: cleanData };
   });
 
+  const rawServices = services.map((s: any) => ({ slug: s.service.slug, name: s.service.name }));
+  const expandedServices = expandClientServices(rawServices, client.packageType);
+
+  // Auto-heal DB in background if client currently has bundle slugs (FULL_PACKAGE or PREMIUM_PLUS)
+  if (rawServices.some((s: any) => s.slug === 'FULL_PACKAGE' || s.slug === 'PREMIUM_PLUS')) {
+    void migrateClientToComponentServices(client.id, expandedServices);
+  }
+
   return NextResponse.json({
     client: {
       ...rest,
@@ -88,7 +97,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       slaDeadline: rest.slaDeadline ?? rest.expectedDeliveryAt,
       expectedDeliveryAt: rest.expectedDeliveryAt ?? rest.slaDeadline,
       forms: optimizedForms,
-      services: services.map((s: any) => ({ slug: s.service.slug, name: s.service.name })),
+      services: expandedServices,
       invoice: linkedInvoice,
     },
   });

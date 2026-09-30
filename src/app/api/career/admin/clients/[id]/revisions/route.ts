@@ -9,6 +9,7 @@ import { prisma as db } from '@/lib/db';
 import { sendCareerEmail } from '@/lib/career/email';
 import { PACKAGE_LABELS, SERVICE_LABELS } from '@/lib/career/types';
 import type { CareerPackage, CareerServiceSlug } from '@/lib/career/types';
+import { expandClientServices } from '@/lib/career/services';
 import { waitUntil } from '@vercel/functions';
 
 
@@ -40,7 +41,10 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   const client = await db.careerClient.findUnique({
     where: { id: params.id },
-    select: { services: { select: { service: { select: { slug: true, name: true } } } } }
+    select: {
+      packageType: true,
+      services: { select: { service: { select: { slug: true, name: true } } } },
+    },
   });
 
   const revisions = await db.careerRevision.findMany({
@@ -73,27 +77,25 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }));
 
   const FREE_LIMIT = 2;
-  const services = client?.services ?? [];
-  const serviceSlugs = new Set(services.map(s => s.service.slug));
-  const isSingle = services.length === 1;
+  const rawServices = client?.services.map(s => ({ slug: s.service.slug, name: s.service.name })) ?? [];
+  const services = expandClientServices(rawServices, client?.packageType);
+  const serviceSlugs = new Set(services.map(s => s.slug));
   const clientRevisions = revisions.filter(r => r.requestedBy === 'client');
 
-  // GENERAL revisions = legacy slugs not mapped to any actual service
+  // GENERAL or bundle revisions = legacy slugs not mapped to an active component service; attribute to primary (RESUME)
   const generalFreeUsed = clientRevisions.filter(
-    r => r.chargeStatus === 'FREE' && (!r.serviceSlug || r.serviceSlug === 'GENERAL' || !serviceSlugs.has(r.serviceSlug))
+    r => r.chargeStatus === 'FREE' && (!r.serviceSlug || r.serviceSlug === 'GENERAL' || r.serviceSlug === 'FULL_PACKAGE' || !serviceSlugs.has(r.serviceSlug))
   ).length;
 
   const revisionSummary = services.map((s, idx) => {
-    const slug = s.service.slug;
+    const slug = s.slug;
     const slugFreeUsed = clientRevisions.filter(r => r.serviceSlug === slug && r.chargeStatus === 'FREE').length;
-    // Attribute GENERAL to primary service (same logic as portal /me)
-    const freeUsed = isSingle
-      ? slugFreeUsed + generalFreeUsed
-      : idx === 0 ? slugFreeUsed + generalFreeUsed : slugFreeUsed;
+    // Attribute legacy unassigned to first component (Resume Rewrite)
+    const freeUsed = idx === 0 ? slugFreeUsed + generalFreeUsed : slugFreeUsed;
     const paidUsed = clientRevisions.filter(r => r.serviceSlug === slug && r.chargeStatus !== 'FREE').length;
     return {
       slug,
-      name: SERVICE_LABELS[slug as CareerServiceSlug] ?? s.service.name,
+      name: s.name,
       freeLimit: FREE_LIMIT,
       freeUsed,
       revisionsLeft: Math.max(0, FREE_LIMIT - freeUsed),
@@ -132,22 +134,29 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     where: { id: client.id }, select: { status: true },
   });
 
-  // If counting as client, enforce the same 2-revision limit to prevent chat-bypass
-  if (countAsClient && serviceSlug) {
+  const rawServices = client.services.map(s => ({ slug: s.service.slug, name: s.service.name }));
+  const services = expandClientServices(rawServices, client.packageType);
+
+  let effectiveSlug = serviceSlug || (services.length > 0 ? services[0].slug : 'RESUME');
+  if (effectiveSlug === 'FULL_PACKAGE' || effectiveSlug === 'GENERAL') {
+    effectiveSlug = services.length > 0 ? services[0].slug : 'RESUME';
+  }
+
+  // If counting as client, enforce the same 2-revision limit per component
+  if (countAsClient) {
     const FREE_LIMIT = 2;
-    const serviceSlugs = client.services.map(s => s.service.slug);
-    const isSingle = serviceSlugs.length <= 1;
     const existing = await db.careerRevision.count({
       where: {
         clientId: client.id,
         requestedBy: 'client',
         chargeStatus: 'FREE',
-        serviceSlug: isSingle ? { in: [serviceSlug, 'GENERAL'] } : serviceSlug,
+        serviceSlug: effectiveSlug,
       },
     });
     if (existing >= FREE_LIMIT) {
+      const serviceName = services.find(s => s.slug === effectiveSlug)?.name || effectiveSlug;
       return NextResponse.json({
-        error: `Client has already used all ${FREE_LIMIT} free revisions for this service.`,
+        error: `Client has already used all ${FREE_LIMIT} free revisions for ${serviceName}.`,
         limitExceeded: true,
       }, { status: 422 });
     }
@@ -159,7 +168,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       requestedBy: countAsClient ? 'client' : 'admin',
       note,
       fileLabel,
-      serviceSlug,
+      serviceSlug: effectiveSlug,
       status: 'PENDING',
       chargeStatus: 'FREE',
       clientStatusBefore: currentClient?.status ?? null,

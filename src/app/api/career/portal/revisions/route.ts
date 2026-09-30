@@ -11,6 +11,7 @@ import { sendCareerEmail } from '@/lib/career/email';
 import { notifyAllAdmins } from '@/lib/notifications';
 import { waitUntil } from '@vercel/functions';
 import { addWorkingDays, getHolidaySet } from '@/lib/workingDays';
+import { expandServiceSlugs } from '@/lib/career/services';
 
 
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
@@ -98,12 +99,19 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Resolve service slug: prefer what the client sends, fall back to primary service, then GENERAL
-  const serviceSlugs = client.services.map(s => s.service.slug);
+  // Resolve service slug: map any package slugs to constituent components
+  const rawServiceSlugs = client.services.map(s => s.service.slug);
+  const componentSlugs = expandServiceSlugs(rawServiceSlugs);
   const rawSlug = (body?.serviceSlug as string | undefined)?.trim();
-  const serviceSlug = rawSlug && rawSlug !== 'GENERAL'
-    ? rawSlug
-    : (serviceSlugs.length === 1 ? serviceSlugs[0] : (rawSlug ?? 'GENERAL'));
+
+  let serviceSlug: string;
+  if (rawSlug && componentSlugs.includes(rawSlug as any)) {
+    serviceSlug = rawSlug;
+  } else if (rawSlug && !['GENERAL', 'FULL_PACKAGE', 'PREMIUM_PLUS'].includes(rawSlug)) {
+    serviceSlug = rawSlug;
+  } else {
+    serviceSlug = componentSlugs[0] ?? 'RESUME';
+  }
 
   if (!rawNote || rawNote.length < 5) {
     return NextResponse.json({ error: 'Please describe the revision needed (min 5 chars).' }, { status: 400 });
@@ -112,22 +120,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Note too long (max 2000 chars).' }, { status: 400 });
   }
 
-  // Enforce 2 FREE revisions per service (global count prevents cross-slug bypass)
+  // Enforce 2 FREE revisions per component service
   const FREE_LIMIT = 2;
 
   let isFree = true;
   let finalNote = rawNote;
 
   const revision = await db.$transaction(async (tx) => {
-    // Count ALL free revisions for this service slug (including any legacy GENERAL ones)
+    // Count ALL free revisions for this component slug
     const existingFreeRevisions = await tx.careerRevision.count({
       where: {
         clientId: client.id,
         requestedBy: 'client',
         chargeStatus: 'FREE',
-        serviceSlug: serviceSlugs.length <= 1
-          ? { in: [serviceSlug, 'GENERAL'] }  // single-service: treat GENERAL as same bucket
-          : serviceSlug,                        // multi-service: per-slug only
+        serviceSlug: (serviceSlug === 'RESUME' || serviceSlug === componentSlugs[0])
+          ? { in: [serviceSlug, 'GENERAL', 'FULL_PACKAGE', 'PREMIUM_PLUS'] }
+          : serviceSlug,
       },
     });
 

@@ -187,18 +187,18 @@ export interface DeliverablePublic {
 }
 
 export const PACKAGE_LABELS: Record<CareerPackage, string> = {
-  RESUME: 'Resume Writing',
-  LINKEDIN: 'LinkedIn Optimisation',
+  RESUME: 'Resume Rewrite',
+  LINKEDIN: 'LinkedIn Profile Optimization',
   COVER_LETTER: 'Cover Letter',
   FULL: 'Career Booster Package',
-  EXECUTIVE: 'Executive Package',
-  EXECUTIVE_PLUS: 'Executive Plus Package',
+  EXECUTIVE: 'Career Booster Package',
+  EXECUTIVE_PLUS: 'Premium Plus Package',
 };
 
 export const SERVICE_LABELS: Record<CareerServiceSlug, string> = {
-  RESUME: 'Resume Writing',
+  RESUME: 'Resume Rewrite',
   COVER_LETTER: 'Cover Letter',
-  LINKEDIN: 'LinkedIn Optimisation',
+  LINKEDIN: 'LinkedIn Profile Optimization',
   PORTFOLIO: 'Portfolio Website',
   FULL_PACKAGE: 'Career Booster Package',
   PREMIUM_PLUS: 'Premium Plus Package',

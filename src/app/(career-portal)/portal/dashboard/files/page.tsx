@@ -119,7 +119,8 @@ export default function FilesPage() {
     if (ft === 'resume') return 'RESUME';
     if (ft === 'cover_letter') return 'COVER_LETTER';
     if (ft.startsWith('linkedin')) return 'LINKEDIN';
-    return 'GENERAL';
+    if (ft === 'portfolio' || ft.includes('portfolio') || ft.includes('website')) return 'PORTFOLIO';
+    return 'RESUME';
   };
 
   const openRevision = (file?: FileItem) => {
