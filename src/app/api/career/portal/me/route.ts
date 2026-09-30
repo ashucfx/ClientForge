@@ -16,7 +16,7 @@ import type { CareerPackage, CareerStatus, CareerServiceSlug } from '@/lib/caree
 import { waitUntil } from '@vercel/functions';
 import { sendCareerEmail } from '@/lib/career/email';
 import { expandClientServices, migrateClientToComponentServices } from '@/lib/career/services';
-import { calculateRevisionWindow } from '@/lib/career/revisionWindow';
+import { calculateRevisionWindow, calculateComponentRevisionWindow } from '@/lib/career/revisionWindow';
 
 export async function GET(req: NextRequest) {
   void req;
@@ -177,6 +177,16 @@ export async function GET(req: NextRequest) {
     formType: normalizeFormType(f.formType),
   }));
 
+  // Compute strict turnaround revision window
+  const draftFiles = client.deliverables.filter(d => d.fileCategory === 'draft');
+  const revisionWindow = calculateRevisionWindow({
+    status: client.status,
+    draftSentAt: client.draftSentAt,
+    completedAt: client.completedAt,
+    firstCompletedAt: client.firstCompletedAt,
+    deliverableCreatedAt: draftFiles[0]?.createdAt ?? null,
+  });
+
   // Per-service revision counters: strictly 2 free revisions per individual component
   const revisionsList = await db.careerRevision.findMany({
     where: { clientId: client.id, requestedBy: 'client' },
@@ -184,6 +194,8 @@ export async function GET(req: NextRequest) {
   });
 
   const FREE_LIMIT = 2;
+  const isWindowExpired = revisionWindow.isExpired;
+
   const revisionSummary = expandedServices.map((comp, idx) => {
     const slug = comp.slug;
     const slugFreeUsed = revisionsList.filter(
@@ -192,13 +204,26 @@ export async function GET(req: NextRequest) {
     const paidUsed = revisionsList.filter(
       r => (r.serviceSlug === slug || (idx === 0 && (!r.serviceSlug || r.serviceSlug === 'GENERAL' || r.serviceSlug === 'FULL_PACKAGE' || r.serviceSlug === 'PREMIUM_PLUS'))) && r.chargeStatus !== 'FREE'
     ).length;
+
+    // Calculate independent review cycle per component
+    const compWindow = calculateComponentRevisionWindow({
+      serviceSlug: slug,
+      clientStatus: client.status,
+      completedAt: client.completedAt,
+      firstCompletedAt: client.firstCompletedAt,
+      deliverables: client.deliverables,
+      draftSentAt: client.draftSentAt,
+    });
+
     return {
       slug,
       name: comp.name,
       freeLimit: FREE_LIMIT,
       freeUsed: slugFreeUsed,
-      revisionsLeft: Math.max(0, FREE_LIMIT - slugFreeUsed),
+      revisionsLeft: compWindow.isExpired ? 0 : Math.max(0, FREE_LIMIT - slugFreeUsed),
       paidUsed,
+      isWindowExpired: compWindow.isExpired,
+      revisionWindow: compWindow,
     };
   });
 
@@ -227,15 +252,6 @@ export async function GET(req: NextRequest) {
   const slaLog = await db.careerActivityLog.findFirst({
     where: { clientId: client.id, action: 'sla_agreement_accepted' },
     orderBy: { createdAt: 'desc' },
-  });
-
-  const draftFiles = client.deliverables.filter(d => d.fileCategory === 'draft');
-  const revisionWindow = calculateRevisionWindow({
-    status: client.status,
-    draftSentAt: client.draftSentAt,
-    completedAt: client.completedAt,
-    firstCompletedAt: client.firstCompletedAt,
-    deliverableCreatedAt: draftFiles[0]?.createdAt ?? null,
   });
 
   return NextResponse.json({

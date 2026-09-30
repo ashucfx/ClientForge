@@ -96,7 +96,7 @@ export function calculateRevisionWindow(params: {
     };
   }
 
-  // Phase 3: Prior to draft delivery
+// Phase 3: Prior to draft delivery
   return {
     stage: 'NOT_DELIVERED',
     windowDays: DRAFT_WINDOW_DAYS,
@@ -105,5 +105,71 @@ export function calculateRevisionWindow(params: {
     isExpired: false,
     statusLabel: 'Draft pending delivery',
     badgeColor: 'slate',
+  };
+}
+
+/**
+ * Maps a deliverable fileType or label to standardized CareerServiceSlug
+ */
+export function mapFileTypeToServiceSlug(ft?: string, label?: string): string {
+  const t = (ft || '').toLowerCase();
+  const l = (label || '').toLowerCase();
+  if (t === 'cover_letter' || l.includes('cover letter')) return 'COVER_LETTER';
+  if (t.startsWith('linkedin') || l.includes('linkedin')) return 'LINKEDIN';
+  if (t === 'portfolio' || t.includes('portfolio') || t.includes('website') || l.includes('portfolio') || l.includes('website')) return 'PORTFOLIO';
+  if (t === 'resume' || l.includes('resume') || l.includes('cv')) return 'RESUME';
+  return 'RESUME';
+}
+
+/**
+ * Calculates revision window INDIVIDUALLY per service component.
+ * Services delivered at different times (e.g. Resume & Cover Letter on day 1, LinkedIn profile later)
+ * have their own independent review cycles. Unsent drafts are never marked as expired!
+ */
+export function calculateComponentRevisionWindow(params: {
+  serviceSlug: string;
+  clientStatus: string;
+  completedAt?: string | Date | null;
+  firstCompletedAt?: string | Date | null;
+  deliverables?: { fileType?: string; fileCategory?: string; label?: string; createdAt: string | Date }[];
+  draftSentAt?: string | Date | null;
+}): RevisionWindowInfo {
+  // If the entire client project is COMPLETED, 7-day post-delivery final window applies
+  if (params.clientStatus === 'COMPLETED' || params.firstCompletedAt || params.completedAt) {
+    return calculateRevisionWindow({
+      status: 'COMPLETED',
+      completedAt: params.completedAt,
+      firstCompletedAt: params.firstCompletedAt,
+    });
+  }
+
+  // Find deliverables matching this specific component service
+  const draftsForComponent = (params.deliverables ?? []).filter(
+    d => (!d.fileCategory || d.fileCategory === 'draft') &&
+         mapFileTypeToServiceSlug(d.fileType, d.label) === params.serviceSlug
+  );
+
+  if (draftsForComponent.length > 0) {
+    // Sort descending to find the latest draft of this component
+    const latestDraft = [...draftsForComponent].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0];
+
+    return calculateRevisionWindow({
+      status: params.clientStatus,
+      deliverableCreatedAt: latestDraft.createdAt,
+    });
+  }
+
+  // If no draft exists for this component yet, its 14-day review window has NOT started!
+  return {
+    stage: 'NOT_DELIVERED',
+    windowDays: DRAFT_WINDOW_DAYS,
+    daysSince: 0,
+    daysRemaining: DRAFT_WINDOW_DAYS,
+    isExpired: false,
+    statusLabel: 'Draft pending delivery',
+    badgeColor: 'slate',
+    reason: 'Initial draft has not yet been uploaded for this service component. 14-day review window begins upon upload.',
   };
 }

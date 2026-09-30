@@ -10,6 +10,7 @@ import { sendCareerEmail } from '@/lib/career/email';
 import { PACKAGE_LABELS, SERVICE_LABELS } from '@/lib/career/types';
 import type { CareerPackage, CareerServiceSlug } from '@/lib/career/types';
 import { expandClientServices } from '@/lib/career/services';
+import { calculateRevisionWindow, calculateComponentRevisionWindow } from '@/lib/career/revisionWindow';
 import { waitUntil } from '@vercel/functions';
 
 
@@ -42,10 +43,28 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const client = await db.careerClient.findUnique({
     where: { id: params.id },
     select: {
+      status: true,
+      draftSentAt: true,
+      completedAt: true,
+      firstCompletedAt: true,
       packageType: true,
       services: { select: { service: { select: { slug: true, name: true } } } },
+      deliverables: {
+        where: { fileCategory: 'draft' },
+        select: { fileType: true, fileCategory: true, label: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      },
     },
   });
+
+  const revisionWindow = calculateRevisionWindow({
+    status: client?.status ?? 'NOT_STARTED',
+    draftSentAt: client?.draftSentAt,
+    completedAt: client?.completedAt,
+    firstCompletedAt: client?.firstCompletedAt,
+    deliverableCreatedAt: client?.deliverables[0]?.createdAt ?? null,
+  });
+  const isWindowExpired = revisionWindow.isExpired;
 
   const revisions = await db.careerRevision.findMany({
     where: { clientId: params.id },
@@ -93,17 +112,30 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     // Attribute legacy unassigned to first component (Resume Rewrite)
     const freeUsed = idx === 0 ? slugFreeUsed + generalFreeUsed : slugFreeUsed;
     const paidUsed = clientRevisions.filter(r => r.serviceSlug === slug && r.chargeStatus !== 'FREE').length;
+
+    // Calculate review window INDIVIDUALLY for this component
+    const compWindow = calculateComponentRevisionWindow({
+      serviceSlug: slug,
+      clientStatus: client?.status ?? 'NOT_STARTED',
+      completedAt: client?.completedAt,
+      firstCompletedAt: client?.firstCompletedAt,
+      deliverables: client?.deliverables ?? [],
+      draftSentAt: client?.draftSentAt,
+    });
+
     return {
       slug,
       name: s.name,
       freeLimit: FREE_LIMIT,
       freeUsed,
-      revisionsLeft: Math.max(0, FREE_LIMIT - freeUsed),
+      revisionsLeft: compWindow.isExpired ? 0 : Math.max(0, FREE_LIMIT - freeUsed),
       paidUsed,
+      isWindowExpired: compWindow.isExpired,
+      revisionWindow: compWindow,
     };
   });
 
-  return NextResponse.json({ revisions: enrichedRevisions, revisionSummary });
+  return NextResponse.json({ revisions: enrichedRevisions, revisionSummary, revisionWindow });
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -124,8 +156,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const client = await db.careerClient.findUnique({
     where: { id: params.id },
     select: {
-      id: true, name: true, email: true, packageType: true,
+      id: true, name: true, email: true, packageType: true, status: true,
+      draftSentAt: true, completedAt: true, firstCompletedAt: true,
       services: { select: { service: { select: { slug: true, name: true } } } },
+      deliverables: {
+        where: { fileCategory: 'draft' },
+        select: { fileType: true, fileCategory: true, label: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      },
     },
   });
   if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
@@ -142,8 +180,24 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     effectiveSlug = services.length > 0 ? services[0].slug : 'RESUME';
   }
 
-  // If counting as client, enforce the same 2-revision limit per component
+  // If counting as client, check THAT SPECIFIC COMPONENT'S window expiration!
   if (countAsClient) {
+    const compWindow = calculateComponentRevisionWindow({
+      serviceSlug: effectiveSlug,
+      clientStatus: client.status,
+      completedAt: client.completedAt,
+      firstCompletedAt: client.firstCompletedAt,
+      deliverables: client.deliverables ?? [],
+      draftSentAt: client.draftSentAt,
+    });
+    if (compWindow.isExpired) {
+      const serviceName = services.find(s => s.slug === effectiveSlug)?.name || effectiveSlug;
+      return NextResponse.json({
+        error: `Complimentary revision window has expired for ${serviceName} (${compWindow.statusLabel}). You cannot deduct from client free revision limit. Please quote this as a paid revision.`,
+        windowExpired: true,
+      }, { status: 400 });
+    }
+
     const FREE_LIMIT = 2;
     const existing = await db.careerRevision.count({
       where: {

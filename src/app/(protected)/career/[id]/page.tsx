@@ -9,6 +9,7 @@ import type { CareerStatus, CareerPackage, CareerServiceSlug, EmailTrigger, OutO
 import { TRIGGER_LABELS } from '@/lib/career/triggerLabels';
 import { expandClientServices } from '@/lib/career/services';
 import { AdminSlaViewModal } from '@/components/AdminSlaViewModal';
+import { RevisionNoteViewer } from '@/components/career/RevisionNoteViewer';
 import type { RevisionWindowInfo } from '@/lib/career/revisionWindow';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -2640,31 +2641,58 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services, revis
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   // Per-service free-revision usage (freeUsed / freeLimit / paidUsed) — same
   // numbers the client sees in their portal, so admin and client stay aligned.
-  type RevSummaryRow = { slug: string; name: string; freeLimit: number; freeUsed: number; revisionsLeft: number; paidUsed: number };
+  type RevSummaryRow = {
+    slug: string;
+    name: string;
+    freeLimit: number;
+    freeUsed: number;
+    revisionsLeft: number;
+    paidUsed: number;
+    isWindowExpired?: boolean;
+    revisionWindow?: {
+      stage: 'NOT_DELIVERED' | 'DRAFT' | 'FINAL_DELIVERY' | 'EXPIRED';
+      windowDays: number;
+      daysSince: number;
+      daysRemaining: number;
+      isExpired: boolean;
+      statusLabel: string;
+      badgeColor: 'emerald' | 'amber' | 'red' | 'slate';
+      reason?: string;
+    };
+  };
   const [revSummary, setRevSummary] = useState<RevSummaryRow[]>([]);
 
+  const isWindowExpired = revisionWindow?.isExpired || revisionWindow?.stage === 'EXPIRED';
+
   // Decompose client services into component services (Resume Rewrite, LinkedIn Profile Optimization, etc.)
-  // Never show 'Full Career Package' or bundle rows
+  // Never show 'Full Career Package' or bundle rows. Each component tracks its own review cycle independently!
   const componentServices = useMemo(() => {
     if (revSummary && revSummary.length > 0) {
-      return revSummary.map(s => ({
-        slug: s.slug,
-        name: s.name,
-        revisionsLeft: s.revisionsLeft,
-        freeLimit: s.freeLimit,
-        freeUsed: s.freeUsed,
-        paidUsed: s.paidUsed,
-      }));
+      return revSummary.map(s => {
+        const compExpired = s.isWindowExpired ?? false;
+        return {
+          slug: s.slug,
+          name: s.name,
+          revisionsLeft: compExpired ? 0 : s.revisionsLeft,
+          freeLimit: s.freeLimit,
+          freeUsed: s.freeUsed,
+          paidUsed: s.paidUsed,
+          isWindowExpired: compExpired,
+          revisionWindow: s.revisionWindow,
+        };
+      });
     }
     return expandClientServices(services, clientPackage).map(s => ({
       slug: s.slug,
       name: s.name,
-      revisionsLeft: 2,
+      revisionsLeft: isWindowExpired ? 0 : 2,
       freeLimit: 2,
       freeUsed: 0,
       paidUsed: 0,
+      isWindowExpired: isWindowExpired,
+      revisionWindow: undefined,
     }));
-  }, [revSummary, services, clientPackage]);
+  }, [revSummary, services, clientPackage, isWindowExpired]);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
@@ -2685,6 +2713,12 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services, revis
 
   const submitRevision = async (e: React.FormEvent) => {
     e.preventDefault();
+    const effectiveSlug = serviceSlug || (componentServices.length > 0 ? componentServices[0].slug : 'RESUME');
+    const targetComp = componentServices.find(s => s.slug === effectiveSlug);
+    if (countAsClient && targetComp?.isWindowExpired) {
+      setError(`Complimentary revision review window has expired for ${targetComp.name}. Cannot deduct from free revision limit.`);
+      return;
+    }
     setSaving(true); setError('');
     const res = await fetch(`/api/career/admin/clients/${clientId}/revisions`, {
       method: 'POST',
@@ -2931,75 +2965,135 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services, revis
       </div>
 
       {/* Revision Window Policy & Active Countdown for Admin */}
-      {revisionWindow && revisionWindow.stage !== 'NOT_DELIVERED' && (
-        <div className={`p-4 rounded-xl border flex flex-wrap items-center justify-between gap-3 text-xs ${
-          revisionWindow.stage === 'EXPIRED'
-            ? 'bg-rose-50/70 border-rose-200 text-rose-900'
-            : revisionWindow.stage === 'FINAL_DELIVERY'
-              ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
-              : 'bg-amber-50/80 border-amber-200 text-amber-900'
-        }`}>
-          <div className="flex items-start sm:items-center gap-3">
-            <span className="text-xl flex-shrink-0">
-              {revisionWindow.stage === 'EXPIRED' ? '⛔' : '⏳'}
-            </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm">
-                  {revisionWindow.stage === 'DRAFT' && 'Draft Review Window (14 Calendar Days)'}
-                  {revisionWindow.stage === 'FINAL_DELIVERY' && 'Final Delivery Review Window (7 Calendar Days)'}
-                  {revisionWindow.stage === 'EXPIRED' && 'Complimentary Revision Window Concluded'}
-                </span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${
-                  revisionWindow.stage === 'EXPIRED'
-                    ? 'bg-rose-100 text-rose-700 border-rose-300'
-                    : 'bg-white text-slate-700 border-slate-200'
-                }`}>
-                  {revisionWindow.statusLabel}
-                </span>
+      {componentServices.length > 0 && (() => {
+        const expiredCount = componentServices.filter(s => s.isWindowExpired).length;
+        const pendingCount = componentServices.filter(s => s.revisionWindow?.stage === 'NOT_DELIVERED').length;
+        const activeCount = componentServices.filter(s => !s.isWindowExpired && s.revisionWindow?.stage !== 'NOT_DELIVERED').length;
+        const allExpired = expiredCount === componentServices.length;
+
+        if (pendingCount === componentServices.length && revisionWindow?.stage === 'NOT_DELIVERED') {
+          return null; // All drafts pending delivery
+        }
+
+        return (
+          <div className={`p-4 rounded-xl border flex flex-wrap items-center justify-between gap-3 text-xs ${
+            allExpired
+              ? 'bg-rose-50/70 border-rose-200 text-rose-900'
+              : expiredCount > 0
+                ? 'bg-amber-50/80 border-amber-200 text-amber-900'
+                : 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+          }`}>
+            <div className="flex items-start sm:items-center gap-3">
+              <span className="text-xl flex-shrink-0">
+                {allExpired ? '⛔' : expiredCount > 0 ? '⚖️' : '⏳'}
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm">
+                    {allExpired
+                      ? 'Complimentary Revision Windows Concluded (All Services)'
+                      : expiredCount > 0
+                        ? 'Independent Per-Service Review Cycles Active'
+                        : revisionWindow?.stage === 'FINAL_DELIVERY'
+                          ? 'Final Delivery Review Window (7 Calendar Days)'
+                          : 'Draft Review Window (14 Calendar Days)'}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${
+                    allExpired
+                      ? 'bg-rose-100 text-rose-700 border-rose-300'
+                      : expiredCount > 0
+                        ? 'bg-amber-100 text-amber-800 border-amber-300'
+                        : 'bg-white text-slate-700 border-slate-200'
+                  }`}>
+                    {allExpired
+                      ? 'All Closed'
+                      : `${expiredCount} Expired · ${activeCount} Active · ${pendingCount} Pending Draft`}
+                  </span>
+                </div>
+                <p className="text-[11px] opacity-80 mt-0.5 leading-relaxed">
+                  {allExpired
+                    ? 'All complimentary draft/final review periods have concluded. Any new revision requests must be quoted as paid engagements.'
+                    : expiredCount > 0
+                      ? 'Each component service tracks its own 14-day draft review cycle from when its draft was uploaded. Undelivered drafts are not blocked.'
+                      : (revisionWindow?.reason ?? `${revisionWindow?.daysRemaining ?? 14} days remaining for complimentary revisions.`)}
+                </p>
               </div>
-              <p className="text-[11px] opacity-80 mt-0.5 leading-relaxed">
-                {revisionWindow.reason ?? (
-                  revisionWindow.stage === 'DRAFT'
-                    ? `${revisionWindow.daysRemaining} days remaining for complimentary draft revisions.`
-                    : revisionWindow.stage === 'FINAL_DELIVERY'
-                      ? `${revisionWindow.daysRemaining} days remaining for complimentary post-completion revisions.`
-                      : 'Free revision window has ended. Additional requests are quoted as paid engagements.'
-                )}
-              </p>
+            </div>
+            <div className="text-left sm:text-right flex-shrink-0">
+              <span className="text-[10px] uppercase tracking-wider font-semibold opacity-70 block">Review Cycles</span>
+              <span className="font-bold text-slate-800">
+                {allExpired
+                  ? 'All Expired'
+                  : `${componentServices.filter(s => !s.isWindowExpired).length} of ${componentServices.length} Eligible`}
+              </span>
             </div>
           </div>
-          <div className="text-left sm:text-right flex-shrink-0">
-            <span className="text-[10px] uppercase tracking-wider font-semibold opacity-70 block">Review Period</span>
-            <span className="font-bold text-slate-800">
-              {revisionWindow.isExpired
-                ? 'Expired'
-                : `${revisionWindow.daysRemaining} of ${revisionWindow.windowDays}d left`}
-            </span>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Free-revision usage per component service */}
       {componentServices.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {componentServices.map(s => {
-            const exhausted = s.revisionsLeft === 0;
-            const pct = Math.min(100, Math.round((s.freeUsed / s.freeLimit) * 100));
+            const isExpired = s.isWindowExpired;
+            const isPending = s.revisionWindow?.stage === 'NOT_DELIVERED';
+            const exhausted = isExpired || s.revisionsLeft === 0;
+            const pct = isExpired ? 100 : Math.min(100, Math.round((s.freeUsed / s.freeLimit) * 100));
             return (
-              <div key={s.slug} className={`px-3.5 py-2.5 rounded-xl border ${exhausted ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
+              <div key={s.slug} className={`px-3.5 py-2.5 rounded-xl border ${
+                isExpired
+                  ? 'bg-slate-50/80 border-slate-200'
+                  : isPending
+                    ? 'bg-blue-50/40 border-blue-200/60'
+                    : exhausted
+                      ? 'bg-amber-50 border-amber-200'
+                      : 'bg-white border-slate-200'
+              }`}>
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span className="text-xs font-semibold text-slate-700 truncate">{s.name}</span>
-                  <span className={`text-[10px] font-bold whitespace-nowrap ${exhausted ? 'text-amber-700' : 'text-slate-500'}`}>
-                    {s.freeUsed}/{s.freeLimit} free used{exhausted ? ' · paid only' : ` · ${s.revisionsLeft} left`}
+                  <span className={`text-[10px] font-bold whitespace-nowrap ${
+                    isExpired
+                      ? 'text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200'
+                      : isPending
+                        ? 'text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200'
+                        : exhausted
+                          ? 'text-amber-700'
+                          : 'text-slate-500'
+                  }`}>
+                    {isExpired
+                      ? `${s.freeUsed}/${s.freeLimit} used · Expired (Window closed)`
+                      : isPending
+                        ? `${s.freeUsed}/${s.freeLimit} free used · Draft pending (2 left)`
+                        : s.revisionWindow?.stage === 'DRAFT'
+                          ? `${s.freeUsed}/${s.freeLimit} used · ${s.revisionsLeft} left (${s.revisionWindow.daysRemaining}d left)`
+                          : `${s.freeUsed}/${s.freeLimit} free used${exhausted ? ' · paid only' : ` · ${s.revisionsLeft} left`}`}
                   </span>
                 </div>
-                <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full ${exhausted ? 'bg-amber-500' : s.freeUsed > 0 ? 'bg-amber-400' : 'bg-emerald-400'}`} style={{ width: `${pct}%` }} />
+                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all ${
+                    isExpired
+                      ? 'bg-rose-400'
+                      : isPending
+                        ? 'bg-blue-400'
+                        : exhausted
+                          ? 'bg-amber-500'
+                          : s.freeUsed > 0
+                            ? 'bg-amber-400'
+                            : 'bg-emerald-400'
+                  }`} style={{ width: `${pct}%` }} />
                 </div>
-                {s.paidUsed > 0 && (
-                  <p className="text-[10px] text-slate-400 mt-1">{s.paidUsed} paid revision{s.paidUsed === 1 ? '' : 's'} on top</p>
-                )}
+                <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400">
+                  <span>
+                    {isExpired
+                      ? 'Complimentary window closed'
+                      : isPending
+                        ? '14d window starts on draft upload'
+                        : s.revisionWindow?.statusLabel ?? `${s.revisionsLeft} complimentary remaining`}
+                  </span>
+                  {s.paidUsed > 0 && (
+                    <span className="text-amber-700 font-medium">+{s.paidUsed} paid</span>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -3046,28 +3140,68 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services, revis
               Send revision email to client ({clientPackage})
             </label>
             {/* Count against client's free limit */}
-            <div className="border border-amber-200 bg-amber-50 rounded-xl p-3 space-y-2">
-              <label className="flex items-center gap-2 text-sm font-medium text-amber-800 cursor-pointer">
-                <input type="checkbox" checked={countAsClient} onChange={e => { setCountAsClient(e.target.checked); if (!e.target.checked) setServiceSlug(''); }}
-                  className="w-4 h-4 rounded border-amber-300 accent-amber-600" />
-                Count against client&apos;s free revision limit
-              </label>
-              <p className="text-xs text-amber-600 pl-6">Use when the client requested this via chat or call — prevents them from bypassing the 2-revision cap per component.</p>
-              {countAsClient && componentServices.length > 0 && (
-                <div className="pl-6">
-                  <label className="block text-xs font-semibold text-amber-700 mb-1">Which component / service? *</label>
-                  <select required value={serviceSlug} onChange={e => setServiceSlug(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
-                    <option value="">Select component…</option>
-                    {componentServices.map(s => (
-                      <option key={s.slug} value={s.slug} disabled={s.revisionsLeft === 0}>
-                        {s.name} ({s.revisionsLeft} left)
-                      </option>
-                    ))}
-                  </select>
+            {(() => {
+              const eligibleFreeComponents = componentServices.filter(s => !s.isWindowExpired && s.revisionsLeft > 0);
+              const allFreeExhausted = componentServices.length > 0 && eligibleFreeComponents.length === 0;
+
+              return (
+                <div className={`border rounded-xl p-3.5 space-y-2 ${allFreeExhausted ? 'border-slate-200 bg-slate-50/80' : 'border-amber-200 bg-amber-50'}`}>
+                  <label className={`flex items-center gap-2 text-sm font-medium ${allFreeExhausted ? 'text-slate-400 cursor-not-allowed' : 'text-amber-800 cursor-pointer'}`}>
+                    <input
+                      type="checkbox"
+                      checked={!allFreeExhausted && countAsClient}
+                      disabled={allFreeExhausted}
+                      onChange={e => {
+                        if (allFreeExhausted) return;
+                        setCountAsClient(e.target.checked);
+                        if (!e.target.checked) setServiceSlug('');
+                      }}
+                      className="w-4 h-4 rounded border-amber-300 accent-amber-600 disabled:opacity-40"
+                    />
+                    Count against client&apos;s free revision limit
+                  </label>
+
+                  {allFreeExhausted ? (
+                    <div className="flex items-center gap-2 pl-6 text-xs text-rose-700 font-medium">
+                      <span>⛔</span>
+                      <span>
+                        All complimentary revision windows or free quotas have concluded. Free revisions can no longer be deducted. Any further client revisions must be quoted as paid engagements.
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-amber-600 pl-6">
+                      Use when the client requested this via chat or call — prevents them from bypassing the 2-revision cap per component.
+                    </p>
+                  )}
+
+                  {!allFreeExhausted && countAsClient && eligibleFreeComponents.length > 0 && (
+                    <div className="pl-6 space-y-1">
+                      <label className="block text-xs font-semibold text-amber-700 mb-1">Which component / service? *</label>
+                      <select
+                        required
+                        value={serviceSlug}
+                        onChange={e => setServiceSlug(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                      >
+                        <option value="">Select eligible component…</option>
+                        {eligibleFreeComponents.map(s => {
+                          const statusTxt = s.revisionWindow?.stage === 'NOT_DELIVERED'
+                            ? 'Draft pending delivery'
+                            : s.revisionWindow?.stage === 'DRAFT'
+                              ? `${s.revisionWindow.daysRemaining}d left in draft review`
+                              : `${s.revisionsLeft} left`;
+                          return (
+                            <option key={s.slug} value={s.slug}>
+                              {s.name} ({s.revisionsLeft} free left · {statusTxt})
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
             <div className="flex gap-2">
               <button type="submit" disabled={saving || note.trim().length < 5 || (countAsClient && componentServices.length > 0 && !serviceSlug)}
                 className="px-5 py-2 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center gap-2">
@@ -3167,22 +3301,17 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services, revis
                     </div>
                   )}
 
-                  {r.fileLabel && <p className="text-xs font-semibold text-slate-500 mb-1">Re: {r.fileLabel}</p>}
-                  {(() => {
-                    const lines = parsed.cleanNote.split('\n').map(l => l.trim()).filter(Boolean);
-                    return lines.length > 1 ? (
-                      <ul className="space-y-1">
-                        {lines.map((l, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-slate-800 leading-relaxed">
-                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#B8935B] flex-shrink-0" />
-                            <span className="min-w-0">{l.replace(/^[-•*]\s*/, '')}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">{parsed.cleanNote}</p>
-                    );
-                  })()}
+                  {r.fileLabel && (
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className="text-slate-400 text-xs">Deliverable:</span>
+                      <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                        {r.fileLabel}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Clean structured revision brief */}
+                  <RevisionNoteViewer note={parsed.cleanNote} />
                   {r.adminNote && (
                     <div className="mt-2 px-3 py-2 bg-[#FBF8F3] border border-[#F0EAE0] rounded-lg">
                       <p className="text-xs text-[#9A7540]"><strong>Admin note:</strong> {r.adminNote}</p>

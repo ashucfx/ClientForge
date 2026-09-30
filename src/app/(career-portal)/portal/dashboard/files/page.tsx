@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { parseRevisionNote, OUT_OF_SCOPE_CATEGORIES } from '@/lib/career/types';
 import type { OutOfScopeCategoryKey } from '@/lib/career/types';
+import { RevisionNoteViewer } from '@/components/career/RevisionNoteViewer';
 
 interface FileItem {
   id: string; label: string; fileUrl: string;
@@ -76,7 +77,22 @@ function revStepIndex(status: string): number {
 }
 
 interface RevisionSummaryItem {
-  slug: string; name: string; freeLimit: number; freeUsed: number; revisionsLeft: number;
+  slug: string;
+  name: string;
+  freeLimit: number;
+  freeUsed: number;
+  revisionsLeft: number;
+  isWindowExpired?: boolean;
+  revisionWindow?: {
+    stage: 'NOT_DELIVERED' | 'DRAFT' | 'FINAL_DELIVERY' | 'EXPIRED';
+    windowDays: number;
+    daysSince: number;
+    daysRemaining: number;
+    isExpired: boolean;
+    statusLabel: string;
+    badgeColor: 'emerald' | 'amber' | 'red' | 'slate';
+    reason?: string;
+  };
 }
 
 export default function FilesPage() {
@@ -127,8 +143,12 @@ export default function FilesPage() {
 
   const openRevision = (file?: FileItem) => {
     setRevFile(file?.label || '');
-    setRevSlug(file ? mapFileTypeToServiceSlug(file.fileType) : 'GENERAL');
-    if (file && file.fileCategory === 'draft') {
+    const derivedSlug = file ? mapFileTypeToServiceSlug(file.fileType) : (revSummary[0]?.slug || 'RESUME');
+    setRevSlug(derivedSlug);
+    const sumItem = revSummary.find(s => s.slug === derivedSlug);
+    if (sumItem) {
+      setRevWindowExpired(Boolean(sumItem.isWindowExpired));
+    } else if (file && file.fileCategory === 'draft') {
       const daysSince = Math.floor((Date.now() - new Date(file.createdAt).getTime()) / (1000 * 60 * 60 * 24));
       setRevWindowExpired(daysSince > 14);
     } else {
@@ -281,8 +301,10 @@ export default function FilesPage() {
                       {qItem && (
                         <div className="mb-4 flex items-center justify-between px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl text-[11px]">
                           <span className="text-slate-500">Complimentary Revisions:</span>
-                          <span className={`font-bold ${isExhausted ? 'text-amber-700' : 'text-slate-700'}`}>
-                            {qItem.freeUsed}/{qItem.freeLimit} used ({qItem.revisionsLeft} left)
+                          <span className={`font-bold ${isExpired || qItem.isWindowExpired || isExhausted ? 'text-amber-700' : 'text-slate-700'}`}>
+                            {isExpired || qItem.isWindowExpired
+                              ? `${qItem.freeUsed}/${qItem.freeLimit} used (Window closed · 0 left)`
+                              : `${qItem.freeUsed}/${qItem.freeLimit} used (${qItem.revisionsLeft} left)`}
                           </span>
                         </div>
                       )}
@@ -410,20 +432,38 @@ export default function FilesPage() {
 
           {/* Per-service revision tracker */}
           {revSummary.length > 0 && (
-            <div className="mb-4 space-y-2 px-4 py-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+            <div className="mb-4 space-y-2.5 px-4 py-3 bg-slate-50 rounded-2xl border border-slate-200/80">
               {revSummary.map(s => {
-                const exhausted = s.revisionsLeft === 0;
-                const pct = Math.round((s.freeUsed / s.freeLimit) * 100);
+                const isExpired = s.isWindowExpired || s.revisionWindow?.isExpired;
+                const isPending = s.revisionWindow?.stage === 'NOT_DELIVERED';
+                const exhausted = isExpired || s.revisionsLeft === 0;
+                const pct = isExpired ? 100 : Math.round((s.freeUsed / s.freeLimit) * 100);
                 return (
                   <div key={s.slug}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-semibold text-slate-700">{s.name}</span>
-                      <span className={`text-[11px] font-bold ${exhausted ? 'text-amber-600' : 'text-slate-500'}`}>
-                        {s.freeUsed}/{s.freeLimit} free used{exhausted ? ' · Additional available as paid engagement' : ` · ${s.revisionsLeft} left`}
+                      <span className={`text-[11px] font-bold ${
+                        isExpired
+                          ? 'text-rose-600'
+                          : isPending
+                            ? 'text-blue-600'
+                            : exhausted
+                              ? 'text-amber-600'
+                              : 'text-slate-500'
+                      }`}>
+                        {isExpired
+                          ? `${s.freeUsed}/${s.freeLimit} used · Window expired (0 free left)`
+                          : isPending
+                            ? `${s.freeUsed}/${s.freeLimit} free used · Draft pending (2 left)`
+                            : s.revisionWindow?.stage === 'DRAFT'
+                              ? `${s.freeUsed}/${s.freeLimit} free used · ${s.revisionsLeft} left (${s.revisionWindow.daysRemaining}d left to review)`
+                              : `${s.freeUsed}/${s.freeLimit} free used${exhausted ? ' · Additional available as paid engagement' : ` · ${s.revisionsLeft} left`}`}
                       </span>
                     </div>
                     <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full ${exhausted ? 'bg-amber-500' : s.freeUsed > 0 ? 'bg-[#B8935B]' : 'bg-emerald-500'}`}
+                      <div className={`h-full rounded-full transition-all ${
+                        isExpired ? 'bg-rose-400' : isPending ? 'bg-blue-400' : exhausted ? 'bg-amber-500' : s.freeUsed > 0 ? 'bg-[#B8935B]' : 'bg-emerald-500'
+                      }`}
                         style={{ width: `${pct}%` }} />
                     </div>
                   </div>
@@ -520,7 +560,7 @@ export default function FilesPage() {
                       )}
 
                       {/* Clean request note */}
-                      <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">{parsed.cleanNote}</p>
+                      <RevisionNoteViewer note={parsed.cleanNote} />
 
                       {/* ── PAID REVISION PAYMENT / QUOTE CARD ── */}
                       {isPendingPayment && (

@@ -12,7 +12,7 @@ import { notifyAllAdmins } from '@/lib/notifications';
 import { waitUntil } from '@vercel/functions';
 import { addWorkingDays, getHolidaySet } from '@/lib/workingDays';
 import { expandServiceSlugs } from '@/lib/career/services';
-import { calculateRevisionWindow } from '@/lib/career/revisionWindow';
+import { calculateRevisionWindow, calculateComponentRevisionWindow, mapFileTypeToServiceSlug } from '@/lib/career/revisionWindow';
 
 
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
@@ -34,7 +34,7 @@ async function getClient() {
       deliverables: {
         where: { fileCategory: 'draft' },
         orderBy: { createdAt: 'desc' },
-        select: { id: true, label: true, fileType: true, createdAt: true },
+        select: { id: true, label: true, fileType: true, fileCategory: true, createdAt: true },
       },
     },
   });
@@ -95,21 +95,6 @@ export async function POST(req: NextRequest) {
   const outOfScopeCategory = (body?.outOfScopeCategory as string | undefined)?.trim().toUpperCase();
   const customReason      = (body?.outOfScopeReason as string | undefined)?.trim();
 
-  // Dynamic revision window check (14 days for draft review, 7 days post-completion)
-  const matchingDraft = fileLabel
-    ? client.deliverables?.find(d => d.label === fileLabel)
-    : client.deliverables?.[0];
-
-  const windowInfo = calculateRevisionWindow({
-    status: client.status,
-    draftSentAt: client.draftSentAt,
-    completedAt: client.completedAt,
-    firstCompletedAt: client.firstCompletedAt,
-    deliverableCreatedAt: matchingDraft?.createdAt ?? null,
-  });
-
-  const isWindowExpired = windowInfo.isExpired;
-
   // Resolve service slug: map any package slugs to constituent components
   const rawServiceSlugs = client.services.map(s => s.service.slug);
   const componentSlugs = expandServiceSlugs(rawServiceSlugs);
@@ -120,9 +105,29 @@ export async function POST(req: NextRequest) {
     serviceSlug = rawSlug;
   } else if (rawSlug && !['GENERAL', 'FULL_PACKAGE', 'PREMIUM_PLUS'].includes(rawSlug)) {
     serviceSlug = rawSlug;
+  } else if (fileLabel) {
+    const matchingDeliv = client.deliverables?.find(d => d.label === fileLabel);
+    if (matchingDeliv) {
+      serviceSlug = mapFileTypeToServiceSlug(matchingDeliv.fileType, matchingDeliv.label);
+    } else {
+      serviceSlug = componentSlugs[0] ?? 'RESUME';
+    }
   } else {
     serviceSlug = componentSlugs[0] ?? 'RESUME';
   }
+
+  // Dynamic revision window check calculated INDEPENDENTLY for this specific service component!
+  // Services not yet delivered (or delivered more recently) have their own review cycle.
+  const windowInfo = calculateComponentRevisionWindow({
+    serviceSlug,
+    clientStatus: client.status,
+    completedAt: client.completedAt,
+    firstCompletedAt: client.firstCompletedAt,
+    deliverables: client.deliverables,
+    draftSentAt: client.draftSentAt,
+  });
+
+  const isWindowExpired = windowInfo.isExpired;
 
   if (!rawNote || rawNote.length < 5) {
     return NextResponse.json({ error: 'Please describe the revision needed (min 5 chars).' }, { status: 400 });
