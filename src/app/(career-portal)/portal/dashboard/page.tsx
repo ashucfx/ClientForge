@@ -609,18 +609,16 @@ export default function PortalDashboardPage() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-5 sm:space-y-7" style={{ animation: 'fadeSlideIn 0.5s ease-out' }}>
-        <style>{`@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-5 sm:space-y-7 motion-fade-in-up">
         {/* ── Upgrade Preview Modal ── */}
         {upgradeTarget && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 motion-fade-in-up"
             onClick={() => { if (!upgrading) { setUpgradeTarget(null); setUpgradePreview(null); } }}>
-            <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[92dvh] sm:max-h-[90vh] flex flex-col"
+            <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[92dvh] sm:max-h-[90vh] flex flex-col motion-scale-in"
               onClick={e => e.stopPropagation()}>
               {/* Header */}
               <div className="relative bg-gradient-to-br from-[#0A0B0D] to-[#1C1812] px-6 pt-6 pb-8 text-white overflow-hidden">
-                <div className="absolute top-0 right-0 w-48 h-48 bg-[#B8935B]/8 rounded-full blur-3xl -translate-y-16 translate-x-16 pointer-events-none" />
+                <div className="absolute top-0 right-0 w-48 h-48 bg-[#B8935B]/15 rounded-full blur-3xl -translate-y-16 translate-x-16 pointer-events-none motion-glow" />
                 <div className="relative flex items-start justify-between mb-3">
                   <div>
                     <p className="text-[#B8935B] text-[9px] font-bold uppercase tracking-[0.22em] mb-1.5 flex items-center gap-1.5">
@@ -810,12 +808,12 @@ export default function PortalDashboardPage() {
         )}
 
         {/* ── Premium Hero Banner ── */}
-        <div className="relative overflow-hidden rounded-3xl border border-white/5"
+        <div className="relative overflow-hidden rounded-3xl border border-white/10 shadow-2xl"
           style={{ background: 'linear-gradient(135deg, #0A0B0D 0%, #1A1208 55%, #0D0E10 100%)' }}>
           {/* Atmospheric glow layers */}
-          <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-[#B8935B]/10 blur-3xl -translate-y-24 translate-x-24 pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-40 h-40 rounded-full bg-[#B8935B]/5 blur-2xl translate-y-14 -translate-x-10 pointer-events-none" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_85%_85%,rgba(184,147,91,0.07),transparent)] pointer-events-none" />
+          <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-[#B8935B]/15 blur-3xl -translate-y-24 translate-x-24 pointer-events-none motion-glow" />
+          <div className="absolute bottom-0 left-0 w-40 h-40 rounded-full bg-[#B8935B]/10 blur-2xl translate-y-14 -translate-x-10 pointer-events-none motion-float" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_85%_85%,rgba(184,147,91,0.08),transparent)] pointer-events-none" />
 
           <div className="relative px-5 pt-7 pb-6 sm:px-8 sm:pt-9 sm:pb-8">
             {/* Top row */}
@@ -864,7 +862,7 @@ export default function PortalDashboardPage() {
                   ? 'border-orange-400/30 bg-orange-400/10 text-orange-300'
                   : 'border-white/10 bg-white/5 text-white/55'
               }`}>
-                <span className={`w-1.5 h-1.5 rounded-full animate-pulse flex-shrink-0 ${
+                <span className={`w-1.5 h-1.5 rounded-full motion-pulse-slow flex-shrink-0 ${
                   me.status === 'COMPLETED' ? 'bg-emerald-400' :
                   me.status === 'REVISION_REQUESTED' ? 'bg-orange-400' : 'bg-[#B8935B]'
                 }`} />
@@ -889,7 +887,7 @@ export default function PortalDashboardPage() {
               <div className="flex flex-wrap gap-1.5">
                 {me.services.map(s => (
                   <span key={s.slug}
-                    className="px-2.5 py-1 rounded-full text-[10px] font-semibold border border-[#B8935B]/22 bg-[#B8935B]/8 tracking-wide"
+                    className="px-2.5 py-1 rounded-full text-[10px] font-semibold border border-[#B8935B]/22 bg-[#B8935B]/8 tracking-wide transition-colors hover:border-[#B8935B]/40"
                     style={{ color: '#C9A870' }}>
                     {s.name}
                   </span>
@@ -900,7 +898,7 @@ export default function PortalDashboardPage() {
             {/* SLA Assent Status & Invoice Receipt */}
             <div className="mt-4 pt-3.5 border-t border-white/10 flex flex-wrap items-center justify-between gap-2.5">
               <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${me.slaAccepted ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
+                <span className={`w-2 h-2 rounded-full ${me.slaAccepted ? 'bg-emerald-400' : 'bg-amber-400 motion-pulse-slow'}`} />
                 <span className="text-[11px] text-white/70">
                   {me.slaAccepted ? `Master Services & Turnaround SLA Bound (${me.slaVersion || 'v2026.1'})` : 'Awaiting SLA Acceptance'}
                 </span>
@@ -926,7 +924,7 @@ export default function PortalDashboardPage() {
                     alert('Could not download invoice. Please try again.');
                   }
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-[#B8935B]/40 text-[#E0C59E] hover:text-white text-[11px] font-semibold transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-[#B8935B]/40 text-[#E0C59E] hover:text-white text-[11px] font-semibold transition-all cursor-pointer btn-press"
               >
                 <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -951,7 +949,7 @@ export default function PortalDashboardPage() {
           return (
             <div className="flex flex-col gap-5 mb-5">
               {!hasFull && (
-                <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4 card-hover-lift transition-all">
                   <div>
                     <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
                       <span className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 shrink-0">
@@ -965,14 +963,14 @@ export default function PortalDashboardPage() {
                       Unlock the complete Career Booster package including Professional Resume, LinkedIn Optimization, and Cover Letter.
                     </p>
                   </div>
-                  <button onClick={() => handleUpgrade('CAREER_BOOSTER')} className="px-4 py-2 bg-slate-900 text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-slate-800 transition-colors shadow-sm">
+                  <button onClick={() => handleUpgrade('CAREER_BOOSTER')} className="px-4 py-2.5 bg-slate-900 text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-slate-800 btn-press transition-all shadow-sm">
                     Upgrade Now
                   </button>
                 </div>
               )}
               
               {!hasPortfolio && (
-                <div className="bg-gradient-to-r from-[#FDFBF7] to-[#F9F6F0] border border-[#D4AF7A]/40 rounded-2xl shadow-[0_1px_4px_rgba(184,147,91,0.08)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
+                <div className="bg-gradient-to-r from-[#FDFBF7] to-[#F9F6F0] border border-[#D4AF7A]/40 rounded-2xl shadow-[0_1px_4px_rgba(184,147,91,0.08)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden card-hover-lift transition-all">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-[#B8935B]/10 rounded-full blur-2xl -translate-y-10 translate-x-10 pointer-events-none" />
                   <div className="relative z-10">
                     <h3 className="font-bold text-[#9A7540] text-lg flex items-center gap-2">
@@ -987,14 +985,14 @@ export default function PortalDashboardPage() {
                       Stand out with a stunning Personal Portfolio Website tailored to showcase your unique career journey.
                     </p>
                   </div>
-                  <button onClick={() => handleUpgrade('PREMIUM_PLUS')} className="relative z-10 px-4 py-2 bg-[#B8935B] text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-[#9A7540] transition-colors shadow-sm">
+                  <button onClick={() => handleUpgrade('PREMIUM_PLUS')} className="relative z-10 px-4 py-2.5 bg-gradient-to-r from-[#B8935B] to-[#9A7540] text-white font-bold rounded-xl text-sm whitespace-nowrap hover:shadow-md hover:shadow-[#B8935B]/20 btn-press transition-all shadow-sm">
                     Unlock Premium Plus
                   </button>
                 </div>
               )}
 
               {!hasExecutiveAccess && (
-                <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4 card-hover-lift transition-all">
                   <div>
                     <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
                       <span className="w-7 h-7 rounded-lg bg-[#B8935B]/15 flex items-center justify-center text-[#B8935B] shrink-0">
@@ -1010,7 +1008,7 @@ export default function PortalDashboardPage() {
                         : 'Unlock 1-on-1 Executive Connect strategy consultations with our leadership career mentors.'}
                     </p>
                   </div>
-                  <button onClick={() => handleUpgrade('EXECUTIVE_CONNECT')} className="px-4 py-2 bg-white border border-[#B8935B] text-[#B8935B] font-bold rounded-xl text-sm whitespace-nowrap hover:bg-[#F0EAE0] transition-colors shadow-sm">
+                  <button onClick={() => handleUpgrade('EXECUTIVE_CONNECT')} className="px-4 py-2.5 bg-white border border-[#B8935B] text-[#B8935B] font-bold rounded-xl text-sm whitespace-nowrap hover:bg-[#F0EAE0] btn-press transition-all shadow-sm">
                     {me.consultationStatus === 'COMPLETED' ? 'Book Another Session' : 'Unlock Access'}
                   </button>
                 </div>
@@ -1028,7 +1026,7 @@ export default function PortalDashboardPage() {
           if (!hasExecutiveAccess) return null; // Don't show if they don't have access
 
           return (
-            <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 mb-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 mb-5 flex flex-col sm:flex-row items-center justify-between gap-4 card-hover-lift transition-all">
               <div>
                 <h3 className="font-bold text-slate-800 text-lg">Executive Connect</h3>
                 <p className="text-sm text-slate-500 mt-1">
@@ -1045,7 +1043,7 @@ export default function PortalDashboardPage() {
                     {me.consultationScheduledAt ? new Date(me.consultationScheduledAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'Scheduled'}
                   </p>
                   {me.consultationJoinUrl ? (
-                    <a href={me.consultationJoinUrl} target="_blank" rel="noreferrer" className="px-4 py-2 bg-[#B8935B] text-white font-bold rounded-xl text-sm hover:bg-[#9A7540] transition-colors">
+                    <a href={me.consultationJoinUrl} target="_blank" rel="noreferrer" className="px-4 py-2 bg-[#B8935B] text-white font-bold rounded-xl text-sm hover:bg-[#9A7540] btn-press transition-all">
                       Join Meeting
                     </a>
                   ) : (
@@ -1057,7 +1055,7 @@ export default function PortalDashboardPage() {
                   Session Completed
                 </span>
               ) : (
-                <a href={`${process.env.NEXT_PUBLIC_CAL_LINK || 'https://cal.com/example/30min'}?clientId=${me.id}&metadata[clientId]=${me.id}&name=${encodeURIComponent(me.name)}&email=${encodeURIComponent(me.email)}`} target="_blank" rel="noreferrer" className="px-4 py-2 bg-slate-900 text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-slate-800 transition-colors shadow-sm">
+                <a href={`${process.env.NEXT_PUBLIC_CAL_LINK || 'https://cal.com/example/30min'}?clientId=${me.id}&metadata[clientId]=${me.id}&name=${encodeURIComponent(me.name)}&email=${encodeURIComponent(me.email)}`} target="_blank" rel="noreferrer" className="px-4 py-2.5 bg-slate-900 text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-slate-800 btn-press transition-all shadow-sm">
                   Book Executive Connect
                 </a>
               )}
@@ -1068,7 +1066,7 @@ export default function PortalDashboardPage() {
         {/* ── Stats row: Revisions + Delivery Date ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Revisions */}
-          <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5">
+          <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 card-hover-lift transition-all">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-3">Free Revisions</p>
             {me.revisionWindow && me.revisionWindow.stage !== 'NOT_DELIVERED' && (() => {
               const rw = me.revisionWindow;
@@ -1139,7 +1137,7 @@ export default function PortalDashboardPage() {
           </div>
 
           {/* Delivery */}
-          <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5">
+          <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 card-hover-lift transition-all">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-2">Expected Delivery</p>
             {me.expectedDeliveryAt ? (() => {
               const endMs    = new Date(me.expectedDeliveryAt).getTime();
@@ -1206,7 +1204,7 @@ export default function PortalDashboardPage() {
         </div>
 
         {/* ── Project Journey ── */}
-        <div className="bg-white border border-[#EBE4D9] rounded-3xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-6 sm:p-8">
+        <div className="bg-white border border-[#EBE4D9] rounded-3xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-6 sm:p-8 card-hover-lift transition-all">
           <div className="flex items-center justify-between mb-8">
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-0.5">Project Journey</p>
@@ -1232,7 +1230,7 @@ export default function PortalDashboardPage() {
               return (
                 <div key={step.key} className="relative z-10 flex items-start gap-5">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold transition-all border-4 border-white ${
-                    current ? 'bg-[#B8935B] text-white shadow-[0_0_0_3px_rgba(184,147,91,0.15)] scale-125' :
+                    current ? 'bg-[#B8935B] text-white shadow-[0_0_0_4px_rgba(184,147,91,0.25)] scale-125 motion-pulse-slow' :
                     done    ? 'bg-emerald-500 text-white' :
                               'bg-[#F0EAE0] text-slate-400'
                   }`}>
@@ -1475,14 +1473,14 @@ export default function PortalDashboardPage() {
                 const formMeta  = me.forms.find(f => f.formType === ft);
                 return (
                   <Link key={ft} href={`/portal/dashboard/forms/${ft}`}
-                    className={`group flex items-center justify-between p-4 border rounded-xl hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ${
+                    className={`group flex items-center justify-between p-4 border rounded-2xl card-hover-lift transition-all duration-300 ${
                       submitted
-                        ? 'border-emerald-200 bg-emerald-50/50 hover:border-emerald-300'
-                        : 'border-[#EBE4D9] hover:border-[#D4AF7A] hover:bg-[#FBF8F3]/60'
+                        ? 'border-emerald-200/80 bg-emerald-50/40 hover:border-emerald-300'
+                        : 'border-[#EBE4D9] hover:border-[#D4AF7A] hover:bg-[#FBF8F3]/70'
                     }`}>
                     <div className="flex items-center gap-3.5">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${
-                        submitted ? 'bg-emerald-100' : 'bg-[#F5F0E8]'
+                      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 transition-transform duration-300 group-hover:scale-105 ${
+                        submitted ? 'bg-emerald-100 text-emerald-700' : 'bg-[#F5F0E8] text-[#B8935B]'
                       }`}>
                         {FORM_ICON_SVG[ft] ?? (
                           <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
@@ -1491,7 +1489,7 @@ export default function PortalDashboardPage() {
                         )}
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-slate-900">{FORM_LABELS[ft] ?? ft}</p>
+                        <p className="text-sm font-bold text-slate-900 group-hover:text-[#9A7540] transition-colors">{FORM_LABELS[ft] ?? ft}</p>
                         <p className="text-xs text-slate-400 mt-0.5">
                           {submitted
                             ? `v${formMeta?.version ?? 1} · Updated ${fmtDate(formMeta?.submittedAt ?? '')}`
@@ -1505,11 +1503,11 @@ export default function PortalDashboardPage() {
                           Submitted ✓
                         </span>
                       ) : (
-                        <span className="px-2.5 py-1 bg-[#F0EAE0] text-[#9A7540] text-xs font-bold rounded-full">
+                        <span className="px-3 py-1 bg-[#F0EAE0] text-[#9A7540] text-xs font-bold rounded-full group-hover:bg-[#B8935B] group-hover:text-white transition-colors">
                           Fill now
                         </span>
                       )}
-                      <svg className="w-4 h-4 text-slate-300 group-hover:text-[#B8935B] group-hover:translate-x-0.5 transition-all flex-shrink-0"
+                      <svg className="w-4 h-4 text-slate-300 group-hover:text-[#B8935B] group-hover:translate-x-1 transition-all flex-shrink-0"
                         fill="none" viewBox="0 0 24 24">
                         <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M9 18l6-6-6-6"/>
                       </svg>
@@ -1529,21 +1527,21 @@ export default function PortalDashboardPage() {
 
         {/* ── Recent Files ── */}
         {files.length > 0 && (
-          <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-white border border-[#EBE4D9] rounded-3xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-6 sm:p-7 card-hover-lift transition-all">
+            <div className="flex items-center justify-between mb-5">
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Deliverables</p>
                 <p className="text-base font-bold text-slate-900 mt-0.5">Your files</p>
               </div>
               <Link href="/portal/dashboard/files"
-                className="text-xs text-[#B8935B] hover:underline font-semibold">
+                className="text-xs text-[#B8935B] hover:text-[#9A7540] hover:underline font-bold transition-colors">
                 View all ({files.length}) →
               </Link>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {files.slice(0, 3).map(file => (
                 <div key={file.id}
-                  className="flex items-center justify-between p-3 bg-[#F8F5F1] border border-[#EBE4D9] rounded-xl hover:bg-[#FBF8F3] hover:border-[#D4AF7A] hover:-translate-y-0.5 hover:shadow-sm transition-all duration-200">
+                  className="flex items-center justify-between p-3.5 bg-[#F8F5F1] border border-[#EBE4D9] rounded-2xl hover:bg-[#FBF8F3] hover:border-[#D4AF7A] card-hover-lift transition-all duration-300">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-white border border-[#EBE4D9] flex items-center justify-center flex-shrink-0">
                       {file.fileType === 'resume' ? (

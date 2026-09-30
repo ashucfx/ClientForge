@@ -270,10 +270,10 @@ export default function FilesPage() {
 
                 return (
                   <div key={file.id}
-                    className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs hover:shadow-md hover:border-amber-200 hover-lift transition-all flex flex-col justify-between">
+                    className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs hover:border-amber-200 card-hover-lift transition-all flex flex-col justify-between">
                     <div>
                       <div className="flex items-start justify-between gap-4 mb-3">
-                        <div className={`w-14 h-14 ${ft.bg} rounded-2xl flex items-center justify-center flex-shrink-0 relative`}>
+                        <div className={`w-14 h-14 ${ft.bg} rounded-2xl flex items-center justify-center flex-shrink-0 relative transition-transform duration-300 group-hover:scale-105`}>
                           {ft.icon}
                         </div>
                         <div className="flex flex-col items-end gap-1">
@@ -322,14 +322,14 @@ export default function FilesPage() {
                       <a
                         href={`/api/career/portal/deliverables/preview?fileId=${file.id}`}
                         target="_blank" rel="noopener noreferrer"
-                        className="flex-1 flex items-center justify-center gap-2 h-10 bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-all"
+                        className="flex-1 flex items-center justify-center gap-2 h-10 bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-100 hover:border-slate-300 btn-press transition-all"
                         title="Preview">
                         <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                         Preview
                       </a>
                       <button
                         onClick={() => openRevision(file)}
-                        className={`flex-1 flex items-center justify-center gap-1.5 h-10 font-semibold text-xs sm:text-sm rounded-xl transition-all ${
+                        className={`flex-1 flex items-center justify-center gap-1.5 h-10 font-semibold text-xs sm:text-sm rounded-xl btn-press transition-all ${
                           isExpired || isExhausted
                             ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-xs'
                             : 'bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100 hover:border-orange-300'
@@ -384,7 +384,7 @@ export default function FilesPage() {
                 const ft = FILE_ICONS[file.fileType] ?? FILE_ICONS.other;
                 return (
                   <div key={file.id}
-                    className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs hover:shadow-md hover:border-emerald-200 hover-lift transition-all flex flex-col justify-between">
+                    className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs hover:border-emerald-200 card-hover-lift transition-all flex flex-col justify-between">
                     <div>
                       <div className="flex items-start justify-between gap-4 mb-4">
                         <div className={`w-14 h-14 ${ft.bg} rounded-2xl flex items-center justify-center flex-shrink-0`}>
@@ -414,13 +414,13 @@ export default function FilesPage() {
                       <a
                         href={`/api/career/portal/deliverables/preview?fileId=${file.id}`}
                         target="_blank" rel="noopener noreferrer"
-                        className="flex-1 flex items-center justify-center gap-2 h-10 bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-all"
+                        className="flex-1 flex items-center justify-center gap-2 h-10 bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-100 hover:border-slate-300 btn-press transition-all"
                         title="Preview">
                         <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                         Preview
                       </a>
                       <a href={`/api/career/portal/deliverables/download?fileId=${file.id}`}
-                        className="flex-1 flex items-center justify-center gap-2 h-10 bg-[#B8935B] text-white font-semibold text-sm rounded-xl hover:bg-[#9A7540] active:scale-95 transition-all shadow-sm shadow-[#B8935B]/20">
+                        className="flex-1 flex items-center justify-center gap-2 h-10 bg-[#B8935B] text-white font-semibold text-sm rounded-xl hover:bg-[#9A7540] btn-press transition-all shadow-sm shadow-[#B8935B]/20">
                         <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                         Download
                       </a>
@@ -768,30 +768,30 @@ function RevisionModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4 motion-fade-in-up" onClick={onClose}>
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl p-6 sm:p-7 max-h-[90vh] overflow-y-auto motion-scale-in border border-[#EDE6DA]" onClick={e => e.stopPropagation()}>
         {done ? (
-          <div className="text-center py-6">
-            <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
+          <div className="text-center py-8 motion-scale-in">
+            <div className="w-16 h-16 bg-emerald-50 border border-emerald-200/80 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
                 <path stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" d="M5 13l4 4L19 7"/>
               </svg>
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-1">Revision requested!</h3>
-            <p className="text-sm text-slate-500">Our team has been notified and will review your request.</p>
+            <h3 className="text-xl font-bold text-slate-900 mb-1.5">Revision requested!</h3>
+            <p className="text-sm text-slate-500">Our team has been notified and will review your request promptly.</p>
           </div>
         ) : quoteSubmitted ? (
-          <div className="text-center py-6 space-y-4">
-            <div className="w-16 h-16 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-center mx-auto">
+          <div className="text-center py-8 space-y-4 motion-scale-in">
+            <div className="w-16 h-16 bg-amber-50 border border-amber-200/80 rounded-2xl flex items-center justify-center mx-auto">
               <span className="text-3xl">📋</span>
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900 mb-1">Quotation Request Sent to Admin!</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-1.5">Quotation Request Sent to Admin!</h3>
               <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
                 Your request has been routed to the Catalyst admin team for evaluation. Our team will review the category and brief to set the quote. You will be notified via email to review your quote. Your portal will then show <strong className="text-[#9A7540]">&ldquo;Pay &amp; Proceed&rdquo;</strong>, and upon successful payment, work will automatically update to <strong className="text-emerald-700">&ldquo;Under Process&rdquo;</strong>.
               </p>
             </div>
-            <button onClick={onClose} className="w-full py-2.5 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] transition-colors">
+            <button onClick={onClose} className="w-full py-3 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] btn-press transition-all shadow-md shadow-[#B8935B]/20">
               Got it, return to deliverables
             </button>
           </div>
@@ -806,16 +806,16 @@ function RevisionModal({
                       ? 'Request Out-of-Scope Quotation'
                       : 'Request a Revision'}
                 </h3>
-                {fileLabel && <p className="text-xs text-slate-400 mt-0.5">Re: {fileLabel}</p>}
+                {fileLabel && <p className="text-xs text-slate-400 mt-0.5 font-medium">Re: {fileLabel}</p>}
               </div>
-              <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl w-8 h-8 flex items-center justify-center">✕</button>
+              <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-xl w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{error}</p>}
+              {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-3.5 py-2.5 rounded-xl motion-slide-down">{error}</p>}
 
               {/* ── 14-Day Window Notice (if expired) ── */}
               {isWindowExpired && (
-                <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2.5">
+                <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-2xl flex items-start gap-2.5">
                   <span className="text-amber-800 text-base flex-shrink-0">⏱️</span>
                   <div>
                     <p className="text-xs font-bold text-amber-900">14-Day Draft Review Window Concluded</p>
@@ -827,8 +827,8 @@ function RevisionModal({
               )}
 
               {/* ── Revision Policy Box ─────────────────────────── */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden text-xs">
-                <div className="flex items-center justify-between px-3 py-2 bg-slate-100 border-b border-slate-200">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden text-xs">
+                <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-100/90 border-b border-slate-200">
                   <div className="flex items-center gap-2">
                     <svg width="13" height="13" fill="none" viewBox="0 0 24 24" className="text-slate-500 flex-shrink-0">
                       <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -841,7 +841,7 @@ function RevisionModal({
                     </span>
                   )}
                 </div>
-                <div className="px-3 py-2.5 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+                <div className="px-3.5 py-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                   <div>
                     <p className="font-bold text-emerald-700 mb-1">✓ Included (Free)</p>
                     <ul className="space-y-0.5 text-slate-600">
@@ -862,7 +862,7 @@ function RevisionModal({
               </div>
 
               {/* ── Out-of-Scope Selector & Assessment ── */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 space-y-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
@@ -888,7 +888,7 @@ function RevisionModal({
                 {activeOutOfScope && (
                   <div className="pt-3 border-t border-slate-200 space-y-3">
                     {/* Reason Why Out-of-Scope */}
-                    <div className="px-3 py-2 bg-amber-50 border border-amber-200/80 rounded-xl">
+                    <div className="px-3.5 py-2.5 bg-amber-50 border border-amber-200/80 rounded-xl">
                       <p className="text-xs font-bold text-amber-900">
                         ⚡ Assessment: Why this is Out-of-Scope
                       </p>
@@ -901,7 +901,7 @@ function RevisionModal({
 
                     {/* Category Selection for Prior Judgment */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                      <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
                         Select Scope Category (for prior assessment by Admin) <span className="text-red-400">*</span>
                       </label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -913,7 +913,7 @@ function RevisionModal({
                               type="button"
                               key={key}
                               onClick={() => setOutOfScopeCategory(key)}
-                              className={`text-left p-2.5 rounded-xl border text-xs transition-all ${
+                              className={`text-left p-3 rounded-xl border text-xs btn-press transition-all ${
                                 selected
                                   ? 'bg-[#FBF8F3] border-[#B8935B] ring-1 ring-[#B8935B]'
                                   : 'bg-white border-slate-200 hover:border-slate-300'
@@ -930,7 +930,7 @@ function RevisionModal({
                         })}
                       </div>
                       {selectedCatDef && (
-                        <p className="text-[11px] text-slate-500 mt-2 bg-slate-100 p-2 rounded-lg">
+                        <p className="text-[11px] text-slate-500 mt-2 bg-slate-100 p-2.5 rounded-xl">
                           <strong>Admin Evaluation Criteria:</strong> {selectedCatDef.triggerReason}
                         </p>
                       )}
@@ -944,7 +944,7 @@ function RevisionModal({
                       <select
                         value={preferredCurrency}
                         onChange={e => setPreferredCurrency(e.target.value)}
-                        className="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
+                        className="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
                       >
                         <option value="USD">USD ($)</option>
                         <option value="INR">INR (₹)</option>
@@ -963,7 +963,7 @@ function RevisionModal({
               {/* Area selection — shown for known services */}
               {areas.length > 0 && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
                     What needs to change? <span className="text-red-400">*</span>
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -972,9 +972,9 @@ function RevisionModal({
                         key={a}
                         type="button"
                         onClick={() => toggleArea(a)}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all ${
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-xl border btn-press transition-all ${
                           selectedAreas.includes(a)
-                            ? 'bg-[#B8935B] text-white border-[#B8935B]'
+                            ? 'bg-[#B8935B] text-white border-[#B8935B] shadow-xs'
                             : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-[#B8935B] hover:text-[#B8935B]'
                         }`}
                       >
@@ -989,7 +989,7 @@ function RevisionModal({
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                   Describe exactly what to change <span className="text-red-400">*</span>
                 </label>
                 <textarea
@@ -998,17 +998,17 @@ function RevisionModal({
                   value={note}
                   onChange={e => setNote(e.target.value)}
                   placeholder="Be specific — e.g. 'Add a new project section detailing the Cloud Migration project. Expand the summary statement to highlight executive leadership skills.'"
-                  className={`w-full px-3.5 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 hover:bg-white resize-none transition-colors ${
+                  className={`w-full px-4 py-3 text-sm border rounded-xl input-premium bg-slate-50/70 hover:bg-white resize-none transition-colors ${
                     note.trim().length > 0 && note.trim().length < MIN_NOTE ? 'border-amber-300' : 'border-slate-200'
                   }`}
                 />
-                <div className="flex items-center justify-between mt-1">
+                <div className="flex items-center justify-between mt-1.5">
                   {note.trim().length > 0 && note.trim().length < MIN_NOTE ? (
-                    <p className="text-xs text-amber-600">{MIN_NOTE - note.trim().length} more characters needed</p>
+                    <p className="text-xs text-amber-600 font-medium">{MIN_NOTE - note.trim().length} more characters needed</p>
                   ) : (
                     <span />
                   )}
-                  <p className={`text-xs ml-auto ${note.trim().length < MIN_NOTE ? 'text-amber-500' : 'text-slate-400'}`}>
+                  <p className={`text-xs ml-auto font-medium ${note.trim().length < MIN_NOTE ? 'text-amber-500' : 'text-slate-400'}`}>
                     {note.trim().length}/{MIN_NOTE} min
                   </p>
                 </div>
@@ -1017,14 +1017,14 @@ function RevisionModal({
               <button
                 type="submit"
                 disabled={loading || !canSubmit}
-                className="w-full py-2.5 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-gradient-to-r from-[#B8935B] via-[#C9A870] to-[#9A7540] text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-[#B8935B]/25 btn-press disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
                 {loading && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                 {loading
                   ? 'Submitting...'
                   : activeOutOfScope
-                    ? 'Send Quotation Request to Admin'
-                    : 'Submit Revision Request'}
+                    ? 'Send Quotation Request to Admin →'
+                    : 'Submit Revision Request →'}
               </button>
             </form>
           </>

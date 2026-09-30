@@ -4331,7 +4331,7 @@ function FormDataViewer({ data, compact = false, clientId }: { data: Record<stri
 
 function Card({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 card-hover-lift transition-all">
       <h3 className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wide mb-4">
         <span className="text-[#B8935B] flex-shrink-0">{icon}</span>{title}
       </h3>
@@ -4350,7 +4350,7 @@ function CountBadge({ n }: { n: number }) {
 
 function EmptyCard({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle?: string }) {
   return (
-    <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-12 text-center">
+    <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-12 text-center card-hover-lift transition-all">
       <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3 text-slate-400">
         {icon}
       </div>
@@ -4362,7 +4362,7 @@ function EmptyCard({ icon, title, subtitle }: { icon: React.ReactNode; title: st
 
 function Toast({ msg }: { msg: string }) {
   return (
-    <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-sm font-medium">
+    <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-sm font-medium motion-slide-down">
       <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
         <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
@@ -4447,16 +4447,16 @@ function EditClientModal({
   const packages: CareerPackage[] = ['RESUME', 'LINKEDIN', 'COVER_LETTER', 'FULL'];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg border border-slate-200 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md motion-fade-in-up">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg border border-slate-200 max-h-[90vh] overflow-y-auto motion-scale-in">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h3 className="font-bold text-slate-900">Edit Client</h3>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">
+          <h3 className="font-bold text-slate-900 text-lg">Edit Client</h3>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 transition-colors">
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>
         <form onSubmit={handleSave} className="p-6 space-y-4">
-          {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">{error}</div>}
+          {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 motion-slide-down">{error}</div>}
 
           {[
             { id: 'name',  label: 'Full Name',     type: 'text',  required: true  },
@@ -4466,14 +4466,14 @@ function EditClientModal({
             <div key={id}>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">{label}</label>
               <input type={type} required={required} value={(form as Record<string, string>)[id]} onChange={set(id)}
-                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50" />
+                className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl input-premium bg-slate-50" />
             </div>
           ))}
 
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Package</label>
             <select value={form.packageType} onChange={set('packageType')}
-              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50">
+              className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl input-premium bg-slate-50">
               {packages.map(p => <option key={p} value={p}>{PACKAGE_LABELS[p]}</option>)}
             </select>
           </div>
@@ -4482,12 +4482,12 @@ function EditClientModal({
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Amount Paid</label>
               <input type="number" min="0" step="0.01" value={form.amountPaid} onChange={set('amountPaid')}
-                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50" />
+                className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl input-premium bg-slate-50" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Currency</label>
               <input type="text" maxLength={3} value={form.currency} onChange={set('currency')}
-                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 uppercase" />
+                className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl input-premium bg-slate-50 uppercase font-semibold" />
             </div>
           </div>
 
@@ -4500,7 +4500,7 @@ function EditClientModal({
               value={form.invoiceNumber}
               onChange={set('invoiceNumber')}
               placeholder="e.g. RN-2604-6695 — leave blank to unlink"
-              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 font-mono"
+              className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl input-premium bg-slate-50 font-mono"
             />
             {client.invoice && (
               <p className="mt-1 text-xs text-emerald-600">
@@ -4516,16 +4516,16 @@ function EditClientModal({
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Internal Notes</label>
             <textarea rows={3} value={form.notes} onChange={set('notes')}
               placeholder="Optional admin notes…"
-              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 resize-none" />
+              className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl input-premium bg-slate-50 resize-none" />
           </div>
 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} disabled={saving}
-              className="flex-1 py-2.5 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+              className="flex-1 py-2.5 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 btn-press transition-colors">
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 py-2.5 text-sm font-bold text-white bg-[#B8935B] rounded-xl hover:bg-[#9A7540] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              className="flex-1 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-[#B8935B] to-[#9A7540] rounded-xl hover:shadow-md hover:shadow-[#B8935B]/20 btn-press transition-all disabled:opacity-50 flex items-center justify-center gap-2">
               {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
               {saving ? 'Saving…' : 'Save Changes'}
             </button>

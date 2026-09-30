@@ -44,75 +44,96 @@ export default function LoginClient() {
     }
   };
 
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4 py-10"
-      style={{
-        background: 'var(--bg)',
-        backgroundImage: [
-          'radial-gradient(ellipse 70% 50% at 20% 10%, rgba(31,86,212,.14), transparent)',
-          'radial-gradient(ellipse 60% 45% at 90% 90%, rgba(63,189,139,.10), transparent)',
-        ].join(', '),
-      }}
+      className="min-h-screen flex items-center justify-center px-4 py-10 relative overflow-hidden"
+      style={{ background: '#0A0B0D' }}
     >
+      {/* Ambient luxury floating glow orbs */}
       <div
-        className="w-full max-w-5xl overflow-hidden rounded-[24px] border"
-        style={{ borderColor: 'var(--border)', boxShadow: 'var(--shadow-2xl)', background: 'var(--surface)' }}
+        aria-hidden="true"
+        className="absolute -top-32 -left-32 w-96 h-96 rounded-full blur-[120px] pointer-events-none motion-glow opacity-30"
+        style={{ background: 'radial-gradient(circle, #B8935B 0%, rgba(184,147,91,0) 70%)' }}
+      />
+      <div
+        aria-hidden="true"
+        className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full blur-[140px] pointer-events-none motion-float opacity-20"
+        style={{ background: 'radial-gradient(circle, #3FBD8B 0%, rgba(63,189,139,0) 70%)' }}
+      />
+
+      <div
+        className="w-full max-w-5xl overflow-hidden rounded-[28px] border border-[#2A241C] shadow-2xl relative z-10 motion-scale-in"
+        style={{
+          boxShadow: '0 30px 80px -15px rgba(0,0,0,0.8), 0 0 0 1px rgba(184,147,91,0.15)',
+          background: 'rgba(16, 17, 20, 0.95)',
+          backdropFilter: 'blur(20px)',
+        }}
       >
         <div className="grid md:grid-cols-2">
-          <div className="relative hidden md:flex flex-col justify-between p-10" style={{ background: 'var(--brand-gradient-soft)' }}>
-            <div>
-              <div className="flex items-center gap-3">
-                <Logo variant="horizontal" size={44} brandId="catalyst" />
-              </div>
-              <div className="mt-6" style={{ color: 'var(--text-primary)' }}>
-                <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.6px', lineHeight: 1.15 }}>
-                  Catalyst ClientForge
-                </div>
-                <div style={{ marginTop: 8, color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.5 }}>
-                  Admin workspace for Catalyst Invoicing & Client Management operations.
-                </div>
-              </div>
-            </div>
-
-            <div style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>
-              Catalyst TPA
-            </div>
-
+          {/* Left Hero Panel */}
+          <div
+            className="relative hidden md:flex flex-col justify-between p-12 overflow-hidden"
+            style={{
+              background: 'linear-gradient(145deg, #131210 0%, #1A1713 50%, #0D0E10 100%)',
+              borderRight: '1px solid rgba(184, 147, 91, 0.15)',
+            }}
+          >
+            {/* Subtle luxury ambient accent inside panel */}
             <div
               aria-hidden="true"
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                backgroundImage: [
-                  'radial-gradient(circle at 20% 30%, rgba(31,86,212,.18), transparent 55%)',
-                  'radial-gradient(circle at 70% 70%, rgba(63,189,139,.14), transparent 60%)',
-                ].join(', '),
-                opacity: 0.9,
-              }}
+              className="absolute -top-20 -right-20 w-60 h-60 rounded-full blur-3xl pointer-events-none opacity-25"
+              style={{ background: '#B8935B' }}
             />
+
+            <div className="relative z-10">
+              <div className="flex items-center gap-3">
+                <Logo variant="horizontal" size={46} brandId="catalyst" />
+              </div>
+              <div className="mt-8">
+                <span className="inline-block px-3 py-1 bg-[#B8935B]/15 border border-[#B8935B]/30 rounded-full text-[#D4AF7A] text-[11px] font-bold tracking-wider uppercase mb-3">
+                  Admin Operations Suite
+                </span>
+                <h1 className="text-2xl font-black text-white tracking-tight leading-tight">
+                  Catalyst ClientForge
+                </h1>
+                <p className="mt-3 text-slate-400 text-sm leading-relaxed max-w-sm">
+                  Executive workspace for Catalyst client lifecycle, project fulfillment, multi-currency invoicing, and SLA management.
+                </p>
+              </div>
+            </div>
+
+            <div className="relative z-10 pt-8 border-t border-white/10 flex items-center justify-between text-xs text-slate-500">
+              <span className="font-semibold text-slate-400">Catalyst TPA Ecosystem</span>
+              <span className="flex items-center gap-1.5 text-emerald-400 text-[11px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Operational
+              </span>
+            </div>
           </div>
 
-          <div className="p-8 md:p-10">
+          {/* Right Form Panel */}
+          <div className="p-8 md:p-12 flex flex-col justify-center bg-[#0F1013]/90">
             <div className="md:hidden flex justify-center mb-6">
               <Logo variant="horizontal" size={42} brandId="catalyst" />
             </div>
 
-            <div style={{ textAlign: 'center', marginBottom: 26 }}>
-              <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.4px', lineHeight: 1.2 }}>
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-black text-white tracking-tight">
                 Admin Sign In
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 6 }}>
-                Access Catalyst admin workspace
-              </div>
+              </h2>
+              <p className="text-sm text-slate-400 mt-1.5">
+                Sign in to access Catalyst admin console
+              </p>
             </div>
 
-            <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div className="field">
-                <label style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.9px', color: 'var(--text-tertiary)', display: 'block', marginBottom: 6 }}>
-                  Email
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Admin Email
                 </label>
                 <input
-                  className="input"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -120,73 +141,66 @@ export default function LoginClient() {
                   autoFocus
                   autoComplete="username"
                   required
+                  className="w-full px-4 py-3 text-sm rounded-xl border border-slate-700/80 bg-slate-900/80 text-white placeholder-slate-500 focus:outline-none input-premium transition-all duration-200"
                 />
               </div>
 
-              <div className="field">
-                <label style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.9px', color: 'var(--text-tertiary)', display: 'block', marginBottom: 6 }}>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
                   Password
                 </label>
-                <input
-                  className="input"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter admin password"
-                  autoComplete="current-password"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter admin password"
+                    autoComplete="current-password"
+                    required
+                    className="w-full px-4 py-3 pr-11 text-sm rounded-xl border border-slate-700/80 bg-slate-900/80 text-white placeholder-slate-500 focus:outline-none input-premium transition-all duration-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-1"
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? (
+                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
+                    ) : (
+                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    )}
+                  </button>
+                </div>
               </div>
 
-
               {error && (
-                <div
-                  style={{
-                    background: 'var(--error-bg)',
-                    border: '1px solid rgba(225,29,72,.22)',
-                    color: 'var(--error)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: '10px 14px',
-                    fontSize: 13,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <span style={{ fontSize: 15 }}>⚠</span>
-                  {error}
+                <div className="motion-slide-down flex items-center gap-2.5 px-4 py-3 bg-red-950/40 border border-red-800/60 rounded-xl text-red-300 text-xs">
+                  <span className="text-base flex-shrink-0">⚠</span>
+                  <span className="font-medium">{error}</span>
                 </div>
               )}
 
               <button
-                className="btn btn-primary w-full"
-                style={{
-                  justifyContent: 'center',
-                  marginTop: 4,
-                  padding: '12px',
-                  fontSize: 14,
-                  fontWeight: 800,
-                  letterSpacing: '.2px',
-                  background: busy ? 'var(--brand-dark)' : 'var(--brand-gradient)',
-                  boxShadow: busy ? 'none' : '0 10px 28px rgba(31,86,212,.18)',
-                }}
+                type="submit"
                 disabled={busy || !password}
+                className="w-full mt-2 py-3 px-4 rounded-xl text-sm font-bold tracking-wide text-white bg-gradient-to-r from-[#B8935B] to-[#9A7540] hover:from-[#C7A26B] hover:to-[#A9834E] shadow-lg shadow-[#B8935B]/20 btn-press disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
               >
                 {busy ? (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin .7s linear infinite' }}>
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="animate-spin">
                       <path d="M12 3a9 9 0 1 0 9 9" />
                     </svg>
-                    Signing in…
-                  </span>
+                    <span>Authenticating…</span>
+                  </>
                 ) : (
-                  'Sign in'
+                  <span>Sign In →</span>
                 )}
               </button>
             </form>
 
-            <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--border)', textAlign: 'center', fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '.3px' }}>
-              Catalyst ClientForge
+            <div className="mt-8 pt-6 border-t border-slate-800/80 text-center text-xs text-slate-500">
+              <span>Secure Single Sign-On · Multi-Tenant Catalyst Console</span>
             </div>
           </div>
         </div>
