@@ -207,6 +207,7 @@ export async function GET(req: NextRequest) {
     ).length;
 
     // Calculate independent review cycle per component
+    const hasComponentRevisions = (slugFreeUsed + paidUsed) > 0;
     const compWindow = calculateComponentRevisionWindow({
       serviceSlug: slug,
       clientStatus: client.status,
@@ -214,6 +215,7 @@ export async function GET(req: NextRequest) {
       firstCompletedAt: client.firstCompletedAt,
       deliverables: client.deliverables,
       draftSentAt: client.draftSentAt,
+      hasComponentRevisions,
     });
 
     return {

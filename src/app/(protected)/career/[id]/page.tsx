@@ -2737,14 +2737,14 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services, revis
     return expandClientServices(services, clientPackage).map(s => ({
       slug: s.slug,
       name: s.name,
-      revisionsLeft: isWindowExpired ? 0 : 2,
+      revisionsLeft: 2,
       freeLimit: 2,
       freeUsed: 0,
       paidUsed: 0,
-      isWindowExpired: isWindowExpired,
+      isWindowExpired: false,
       revisionWindow: undefined,
     }));
-  }, [revSummary, services, clientPackage, isWindowExpired]);
+  }, [revSummary, services, clientPackage]);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 

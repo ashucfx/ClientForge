@@ -138,53 +138,48 @@ export function calculateComponentRevisionWindow(params: {
   firstCompletedAt?: string | Date | null;
   deliverables?: { fileType?: string; fileCategory?: string; label?: string; createdAt: string | Date }[];
   draftSentAt?: string | Date | null;
+  hasComponentRevisions?: boolean;
 }): RevisionWindowInfo {
-  // Phase 1: Check if final deliverables exist for this component or client
-  const finalsForComponent = (params.deliverables ?? []).filter(
-    d => d.fileCategory === 'final' &&
-         mapFileTypeToServiceSlug(d.fileType, d.label) === params.serviceSlug
-  );
-  const allFinals = (params.deliverables ?? []).filter(d => d.fileCategory === 'final');
+  const deliverables = params.deliverables ?? [];
 
-  const isCompletedProject = params.clientStatus === 'COMPLETED' || Boolean(params.firstCompletedAt || params.completedAt);
-  const hasFinals = finalsForComponent.length > 0 || (allFinals.length > 0 && params.clientStatus !== 'UNDER_PROCESS');
+  // Phase 1: Finals specifically matching this service component
+  const finalsForComponent = deliverables
+    .filter(d => d.fileCategory === 'final' && mapFileTypeToServiceSlug(d.fileType, d.label) === params.serviceSlug)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  if (isCompletedProject || hasFinals) {
-    const anchor = params.firstCompletedAt ?? params.completedAt ?? finalsForComponent[0]?.createdAt ?? allFinals[0]?.createdAt;
+  if (finalsForComponent.length > 0) {
+    const latestFinal = finalsForComponent[0];
     return calculateRevisionWindow({
       status: 'COMPLETED',
-      completedAt: anchor,
-      firstCompletedAt: params.firstCompletedAt ?? anchor,
+      completedAt: latestFinal.createdAt,
+      firstCompletedAt: latestFinal.createdAt,
     });
   }
 
-  // Phase 2: Find draft deliverables matching this specific component service
-  const draftsForComponent = (params.deliverables ?? []).filter(
-    d => d.fileCategory === 'draft' &&
-         mapFileTypeToServiceSlug(d.fileType, d.label) === params.serviceSlug
-  );
+  // Phase 2: Drafts specifically matching this service component
+  const draftsForComponent = deliverables
+    .filter(d => d.fileCategory === 'draft' && mapFileTypeToServiceSlug(d.fileType, d.label) === params.serviceSlug)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   if (draftsForComponent.length > 0) {
-    // Sort descending to find the latest draft of this component
-    const latestDraft = [...draftsForComponent].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )[0];
-
+    const latestDraft = draftsForComponent[0];
     return calculateRevisionWindow({
-      status: params.clientStatus,
+      status: 'DRAFT_SENT',
       deliverableCreatedAt: latestDraft.createdAt,
     });
   }
 
-  // Phase 3: If drafts were deleted / cleaned up, but draftSentAt is recorded on the client
-  if (params.draftSentAt) {
+  // Phase 3: Rare edge case — drafts were deleted before final delivery, but revisions were already requested
+  // specifically for this component (proving a draft was delivered in the past).
+  if (params.hasComponentRevisions && params.draftSentAt) {
     return calculateRevisionWindow({
       status: params.clientStatus,
       draftSentAt: params.draftSentAt,
     });
   }
 
-  // Phase 4: If no draft exists for this component yet, its 14-day review window has NOT started!
+  // Phase 4: Component has NEVER been delivered (no drafts, no finals uploaded for this component)
+  // Review window has NOT started yet! It must NEVER be expired or blocked.
   return {
     stage: 'NOT_DELIVERED',
     windowDays: DRAFT_WINDOW_DAYS,

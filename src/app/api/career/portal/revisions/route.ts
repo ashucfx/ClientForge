@@ -118,6 +118,9 @@ export async function POST(req: NextRequest) {
 
   // Dynamic revision window check calculated INDEPENDENTLY for this specific service component!
   // Services not yet delivered (or delivered more recently) have their own review cycle.
+  const priorComponentRevisionsCount = await db.careerRevision.count({
+    where: { clientId: client.id, requestedBy: 'client', serviceSlug },
+  });
   const windowInfo = calculateComponentRevisionWindow({
     serviceSlug,
     clientStatus: client.status,
@@ -125,6 +128,7 @@ export async function POST(req: NextRequest) {
     firstCompletedAt: client.firstCompletedAt,
     deliverables: client.deliverables,
     draftSentAt: client.draftSentAt,
+    hasComponentRevisions: priorComponentRevisionsCount > 0,
   });
 
   const isWindowExpired = windowInfo.isExpired;

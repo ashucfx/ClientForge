@@ -114,6 +114,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     const paidUsed = clientRevisions.filter(r => r.serviceSlug === slug && r.chargeStatus !== 'FREE').length;
 
     // Calculate review window INDIVIDUALLY for this component
+    const hasComponentRevisions = (freeUsed + paidUsed) > 0;
     const compWindow = calculateComponentRevisionWindow({
       serviceSlug: slug,
       clientStatus: client?.status ?? 'NOT_STARTED',
@@ -121,6 +122,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       firstCompletedAt: client?.firstCompletedAt,
       deliverables: client?.deliverables ?? [],
       draftSentAt: client?.draftSentAt,
+      hasComponentRevisions,
     });
 
     return {
