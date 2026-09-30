@@ -23,25 +23,26 @@ import { parseInvoiceLineItems } from '@/lib/invoiceLineItems';
 import { resolveInvoicePackage } from '@/lib/invoicePackageResolver';
 import { formatCurrency } from '@/lib/pricing';
 
-// ── Palette Tokens matching gemini-svg.svg ────────────────────────────────────
+// ── Ultra-Luxury Executive Palette Tokens ─────────────────────────────────────
 const COLORS = {
-  bgCanvas: '#F9F9FB',
+  bgCanvas: '#F8F6F2',
   white: '#FFFFFF',
-  frameBorder: '#E2E6EB',
-  topAccentGold: '#D4AF37',
-  goldText: '#AA7C11',
-  goldAccent: '#B88A44',
-  obsidian: '#0E1217',
+  frameBorder: '#E5DAC8',
+  topAccentGold: '#B8935B',
+  topAccentGoldLight: '#D4AF7A',
+  goldText: '#9A7540',
+  goldAccent: '#B8935B',
+  obsidian: '#0A0B0D',
   slateDark: '#1E293B',
   slateHeading: '#334155',
   slateBody: '#475569',
   slateMuted: '#64748B',
   slateSubtle: '#8A94A6',
-  slateLightBorder: '#ECEFF2',
-  cardBg: '#F8FAFC',
-  cardBorder: '#EAEFF4',
-  tableHeaderBg: '#F1F5F9',
-  totalBoxBg: '#0E1217',
+  slateLightBorder: '#EAE3D5',
+  cardBg: '#FAF8F5',
+  cardBorder: '#E5DAC8',
+  tableHeaderBg: '#F3EDE2',
+  totalBoxBg: '#0A0B0D',
   emeraldBg: '#ECFDF5',
   emeraldBorder: '#A7F3D0',
   emeraldText: '#065F46',
@@ -53,27 +54,34 @@ const COLORS = {
 const styles = StyleSheet.create({
   page: {
     backgroundColor: COLORS.bgCanvas,
-    padding: 24,
+    padding: 20,
     fontFamily: 'Helvetica',
-    fontSize: 7.5,
+    fontSize: 7.2,
     color: COLORS.slateBody,
   },
   // ── Frame Container (White Executive Sheet) ──
   documentFrame: {
     backgroundColor: COLORS.white,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.frameBorder,
     overflow: 'hidden',
-    paddingBottom: 14,
+    paddingBottom: 10,
   },
-  topAccentBar: {
-    height: 5,
+  topAccentBarWrap: {
+    width: '100%',
+  },
+  topAccentBarGold: {
+    height: 3.5,
     backgroundColor: COLORS.topAccentGold,
+  },
+  topAccentBarLight: {
+    height: 1,
+    backgroundColor: COLORS.topAccentGoldLight,
   },
   frameContent: {
     paddingHorizontal: 22,
-    paddingTop: 14,
+    paddingTop: 12,
   },
 
   // ── Header ──
@@ -81,7 +89,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -89,28 +97,35 @@ const styles = StyleSheet.create({
   },
   logoBox: {
     width: 38,
-    height: 38,
-    marginRight: 10,
+    height: 44,
+    marginRight: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   brandTitleRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
   brandTitleMain: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.obsidian,
-    letterSpacing: 1.4,
+    letterSpacing: 1.6,
+  },
+  brandTitleSeparator: {
+    fontSize: 10,
+    fontFamily: 'Helvetica',
+    color: COLORS.topAccentGoldLight,
+    marginHorizontal: 5,
   },
   brandTitleSub: {
-    fontSize: 6.8,
+    fontSize: 7.2,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.goldText,
-    letterSpacing: 1.1,
-    marginLeft: 5,
+    letterSpacing: 1.2,
   },
   brandSubline: {
-    fontSize: 6.5,
+    fontSize: 6.2,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.slateMuted,
     letterSpacing: 0.8,
@@ -120,7 +135,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   taxInvoiceTitle: {
-    fontSize: 13,
+    fontSize: 11,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.obsidian,
     letterSpacing: 0.8,
@@ -132,7 +147,7 @@ const styles = StyleSheet.create({
     borderWidth: 0.8,
     borderColor: COLORS.emeraldBorder,
     borderRadius: 4,
-    paddingVertical: 2.5,
+    paddingVertical: 2.2,
     paddingHorizontal: 7,
     marginTop: 3,
   },
@@ -144,22 +159,22 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   paidBadgeText: {
-    fontSize: 6.8,
+    fontSize: 6.6,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.emeraldText,
     letterSpacing: 0.8,
   },
   hairline: {
-    height: 1,
+    height: 0.8,
     backgroundColor: COLORS.slateLightBorder,
-    marginBottom: 10,
+    marginBottom: 8,
   },
 
   // ── Metadata Cards (Billed To & Fiscal Ledger) ──
   metaGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   metaCardLeft: {
     width: '49%',
@@ -178,27 +193,36 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   cardLabel: {
-    fontSize: 6.2,
+    fontSize: 6,
     fontFamily: 'Helvetica-Bold',
-    color: COLORS.slateSubtle,
+    color: COLORS.goldText,
     letterSpacing: 0.8,
-    marginBottom: 3,
+    marginBottom: 2.5,
   },
   clientName: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.obsidian,
-    marginBottom: 2,
-  },
-  clientDetail: {
-    fontSize: 7,
-    color: COLORS.slateBody,
     marginBottom: 1.5,
   },
-  jurisdictionText: {
+  clientDetail: {
     fontSize: 6.8,
-    color: COLORS.slateSubtle,
-    marginTop: 2,
+    color: COLORS.slateBody,
+    marginBottom: 1,
+  },
+  jurisdictionPill: {
+    marginTop: 2.5,
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 0.6,
+    borderColor: COLORS.cardBorder,
+    borderRadius: 3,
+    paddingHorizontal: 4.5,
+    paddingVertical: 1.5,
+  },
+  jurisdictionText: {
+    fontSize: 6,
+    color: COLORS.slateMuted,
   },
   jurisdictionValue: {
     fontFamily: 'Helvetica-Bold',
@@ -207,18 +231,18 @@ const styles = StyleSheet.create({
   fiscalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 5,
+    marginBottom: 4.5,
   },
   fiscalCol: {
     width: '48%',
   },
   fiscalValueMono: {
-    fontSize: 7.2,
+    fontSize: 7,
     fontFamily: 'Courier-Bold',
     color: COLORS.obsidian,
   },
   fiscalValue: {
-    fontSize: 7.2,
+    fontSize: 7,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.obsidian,
   },
@@ -227,12 +251,14 @@ const styles = StyleSheet.create({
   scopeBanner: {
     backgroundColor: COLORS.obsidian,
     borderRadius: 6,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
+    borderWidth: 0.8,
+    borderColor: COLORS.topAccentGold,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   scopeLeft: {
     flexDirection: 'row',
@@ -240,30 +266,32 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   scopeBadge: {
-    fontSize: 6.8,
+    fontSize: 6.2,
     fontFamily: 'Helvetica-Bold',
-    color: COLORS.goldText,
+    color: COLORS.topAccentGoldLight,
     letterSpacing: 0.8,
-    marginRight: 8,
+    marginRight: 7,
   },
   scopeTitle: {
-    fontSize: 8.8,
+    fontSize: 8.5,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.white,
     marginRight: 6,
   },
   scopeSub: {
-    fontSize: 7.2,
+    fontSize: 7,
     color: '#94A3B8',
   },
   slaPill: {
-    backgroundColor: COLORS.slateDark,
+    backgroundColor: '#1E293B',
+    borderWidth: 0.6,
+    borderColor: '#475569',
     borderRadius: 4,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    paddingHorizontal: 7,
   },
   slaPillText: {
-    fontSize: 6.5,
+    fontSize: 6.2,
     fontFamily: 'Helvetica-Bold',
     color: '#F1F5F9',
     letterSpacing: 0.6,
@@ -271,27 +299,29 @@ const styles = StyleSheet.create({
 
   // ── Line Items Table ──
   tableContainer: {
-    marginBottom: 8,
+    marginBottom: 7,
   },
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: COLORS.tableHeaderBg,
     borderRadius: 4,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
+    borderWidth: 0.6,
+    borderColor: COLORS.cardBorder,
+    paddingVertical: 4.5,
+    paddingHorizontal: 7,
     alignItems: 'center',
   },
-  thDesc:  { flex: 5.2, fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: COLORS.slateBody, letterSpacing: 0.6 },
-  thQty:   { flex: 0.8, fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: COLORS.slateBody, textAlign: 'center', letterSpacing: 0.6 },
-  thRate:  { flex: 1.8, fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: COLORS.slateBody, textAlign: 'right', letterSpacing: 0.6 },
-  thTotal: { flex: 1.8, fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: COLORS.slateBody, textAlign: 'right', letterSpacing: 0.6 },
+  thDesc:  { flex: 5.2, fontSize: 6.2, fontFamily: 'Helvetica-Bold', color: COLORS.slateHeading, letterSpacing: 0.6 },
+  thQty:   { flex: 0.8, fontSize: 6.2, fontFamily: 'Helvetica-Bold', color: COLORS.slateHeading, textAlign: 'center', letterSpacing: 0.6 },
+  thRate:  { flex: 1.8, fontSize: 6.2, fontFamily: 'Helvetica-Bold', color: COLORS.slateHeading, textAlign: 'right', letterSpacing: 0.6 },
+  thTotal: { flex: 1.8, fontSize: 6.2, fontFamily: 'Helvetica-Bold', color: COLORS.slateHeading, textAlign: 'right', letterSpacing: 0.6 },
 
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderBottomWidth: 0.8,
-    borderBottomColor: COLORS.tableHeaderBg,
+    paddingVertical: 5,
+    paddingHorizontal: 7,
+    borderBottomWidth: 0.6,
+    borderBottomColor: COLORS.slateLightBorder,
     alignItems: 'center',
   },
   tdDesc: {
@@ -302,7 +332,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   itemTitle: {
-    fontSize: 8,
+    fontSize: 7.8,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.obsidian,
   },
@@ -311,42 +341,42 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     paddingVertical: 1,
     paddingHorizontal: 4,
-    marginLeft: 6,
+    marginLeft: 5,
   },
   compBadgeText: {
-    fontSize: 5.5,
+    fontSize: 5.2,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.badgeCompText,
     letterSpacing: 0.5,
   },
   itemSub: {
-    fontSize: 6.5,
+    fontSize: 6.2,
     color: COLORS.slateMuted,
-    marginTop: 1.5,
+    marginTop: 1,
   },
   tdQty: {
     flex: 0.8,
-    fontSize: 7.5,
+    fontSize: 7.2,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.slateDark,
     textAlign: 'center',
   },
   tdRate: {
     flex: 1.8,
-    fontSize: 7.5,
+    fontSize: 7.2,
     color: COLORS.slateDark,
     textAlign: 'right',
   },
   tdTotal: {
     flex: 1.8,
-    fontSize: 8,
+    fontSize: 7.6,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.obsidian,
     textAlign: 'right',
   },
   tdTotalFree: {
     flex: 1.8,
-    fontSize: 8,
+    fontSize: 7.6,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.emeraldDot,
     textAlign: 'right',
@@ -356,56 +386,58 @@ const styles = StyleSheet.create({
   totalsSection: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginBottom: 9,
+    marginBottom: 7,
   },
   totalsInner: {
-    width: 250,
+    width: 245,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 2,
+    paddingVertical: 1.8,
   },
   totalRowLabel: {
-    fontSize: 7.2,
+    fontSize: 6.8,
     color: COLORS.slateMuted,
   },
   totalRowVal: {
-    fontSize: 7.6,
+    fontSize: 7.2,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.obsidian,
   },
   totalsDivider: {
-    height: 0.8,
-    backgroundColor: '#E2E8F0',
-    marginVertical: 4,
+    height: 0.6,
+    backgroundColor: COLORS.cardBorder,
+    marginVertical: 3.5,
   },
   settledTotalBox: {
     backgroundColor: COLORS.totalBoxBg,
-    borderRadius: 6,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
+    borderRadius: 5,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.topAccentGold,
+    paddingVertical: 6,
+    paddingHorizontal: 9,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 3,
+    marginTop: 2,
   },
   settledLeft: {
-    fontSize: 7.2,
+    fontSize: 6.8,
     fontFamily: 'Helvetica-Bold',
-    color: COLORS.topAccentGold,
+    color: COLORS.topAccentGoldLight,
     letterSpacing: 0.8,
   },
   settledRight: {
     alignItems: 'flex-end',
   },
   settledAmount: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.white,
   },
   settledSub: {
-    fontSize: 5.8,
+    fontSize: 5.5,
     color: '#94A3B8',
     marginTop: 1,
   },
@@ -417,15 +449,17 @@ const styles = StyleSheet.create({
     borderColor: COLORS.cardBorder,
     borderRadius: 6,
     overflow: 'hidden',
-    marginBottom: 9,
+    marginBottom: 8,
   },
   slaHeaderBar: {
     backgroundColor: COLORS.tableHeaderBg,
-    paddingVertical: 4.5,
-    paddingHorizontal: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 9,
+    borderBottomWidth: 0.6,
+    borderBottomColor: COLORS.cardBorder,
   },
   slaHeaderTitle: {
-    fontSize: 6.5,
+    fontSize: 6.2,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.slateHeading,
     letterSpacing: 0.8,
@@ -433,7 +467,7 @@ const styles = StyleSheet.create({
   slaBodyGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 8,
+    padding: 7,
   },
   slaColumn: {
     width: '32%',
@@ -441,22 +475,22 @@ const styles = StyleSheet.create({
   slaPillarTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 2.5,
+    marginBottom: 2,
   },
   slaBullet: {
-    width: 3.5,
-    height: 3.5,
-    borderRadius: 1.8,
-    backgroundColor: COLORS.goldText,
+    width: 3.2,
+    height: 3.2,
+    borderRadius: 1.6,
+    backgroundColor: COLORS.topAccentGold,
     marginRight: 4,
   },
   slaPillarTitle: {
-    fontSize: 6.8,
+    fontSize: 6.5,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.obsidian,
   },
   slaPillarText: {
-    fontSize: 6,
+    fontSize: 5.8,
     color: COLORS.slateBody,
     lineHeight: 1.3,
   },
@@ -465,33 +499,33 @@ const styles = StyleSheet.create({
   bottomCardsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   entityCard: {
     width: '58%',
-    paddingRight: 8,
+    paddingRight: 6,
   },
   entityLabel: {
-    fontSize: 6.2,
+    fontSize: 5.8,
     fontFamily: 'Helvetica-Bold',
-    color: COLORS.slateSubtle,
+    color: COLORS.goldText,
     letterSpacing: 0.8,
-    marginBottom: 3,
+    marginBottom: 2,
   },
   entityName: {
-    fontSize: 9.5,
+    fontSize: 9,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.obsidian,
-    marginBottom: 1.5,
+    marginBottom: 1,
   },
   entitySubBrand: {
-    fontSize: 7,
+    fontSize: 6.5,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.goldAccent,
-    marginBottom: 1.5,
+    marginBottom: 1,
   },
   entityMeta: {
-    fontSize: 6.5,
+    fontSize: 6,
     color: COLORS.slateMuted,
   },
 
@@ -499,49 +533,49 @@ const styles = StyleSheet.create({
     width: '40%',
     backgroundColor: COLORS.cardBg,
     borderWidth: 0.8,
-    borderColor: '#CBD5E1',
+    borderColor: COLORS.cardBorder,
     borderRadius: 5,
-    padding: 7,
+    padding: 6,
     flexDirection: 'row',
     alignItems: 'center',
   },
   sealIconWrap: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: COLORS.emeraldBg,
-    borderWidth: 0.5,
+    borderWidth: 0.6,
     borderColor: COLORS.emeraldBorder,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 7,
+    marginRight: 6,
   },
   sealRight: {
     flex: 1,
   },
   sealTitle: {
-    fontSize: 6.5,
+    fontSize: 6.2,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.emeraldText,
     letterSpacing: 0.6,
   },
   sealHash: {
-    fontSize: 5.8,
+    fontSize: 5.5,
     fontFamily: 'Courier',
     color: COLORS.slateMuted,
-    marginTop: 1,
+    marginTop: 0.8,
   },
   sealSub: {
-    fontSize: 5.5,
+    fontSize: 5.2,
     color: COLORS.slateSubtle,
-    marginTop: 1,
+    marginTop: 0.8,
   },
 
   // ── Micro Footer ──
   footerLine: {
-    height: 0.8,
+    height: 0.6,
     backgroundColor: COLORS.slateLightBorder,
-    marginBottom: 6,
+    marginBottom: 5,
   },
   footerRow: {
     flexDirection: 'row',
@@ -549,11 +583,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerLeft: {
-    fontSize: 6,
+    fontSize: 5.8,
     color: COLORS.slateSubtle,
   },
   footerRight: {
-    fontSize: 6.2,
+    fontSize: 6,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.goldText,
     letterSpacing: 0.6,
@@ -720,35 +754,41 @@ export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData 
       <Page size="A4" style={styles.page}>
         <View style={styles.documentFrame}>
           {/* Top Gold Foil Accent Bar */}
-          <View style={styles.topAccentBar} />
+          <View style={styles.topAccentBarWrap}>
+            <View style={styles.topAccentBarGold} />
+            <View style={styles.topAccentBarLight} />
+          </View>
 
           <View style={styles.frameContent}>
             {/* ── 1. Top Executive Header ── */}
             <View style={styles.headerRow}>
               <View style={styles.headerLeft}>
-                {/* Catalyst Logo Vector Mark */}
+                {/* Catalyst Logo Vector Mark with Authentic Inflection Stroke */}
                 <View style={styles.logoBox}>
-                  <Svg width={38} height={38} viewBox="0 0 52 52">
-                    <Rect width={52} height={52} rx={10} fill="#0E1217" />
-                    <Polygon points="17,40 23,40 34,20 28,20" fill="#F4F4F2" />
-                    <Polygon points="28,20 34,20 40,9 34,9" fill="#B88A44" />
-                    <Circle cx={37} cy={12.5} r={1.2} fill="#0E1217" />
+                  <Svg width={36} height={42} viewBox="0 0 192 240">
+                    {/* Primary Trajectory Stroke */}
+                    <Polygon points="0,240 44,240 192,0 148,0" fill="#0A0B0D" />
+                    {/* Strategic Gold Intervention Stroke */}
+                    <Polygon points="192,0 148,0 100,76 144,76" fill="#B8935B" />
+                    {/* Inflection Pivot Dot */}
+                    <Circle cx="170" cy="22" r="5" fill="#FAF8F5" />
                   </Svg>
                 </View>
                 <View>
                   <View style={styles.brandTitleRow}>
                     <Text style={styles.brandTitleMain}>CATALYST</Text>
-                    <Text style={styles.brandTitleSub}>| TALENT POSITIONING ARCHITECTURE</Text>
+                    <Text style={styles.brandTitleSeparator}>|</Text>
+                    <Text style={styles.brandTitleSub}>TALENT POSITIONING ARCHITECTURE</Text>
                   </View>
-                  <Text style={styles.brandSubline}>A SUB-BRAND OF RIPPLE NEXUS</Text>
+                  <Text style={styles.brandSubline}>A SUB-BRAND OF RIPPLE NEXUS • EXECUTIVE CLIENT SERVICES</Text>
                 </View>
               </View>
 
               <View style={styles.headerRight}>
-                <Text style={styles.taxInvoiceTitle}>TAX INVOICE</Text>
+                <Text style={styles.taxInvoiceTitle}>TAX INVOICE &amp; RECEIPT</Text>
                 <View style={styles.paidBadge}>
                   <View style={styles.paidDot} />
-                  <Text style={styles.paidBadgeText}>PAID</Text>
+                  <Text style={styles.paidBadgeText}>PAID &amp; SETTLED</Text>
                 </View>
               </View>
             </View>
@@ -763,9 +803,11 @@ export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData 
                 <Text style={styles.clientName}>{invoice.clientName}</Text>
                 <Text style={styles.clientDetail}>{invoice.clientEmail}</Text>
                 {invoice.clientPhone ? <Text style={styles.clientDetail}>{invoice.clientPhone}</Text> : null}
-                <Text style={styles.jurisdictionText}>
-                  Jurisdiction: <Text style={styles.jurisdictionValue}>{jurisdictionLabel}</Text>
-                </Text>
+                <View style={styles.jurisdictionPill}>
+                  <Text style={styles.jurisdictionText}>
+                    Jurisdiction: <Text style={styles.jurisdictionValue}>{jurisdictionLabel}</Text>
+                  </Text>
+                </View>
               </View>
 
               {/* Right: Fiscal Ledger Card */}
@@ -796,12 +838,12 @@ export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData 
             {/* ── 3. Engagement Scope Banner ── */}
             <View style={styles.scopeBanner}>
               <View style={styles.scopeLeft}>
-                <Text style={styles.scopeBadge}>ENGAGEMENT SCOPE</Text>
+                <Text style={styles.scopeBadge}>ENGAGEMENT SPECIFICATION</Text>
                 <Text style={styles.scopeTitle}>{pkg.packageName}</Text>
                 <Text style={styles.scopeSub}>{pkg.trackName}</Text>
               </View>
               <View style={styles.slaPill}>
-                <Text style={styles.slaPillText}>{pkg.slaDays}</Text>
+                <Text style={styles.slaPillText}>GUARANTEED SLA: {pkg.slaDays}</Text>
               </View>
             </View>
 
@@ -975,7 +1017,7 @@ export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData 
               <Text style={styles.footerLeft}>
                 This document is an authenticated tax invoice and receipt for talent architecture services rendered.
               </Text>
-              <Text style={styles.footerRight}>CATALYST • A SUB-BRAND OF RIPPLE NEXUS</Text>
+              <Text style={styles.footerRight}>CATALYST • TALENT POSITIONING ARCHITECTURE • RIPPLE NEXUS</Text>
             </View>
           </View>
         </View>

@@ -6,15 +6,23 @@ interface LogoProps {
   dark?: boolean;  // true = for dark backgrounds (bone stroke, obsidian dot)
   brandId?: BrandId; // Defaults to catalyst
   showSubtitle?: boolean;
+  subtitle?: string; // Custom subtitle text (e.g. TALENT POSITIONING ARCHITECTURE)
 }
 
-export function Logo({ variant = 'horizontal', size = 40, dark = false, showSubtitle = true }: LogoProps) {
+export function Logo({
+  variant = 'horizontal',
+  size = 40,
+  dark = false,
+  showSubtitle = true,
+  subtitle = 'TPA · CLIENTFORGE',
+}: LogoProps) {
   // CATALYST Logo
   const strokeFill = dark ? '#F4F1EB' : '#0A0B0D';
   const dotFill    = dark ? '#0A0B0D' : '#F4F1EB';
+  const goldFill   = '#B8935B';
   const markW      = Math.round(size * (192 / 240));
 
-  // Inflection Mark — viewBox 192×240 derived from brand system SVG (scaled 60% of 320×400 base)
+  // Inflection Mark — viewBox 192×240 derived from brand system SVG
   const mark = (
     <svg
       width={markW}
@@ -25,9 +33,12 @@ export function Logo({ variant = 'horizontal', size = 40, dark = false, showSubt
       aria-hidden="true"
       style={{ flexShrink: 0 }}
     >
+      {/* Primary Trajectory Stroke */}
       <polygon points="0,240 44,240 192,0 148,0" fill={strokeFill} />
-      <polygon points="192,0 148,0 100,76 144,76" fill="#B8935B" />
-      <circle cx="170" cy="22" r="4.5" fill={dotFill} />
+      {/* Strategic Gold Intervention Stroke */}
+      <polygon points="192,0 148,0 100,76 144,76" fill={goldFill} />
+      {/* Inflection Pivot Dot */}
+      <circle cx="170" cy="22" r="5" fill={dotFill} />
     </svg>
   );
 
@@ -37,7 +48,7 @@ export function Logo({ variant = 'horizontal', size = 40, dark = false, showSubt
 
   return (
     <div
-      style={{ display: 'inline-flex', alignItems: 'center', gap: Math.max(8, Math.round(size * 0.28)) }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: Math.max(10, Math.round(size * 0.28)) }}
       aria-label="Catalyst TPA"
     >
       {mark}
@@ -45,9 +56,9 @@ export function Logo({ variant = 'horizontal', size = 40, dark = false, showSubt
         <span
           style={{
             fontFamily: 'var(--font-cinzel), Cinzel, "Playfair Display", "Times New Roman", Georgia, serif',
-            fontWeight: 700,
+            fontWeight: 800,
             fontSize: Math.round(size * 0.52),
-            letterSpacing: '2.4px',
+            letterSpacing: '2.8px',
             color: textColor,
             lineHeight: 1.05,
             userSelect: 'none',
@@ -62,15 +73,15 @@ export function Logo({ variant = 'horizontal', size = 40, dark = false, showSubt
               fontFamily: 'var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
               fontWeight: 800,
               fontSize: Math.max(8, Math.round(size * 0.22)),
-              letterSpacing: '1.6px',
-              color: '#B8935B',
+              letterSpacing: '1.8px',
+              color: '#9A7540',
               textTransform: 'uppercase',
               lineHeight: 1,
-              marginTop: 2.5,
+              marginTop: 3,
               userSelect: 'none',
             }}
           >
-            TPA · CLIENTFORGE
+            {subtitle}
           </span>
         )}
       </div>
