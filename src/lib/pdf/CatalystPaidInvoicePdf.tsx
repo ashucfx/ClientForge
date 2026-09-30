@@ -1,6 +1,7 @@
 // src/lib/pdf/CatalystPaidInvoicePdf.tsx
 // Official Catalyst Paid Tax Invoice & Receipt Generator
-// Built with @react-pdf/renderer adhering to Catalyst Signal Gold & Obsidian guidelines
+// Exact executive layout matching the Catalyst Talent Positioning Architecture specification
+// Rendered on A4 with @react-pdf/renderer
 
 import React from 'react';
 import {
@@ -9,395 +10,551 @@ import {
   Text,
   View,
   StyleSheet,
-  Image,
+  Svg,
+  Rect,
+  Polygon,
+  Circle,
+  Path,
+  Line,
 } from '@react-pdf/renderer';
-import path from 'path';
-import fs from 'fs';
+import crypto from 'crypto';
 import type { InvoiceData, LineItem } from '@/types';
 import { parseInvoiceLineItems } from '@/lib/invoiceLineItems';
 
-// ── Executive Palette Tokens ──────────────────────────────────────────────────
+// ── Palette Tokens matching gemini-svg.svg ────────────────────────────────────
 const COLORS = {
-  obsidian: '#0A0B0D',
-  obsidianLight: '#14161B',
-  gold: '#B8935B',
-  goldDark: '#8C6933',
-  goldLight: '#FAF6EE',
-  goldBorder: '#D8C7A5',
-  bone: '#FAF9F6',
-  slateDark: '#0F172A',
-  slateBody: '#334155',
-  slateMuted: '#64748B',
-  slateLight: '#F1F5F9',
-  border: '#E2E8F0',
-  emerald: '#059669',
-  emeraldLight: '#ECFDF5',
-  emeraldBorder: '#A7F3D0',
+  bgCanvas: '#F9F9FB',
   white: '#FFFFFF',
+  frameBorder: '#E2E6EB',
+  topAccentGold: '#D4AF37',
+  goldText: '#AA7C11',
+  goldAccent: '#B88A44',
+  obsidian: '#0E1217',
+  slateDark: '#1E293B',
+  slateHeading: '#334155',
+  slateBody: '#475569',
+  slateMuted: '#64748B',
+  slateSubtle: '#8A94A6',
+  slateLightBorder: '#ECEFF2',
+  cardBg: '#F8FAFC',
+  cardBorder: '#EAEFF4',
+  tableHeaderBg: '#F1F5F9',
+  totalBoxBg: '#0E1217',
+  emeraldBg: '#ECFDF5',
+  emeraldBorder: '#A7F3D0',
+  emeraldText: '#065F46',
+  emeraldDot: '#059669',
+  badgeCompBg: '#FEF3C7',
+  badgeCompText: '#92400E',
 };
 
 const styles = StyleSheet.create({
   page: {
-    padding: 26,
-    fontSize: 8,
+    backgroundColor: COLORS.bgCanvas,
+    padding: 24,
     fontFamily: 'Helvetica',
-    backgroundColor: COLORS.white,
+    fontSize: 7.5,
     color: COLORS.slateBody,
   },
-  // ── Header Bar ──
-  headerBar: {
-    backgroundColor: COLORS.obsidian,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 7,
+  // ── Frame Container (White Executive Sheet) ──
+  documentFrame: {
+    backgroundColor: COLORS.white,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.frameBorder,
+    overflow: 'hidden',
+    paddingBottom: 14,
+  },
+  topAccentBar: {
+    height: 5,
+    backgroundColor: COLORS.topAccentGold,
+  },
+  frameContent: {
+    paddingHorizontal: 22,
+    paddingTop: 14,
+  },
+
+  // ── Header ──
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 9,
-    borderTopWidth: 2.5,
-    borderTopColor: COLORS.gold,
-    borderBottomWidth: 1,
-    borderBottomColor: '#262930',
+    marginBottom: 10,
   },
-  brandLeft: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  logoImage: {
-    width: 36,
-    height: 36,
-    borderRadius: 5,
+  logoBox: {
+    width: 38,
+    height: 38,
     marginRight: 10,
   },
-  brandTitle: {
-    fontSize: 12.5,
+  brandTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  brandTitleMain: {
+    fontSize: 14,
     fontFamily: 'Helvetica-Bold',
-    color: COLORS.white,
-    letterSpacing: 0.8,
+    color: COLORS.obsidian,
+    letterSpacing: 1.4,
   },
-  brandSubtitle: {
-    fontSize: 7,
-    fontFamily: 'Helvetica-Bold',
-    color: COLORS.gold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginTop: 2,
-  },
-  brandOrg: {
-    fontSize: 6.5,
-    color: '#94A3B8',
-    letterSpacing: 0.3,
-    marginTop: 1,
-  },
-  receiptBadgeContainer: {
-    alignItems: 'flex-end',
-  },
-  paidBadge: {
-    backgroundColor: COLORS.emeraldLight,
-    borderWidth: 1,
-    borderColor: COLORS.emeraldBorder,
-    paddingVertical: 3.5,
-    paddingHorizontal: 9,
-    borderRadius: 5,
-    marginBottom: 3,
-  },
-  paidBadgeText: {
-    color: COLORS.emerald,
-    fontSize: 8,
-    fontFamily: 'Helvetica-Bold',
-    letterSpacing: 0.6,
-  },
-  receiptTitle: {
+  brandTitleSub: {
     fontSize: 6.8,
     fontFamily: 'Helvetica-Bold',
-    color: '#94A3B8',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: COLORS.goldText,
+    letterSpacing: 1.1,
+    marginLeft: 5,
   },
-
-  // ── Purchased Package Spotlight Banner ──
-  packageBanner: {
-    backgroundColor: COLORS.goldLight,
-    borderWidth: 1,
-    borderColor: COLORS.goldBorder,
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 9,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  packageTag: {
+  brandSubline: {
     fontSize: 6.5,
     fontFamily: 'Helvetica-Bold',
-    color: COLORS.goldDark,
-    textTransform: 'uppercase',
+    color: COLORS.slateMuted,
     letterSpacing: 0.8,
+    marginTop: 2.5,
+  },
+  headerRight: {
+    alignItems: 'flex-end',
+  },
+  taxInvoiceTitle: {
+    fontSize: 13,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.obsidian,
+    letterSpacing: 0.8,
+  },
+  paidBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.emeraldBg,
+    borderWidth: 0.8,
+    borderColor: COLORS.emeraldBorder,
+    borderRadius: 4,
+    paddingVertical: 2.5,
+    paddingHorizontal: 7,
+    marginTop: 3,
+  },
+  paidDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.emeraldDot,
+    marginRight: 4,
+  },
+  paidBadgeText: {
+    fontSize: 6.8,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.emeraldText,
+    letterSpacing: 0.8,
+  },
+  hairline: {
+    height: 1,
+    backgroundColor: COLORS.slateLightBorder,
+    marginBottom: 10,
+  },
+
+  // ── Metadata Cards (Billed To & Fiscal Ledger) ──
+  metaGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  metaCardLeft: {
+    width: '49%',
+    backgroundColor: COLORS.cardBg,
+    borderWidth: 0.8,
+    borderColor: COLORS.cardBorder,
+    borderRadius: 6,
+    padding: 8,
+  },
+  metaCardRight: {
+    width: '49%',
+    backgroundColor: COLORS.cardBg,
+    borderWidth: 0.8,
+    borderColor: COLORS.cardBorder,
+    borderRadius: 6,
+    padding: 8,
+  },
+  cardLabel: {
+    fontSize: 6.2,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.slateSubtle,
+    letterSpacing: 0.8,
+    marginBottom: 3,
+  },
+  clientName: {
+    fontSize: 11,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.obsidian,
     marginBottom: 2,
   },
-  packageName: {
-    fontSize: 12,
-    fontFamily: 'Helvetica-Bold',
-    color: COLORS.obsidian,
-    letterSpacing: 0.2,
-  },
-  packageSubtitle: {
-    fontSize: 7.2,
-    color: COLORS.slateBody,
-    marginTop: 1.5,
-  },
-  packageRight: {
-    alignItems: 'flex-end',
-    backgroundColor: COLORS.white,
-    borderWidth: 0.8,
-    borderColor: COLORS.goldBorder,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    borderRadius: 5,
-  },
-  slaTag: {
-    fontSize: 6.5,
-    fontFamily: 'Helvetica-Bold',
-    color: COLORS.goldDark,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  slaValue: {
-    fontSize: 8.5,
-    fontFamily: 'Helvetica-Bold',
-    color: COLORS.obsidian,
-    marginTop: 1,
-  },
-
-  // ── Two Column Meta Section ──
-  gridTwoCol: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 9,
-  },
-  infoCardLeft: {
-    width: '49%',
-    backgroundColor: COLORS.bone,
-    borderRadius: 6,
-    borderWidth: 0.8,
-    borderColor: COLORS.border,
-    padding: 8,
-  },
-  infoCardRight: {
-    width: '49%',
-    backgroundColor: COLORS.bone,
-    borderRadius: 6,
-    borderWidth: 0.8,
-    borderColor: COLORS.border,
-    padding: 8,
-  },
-  cardTitle: {
+  clientDetail: {
     fontSize: 7,
-    fontFamily: 'Helvetica-Bold',
-    color: COLORS.goldDark,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 5,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#E8DEC8',
-    paddingBottom: 2.5,
-  },
-  cardLineBold: {
-    fontSize: 9,
-    fontFamily: 'Helvetica-Bold',
-    color: COLORS.obsidian,
-    marginBottom: 2.5,
-  },
-  cardLine: {
-    fontSize: 7.6,
     color: COLORS.slateBody,
     marginBottom: 1.5,
   },
-  metaRow: {
+  jurisdictionText: {
+    fontSize: 6.8,
+    color: COLORS.slateSubtle,
+    marginTop: 2,
+  },
+  jurisdictionValue: {
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.obsidian,
+  },
+  fiscalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 2,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#EBEFF5',
+    marginBottom: 5,
   },
-  metaLabel: {
-    fontSize: 7.5,
-    color: COLORS.slateMuted,
+  fiscalCol: {
+    width: '48%',
   },
-  metaValue: {
-    fontSize: 7.5,
+  fiscalValueMono: {
+    fontSize: 7.2,
+    fontFamily: 'Courier-Bold',
+    color: COLORS.obsidian,
+  },
+  fiscalValue: {
+    fontSize: 7.2,
     fontFamily: 'Helvetica-Bold',
-    color: COLORS.slateDark,
+    color: COLORS.obsidian,
   },
 
-  // ── Table Container ──
-  tableContainer: {
+  // ── Engagement Scope Banner ──
+  scopeBanner: {
+    backgroundColor: COLORS.obsidian,
     borderRadius: 6,
-    borderWidth: 0.8,
-    borderColor: COLORS.border,
-    overflow: 'hidden',
-    marginBottom: 9,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  scopeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  scopeBadge: {
+    fontSize: 6.8,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.goldText,
+    letterSpacing: 0.8,
+    marginRight: 8,
+  },
+  scopeTitle: {
+    fontSize: 8.8,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.white,
+    marginRight: 6,
+  },
+  scopeSub: {
+    fontSize: 7.2,
+    color: '#94A3B8',
+  },
+  slaPill: {
+    backgroundColor: COLORS.slateDark,
+    borderRadius: 4,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  slaPillText: {
+    fontSize: 6.5,
+    fontFamily: 'Helvetica-Bold',
+    color: '#F1F5F9',
+    letterSpacing: 0.6,
+  },
+
+  // ── Line Items Table ──
+  tableContainer: {
+    marginBottom: 8,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: COLORS.obsidian,
-    paddingVertical: 5.5,
+    backgroundColor: COLORS.tableHeaderBg,
+    borderRadius: 4,
+    paddingVertical: 5,
     paddingHorizontal: 8,
+    alignItems: 'center',
   },
-  thDesc: { flex: 4.5, color: COLORS.white, fontFamily: 'Helvetica-Bold', fontSize: 7, letterSpacing: 0.5 },
-  thQty:  { flex: 0.8, color: COLORS.white, fontFamily: 'Helvetica-Bold', fontSize: 7, textAlign: 'center', letterSpacing: 0.5 },
-  thPrice:{ flex: 1.6, color: COLORS.white, fontFamily: 'Helvetica-Bold', fontSize: 7, textAlign: 'right', letterSpacing: 0.5 },
-  thTotal:{ flex: 1.6, color: COLORS.white, fontFamily: 'Helvetica-Bold', fontSize: 7, textAlign: 'right', letterSpacing: 0.5 },
+  thDesc:  { flex: 5.2, fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: COLORS.slateBody, letterSpacing: 0.6 },
+  thQty:   { flex: 0.8, fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: COLORS.slateBody, textAlign: 'center', letterSpacing: 0.6 },
+  thRate:  { flex: 1.8, fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: COLORS.slateBody, textAlign: 'right', letterSpacing: 0.6 },
+  thTotal: { flex: 1.8, fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: COLORS.slateBody, textAlign: 'right', letterSpacing: 0.6 },
+
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 5.5,
+    paddingVertical: 6,
     paddingHorizontal: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.white,
+    borderBottomWidth: 0.8,
+    borderBottomColor: COLORS.tableHeaderBg,
     alignItems: 'center',
   },
-  tableRowAlt: {
+  tdDesc: {
+    flex: 5.2,
+  },
+  itemTitleRow: {
     flexDirection: 'row',
-    paddingVertical: 5.5,
-    paddingHorizontal: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.bone,
     alignItems: 'center',
   },
-  tdDesc: { flex: 4.5 },
-  tdDescMain: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: COLORS.slateDark },
-  tdDescSub: { fontSize: 6.8, color: COLORS.slateMuted, marginTop: 1 },
-  tdQty:  { flex: 0.8, fontSize: 7.8, textAlign: 'center', color: COLORS.slateDark },
-  tdPrice:{ flex: 1.6, fontSize: 7.8, textAlign: 'right', color: COLORS.slateDark },
-  tdTotal:{ flex: 1.6, fontSize: 8, fontFamily: 'Helvetica-Bold', textAlign: 'right', color: COLORS.obsidian },
+  itemTitle: {
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.obsidian,
+  },
+  compBadge: {
+    backgroundColor: COLORS.badgeCompBg,
+    borderRadius: 3,
+    paddingVertical: 1,
+    paddingHorizontal: 4,
+    marginLeft: 6,
+  },
+  compBadgeText: {
+    fontSize: 5.5,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.badgeCompText,
+    letterSpacing: 0.5,
+  },
+  itemSub: {
+    fontSize: 6.5,
+    color: COLORS.slateMuted,
+    marginTop: 1.5,
+  },
+  tdQty: {
+    flex: 0.8,
+    fontSize: 7.5,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.slateDark,
+    textAlign: 'center',
+  },
+  tdRate: {
+    flex: 1.8,
+    fontSize: 7.5,
+    color: COLORS.slateDark,
+    textAlign: 'right',
+  },
+  tdTotal: {
+    flex: 1.8,
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.obsidian,
+    textAlign: 'right',
+  },
+  tdTotalFree: {
+    flex: 1.8,
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.emeraldDot,
+    textAlign: 'right',
+  },
 
-  // ── Financial Summary ──
-  summarySection: {
+  // ── Financial Totals Section ──
+  totalsSection: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     marginBottom: 9,
   },
-  summaryBox: {
-    width: 220,
-    backgroundColor: COLORS.bone,
-    borderRadius: 6,
-    borderWidth: 0.8,
-    borderColor: COLORS.border,
-    padding: 7,
+  totalsInner: {
+    width: 250,
   },
-  summaryLine: {
+  totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 2,
   },
-  summaryLabel: {
-    fontSize: 7.6,
+  totalRowLabel: {
+    fontSize: 7.2,
     color: COLORS.slateMuted,
   },
-  summaryVal: {
+  totalRowVal: {
     fontSize: 7.6,
-    color: COLORS.slateDark,
-    fontFamily: 'Helvetica-Bold',
-  },
-  totalLine: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 4.5,
-    marginTop: 3,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.gold,
-  },
-  totalLabel: {
-    fontSize: 8.8,
     fontFamily: 'Helvetica-Bold',
     color: COLORS.obsidian,
   },
-  totalVal: {
-    fontSize: 10,
-    fontFamily: 'Helvetica-Bold',
-    color: COLORS.goldDark,
+  totalsDivider: {
+    height: 0.8,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 4,
   },
-
-  // ── SLA & Governance Box ──
-  slaSection: {
-    backgroundColor: COLORS.white,
-    borderWidth: 0.8,
-    borderColor: COLORS.border,
+  settledTotalBox: {
+    backgroundColor: COLORS.totalBoxBg,
     borderRadius: 6,
-    padding: 8,
-    marginBottom: 9,
-  },
-  slaHeaderRow: {
+    paddingVertical: 7,
+    paddingHorizontal: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 5,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#E2E8F0',
-    paddingBottom: 3,
+    marginTop: 3,
   },
-  slaHeading: {
-    fontSize: 7,
+  settledLeft: {
+    fontSize: 7.2,
     fontFamily: 'Helvetica-Bold',
-    color: COLORS.obsidian,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    color: COLORS.topAccentGold,
+    letterSpacing: 0.8,
   },
-  slaAssentBadge: {
+  settledRight: {
+    alignItems: 'flex-end',
+  },
+  settledAmount: {
+    fontSize: 12,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.white,
+  },
+  settledSub: {
+    fontSize: 5.8,
+    color: '#94A3B8',
+    marginTop: 1,
+  },
+
+  // ── Service Level Agreement & Execution Protocol ──
+  slaContainer: {
+    backgroundColor: COLORS.cardBg,
+    borderWidth: 0.8,
+    borderColor: COLORS.cardBorder,
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 9,
+  },
+  slaHeaderBar: {
+    backgroundColor: COLORS.tableHeaderBg,
+    paddingVertical: 4.5,
+    paddingHorizontal: 10,
+  },
+  slaHeaderTitle: {
     fontSize: 6.5,
     fontFamily: 'Helvetica-Bold',
-    color: COLORS.emerald,
-    backgroundColor: COLORS.emeraldLight,
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 3,
+    color: COLORS.slateHeading,
+    letterSpacing: 0.8,
   },
-  slaGrid: {
+  slaBodyGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    padding: 8,
   },
-  slaPillar: {
+  slaColumn: {
     width: '32%',
-    backgroundColor: COLORS.bone,
-    borderRadius: 4,
-    padding: 5,
-    borderWidth: 0.5,
-    borderColor: '#E8DEC8',
   },
-  pillarTitle: {
-    fontSize: 6.6,
+  slaPillarTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2.5,
+  },
+  slaBullet: {
+    width: 3.5,
+    height: 3.5,
+    borderRadius: 1.8,
+    backgroundColor: COLORS.goldText,
+    marginRight: 4,
+  },
+  slaPillarTitle: {
+    fontSize: 6.8,
     fontFamily: 'Helvetica-Bold',
-    color: COLORS.goldDark,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 2,
+    color: COLORS.obsidian,
   },
-  pillarBody: {
-    fontSize: 6.5,
+  slaPillarText: {
+    fontSize: 6,
     color: COLORS.slateBody,
     lineHeight: 1.3,
   },
 
-  // ── Institutional Footer ──
-  footer: {
-    borderTopWidth: 0.5,
-    borderTopColor: COLORS.border,
-    paddingTop: 6,
-    textAlign: 'center',
+  // ── Legal Sign-Off & Security Verification Seal ──
+  bottomCardsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  footerMain: {
+  entityCard: {
+    width: '58%',
+    paddingRight: 8,
+  },
+  entityLabel: {
+    fontSize: 6.2,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.slateSubtle,
+    letterSpacing: 0.8,
+    marginBottom: 3,
+  },
+  entityName: {
+    fontSize: 9.5,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.obsidian,
+    marginBottom: 1.5,
+  },
+  entitySubBrand: {
+    fontSize: 7,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.goldAccent,
+    marginBottom: 1.5,
+  },
+  entityMeta: {
+    fontSize: 6.5,
+    color: COLORS.slateMuted,
+  },
+
+  sealCard: {
+    width: '40%',
+    backgroundColor: COLORS.cardBg,
+    borderWidth: 0.8,
+    borderColor: '#CBD5E1',
+    borderRadius: 5,
+    padding: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sealIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.emeraldBg,
+    borderWidth: 0.5,
+    borderColor: COLORS.emeraldBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 7,
+  },
+  sealRight: {
+    flex: 1,
+  },
+  sealTitle: {
     fontSize: 6.5,
     fontFamily: 'Helvetica-Bold',
-    color: COLORS.slateDark,
+    color: COLORS.emeraldText,
+    letterSpacing: 0.6,
   },
-  footerSub: {
-    fontSize: 6,
+  sealHash: {
+    fontSize: 5.8,
+    fontFamily: 'Courier',
     color: COLORS.slateMuted,
-    marginTop: 1.5,
-    lineHeight: 1.3,
+    marginTop: 1,
+  },
+  sealSub: {
+    fontSize: 5.5,
+    color: COLORS.slateSubtle,
+    marginTop: 1,
+  },
+
+  // ── Micro Footer ──
+  footerLine: {
+    height: 0.8,
+    backgroundColor: COLORS.slateLightBorder,
+    marginBottom: 6,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  footerLeft: {
+    fontSize: 6,
+    color: COLORS.slateSubtle,
+  },
+  footerRight: {
+    fontSize: 6.2,
+    fontFamily: 'Helvetica-Bold',
+    color: COLORS.goldText,
+    letterSpacing: 0.6,
   },
 });
 
@@ -414,24 +571,20 @@ function getPackageDetails(clientType?: string | null, notes?: string | null, li
   if (isPremiumPlus) {
     return {
       packageName: 'Premium Plus Package',
-      trackName: 'Executive C-Suite & Global Talent Positioning Architecture',
-      scopePill: 'PREMIUM PLUS ARCHITECTURE',
-      deliverables: 'Executive ATS Resume · LinkedIn C-Suite Architecture · Strategic Narrative Dossier · Global Advisory',
-      slaDays: '7–10 Business Days',
+      trackName: '— Executive C-Suite & Global Talent Positioning Architecture',
+      slaDays: 'SLA: 7–10 BIZ DAYS',
     };
   }
 
   return {
     packageName: 'Career Booster Package',
-    trackName: 'Professional Career Acceleration & Positioning Architecture',
-    scopePill: 'CAREER BOOSTER ARCHITECTURE',
-    deliverables: 'ATS-Proof Resume Architecture · LinkedIn Strategic Overhaul · Executive Pitch & Narrative Suite',
-    slaDays: '7–10 Business Days',
+    trackName: '— Professional Career Acceleration Architecture',
+    slaDays: 'SLA: 7–10 BIZ DAYS',
   };
 }
 
 // ── Clean Line Item Description Sanitizer (Strictly No Internal Leaks) ────────
-function sanitizeItemDescription(rawDesc: string, pkgName: string): { title: string; subtitle?: string } {
+function sanitizeItemDescription(rawDesc: string, pkgName: string): { title: string; subtitle?: string; isComp?: boolean } {
   const lower = (rawDesc || '').toLowerCase().trim();
 
   // Strip internal database / automated strings
@@ -448,38 +601,67 @@ function sanitizeItemDescription(rawDesc: string, pkgName: string): { title: str
     };
   }
 
+  if (lower.includes('cover letter') || lower.includes('coverletter') || lower.includes('complimentary')) {
+    return {
+      title: 'Executive Cover Letter Architecture',
+      subtitle: 'Modular high-impact narrative tailored to target leadership roles',
+      isComp: true,
+    };
+  }
+
+  if (lower.includes('linkedin')) {
+    return {
+      title: 'LinkedIn Profile Optimisation + Custom Banner Concept',
+      subtitle: 'Strategic personal brand realignment and algorithmic discovery tuning',
+    };
+  }
+
+  if (lower.includes('resume') || lower.includes('cv')) {
+    return {
+      title: 'Resume Rewrite & Product Leadership Positioning',
+      subtitle: 'Catalyst Talent Positioning Architecture Deliverable Suite',
+    };
+  }
+
+  if (lower.includes('portfolio')) {
+    return {
+      title: 'Executive Portfolio Website & Personal Dossier',
+      subtitle: 'Digital leadership identity architecture & executive case studies',
+    };
+  }
+
   if (lower.includes('revision')) {
     return {
       title: 'Strategic Profile Calibration & Revision Scope',
-      subtitle: 'Iterative Targeted Refinement, ATS Keyword Re-calibration & Polish',
+      subtitle: 'Iterative targeted refinement, ATS keyword re-calibration & polish',
     };
   }
 
   if (lower === 'fresher' || lower.includes('fresher')) {
     return {
       title: 'Career Booster Package — Early Professional Track',
-      subtitle: 'ATS-Optimized Resume Architecture, LinkedIn Strategic Overhaul & Outreach Assets',
+      subtitle: 'ATS-optimized resume architecture, LinkedIn overhaul & outreach assets',
     };
   }
 
   if (lower === 'mid_career' || lower.includes('mid-career') || lower.includes('mid career')) {
     return {
       title: 'Career Booster Package — Professional Acceleration Track',
-      subtitle: 'Executive Resume Transformation, LinkedIn Repositioning & Career Narrative Strategy',
+      subtitle: 'Executive resume transformation, LinkedIn repositioning & career narrative',
     };
   }
 
   if (lower === 'executive_plus' || lower.includes('premium plus') || lower.includes('exec+')) {
     return {
       title: 'Premium Plus Package — Global Executive Placement Track',
-      subtitle: 'Executive C-Suite Narrative Overhaul, Strategic LinkedIn Presence & Advisory',
+      subtitle: 'Executive C-Suite narrative overhaul, strategic LinkedIn presence & advisory',
     };
   }
 
   if (lower === 'executive') {
     return {
       title: 'Executive Leadership Architecture Package',
-      subtitle: 'Senior Leadership ATS Positioning, Executive LinkedIn Overhaul & Career Dossier',
+      subtitle: 'Senior leadership ATS positioning, executive LinkedIn overhaul & career dossier',
     };
   }
 
@@ -500,18 +682,6 @@ export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData 
   const lineItems: LineItem[] = parseInvoiceLineItems(invoice.lineItems);
   const curSym = invoice.currencySymbol || invoice.currency;
 
-  // Resolve logo image path safely
-  let logoBase64: string | null = null;
-  try {
-    const logoPath = path.join(process.cwd(), 'public/logos/catalyst-symbol-dark.png');
-    if (fs.existsSync(logoPath)) {
-      const buffer = fs.readFileSync(logoPath);
-      logoBase64 = `data:image/png;base64,${buffer.toString('base64')}`;
-    }
-  } catch (err) {
-    console.warn('[PDF] Failed to load logo image:', err);
-  }
-
   // Derive package display (Career Booster Package vs Premium Plus Package)
   const pkg = getPackageDetails(invoice.clientType, invoice.notes, lineItems);
 
@@ -529,6 +699,26 @@ export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData 
     ? new Date(invoice.paidAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : issueDateStr;
 
+  // Jurisdiction calculation
+  const isIndia = !invoice.country || invoice.country.toLowerCase().includes('india') || invoice.currency === 'INR';
+  const jurisdictionLabel = isIndia ? 'India (Domestic Rail)' : `${invoice.country || 'International'} (Global Rail)`;
+
+  // Payment gateway display
+  let gatewayLabel = 'Via Razorpay Payment Gateway';
+  if (invoice.paymentGateway === 'PAYPAL' || invoice.paypalPaymentUrl) {
+    gatewayLabel = 'Via PayPal Payment Gateway';
+  } else if (invoice.paymentGateway?.includes('BANK_TRANSFER')) {
+    gatewayLabel = 'Via Authorized Institutional Banking Rail';
+  }
+
+  // Cryptographic verification hash (tamper-evident SHA-256)
+  const hashDigest = crypto
+    .createHash('sha256')
+    .update(`${invoice.id}-${invoice.invoiceNumber}-${invoice.totalPayable}-${invoice.clientEmail}`)
+    .digest('hex')
+    .toUpperCase();
+  const shortHash = `SHA-256: ${hashDigest.slice(0, 4)}...${invoice.invoiceNumber.replace(/[^A-Za-z0-9]/g, '').slice(-6)}`;
+
   // Effective line items (fall back to package if lineItems is empty)
   const displayItems = lineItems.length > 0
     ? lineItems
@@ -545,193 +735,266 @@ export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData 
   return (
     <Document title={`Invoice-${invoice.invoiceNumber}-OFFICIAL`} author="Catalyst Talent Positioning Architecture">
       <Page size="A4" style={styles.page}>
-        {/* ── 1. Top Executive Header ── */}
-        <View style={styles.headerBar}>
-          <View style={styles.brandLeft}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
-            {logoBase64 && <Image src={logoBase64} style={styles.logoImage} />}
-            <View>
-              <Text style={styles.brandTitle}>CATALYST TALENT POSITIONING ARCHITECTURE</Text>
-              <Text style={styles.brandSubtitle}>A Division of Ripple Nexus Group · Global Executive Career Services</Text>
-              <Text style={styles.brandOrg}>Corporate Legal Entity: Ripple Nexus Services · Institutional Fiscal Ledger</Text>
-            </View>
-          </View>
-          <View style={styles.receiptBadgeContainer}>
-            <View style={styles.paidBadge}>
-              <Text style={styles.paidBadgeText}>✓ PAID &amp; SETTLED</Text>
-            </View>
-            <Text style={styles.receiptTitle}>Official Tax Invoice &amp; Receipt</Text>
-          </View>
-        </View>
+        <View style={styles.documentFrame}>
+          {/* Top Gold Foil Accent Bar */}
+          <View style={styles.topAccentBar} />
 
-        {/* ── 2. Prominent Purchased Package Banner ── */}
-        <View style={styles.packageBanner}>
-          <View>
-            <Text style={styles.packageTag}>Purchased Service Architecture</Text>
-            <Text style={styles.packageName}>{pkg.packageName}</Text>
-            <Text style={styles.packageSubtitle}>{pkg.trackName}</Text>
-          </View>
-          <View style={styles.packageRight}>
-            <Text style={styles.slaTag}>Guaranteed Delivery SLA</Text>
-            <Text style={styles.slaValue}>{pkg.slaDays}</Text>
-          </View>
-        </View>
-
-        {/* ── 3. Client & Invoice Particulars ── */}
-        <View style={styles.gridTwoCol}>
-          {/* Client Info */}
-          <View style={styles.infoCardLeft}>
-            <Text style={styles.cardTitle}>Client Principal (Billed To)</Text>
-            <Text style={styles.cardLineBold}>{invoice.clientName}</Text>
-            <Text style={styles.cardLine}>{invoice.clientEmail}</Text>
-            {invoice.clientPhone && <Text style={styles.cardLine}>{invoice.clientPhone}</Text>}
-            {invoice.companyName && <Text style={styles.cardLine}>Affiliation: {invoice.companyName}</Text>}
-            <Text style={styles.cardLine}>Jurisdiction: {invoice.country || 'Global'}</Text>
-          </View>
-
-          {/* Invoice Summary */}
-          <View style={styles.infoCardRight}>
-            <Text style={styles.cardTitle}>Fiscal Ledger &amp; Settlement Details</Text>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Invoice Number:</Text>
-              <Text style={styles.metaValue}>{invoice.invoiceNumber}</Text>
-            </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Issue Date:</Text>
-              <Text style={styles.metaValue}>{issueDateStr}</Text>
-            </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Settlement Date:</Text>
-              <Text style={styles.metaValue}>{paidDateStr}</Text>
-            </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Payment Rail:</Text>
-              <Text style={styles.metaValue}>{invoice.paymentGateway || 'Online Secured Rail'}</Text>
-            </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Transaction Ref:</Text>
-              <Text style={styles.metaValue}>{cleanTxnRef}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* ── 4. Itemized Investment Ledger ── */}
-        <View style={styles.tableContainer}>
-          <View style={styles.tableHeader}>
-            <Text style={styles.thDesc}>SERVICE SPECIFICATION &amp; DELIVERABLES</Text>
-            <Text style={styles.thQty}>QTY</Text>
-            <Text style={styles.thPrice}>RATE</Text>
-            <Text style={styles.thTotal}>TOTAL</Text>
-          </View>
-
-          {displayItems.map((item, idx) => {
-            const isAlt = idx % 2 === 1;
-            const sanitized = sanitizeItemDescription(item.description, pkg.packageName);
-            return (
-              <View key={item.id || idx} style={isAlt ? styles.tableRowAlt : styles.tableRow}>
-                <View style={styles.tdDesc}>
-                  <Text style={styles.tdDescMain}>{sanitized.title}</Text>
-                  {sanitized.subtitle && (
-                    <Text style={styles.tdDescSub}>{sanitized.subtitle}</Text>
-                  )}
+          <View style={styles.frameContent}>
+            {/* ── 1. Top Executive Header ── */}
+            <View style={styles.headerRow}>
+              <View style={styles.headerLeft}>
+                {/* Catalyst Logo Vector Mark */}
+                <View style={styles.logoBox}>
+                  <Svg width={38} height={38} viewBox="0 0 52 52">
+                    <Rect width={52} height={52} rx={10} fill="#0E1217" />
+                    <Polygon points="17,40 23,40 34,20 28,20" fill="#F4F4F2" />
+                    <Polygon points="28,20 34,20 40,9 34,9" fill="#B88A44" />
+                    <Circle cx={37} cy={12.5} r={1.2} fill="#0E1217" />
+                  </Svg>
                 </View>
-                <Text style={styles.tdQty}>{item.qty}</Text>
-                <Text style={styles.tdPrice}>
-                  {curSym}{item.unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </Text>
-                <Text style={styles.tdTotal}>
-                  {curSym}{item.lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </Text>
+                <View>
+                  <View style={styles.brandTitleRow}>
+                    <Text style={styles.brandTitleMain}>CATALYST</Text>
+                    <Text style={styles.brandTitleSub}>| TALENT POSITIONING ARCHITECTURE</Text>
+                  </View>
+                  <Text style={styles.brandSubline}>A SUB-BRAND OF RIPPLE NEXUS</Text>
+                </View>
               </View>
-            );
-          })}
-        </View>
 
-        {/* ── 5. Financial Reconciliation Box ── */}
-        <View style={styles.summarySection}>
-          <View style={styles.summaryBox}>
-            <View style={styles.summaryLine}>
-              <Text style={styles.summaryLabel}>Subtotal Net:</Text>
-              <Text style={styles.summaryVal}>
-                {curSym}{invoice.subtotalConverted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </Text>
+              <View style={styles.headerRight}>
+                <Text style={styles.taxInvoiceTitle}>TAX INVOICE</Text>
+                <View style={styles.paidBadge}>
+                  <View style={styles.paidDot} />
+                  <Text style={styles.paidBadgeText}>PAID</Text>
+                </View>
+              </View>
             </View>
 
-            {invoice.discountAmount > 0 && (
-              <View style={styles.summaryLine}>
-                <Text style={styles.summaryLabel}>Institutional Concession ({invoice.discountRate}%):</Text>
-                <Text style={styles.summaryVal}>
-                  -{curSym}{invoice.discountAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <View style={styles.hairline} />
+
+            {/* ── 2. Metadata Cards ── */}
+            <View style={styles.metaGrid}>
+              {/* Left: Client Card */}
+              <View style={styles.metaCardLeft}>
+                <Text style={styles.cardLabel}>BILLED TO (PRINCIPAL CLIENT)</Text>
+                <Text style={styles.clientName}>{invoice.clientName}</Text>
+                <Text style={styles.clientDetail}>{invoice.clientEmail}</Text>
+                {invoice.clientPhone ? <Text style={styles.clientDetail}>{invoice.clientPhone}</Text> : null}
+                <Text style={styles.jurisdictionText}>
+                  Jurisdiction: <Text style={styles.jurisdictionValue}>{jurisdictionLabel}</Text>
                 </Text>
               </View>
-            )}
 
-            {invoice.taxAmount > 0 && (
-              <View style={styles.summaryLine}>
-                <Text style={styles.summaryLabel}>Applicable Tax ({invoice.taxRate}%):</Text>
-                <Text style={styles.summaryVal}>
-                  +{curSym}{invoice.taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </Text>
+              {/* Right: Fiscal Ledger Card */}
+              <View style={styles.metaCardRight}>
+                <View style={styles.fiscalRow}>
+                  <View style={styles.fiscalCol}>
+                    <Text style={styles.cardLabel}>INVOICE NUMBER</Text>
+                    <Text style={styles.fiscalValueMono}>{invoice.invoiceNumber}</Text>
+                  </View>
+                  <View style={styles.fiscalCol}>
+                    <Text style={styles.cardLabel}>TRANSACTION REF</Text>
+                    <Text style={styles.fiscalValueMono}>{cleanTxnRef}</Text>
+                  </View>
+                </View>
+                <View style={[styles.fiscalRow, { marginBottom: 0 }]}>
+                  <View style={styles.fiscalCol}>
+                    <Text style={styles.cardLabel}>ISSUE DATE</Text>
+                    <Text style={styles.fiscalValue}>{issueDateStr}</Text>
+                  </View>
+                  <View style={styles.fiscalCol}>
+                    <Text style={styles.cardLabel}>SETTLEMENT DATE</Text>
+                    <Text style={styles.fiscalValue}>{paidDateStr}</Text>
+                  </View>
+                </View>
               </View>
-            )}
+            </View>
 
-            {invoice.processingFeeConverted > 0 && (
-              <View style={styles.summaryLine}>
-                <Text style={styles.summaryLabel}>Gateway &amp; Settlement Fee:</Text>
-                <Text style={styles.summaryVal}>
-                  +{curSym}{invoice.processingFeeConverted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </Text>
+            {/* ── 3. Engagement Scope Banner ── */}
+            <View style={styles.scopeBanner}>
+              <View style={styles.scopeLeft}>
+                <Text style={styles.scopeBadge}>ENGAGEMENT SCOPE</Text>
+                <Text style={styles.scopeTitle}>{pkg.packageName}</Text>
+                <Text style={styles.scopeSub}>{pkg.trackName}</Text>
               </View>
-            )}
+              <View style={styles.slaPill}>
+                <Text style={styles.slaPillText}>{pkg.slaDays}</Text>
+              </View>
+            </View>
 
-            <View style={styles.totalLine}>
-              <Text style={styles.totalLabel}>Total Settled ({invoice.currency}):</Text>
-              <Text style={styles.totalVal}>
-                {curSym}{invoice.totalPayable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {/* ── 4. Line Items Table ── */}
+            <View style={styles.tableContainer}>
+              <View style={styles.tableHeader}>
+                <Text style={styles.thDesc}>SERVICE SPECIFICATION &amp; DELIVERABLES</Text>
+                <Text style={styles.thQty}>QTY</Text>
+                <Text style={styles.thRate}>UNIT RATE</Text>
+                <Text style={styles.thTotal}>NET AMOUNT</Text>
+              </View>
+
+              {displayItems.map((item, idx) => {
+                const sanitized = sanitizeItemDescription(item.description, pkg.packageName);
+                const isFree = item.lineTotal === 0 || sanitized.isComp;
+                const qtyStr = item.qty < 10 ? `0${item.qty}` : `${item.qty}`;
+                const formattedRate = isFree ? `${curSym}0.00` : `${curSym}${item.unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                const formattedTotal = isFree ? `${curSym}0.00` : `${curSym}${item.lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+                return (
+                  <View key={item.id || idx} style={styles.tableRow}>
+                    <View style={styles.tdDesc}>
+                      <View style={styles.itemTitleRow}>
+                        <Text style={styles.itemTitle}>{sanitized.title}</Text>
+                        {isFree && (
+                          <View style={styles.compBadge}>
+                            <Text style={styles.compBadgeText}>COMPLIMENTARY</Text>
+                          </View>
+                        )}
+                      </View>
+                      {sanitized.subtitle && <Text style={styles.itemSub}>{sanitized.subtitle}</Text>}
+                    </View>
+                    <Text style={styles.tdQty}>{qtyStr}</Text>
+                    <Text style={styles.tdRate}>{formattedRate}</Text>
+                    <Text style={isFree ? styles.tdTotalFree : styles.tdTotal}>{formattedTotal}</Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* ── 5. Financial Reconciliation Totals ── */}
+            <View style={styles.totalsSection}>
+              <View style={styles.totalsInner}>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalRowLabel}>Net Subtotal</Text>
+                  <Text style={styles.totalRowVal}>
+                    {curSym}{invoice.subtotalConverted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Text>
+                </View>
+
+                {invoice.discountAmount > 0 && (
+                  <View style={styles.totalRow}>
+                    <Text style={[styles.totalRowLabel, { color: COLORS.emeraldDot }]}>
+                      Concession / Discount (-{invoice.discountRate}%)
+                    </Text>
+                    <Text style={[styles.totalRowVal, { color: COLORS.emeraldDot }]}>
+                      -{curSym}{invoice.discountAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Text>
+                  </View>
+                )}
+
+                {invoice.taxAmount > 0 && (
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalRowLabel}>Applicable Tax (+{invoice.taxRate}%)</Text>
+                    <Text style={styles.totalRowVal}>
+                      +{curSym}{invoice.taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Text>
+                  </View>
+                )}
+
+                {invoice.processingFeeConverted > 0 && (
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalRowLabel}>Processing &amp; Settlement Fee</Text>
+                    <Text style={styles.totalRowVal}>
+                      +{curSym}{invoice.processingFeeConverted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.totalsDivider} />
+
+                {/* Dark Settled Total Box */}
+                <View style={styles.settledTotalBox}>
+                  <Text style={styles.settledLeft}>TOTAL PAID ({invoice.currency})</Text>
+                  <View style={styles.settledRight}>
+                    <Text style={styles.settledAmount}>
+                      {curSym}{invoice.totalPayable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Text>
+                    <Text style={styles.settledSub}>{gatewayLabel}</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* ── 6. Service Level Agreement & Execution Protocol ── */}
+            <View style={styles.slaContainer}>
+              <View style={styles.slaHeaderBar}>
+                <Text style={styles.slaHeaderTitle}>SERVICE LEVEL AGREEMENT &amp; EXECUTION PROTOCOL</Text>
+              </View>
+              <View style={styles.slaBodyGrid}>
+                {/* Col 1 */}
+                <View style={styles.slaColumn}>
+                  <View style={styles.slaPillarTitleRow}>
+                    <View style={styles.slaBullet} />
+                    <Text style={styles.slaPillarTitle}>Turnaround SLA Window</Text>
+                  </View>
+                  <Text style={styles.slaPillarText}>
+                    Delivery guaranteed within 7–10 business days following intake sign-off.
+                  </Text>
+                </View>
+
+                {/* Col 2 */}
+                <View style={styles.slaColumn}>
+                  <View style={styles.slaPillarTitleRow}>
+                    <View style={styles.slaBullet} />
+                    <Text style={styles.slaPillarTitle}>Calibrations &amp; Revisions</Text>
+                  </View>
+                  <Text style={styles.slaPillarText}>
+                    Includes 2 iterative calibration cycles within 7 calendar days of draft dispatch.
+                  </Text>
+                </View>
+
+                {/* Col 3 */}
+                <View style={styles.slaColumn}>
+                  <View style={styles.slaPillarTitleRow}>
+                    <View style={styles.slaBullet} />
+                    <Text style={styles.slaPillarTitle}>Governance &amp; Authority</Text>
+                  </View>
+                  <Text style={styles.slaPillarText}>
+                    Enforceable under Catalyst Governance &amp; Ripple Nexus Master Framework.
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* ── 7. Corporate Entity Sign-Off & Verification Seal ── */}
+            <View style={styles.bottomCardsRow}>
+              {/* Left: Issuing Legal Entity */}
+              <View style={styles.entityCard}>
+                <Text style={styles.entityLabel}>ISSUING CORPORATE LEGAL ENTITY</Text>
+                <Text style={styles.entityName}>Ripple Nexus</Text>
+                <Text style={styles.entitySubBrand}>Operating as Catalyst (A Sub-Brand of Ripple Nexus)</Text>
+                <Text style={styles.entityMeta}>Global Talent Positioning Architecture • theripplenexus.com</Text>
+              </View>
+
+              {/* Right: Cryptographic Verification Seal */}
+              <View style={styles.sealCard}>
+                <View style={styles.sealIconWrap}>
+                  <Svg width={14} height={14} viewBox="0 0 24 24">
+                    <Path
+                      d="M5 13l4 4L19 7"
+                      stroke="#059669"
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                  </Svg>
+                </View>
+                <View style={styles.sealRight}>
+                  <Text style={styles.sealTitle}>CRYPTOGRAPHICALLY VERIFIED</Text>
+                  <Text style={styles.sealHash}>{shortHash}</Text>
+                  <Text style={styles.sealSub}>Authenticated Digital Receipt</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* ── 8. Micro Footer ── */}
+            <View style={styles.footerLine} />
+            <View style={styles.footerRow}>
+              <Text style={styles.footerLeft}>
+                This document is an authenticated tax invoice and receipt for talent architecture services rendered.
               </Text>
+              <Text style={styles.footerRight}>CATALYST • A SUB-BRAND OF RIPPLE NEXUS</Text>
             </View>
           </View>
-        </View>
-
-        {/* ── 6. Dedicated Service Level Agreement (SLA) & Governance Box ── */}
-        <View style={styles.slaSection}>
-          <View style={styles.slaHeaderRow}>
-            <Text style={styles.slaHeading}>Service Level Agreement (SLA) &amp; Execution Protocols</Text>
-            <Text style={styles.slaAssentBadge}>✓ Legally Binding SLA Assent Logged</Text>
-          </View>
-          <View style={styles.slaGrid}>
-            <View style={styles.slaPillar}>
-              <Text style={styles.pillarTitle}>Turnaround SLA Window</Text>
-              <Text style={styles.pillarBody}>
-                Guaranteed delivery within 7–10 business days following finalized intake questionnaire and career documentation sign-off.
-              </Text>
-            </View>
-            <View style={styles.slaPillar}>
-              <Text style={styles.pillarTitle}>Complimentary Revision SLA</Text>
-              <Text style={styles.pillarBody}>
-                Includes up to 2 rounds of strategic iterative calibrations requested within 7 calendar days of draft transmission.
-              </Text>
-            </View>
-            <View style={styles.slaPillar}>
-              <Text style={styles.pillarTitle}>Legal &amp; Contractual Governance</Text>
-              <Text style={styles.pillarBody}>
-                Enforceable pursuant to the Catalyst Talent Positioning Architecture SLA Framework &amp; Master Terms of Ripple Nexus Group.
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* ── 7. Institutional Footer ── */}
-        <View style={styles.footer}>
-          <Text style={styles.footerMain}>
-            Catalyst Talent Positioning Architecture · A Division of Ripple Nexus Group · Corporate Entity: Ripple Nexus Services
-          </Text>
-          <Text style={styles.footerSub}>
-            Global Executive Advisory &amp; Talent Architecture · support@theripplenexus.com · www.theripplenexus.com
-          </Text>
-          <Text style={styles.footerSub}>
-            This electronic document represents an official, tamper-evident tax invoice and payment receipt under international commercial law. Authenticated by ClientForge Trust Infrastructure.
-          </Text>
         </View>
       </Page>
     </Document>
