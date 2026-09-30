@@ -8,6 +8,8 @@ import type { InvoiceData, LineItem } from '@/types';
 import { parseInvoiceLineItems } from '@/lib/invoiceLineItems';
 import { formatCurrency } from '@/lib/pricing';
 
+import { resolveInvoicePackage } from '@/lib/invoicePackageResolver';
+
 interface CatalystTaxInvoiceEmailCardProps {
   invoice: InvoiceData;
   isPaid?: boolean;
@@ -16,35 +18,7 @@ interface CatalystTaxInvoiceEmailCardProps {
 }
 
 function getPackageDetails(clientType?: string | null, notes?: string | null, lineItems: LineItem[] = []) {
-  const combined = `${clientType || ''} ${notes || ''} ${lineItems.map(i => i.description).join(' ')}`.toLowerCase();
-
-  const hasResume = /resume|cv\b/i.test(combined);
-  const hasLinkedin = /linkedin/i.test(combined);
-  const hasCoverLetter = /cover.?letter/i.test(combined);
-  const hasPortfolio = /portfolio|website/i.test(combined);
-
-  const isPremiumPlus =
-    combined.includes('executive_plus') ||
-    combined.includes('premium plus') ||
-    combined.includes('exec+') ||
-    combined.includes('plus package') ||
-    hasPortfolio ||
-    (hasResume && hasLinkedin && hasCoverLetter && hasPortfolio) ||
-    lineItems.length >= 4;
-
-  if (isPremiumPlus) {
-    return {
-      packageName: 'Premium Plus Package',
-      trackName: '— Executive C-Suite & Global Talent Positioning Architecture',
-      slaDays: 'SLA: 7–10 BIZ DAYS',
-    };
-  }
-
-  return {
-    packageName: 'Career Booster Package',
-    trackName: '— Professional Career Acceleration Architecture',
-    slaDays: 'SLA: 7–10 BIZ DAYS',
-  };
+  return resolveInvoicePackage(clientType, notes, lineItems);
 }
 
 function sanitizeItemDescription(rawDesc: string, pkgName: string): { title: string; subtitle?: string; isComp?: boolean } {

@@ -40,6 +40,8 @@ function Toasts({ toasts }: { toasts: Toast[] }) {
   );
 }
 
+import { resolveInvoicePackage } from '@/lib/invoicePackageResolver';
+
 // ─── Status badge ──────────────────────────────
 function StatusBadge({ status }: { status: InvoiceStatus }) {
   const map: Record<InvoiceStatus, { label: string; cls: string; dot: string }> = {
@@ -64,35 +66,7 @@ function getInvoicePackageDetails(
   notes?: string | null,
   lineItems: Array<{ description: string }> = []
 ) {
-  const combined = `${clientType || ''} ${notes || ''} ${lineItems.map(i => i.description).join(' ')}`.toLowerCase();
-
-  const hasResume = /resume|cv\b/i.test(combined);
-  const hasLinkedin = /linkedin/i.test(combined);
-  const hasCoverLetter = /cover.?letter/i.test(combined);
-  const hasPortfolio = /portfolio|website/i.test(combined);
-
-  const isPremiumPlus =
-    combined.includes('executive_plus') ||
-    combined.includes('premium plus') ||
-    combined.includes('exec+') ||
-    combined.includes('plus package') ||
-    hasPortfolio ||
-    (hasResume && hasLinkedin && hasCoverLetter && hasPortfolio) ||
-    lineItems.length >= 4;
-
-  if (isPremiumPlus) {
-    return {
-      packageName: 'Premium Plus Package',
-      trackName: '— Executive C-Suite & Global Talent Positioning Architecture',
-      slaDays: 'SLA: 7–10 BIZ DAYS',
-    };
-  }
-
-  return {
-    packageName: 'Career Booster Package',
-    trackName: '— Professional Career Acceleration Architecture',
-    slaDays: 'SLA: 7–10 BIZ DAYS',
-  };
+  return resolveInvoicePackage(clientType, notes, lineItems);
 }
 
 function sanitizeItemDescription(rawDesc: string, pkgName: string): { title: string; subtitle?: string; isComp?: boolean } {
@@ -1360,39 +1334,39 @@ export default function InvoiceDetailPage() {
               const shortHash = `SHA-256: 8F6D...${invoice.invoiceNumber.replace(/[^A-Za-z0-9]/g, '').slice(-6)}`;
 
               return (
-                <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden">
+                <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden w-full">
                   {/* Top Gold Gradient Accent Bar */}
                   <div className="h-2 bg-gradient-to-r from-[#D4AF37] via-[#F3E5AB] to-[#AA7C11]" />
 
-                  <div className="p-6 sm:p-10 space-y-6 sm:space-y-7">
+                  <div className="p-4 sm:p-8 lg:p-10 space-y-5 sm:space-y-7">
                     {/* ── 1. HEADER ── */}
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       {/* Left: Brand Lockup */}
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-12 h-12 rounded-xl bg-[#0E1217] flex items-center justify-center border border-[#B88A44]/30 shadow-md shrink-0">
-                          <svg width="28" height="28" viewBox="0 0 52 52">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#0E1217] flex items-center justify-center border border-[#B88A44]/30 shadow-md shrink-0">
+                          <svg width="24" height="24" viewBox="0 0 52 52" className="sm:w-7 sm:h-7">
                             <polygon points="17,40 23,40 34,20 28,20" fill="#F4F4F2" />
                             <polygon points="28,20 34,20 40,9 34,9" fill="#B88A44" />
                             <circle cx="37" cy="12.5" r="1.5" fill="#0E1217" />
                           </svg>
                         </div>
-                        <div>
-                          <div className="flex items-baseline gap-2 flex-wrap">
-                            <span className="text-xl sm:text-2xl font-black tracking-wider text-[#0E1217]">CATALYST</span>
-                            <span className="text-[11px] sm:text-xs font-extrabold tracking-widest text-[#AA7C11]">
+                        <div className="min-w-0">
+                          <div className="flex items-baseline gap-1.5 sm:gap-2 flex-wrap">
+                            <span className="text-lg sm:text-2xl font-black tracking-wider text-[#0E1217]">CATALYST</span>
+                            <span className="text-[10px] sm:text-xs font-extrabold tracking-widest text-[#AA7C11]">
                               | TALENT POSITIONING ARCHITECTURE
                             </span>
                           </div>
-                          <div className="text-[10px] sm:text-[11px] font-bold tracking-wider text-slate-500 uppercase mt-0.5">
+                          <div className="text-[9px] sm:text-[11px] font-bold tracking-wider text-slate-500 uppercase mt-0.5">
                             A SUB-BRAND OF RIPPLE NEXUS
                           </div>
                         </div>
                       </div>
 
                       {/* Right: Invoice Type & Status Badge */}
-                      <div className="flex items-center justify-between sm:block sm:text-right">
-                        <div className="text-xl sm:text-2xl font-black tracking-wide text-[#0E1217]">TAX INVOICE</div>
-                        <div className="mt-1 flex sm:justify-end">
+                      <div className="flex items-center justify-between sm:block sm:text-right pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                        <div className="text-lg sm:text-2xl font-black tracking-wide text-[#0E1217]">TAX INVOICE</div>
+                        <div className="sm:mt-1 flex sm:justify-end">
                           {invoice.status === 'PAID' ? (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#ECFDF5] border border-[#A7F3D0] text-[#065F46] text-xs font-black tracking-wider uppercase">
                               <span className="w-2 h-2 rounded-full bg-[#059669]" />
@@ -1412,25 +1386,25 @@ export default function InvoiceDetailPage() {
                     <div className="h-px bg-[#ECEFF2]" />
 
                     {/* ── 2. METADATA CARDS ── */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-5">
                       {/* Left: Client Particulars */}
-                      <div className="bg-[#F8FAFC] border border-[#EAEFF4] rounded-xl p-4 sm:p-5 space-y-2">
+                      <div className="bg-[#F8FAFC] border border-[#EAEFF4] rounded-xl p-4 sm:p-5 space-y-2 min-w-0">
                         <div className="text-[10px] font-extrabold tracking-wider text-[#8A94A6] uppercase">
                           BILLED TO (PRINCIPAL CLIENT)
                         </div>
-                        <div className="text-lg sm:text-xl font-bold text-[#0E1217]">
+                        <div className="text-base sm:text-xl font-bold text-[#0E1217] break-words">
                           {invoice.clientName}
                         </div>
-                        <div className="text-xs sm:text-sm font-medium text-slate-600 flex items-center gap-2">
+                        <div className="text-xs sm:text-sm font-medium text-slate-600 flex items-center gap-2 min-w-0">
                           <IconMail size={13} className="text-[#B88A44] shrink-0" />
-                          <a href={`mailto:${invoice.clientEmail}`} className="hover:text-[#B88A44] truncate">
+                          <a href={`mailto:${invoice.clientEmail}`} className="hover:text-[#B88A44] truncate break-all">
                             {invoice.clientEmail}
                           </a>
                         </div>
                         {invoice.clientPhone && (
-                          <div className="text-xs sm:text-sm font-medium text-slate-600 flex items-center gap-2">
+                          <div className="text-xs sm:text-sm font-medium text-slate-600 flex items-center gap-2 min-w-0">
                             <IconPhone size={13} className="text-[#B88A44] shrink-0" />
-                            <a href={`tel:${invoice.clientPhone}`} className="hover:text-[#B88A44]">
+                            <a href={`tel:${invoice.clientPhone}`} className="hover:text-[#B88A44] truncate">
                               {invoice.clientPhone}
                             </a>
                           </div>
@@ -1441,34 +1415,34 @@ export default function InvoiceDetailPage() {
                       </div>
 
                       {/* Right: Fiscal Ledger Breakdown */}
-                      <div className="bg-[#F8FAFC] border border-[#EAEFF4] rounded-xl p-4 sm:p-5">
+                      <div className="bg-[#F8FAFC] border border-[#EAEFF4] rounded-xl p-4 sm:p-5 min-w-0">
                         <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                          <div>
-                            <div className="text-[9.5px] font-extrabold tracking-wider text-[#8A94A6] uppercase">
+                          <div className="min-w-0">
+                            <div className="text-[9.5px] font-extrabold tracking-wider text-[#8A94A6] uppercase truncate">
                               INVOICE NUMBER
                             </div>
-                            <div className="font-mono text-xs sm:text-sm font-bold text-[#0E1217] mt-1 truncate">
+                            <div className="font-mono text-xs sm:text-sm font-bold text-[#0E1217] mt-1 break-all">
                               {invoice.invoiceNumber}
                             </div>
                           </div>
-                          <div>
-                            <div className="text-[9.5px] font-extrabold tracking-wider text-[#8A94A6] uppercase">
+                          <div className="min-w-0">
+                            <div className="text-[9.5px] font-extrabold tracking-wider text-[#8A94A6] uppercase truncate">
                               TRANSACTION REF
                             </div>
-                            <div className="font-mono text-xs sm:text-sm font-bold text-[#0E1217] mt-1 truncate">
+                            <div className="font-mono text-xs sm:text-sm font-bold text-[#0E1217] mt-1 break-all">
                               {cleanTxnRef}
                             </div>
                           </div>
-                          <div>
-                            <div className="text-[9.5px] font-extrabold tracking-wider text-[#8A94A6] uppercase">
+                          <div className="min-w-0">
+                            <div className="text-[9.5px] font-extrabold tracking-wider text-[#8A94A6] uppercase truncate">
                               ISSUE DATE
                             </div>
                             <div className="text-xs sm:text-sm font-semibold text-slate-800 mt-1">
                               {format(new Date(invoice.invoiceDate), 'dd MMM yyyy')}
                             </div>
                           </div>
-                          <div>
-                            <div className="text-[9.5px] font-extrabold tracking-wider text-[#8A94A6] uppercase">
+                          <div className="min-w-0">
+                            <div className="text-[9.5px] font-extrabold tracking-wider text-[#8A94A6] uppercase truncate">
                               {invoice.status === 'PAID' ? 'SETTLEMENT DATE' : 'DUE DATE'}
                             </div>
                             <div className="text-xs sm:text-sm font-semibold text-slate-800 mt-1">
@@ -1483,8 +1457,8 @@ export default function InvoiceDetailPage() {
 
                     {/* ── 3. ENGAGEMENT SCOPE BANNER ── */}
                     <div className="bg-[#0E1217] rounded-xl p-3.5 sm:p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-white shadow-md">
-                      <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-                        <span className="text-xs font-extrabold tracking-wider text-[#AA7C11] uppercase">
+                      <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
+                        <span className="text-[11px] sm:text-xs font-extrabold tracking-wider text-[#AA7C11] uppercase shrink-0">
                           ENGAGEMENT SCOPE
                         </span>
                         <span className="text-sm sm:text-base font-bold text-white">
@@ -1502,14 +1476,14 @@ export default function InvoiceDetailPage() {
                     </div>
 
                     {/* ── 4. LINE ITEMS TABLE ── */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
+                    <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                      <table className="w-full text-left border-collapse min-w-[500px] sm:min-w-full">
                         <thead>
-                          <tr className="bg-[#F1F5F9] text-[10.5px] font-extrabold text-[#475569] uppercase tracking-wider">
-                            <th className="py-2.5 px-4 rounded-l-lg">SERVICE SPECIFICATION &amp; DELIVERABLES</th>
-                            <th className="py-2.5 px-4 text-center w-20">QTY</th>
-                            <th className="py-2.5 px-4 text-right w-36">UNIT RATE</th>
-                            <th className="py-2.5 px-4 text-right w-36 rounded-r-lg">NET AMOUNT</th>
+                          <tr className="bg-[#F1F5F9] text-[10px] sm:text-[10.5px] font-extrabold text-[#475569] uppercase tracking-wider">
+                            <th className="py-2.5 px-3 sm:px-4 rounded-l-lg">SERVICE SPECIFICATION &amp; DELIVERABLES</th>
+                            <th className="py-2.5 px-3 sm:px-4 text-center w-16 sm:w-20">QTY</th>
+                            <th className="py-2.5 px-3 sm:px-4 text-right w-28 sm:w-36">UNIT RATE</th>
+                            <th className="py-2.5 px-3 sm:px-4 text-right w-28 sm:w-36 rounded-r-lg">NET AMOUNT</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[#F1F5F9]">
@@ -1522,13 +1496,13 @@ export default function InvoiceDetailPage() {
 
                             return (
                               <tr key={item.id ?? idx} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="py-3.5 px-4">
-                                  <div className="flex items-center gap-2">
+                                <td className="py-3 px-3 sm:py-3.5 sm:px-4">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <span className="font-bold text-xs sm:text-sm text-[#0E1217]">
                                       {sanitized.title}
                                     </span>
                                     {isFree && (
-                                      <span className="bg-[#FEF3C7] text-[#92400E] text-[10px] font-black px-2 py-0.5 rounded tracking-wide">
+                                      <span className="bg-[#FEF3C7] text-[#92400E] text-[9.5px] sm:text-[10px] font-black px-2 py-0.5 rounded tracking-wide shrink-0">
                                         COMPLIMENTARY
                                       </span>
                                     )}
@@ -1539,13 +1513,13 @@ export default function InvoiceDetailPage() {
                                     </div>
                                   )}
                                 </td>
-                                <td className="py-3.5 px-4 text-center font-mono font-semibold text-xs sm:text-sm text-slate-700">
+                                <td className="py-3 px-3 sm:py-3.5 sm:px-4 text-center font-mono font-semibold text-xs sm:text-sm text-slate-700">
                                   {qtyStr}
                                 </td>
-                                <td className="py-3.5 px-4 text-right font-mono font-semibold text-xs sm:text-sm text-slate-700">
+                                <td className="py-3 px-3 sm:py-3.5 sm:px-4 text-right font-mono font-semibold text-xs sm:text-sm text-slate-700">
                                   {formattedRate}
                                 </td>
-                                <td className={`py-3.5 px-4 text-right font-mono font-bold text-xs sm:text-sm ${isFree ? 'text-[#059669]' : 'text-[#0E1217]'}`}>
+                                <td className={`py-3 px-3 sm:py-3.5 sm:px-4 text-right font-mono font-bold text-xs sm:text-sm ${isFree ? 'text-[#059669]' : 'text-[#0E1217]'}`}>
                                   {formattedTotal}
                                 </td>
                               </tr>
@@ -1557,7 +1531,7 @@ export default function InvoiceDetailPage() {
 
                     {/* ── 5. TOTALS SECTION ── */}
                     <div className="flex flex-col sm:items-end pt-2">
-                      <div className="w-full sm:w-88 space-y-2 text-xs sm:text-sm">
+                      <div className="w-full sm:w-96 max-w-full space-y-2 text-xs sm:text-sm">
                         <div className="flex justify-between items-center text-[#64748B]">
                           <span>Net Subtotal</span>
                           <span className="font-mono font-semibold text-[#0E1217]">{fmt(invoice.subtotalConverted)}</span>
@@ -1587,12 +1561,12 @@ export default function InvoiceDetailPage() {
                         <div className="h-px bg-slate-200 my-2" />
 
                         {/* Dark Settled Total Box */}
-                        <div className="bg-[#0E1217] text-white p-4 rounded-xl flex items-center justify-between shadow-md">
-                          <span className="text-xs font-extrabold text-[#D4AF37] tracking-wider uppercase">
+                        <div className="bg-[#0E1217] text-white p-3.5 sm:p-4 rounded-xl flex items-center justify-between shadow-md">
+                          <span className="text-[11px] sm:text-xs font-extrabold text-[#D4AF37] tracking-wider uppercase">
                             {invoice.status === 'PAID' ? `TOTAL PAID (${invoice.currency})` : `TOTAL PAYABLE (${invoice.currency})`}
                           </span>
                           <div className="text-right">
-                            <div className="font-mono text-xl sm:text-2xl font-black text-white">
+                            <div className="font-mono text-lg sm:text-2xl font-black text-white">
                               {fmt(invoice.totalPayable)}
                             </div>
                             <div className="text-[10px] text-slate-400 mt-0.5">
@@ -1614,7 +1588,7 @@ export default function InvoiceDetailPage() {
                             <span className="text-[#AA7C11] font-black">●</span> Turnaround SLA Window
                           </div>
                           <p className="text-xs text-slate-600 leading-relaxed">
-                            Delivery guaranteed within 7–10 business days following intake sign-off.
+                            Delivery guaranteed within {pkg.slaDays.replace('SLA: ', '').toLowerCase()} following intake sign-off.
                           </p>
                         </div>
                         <div className="md:px-4 space-y-1 pt-3 md:pt-0">
@@ -1637,7 +1611,7 @@ export default function InvoiceDetailPage() {
                     </div>
 
                     {/* ── 7. CORPORATE ENTITY SIGN-OFF & VERIFICATION SEAL ── */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1">
                       {/* Left: Entity */}
                       <div className="space-y-1">
                         <div className="text-[10px] font-extrabold tracking-wider text-[#8A94A6] uppercase">
@@ -1655,15 +1629,15 @@ export default function InvoiceDetailPage() {
                       </div>
 
                       {/* Right: Cryptographic Seal */}
-                      <div className="p-3.5 bg-[#F8FAFC] border border-dashed border-slate-300 rounded-xl flex items-center gap-3">
+                      <div className="p-3 sm:p-3.5 bg-[#F8FAFC] border border-dashed border-slate-300 rounded-xl flex items-center gap-3 w-full md:w-auto">
                         <div className="w-8 h-8 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] text-[#059669] flex items-center justify-center font-black text-sm shrink-0">
                           ✓
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <div className="text-[11px] font-extrabold text-[#065F46] tracking-wide uppercase">
                             CRYPTOGRAPHICALLY VERIFIED
                           </div>
-                          <div className="font-mono text-xs text-slate-500">
+                          <div className="font-mono text-[11px] sm:text-xs text-slate-500 break-all">
                             {shortHash}
                           </div>
                           <div className="text-[10px] text-slate-400">

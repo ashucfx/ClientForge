@@ -16,30 +16,13 @@ import { resolveBankAccountForInvoice } from './bankRouting';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY!;
 
+import { resolveInvoicePackage } from './invoicePackageResolver';
+
 // ─────────────────────────────────────────────
-// PACKAGE LABEL — derived from line items
-// Only say "Career Booster Package" when all three core services are present.
+// PACKAGE LABEL — derived from line items via intelligent resolver
 // ─────────────────────────────────────────────
 export function derivePackageLabel(lineItems: LineItem[]): string {
-  const descs = lineItems.map(i => i.description.toLowerCase());
-  const hasResume      = descs.some(d => /resume|cv\b/i.test(d));
-  const hasLinkedin    = descs.some(d => /linkedin/i.test(d));
-  const hasCoverLetter = descs.some(d => /cover.?letter/i.test(d));
-  const hasPortfolio   = descs.some(d => /portfolio/i.test(d));
-
-  if (hasPortfolio || (hasResume && hasLinkedin && hasCoverLetter && hasPortfolio) || lineItems.length >= 4) {
-    return 'Premium Plus Package';
-  }
-  if (hasResume && hasLinkedin && hasCoverLetter) {
-    return 'Career Booster Package';
-  }
-
-  const parts: string[] = [];
-  if (hasResume)      parts.push('Resume Writing');
-  if (hasLinkedin)    parts.push('LinkedIn Profile Optimisation');
-  if (hasCoverLetter) parts.push('Cover Letter');
-  if (hasPortfolio)   parts.push('Portfolio Website');
-  return parts.length > 0 ? parts.join(' + ') : 'Career Services';
+  return resolveInvoicePackage(null, null, lineItems).packageName;
 }
 
 // ─────────────────────────────────────────────

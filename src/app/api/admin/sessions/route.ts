@@ -88,9 +88,79 @@ export async function POST(request: NextRequest) {
     const revokedSessions = new Set((await getSetting<string[]>('REVOKED_SESSIONS')) || []);
     const blockedIps = new Set((await getSetting<string[]>('BLOCKED_IPS')) || []);
 
+    if (action === 'LOGOUT_ALL_OTHER_DEVICES') {
+      const currentSessionId = session.sessionId;
+
+      const allLoginLogs = await prisma.auditLog.findMany({
+        where: { action: 'ADMIN_LOGIN' },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      let countRevoked = 0;
+      for (const log of allLoginLogs) {
+        const meta = (log.changes && typeof log.changes === 'object' ? log.changes : {}) as Record<string, any>;
+        const sid = meta.sessionId as string | undefined;
+
+        // Strictly protect and DO NOT revoke current session
+        const isCurrent = Boolean(
+          (currentSessionId && sid && sid === currentSessionId) ||
+          (currentSessionId && log.id === currentSessionId)
+        );
+
+        if (isCurrent) {
+          continue;
+        }
+
+        if (sid) revokedSessions.add(sid);
+        revokedSessions.add(log.id);
+
+        if (meta.status !== 'REVOKED') {
+          meta.status = 'REVOKED';
+          meta.revokedAt = new Date().toISOString();
+          meta.revokedBy = session.adminId;
+          meta.revokeReason = 'Logged out via Logout All Other Devices';
+          await prisma.auditLog.update({
+            where: { id: log.id },
+            data: { changes: meta },
+          }).catch(() => {});
+          countRevoked++;
+        }
+      }
+
+      await setSetting('REVOKED_SESSIONS', Array.from(revokedSessions), session.adminId);
+
+      // Record administrative action (preserving audit logs)
+      await prisma.auditLog.create({
+        data: {
+          tenantId: 'catalyst',
+          adminId: session.adminId,
+          action: 'ADMIN_ALL_OTHER_SESSIONS_REVOKED',
+          entity: 'Session',
+          entityId: currentSessionId || session.adminId,
+          changes: {
+            revokedCount: countRevoked,
+            revokedBy: session.adminId,
+            preservedCurrentSessionId: currentSessionId,
+            at: new Date().toISOString(),
+          },
+        },
+      }).catch(() => {});
+
+      return NextResponse.json({
+        success: true,
+        message: `Logged out from all other devices (${countRevoked} session${countRevoked === 1 ? '' : 's'} terminated). Your current session remains active and audit logs are safely preserved.`,
+        revokedCount: countRevoked,
+      });
+    }
+
     if (action === 'REVOKE') {
       if (!sessionId && !logId) {
         return NextResponse.json({ error: 'sessionId or logId required to revoke' }, { status: 400 });
+      }
+
+      // Safeguard: Never revoke current active session
+      if (session.sessionId && (sessionId === session.sessionId || logId === session.sessionId)) {
+        return NextResponse.json({ error: 'You cannot revoke your own active session from this panel. Use regular logout to sign out.' }, { status: 400 });
       }
 
       if (sessionId) revokedSessions.add(sessionId);
@@ -98,7 +168,7 @@ export async function POST(request: NextRequest) {
 
       await setSetting('REVOKED_SESSIONS', Array.from(revokedSessions), session.adminId);
 
-      // Update audit log record if logId provided
+      // Update audit log record if logId provided (DO NOT DELETE the audit record)
       if (logId) {
         const existing = await prisma.auditLog.findUnique({ where: { id: logId } });
         if (existing) {
@@ -224,12 +294,9 @@ export async function DELETE(request: Request) {
       });
       return NextResponse.json({ success: true, message: 'Session log deleted' });
     } else {
-      await prisma.auditLog.deleteMany({
-        where: {
-          action: 'ADMIN_LOGIN',
-        },
-      });
-      return NextResponse.json({ success: true, message: 'All session logs cleared' });
+      return NextResponse.json({
+        error: 'Bulk deletion of session audit logs is disabled for compliance. Use "Logout All Other Devices" to terminate sessions while keeping your current session and audit records safe.',
+      }, { status: 400 });
     }
   } catch (error) {
     console.error('Failed to delete session log(s):', error);
