@@ -32,7 +32,7 @@ export function calculateRevisionWindow(params: {
 
   // Phase 1: Completed / Final Delivery Stage
   if (params.status === 'COMPLETED' || params.firstCompletedAt || params.completedAt) {
-    const anchor = params.firstCompletedAt ?? params.completedAt;
+    const anchor = params.firstCompletedAt ?? params.completedAt ?? params.deliverableCreatedAt ?? params.draftSentAt;
     if (anchor) {
       const anchorTime = new Date(anchor).getTime();
       const daysSince = Math.floor((now - anchorTime) / (1000 * 60 * 60 * 24));
@@ -115,8 +115,9 @@ export function mapFileTypeToServiceSlug(ft?: string, label?: string): string {
   const t = (ft || '').toLowerCase();
   const l = (label || '').toLowerCase();
   if (t === 'cover_letter' || l.includes('cover letter')) return 'COVER_LETTER';
-  if (t.startsWith('linkedin') || l.includes('linkedin')) return 'LINKEDIN';
+  if (t.startsWith('linkedin') || l.includes('linkedin') || t === 'linkedin_playbook' || l.includes('playbook')) return 'LINKEDIN';
   if (t === 'portfolio' || t.includes('portfolio') || t.includes('website') || l.includes('portfolio') || l.includes('website')) return 'PORTFOLIO';
+  if (t.includes('audit') || l.includes('audit')) return 'RESUME';
   if (t === 'resume' || l.includes('resume') || l.includes('cv')) return 'RESUME';
   return 'RESUME';
 }
@@ -124,7 +125,11 @@ export function mapFileTypeToServiceSlug(ft?: string, label?: string): string {
 /**
  * Calculates revision window INDIVIDUALLY per service component.
  * Services delivered at different times (e.g. Resume & Cover Letter on day 1, LinkedIn profile later)
- * have their own independent review cycles. Unsent drafts are never marked as expired!
+ * have their own independent review cycles.
+ * 
+ * BUG FIX: When drafts are deleted once final deliverables are delivered (or cleaned up),
+ * the revision window must NEVER reset to 0/2 used or NOT_DELIVERED!
+ * It detects final deliverables / completion dates and enforces the 7-day final delivery review window.
  */
 export function calculateComponentRevisionWindow(params: {
   serviceSlug: string;
@@ -134,18 +139,28 @@ export function calculateComponentRevisionWindow(params: {
   deliverables?: { fileType?: string; fileCategory?: string; label?: string; createdAt: string | Date }[];
   draftSentAt?: string | Date | null;
 }): RevisionWindowInfo {
-  // If the entire client project is COMPLETED, 7-day post-delivery final window applies
-  if (params.clientStatus === 'COMPLETED' || params.firstCompletedAt || params.completedAt) {
+  // Phase 1: Check if final deliverables exist for this component or client
+  const finalsForComponent = (params.deliverables ?? []).filter(
+    d => d.fileCategory === 'final' &&
+         mapFileTypeToServiceSlug(d.fileType, d.label) === params.serviceSlug
+  );
+  const allFinals = (params.deliverables ?? []).filter(d => d.fileCategory === 'final');
+
+  const isCompletedProject = params.clientStatus === 'COMPLETED' || Boolean(params.firstCompletedAt || params.completedAt);
+  const hasFinals = finalsForComponent.length > 0 || (allFinals.length > 0 && params.clientStatus !== 'UNDER_PROCESS');
+
+  if (isCompletedProject || hasFinals) {
+    const anchor = params.firstCompletedAt ?? params.completedAt ?? finalsForComponent[0]?.createdAt ?? allFinals[0]?.createdAt;
     return calculateRevisionWindow({
       status: 'COMPLETED',
-      completedAt: params.completedAt,
-      firstCompletedAt: params.firstCompletedAt,
+      completedAt: anchor,
+      firstCompletedAt: params.firstCompletedAt ?? anchor,
     });
   }
 
-  // Find deliverables matching this specific component service
+  // Phase 2: Find draft deliverables matching this specific component service
   const draftsForComponent = (params.deliverables ?? []).filter(
-    d => (!d.fileCategory || d.fileCategory === 'draft') &&
+    d => d.fileCategory === 'draft' &&
          mapFileTypeToServiceSlug(d.fileType, d.label) === params.serviceSlug
   );
 
@@ -161,7 +176,15 @@ export function calculateComponentRevisionWindow(params: {
     });
   }
 
-  // If no draft exists for this component yet, its 14-day review window has NOT started!
+  // Phase 3: If drafts were deleted / cleaned up, but draftSentAt is recorded on the client
+  if (params.draftSentAt) {
+    return calculateRevisionWindow({
+      status: params.clientStatus,
+      draftSentAt: params.draftSentAt,
+    });
+  }
+
+  // Phase 4: If no draft exists for this component yet, its 14-day review window has NOT started!
   return {
     stage: 'NOT_DELIVERED',
     windowDays: DRAFT_WINDOW_DAYS,

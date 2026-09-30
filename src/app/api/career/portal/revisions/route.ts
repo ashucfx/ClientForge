@@ -32,7 +32,7 @@ async function getClient() {
       completedAt: true, firstCompletedAt: true, draftSentAt: true, lifecycleStatus: true,
       services: { select: { service: { select: { slug: true } } } },
       deliverables: {
-        where: { fileCategory: 'draft' },
+        where: { fileCategory: { in: ['draft', 'final'] } },
         orderBy: { createdAt: 'desc' },
         select: { id: true, label: true, fileType: true, fileCategory: true, createdAt: true },
       },

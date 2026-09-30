@@ -47,6 +47,14 @@ const FILE_ICONS: Record<string, { icon: React.ReactNode; bg: string }> = {
     icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke="#0891b2" strokeWidth="1.8"/><path stroke="#0891b2" strokeWidth="1.8" strokeLinecap="round" d="M4 20c0-4 3.582-7 8-7s8 3 8 7"/></svg>,
     bg: 'bg-cyan-50 border border-cyan-100',
   },
+  linkedin_playbook: {
+    icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path stroke="#0284c7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>,
+    bg: 'bg-sky-50 border border-sky-100',
+  },
+  executive_profile_deep_audit: {
+    icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path stroke="#b45309" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>,
+    bg: 'bg-amber-50 border border-amber-200',
+  },
   other: {
     icon: <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path stroke="#64748b" strokeWidth="1.8" strokeLinecap="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>,
     bg: 'bg-slate-50 border border-slate-100',
@@ -132,7 +140,7 @@ export default function FilesPage() {
   };
 
   const mapFileTypeToServiceSlug = (ft: string) => {
-    if (ft === 'resume') return 'RESUME';
+    if (ft === 'resume' || ft === 'executive_profile_deep_audit' || ft === 'audit') return 'RESUME';
     if (ft === 'cover_letter') return 'COVER_LETTER';
     if (ft.startsWith('linkedin')) return 'LINKEDIN';
     if (ft === 'portfolio' || ft.includes('portfolio') || ft.includes('website')) return 'PORTFOLIO';

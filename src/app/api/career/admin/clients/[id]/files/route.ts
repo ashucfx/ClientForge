@@ -39,14 +39,15 @@ function resolveDraftTrigger(fileType: string, hasRevisions: boolean): EmailTrig
  */
 function fileTypeToEmailLabel(ft: string, fallback: string): string {
   const map: Record<string, string> = {
-    resume:                   'Resume',
-    cover_letter:             'Cover Letter',
-    linkedin_banner:          'LinkedIn Profile',
-    linkedin_profile_picture: 'LinkedIn Profile',
-    linkedin_optimization:    'LinkedIn Profile',
-    linkedin_content:         'LinkedIn Profile',
-    linkedin_playbook:        'LinkedIn Profile',
-    portfolio:                'Portfolio',
+    resume:                       'Resume',
+    cover_letter:                 'Cover Letter',
+    linkedin_banner:              'LinkedIn Profile',
+    linkedin_profile_picture:     'LinkedIn Profile',
+    linkedin_optimization:        'LinkedIn Profile',
+    linkedin_content:             'LinkedIn Profile',
+    linkedin_playbook:            'LinkedIn Playbook',
+    executive_profile_deep_audit: 'Executive Profile Deep Audit',
+    portfolio:                    'Portfolio',
   };
   return map[ft] ?? fallback;
 }

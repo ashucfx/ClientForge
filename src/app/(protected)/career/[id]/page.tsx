@@ -11,6 +11,7 @@ import { expandClientServices } from '@/lib/career/services';
 import { AdminSlaViewModal } from '@/components/AdminSlaViewModal';
 import { RevisionNoteViewer } from '@/components/career/RevisionNoteViewer';
 import type { RevisionWindowInfo } from '@/lib/career/revisionWindow';
+import { SUPPORTED_CURRENCIES } from '@/lib/currency';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -59,7 +60,8 @@ interface ClientDetail {
   services: { slug: string; name: string }[];
   Feedback?: { id: string; npsScore: number; rating: number; submittedAt: string } | null;
   Review?: { id: string; content: string; permissionToUse: boolean; submittedAt: string } | null;
-  invoice?: { id?: string; invoiceNumber: string; totalPayable: number; currency: string; status: string } | null;
+  invoice?: { id?: string; invoiceNumber: string; totalPayable: number; currency: string; status: string; paymentGateway?: string | null } | null;
+  linkedInvoice?: { id?: string; invoiceNumber: string; totalPayable: number; currency: string; status: string; paymentGateway?: string | null } | null;
   revisionWindow?: RevisionWindowInfo;
 }
 
@@ -89,13 +91,14 @@ const EMAIL_TRIGGERS: { value: EmailTrigger; label: string; desc: string }[] = [
   { value: 'LINKEDIN_SECURITY', label: 'LinkedIn Security Steps', desc: 'Account security instructions for LinkedIn' },
 ];
 const FILE_TYPES = [
-  { value: 'resume',                   label: 'Resume' },
-  { value: 'cover_letter',             label: 'Cover Letter' },
-  { value: 'linkedin_banner',          label: 'LinkedIn Banner' },
-  { value: 'linkedin_profile_picture', label: 'LinkedIn Profile Picture' },
-  { value: 'linkedin_playbook',        label: 'LinkedIn Playbook' },
-  { value: 'portfolio',                label: 'Portfolio Website' },
-  { value: 'other',                    label: 'Other' },
+  { value: 'resume',                       label: 'Resume' },
+  { value: 'cover_letter',                 label: 'Cover Letter' },
+  { value: 'linkedin_banner',              label: 'LinkedIn Banner' },
+  { value: 'linkedin_profile_picture',     label: 'LinkedIn Profile Picture' },
+  { value: 'linkedin_playbook',            label: 'LinkedIn Playbook' },
+  { value: 'executive_profile_deep_audit', label: 'Executive Profile Deep Audit' },
+  { value: 'portfolio',                    label: 'Portfolio Website' },
+  { value: 'other',                        label: 'Other' },
 ];
 const FORM_TYPE_LABELS: Record<string, string> = {
   // Legacy DB names
@@ -578,6 +581,7 @@ export default function CareerClientDetailPage() {
           clientPackage={client.packageType ?? null}
           services={client.services ?? []}
           revisionWindow={client.revisionWindow}
+          client={client}
         />
       )}
 
@@ -802,13 +806,15 @@ function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetai
 
   // Map fileType → friendly label (mirrors backend)
   const FILE_TYPE_LABELS: Record<string, string> = {
-    resume:                   'Resume',
-    cover_letter:             'Cover Letter',
-    linkedin_banner:          'LinkedIn Profile',
-    linkedin_profile_picture: 'LinkedIn Profile',
-    linkedin_optimization:    'LinkedIn Profile',
-    linkedin_content:         'LinkedIn Profile',
-    portfolio:                'Portfolio',
+    resume:                       'Resume',
+    cover_letter:                 'Cover Letter',
+    linkedin_banner:              'LinkedIn Profile',
+    linkedin_profile_picture:     'LinkedIn Profile',
+    linkedin_optimization:        'LinkedIn Profile',
+    linkedin_content:             'LinkedIn Profile',
+    linkedin_playbook:            'LinkedIn Playbook',
+    executive_profile_deep_audit: 'Executive Profile Deep Audit',
+    portfolio:                    'Portfolio',
   };
   const draftEmailLabel = FILE_TYPE_LABELS[selectedDraftFileType]
     ?? selectedDraftFileType.replace(/_/g, ' ');
@@ -2213,7 +2219,7 @@ function FilesTab({ client, onUpdated }: { client: ClientDetail; onUpdated: () =
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 4000); };
 
   // Derive what email will be sent for current selection (mirrors backend logic)
-  const LINKEDIN_TYPES = new Set(['linkedin_banner', 'linkedin_profile_picture', 'linkedin_optimization', 'linkedin_content']);
+  const LINKEDIN_TYPES = new Set(['linkedin_banner', 'linkedin_profile_picture', 'linkedin_optimization', 'linkedin_content', 'linkedin_playbook']);
   const hasRevisions = false; // unknown on frontend — backend checks this
   function previewEmailTrigger(): string {
     if (!sendEmail) return '';
@@ -2406,8 +2412,12 @@ function FileRow({ file, clientId, onDelete, deleting }: {
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#B8935B" strokeWidth="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke="#B8935B" strokeWidth="2"/><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M21 15l-5-5L5 21"/></svg>
         ) : file.fileType === 'linkedin_profile_picture' ? (
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke="#B8935B" strokeWidth="2"/><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M4 20c0-4 3.582-7 8-7s8 3 8 7"/></svg>
+        ) : file.fileType === 'linkedin_playbook' ? (
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#0284c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        ) : file.fileType === 'executive_profile_deep_audit' ? (
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#b45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
         ) : file.fileType === 'cover_letter' ? (
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
         ) : (
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
         )}
@@ -2613,12 +2623,54 @@ const REV_STATUS_STYLE: Record<string, string> = {
   DENIED:   'bg-red-50 text-red-700 border-red-200',
 };
 
-function RevisionAdminTab({ clientId, clientName, clientPackage, services, revisionWindow }: {
+type RevisionQuoteGateway = 'RAZORPAY' | 'PAYPAL' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT';
+
+const POPULAR_CURRENCIES = ['USD', 'INR', 'EUR', 'GBP', 'AED', 'CAD', 'AUD', 'SGD', 'SAR', 'QAR', 'CHF', 'JPY', 'MYR', 'HKD', 'NZD'];
+
+const PAYMENT_GATEWAY_OPTIONS: {
+  value: RevisionQuoteGateway;
+  label: string;
+  description: string;
+  badge: string;
+  feeLabel: string;
+}[] = [
+  {
+    value: 'RAZORPAY',
+    label: 'Razorpay (Domestic & Multi-Currency Cards / UPI)',
+    description: 'Instant credit/debit card, UPI & NetBanking payments. Best for India & instant global card links.',
+    badge: 'Cards & UPI',
+    feeLabel: '2.95% domestic / 5.54% intl',
+  },
+  {
+    value: 'PAYPAL',
+    label: 'PayPal (International Cards & PayPal Wallet)',
+    description: 'Direct PayPal invoice & card checkout. Highly trusted worldwide (USD & major international currencies).',
+    badge: 'PayPal & Cards',
+    feeLabel: '9.00% zero-loss',
+  },
+  {
+    value: 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE',
+    label: 'Bank Transfer (Native Local Clearing — ACH / SEPA / Faster Payments)',
+    description: 'Local clearing in US (ACH), UK (BACS/FPS), Europe (SEPA), etc. Lowest fee option.',
+    badge: 'Lowest Fee (1.18%)',
+    feeLabel: '1.18% flat fee',
+  },
+  {
+    value: 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT',
+    label: 'Bank Transfer (International SWIFT Wire Transfer)',
+    description: 'Global wire transfer via international banking rails using SWIFT BIC. Available worldwide.',
+    badge: 'SWIFT Wire (3.54%)',
+    feeLabel: '3.54% wire fee',
+  },
+];
+
+function RevisionAdminTab({ clientId, clientName, clientPackage, services, revisionWindow, client }: {
   clientId: string;
   clientName: string;
   clientPackage: CareerPackage | null;
   services: { slug: string; name: string }[];
   revisionWindow?: RevisionWindowInfo;
+  client?: ClientDetail;
 }) {
   const [revisions,      setRevisions]      = useState<RevisionItem[]>([]);
   const [loading,        setLoading]        = useState(true);
@@ -2783,11 +2835,30 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services, revis
     }
   };
 
+  const parentGateway: RevisionQuoteGateway = useMemo(() => {
+    const raw = client?.linkedInvoice?.paymentGateway || client?.invoice?.paymentGateway;
+    if (raw === 'RAZORPAY' || raw === 'PAYPAL' || raw === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' || raw === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT') {
+      return raw as RevisionQuoteGateway;
+    }
+    return (client?.currency === 'INR' ? 'RAZORPAY' : 'PAYPAL');
+  }, [client]);
+
+  const parentCurrency = useMemo(() => {
+    return (client?.linkedInvoice?.currency || client?.invoice?.currency || client?.currency || 'USD').toUpperCase();
+  }, [client]);
+
+  const popularCurrencyList = useMemo(() => {
+    return POPULAR_CURRENCIES.map(code => {
+      const found = SUPPORTED_CURRENCIES.find(c => c.code === code);
+      return found ?? { code, symbol: code, name: code };
+    });
+  }, []);
+
   const [quoteRevision,    setQuoteRevision]    = useState<RevisionItem | null>(null);
   const [quoteRevId,       setQuoteRevId]       = useState<string | null>(null);
   const [quoteAmount,      setQuoteAmount]      = useState('50');
-  const [quoteCurrency,    setQuoteCurrency]    = useState('USD');
-  const [quoteGateway,     setQuoteGateway]     = useState<'RAZORPAY' | 'PAYPAL'>('PAYPAL');
+  const [quoteCurrency,    setQuoteCurrency]    = useState(parentCurrency);
+  const [quoteGateway,     setQuoteGateway]     = useState<RevisionQuoteGateway>(parentGateway);
   const [quoteDescription, setQuoteDescription] = useState('Out-of-Scope Revision Engagement');
   const [quoteAdminNote,   setQuoteAdminNote]   = useState('');
   const [submittingQuote,  setSubmittingQuote]  = useState(false);
@@ -2885,28 +2956,63 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services, revis
                   onChange={e => setQuoteCurrency(e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50"
                 >
-                  <option value="USD">USD ($)</option>
-                  <option value="INR">INR (₹)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="GBP">GBP (£)</option>
-                  <option value="AED">AED (AED)</option>
-                  <option value="CAD">CAD ($)</option>
-                  <option value="AUD">AUD ($)</option>
-                  <option value="SGD">SGD ($)</option>
+                  <optgroup label="Popular Currencies">
+                    {popularCurrencyList.map(c => (
+                      <option key={`pop-${c.code}`} value={c.code}>
+                        {c.code} — {c.name} ({c.symbol})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="All Supported Currencies (160+)">
+                    {SUPPORTED_CURRENCIES.map(c => (
+                      <option key={`all-${c.code}`} value={c.code}>
+                        {c.code} — {c.name} ({c.symbol})
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Payment Gateway</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Payment Method / Gateway *
+                </label>
+                {parentGateway && (
+                  <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
+                    Earlier Used: <strong className="font-bold">{parentGateway.replace(/_/g, ' ')}</strong>
+                  </span>
+                )}
+              </div>
               <select
                 value={quoteGateway}
-                onChange={e => setQuoteGateway(e.target.value as 'RAZORPAY' | 'PAYPAL')}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50"
+                onChange={e => setQuoteGateway(e.target.value as RevisionQuoteGateway)}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 font-medium"
               >
-                <option value="PAYPAL">PayPal (International)</option>
-                <option value="RAZORPAY">Razorpay (Domestic &amp; International)</option>
+                {PAYMENT_GATEWAY_OPTIONS.map(opt => {
+                  const isParent = opt.value === parentGateway;
+                  return (
+                    <option key={opt.value} value={opt.value}>
+                      {isParent ? '★ [Earlier Used in Past Engagement] ' : ''}{opt.label} ({opt.feeLabel})
+                    </option>
+                  );
+                })}
               </select>
+              <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400">
+                <span>
+                  {PAYMENT_GATEWAY_OPTIONS.find(o => o.value === quoteGateway)?.description}
+                </span>
+                {quoteGateway !== parentGateway && (
+                  <button
+                    type="button"
+                    onClick={() => setQuoteGateway(parentGateway)}
+                    className="text-[#B8935B] hover:underline font-semibold flex-shrink-0 ml-2 text-[10px]"
+                  >
+                    Reset to Past Method
+                  </button>
+                )}
+              </div>
             </div>
 
             <div>
@@ -3389,7 +3495,10 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services, revis
                           onClick={() => {
                             setQuoteRevision(r);
                             setQuoteRevId(r.id);
-                            if (parsed.preferredCurrency) setQuoteCurrency(parsed.preferredCurrency);
+                            const initialCurrency = (parsed.preferredCurrency || parentCurrency || 'USD').toUpperCase();
+                            setQuoteCurrency(initialCurrency);
+                            const initialGateway = parentGateway || (initialCurrency === 'INR' ? 'RAZORPAY' : 'PAYPAL');
+                            setQuoteGateway(initialGateway);
                             setQuoteDescription(
                               parsed.categoryLabel
                                 ? `Out-of-Scope Revision: ${parsed.categoryLabel}`

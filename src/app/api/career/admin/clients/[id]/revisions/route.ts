@@ -50,7 +50,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       packageType: true,
       services: { select: { service: { select: { slug: true, name: true } } } },
       deliverables: {
-        where: { fileCategory: 'draft' },
+        where: { fileCategory: { in: ['draft', 'final'] } },
         select: { fileType: true, fileCategory: true, label: true, createdAt: true },
         orderBy: { createdAt: 'desc' },
       },
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       draftSentAt: true, completedAt: true, firstCompletedAt: true,
       services: { select: { service: { select: { slug: true, name: true } } } },
       deliverables: {
-        where: { fileCategory: 'draft' },
+        where: { fileCategory: { in: ['draft', 'final'] } },
         select: { fileType: true, fileCategory: true, label: true, createdAt: true },
         orderBy: { createdAt: 'desc' },
       },
@@ -279,7 +279,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const chargeAmount = Number(body?.chargeAmount);
     const currency = (body?.currency as string || 'USD').trim().toUpperCase();
     const description = (body?.description as string | undefined)?.trim() || 'Paid Revision / Out-of-Scope Scope Addition';
-    const requestedGateway = body?.paymentGateway as 'RAZORPAY' | 'PAYPAL' | undefined;
+    type RevisionPaymentGateway = 'RAZORPAY' | 'PAYPAL' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT';
+    const requestedGateway = body?.paymentGateway as RevisionPaymentGateway | undefined;
 
     if (!revisionId || isNaN(chargeAmount) || chargeAmount <= 0) {
       return NextResponse.json({ error: 'revisionId and positive chargeAmount required' }, { status: 400 });
@@ -305,7 +306,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const gateway = requestedGateway ?? (currencyCode === 'INR' ? 'RAZORPAY' : 'PAYPAL');
     const processingFeeRate = currencyCode === 'INR'
       ? FEE_RATES.RAZORPAY_DOMESTIC
-      : (gateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL : FEE_RATES.RAZORPAY_INTL);
+      : gateway === 'PAYPAL'
+        ? FEE_RATES.PAYPAL_INTL
+        : gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE'
+          ? FEE_RATES.BANK_TRANSFER_NATIVE
+          : gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT'
+            ? FEE_RATES.BANK_TRANSFER_SWIFT
+            : FEE_RATES.RAZORPAY_INTL;
 
     const totalPayable = round2(grossSubtotal / (1 - processingFeeRate));
     const processingFeeConverted = round2(totalPayable - grossSubtotal);
@@ -453,7 +460,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     });
 
     if (doSendEmail) {
-      const invoiceLink = paymentUrl || `${PORTAL_URL}/portal/dashboard/files`;
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://catalyst.theripplenexus.com';
+      const invoiceLink = paymentUrl || `${appUrl}/invoices/${invoice.id}`;
       waitUntil(
         sendCareerEmail({
           to: client.email,
@@ -467,6 +475,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           },
         }).catch(err => console.error('[approve_paid email] error:', err))
       );
+
+      if (gateway.startsWith('RAZORPAY_INTERNATIONAL_BANK_TRANSFER')) {
+        waitUntil(
+          sendCareerEmail({
+            to: client.email,
+            trigger: 'RECONCILIATION_FORM_LINK',
+            data: {
+              recipientName: client.name,
+              portalUrl: `${appUrl}/bank-transfers/form`,
+            },
+          }).catch(err => console.error('[approve_paid bank transfer form email] error:', err))
+        );
+      }
     }
 
     return NextResponse.json({

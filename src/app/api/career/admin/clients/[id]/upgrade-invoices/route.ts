@@ -66,6 +66,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       invoiceDate: true,
       dueDate: true,
       paidAt: true,
+      paymentGateway: true,
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -87,6 +88,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       invoiceDate: client.createdAt,
       dueDate: client.createdAt,
       paidAt: client.completedAt || client.createdAt,
+      paymentGateway: client.currency === 'INR' ? 'RAZORPAY' : 'PAYPAL',
     });
   }
 

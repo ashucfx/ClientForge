@@ -179,12 +179,13 @@ export async function GET(req: NextRequest) {
 
   // Compute strict turnaround revision window
   const draftFiles = client.deliverables.filter(d => d.fileCategory === 'draft');
+  const finalFiles = client.deliverables.filter(d => d.fileCategory !== 'draft');
   const revisionWindow = calculateRevisionWindow({
     status: client.status,
     draftSentAt: client.draftSentAt,
     completedAt: client.completedAt,
     firstCompletedAt: client.firstCompletedAt,
-    deliverableCreatedAt: draftFiles[0]?.createdAt ?? null,
+    deliverableCreatedAt: (draftFiles[0] || finalFiles[0])?.createdAt ?? null,
   });
 
   // Per-service revision counters: strictly 2 free revisions per individual component

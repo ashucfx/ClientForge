@@ -30,14 +30,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   let linkedInvoice = client.invoiceId
     ? await db.invoice.findUnique({
         where: { id: client.invoiceId },
-        select: { id: true, invoiceNumber: true, totalPayable: true, currency: true, status: true },
+        select: { id: true, invoiceNumber: true, totalPayable: true, currency: true, status: true, paymentGateway: true },
       })
     : null;
 
   if (!linkedInvoice) {
     const link = await db.invoiceClientLink.findFirst({
       where: { clientId: client.id },
-      include: { invoice: { select: { id: true, invoiceNumber: true, totalPayable: true, currency: true, status: true } } },
+      include: { invoice: { select: { id: true, invoiceNumber: true, totalPayable: true, currency: true, status: true, paymentGateway: true } } },
       orderBy: { createdAt: 'desc' },
     });
     if (link?.invoice) linkedInvoice = link.invoice;
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   if (!linkedInvoice) {
     linkedInvoice = await db.invoice.findFirst({
       where: { clientEmail: { equals: client.email, mode: 'insensitive' } },
-      select: { id: true, invoiceNumber: true, totalPayable: true, currency: true, status: true },
+      select: { id: true, invoiceNumber: true, totalPayable: true, currency: true, status: true, paymentGateway: true },
       orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
     });
   }
@@ -58,6 +58,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       totalPayable: client.amountPaid || 0,
       currency: client.currency || 'INR',
       status: 'PAID',
+      paymentGateway: client.currency === 'INR' ? 'RAZORPAY' : 'PAYPAL',
     };
   }
 
@@ -92,12 +93,13 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 
   const draftFiles = (client.deliverables || []).filter((d: any) => d.fileCategory === 'draft');
+  const finalFiles = (client.deliverables || []).filter((d: any) => d.fileCategory !== 'draft');
   const revisionWindow = calculateRevisionWindow({
     status: client.status,
     draftSentAt: client.draftSentAt,
     completedAt: client.completedAt,
     firstCompletedAt: client.firstCompletedAt,
-    deliverableCreatedAt: draftFiles[0]?.createdAt ?? null,
+    deliverableCreatedAt: (draftFiles[0] || finalFiles[0])?.createdAt ?? null,
   });
 
   return NextResponse.json({

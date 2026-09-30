@@ -1548,10 +1548,14 @@ export default function PortalDashboardPage() {
                     <div className="w-8 h-8 rounded-lg bg-white border border-[#EBE4D9] flex items-center justify-center flex-shrink-0">
                       {file.fileType === 'resume' ? (
                         <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M9 13h6M9 17h4"/></svg>
-                      ) : file.fileType === 'linkedin_banner' ? (
-                        <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#B8935B" strokeWidth="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke="#B8935B" strokeWidth="2"/><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M21 15l-5-5L5 21"/></svg>
+                      ) : file.fileType === 'linkedin_banner' || file.fileType === 'linkedin_profile_picture' ? (
+                        <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#0891b2" strokeWidth="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke="#0891b2" strokeWidth="2"/><path stroke="#0891b2" strokeWidth="2" strokeLinecap="round" d="M21 15l-5-5L5 21"/></svg>
+                      ) : file.fileType === 'linkedin_playbook' ? (
+                        <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path stroke="#0284c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                      ) : file.fileType === 'executive_profile_deep_audit' ? (
+                        <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path stroke="#b45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                       ) : file.fileType === 'cover_letter' ? (
-                        <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                       ) : (
                         <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
                       )}
