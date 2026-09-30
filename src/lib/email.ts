@@ -27,8 +27,12 @@ export function derivePackageLabel(lineItems: LineItem[]): string {
   const hasCoverLetter = descs.some(d => /cover.?letter/i.test(d));
   const hasPortfolio   = descs.some(d => /portfolio/i.test(d));
 
-  if (hasResume && hasLinkedin && hasCoverLetter && hasPortfolio) return 'Premium Plus Package';
-  if (hasResume && hasLinkedin && hasCoverLetter)                 return 'Career Booster Package';
+  if (hasPortfolio || (hasResume && hasLinkedin && hasCoverLetter && hasPortfolio) || lineItems.length >= 4) {
+    return 'Premium Plus Package';
+  }
+  if (hasResume && hasLinkedin && hasCoverLetter) {
+    return 'Career Booster Package';
+  }
 
   const parts: string[] = [];
   if (hasResume)      parts.push('Resume Writing');

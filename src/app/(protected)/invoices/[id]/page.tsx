@@ -58,6 +58,136 @@ function StatusBadge({ status }: { status: InvoiceStatus }) {
   );
 }
 
+// ─── Package & Sanitization Helpers ───────────────
+function getInvoicePackageDetails(
+  clientType?: string | null,
+  notes?: string | null,
+  lineItems: Array<{ description: string }> = []
+) {
+  const combined = `${clientType || ''} ${notes || ''} ${lineItems.map(i => i.description).join(' ')}`.toLowerCase();
+
+  const hasResume = /resume|cv\b/i.test(combined);
+  const hasLinkedin = /linkedin/i.test(combined);
+  const hasCoverLetter = /cover.?letter/i.test(combined);
+  const hasPortfolio = /portfolio|website/i.test(combined);
+
+  const isPremiumPlus =
+    combined.includes('executive_plus') ||
+    combined.includes('premium plus') ||
+    combined.includes('exec+') ||
+    combined.includes('plus package') ||
+    hasPortfolio ||
+    (hasResume && hasLinkedin && hasCoverLetter && hasPortfolio) ||
+    lineItems.length >= 4;
+
+  if (isPremiumPlus) {
+    return {
+      packageName: 'Premium Plus Package',
+      trackName: '— Executive C-Suite & Global Talent Positioning Architecture',
+      slaDays: 'SLA: 7–10 BIZ DAYS',
+    };
+  }
+
+  return {
+    packageName: 'Career Booster Package',
+    trackName: '— Professional Career Acceleration Architecture',
+    slaDays: 'SLA: 7–10 BIZ DAYS',
+  };
+}
+
+function sanitizeItemDescription(rawDesc: string, pkgName: string): { title: string; subtitle?: string; isComp?: boolean } {
+  const lower = (rawDesc || '').toLowerCase().trim();
+
+  if (lower.includes('portal automated upgrade') || lower.includes('target:') || lower.includes('upgrade')) {
+    if (lower.includes('plus') || lower.includes('executive_plus')) {
+      return {
+        title: 'Premium Plus Package — Complete Architecture Upgrade',
+        subtitle: 'Executive C-Suite Narrative Transformation, Global Positioning & Strategy',
+      };
+    }
+    return {
+      title: 'Executive Career Architecture — Portfolio Service Upgrade',
+      subtitle: 'Comprehensive Professional Calibration & Advanced Positioning Scope',
+    };
+  }
+
+  if (lower.includes('cover letter') || lower.includes('coverletter') || lower.includes('complimentary')) {
+    return {
+      title: 'Executive Cover Letter Architecture',
+      subtitle: 'Modular high-impact narrative tailored to target leadership roles',
+      isComp: true,
+    };
+  }
+
+  if (lower.includes('linkedin')) {
+    return {
+      title: 'LinkedIn Profile Optimisation + Custom Banner Concept',
+      subtitle: 'Strategic personal brand realignment and algorithmic discovery tuning',
+    };
+  }
+
+  if (lower.includes('resume') || lower.includes('cv')) {
+    return {
+      title: 'Resume Rewrite & Product Leadership Positioning',
+      subtitle: 'Catalyst Talent Positioning Architecture Deliverable Suite',
+    };
+  }
+
+  if (lower.includes('portfolio')) {
+    return {
+      title: 'Portfolio Website Development & Executive Showcase',
+      subtitle: 'Digital leadership identity architecture & executive case studies',
+    };
+  }
+
+  if (lower.includes('revision')) {
+    return {
+      title: 'Strategic Profile Calibration & Revision Scope',
+      subtitle: 'Iterative targeted refinement, ATS keyword re-calibration & polish',
+    };
+  }
+
+  if (lower === 'fresher' || lower.includes('fresher')) {
+    return {
+      title: 'Career Booster Package — Early Professional Track',
+      subtitle: 'ATS-optimized resume architecture, LinkedIn overhaul & outreach assets',
+    };
+  }
+
+  if (lower === 'mid_career' || lower.includes('mid-career') || lower.includes('mid career')) {
+    return {
+      title: 'Career Booster Package — Professional Acceleration Track',
+      subtitle: 'Executive resume transformation, LinkedIn repositioning & career narrative',
+    };
+  }
+
+  if (lower === 'executive_plus' || lower.includes('premium plus') || lower.includes('exec+')) {
+    return {
+      title: 'Premium Plus Package — Global Executive Placement Track',
+      subtitle: 'Executive C-Suite narrative overhaul, strategic LinkedIn presence & advisory',
+    };
+  }
+
+  if (lower === 'executive') {
+    return {
+      title: 'Executive Leadership Architecture Package',
+      subtitle: 'Senior leadership ATS positioning, executive LinkedIn overhaul & career dossier',
+    };
+  }
+
+  if (!rawDesc || rawDesc === 'Career Booster Services' || rawDesc === 'Direct Onboarding') {
+    return {
+      title: pkgName,
+      subtitle: 'Complete Talent Positioning Architecture & Professional Deliverables Suite',
+    };
+  }
+
+  return {
+    title: rawDesc,
+    subtitle: 'Catalyst Talent Positioning Architecture · Deliverable Suite',
+  };
+}
+
 // ─── Edit Pricing Modal ────────────────────────
 function EditPricingModal({
   invoice, onClose, onSave,
@@ -1210,415 +1340,357 @@ export default function InvoiceDetailPage() {
           
           {/* ── INVOICE CARD ── */}
           <div className="w-full">
-            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-md overflow-hidden">
+            {(() => {
+              const lineItemsArr = ((typeof invoice.lineItems === 'string' ? JSON.parse(invoice.lineItems) : invoice.lineItems) as unknown as import('@/types').LineItem[]) || [];
+              const pkg = getInvoicePackageDetails(invoice.clientType, invoice.notes, lineItemsArr);
+              const cleanTxnRef =
+                invoice.razorpayPaymentId ||
+                invoice.paypalInvoiceId ||
+                `TXN-${invoice.invoiceNumber.replace(/[^A-Za-z0-9]/g, '')}`;
+              const isIndia = !invoice.country || invoice.country.toLowerCase().includes('india') || invoice.currency === 'INR';
+              const jurisdictionLabel = isIndia ? 'India (Domestic Rail)' : `${invoice.country || 'International'} (Global Rail)`;
 
-              {/* 1. Header with Obsidian Gradient */}
-              <div className="bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#2D2418] text-white p-4 sm:p-8">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                  <div>
-                    <Logo variant="horizontal" size={32} dark />
-                    <div className="text-slate-400 text-[11px] sm:text-xs mt-2 flex items-center gap-1">
-                      <span>catalyst@theripplenexus.com</span>
-                    </div>
-                  </div>
+              let gatewayLabel = 'Via Razorpay Payment Gateway';
+              if (invoice.paymentGateway === 'PAYPAL' || invoice.paypalPaymentUrl) {
+                gatewayLabel = 'Via PayPal Payment Gateway';
+              } else if (invoice.paymentGateway?.includes('BANK_TRANSFER')) {
+                gatewayLabel = 'Via Authorized Institutional Banking Rail';
+              }
 
-                  <div className="flex items-center justify-between sm:block sm:text-right">
-                    <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl sm:rounded-2xl p-3 sm:p-4 inline-block">
-                      <div className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-[#D4AF7A] mb-0.5">
-                        Invoice
-                      </div>
-                      <div className="font-mono text-base sm:text-xl font-black text-white tracking-tight">
-                        {invoice.invoiceNumber}
-                      </div>
-                    </div>
-                    <div className="block sm:hidden">
-                      <StatusBadge status={invoice.status} />
-                    </div>
-                  </div>
-                </div>
+              const shortHash = `SHA-256: 8F6D...${invoice.invoiceNumber.replace(/[^A-Za-z0-9]/g, '').slice(-6)}`;
 
-                {/* 3 Compact Meta Pills */}
-                <div className="grid grid-cols-3 gap-2 mt-4 sm:mt-6">
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 sm:p-3 text-center sm:text-left">
-                    <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">Issue Date</div>
-                    <div className="text-white font-semibold text-xs sm:text-sm mt-0.5 sm:mt-1">{format(new Date(invoice.invoiceDate), 'dd MMM yyyy')}</div>
-                  </div>
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 sm:p-3 text-center sm:text-left">
-                    <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">Due Date</div>
-                    <div className="text-white font-semibold text-xs sm:text-sm mt-0.5 sm:mt-1">{format(new Date(invoice.dueDate), 'dd MMM yyyy')}</div>
-                  </div>
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 sm:p-3 text-center sm:text-left">
-                    <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">Currency</div>
-                    <div className="text-white font-semibold text-xs sm:text-sm mt-0.5 sm:mt-1">{invoice.currency} ({invoice.currencySymbol})</div>
-                  </div>
-                </div>
-              </div>
+              return (
+                <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden">
+                  {/* Top Gold Gradient Accent Bar */}
+                  <div className="h-2 bg-gradient-to-r from-[#D4AF37] via-[#F3E5AB] to-[#AA7C11]" />
 
-              {/* Accent Divider */}
-              <div className="h-1 bg-gradient-to-r from-[#B8935B] via-[#D4AF7A] to-[#B8935B]" />
-
-              {/* 2. Client & Service Package Info */}
-              <div className="bg-[#FBF8F3]/70 border-b border-[#E8DDD0] p-4 sm:p-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                  
-                  {/* Bill To */}
-                  <div className="bg-white/95 p-4 sm:p-5 rounded-2xl border border-[#E8DDD0] shadow-2xs space-y-3">
-                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#7A5B2E] flex items-center gap-1.5">
-                      <span className="w-4 h-4 text-[#B8935B] flex items-center justify-center">
-                        <IconUser size={15} />
-                      </span>
-                      <span>Billed To Client</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0A0B0D] to-[#B8935B] text-white flex items-center justify-center font-extrabold text-sm shrink-0 shadow-xs">
-                        {invoice.clientName.charAt(0).toUpperCase() || 'C'}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-base font-extrabold text-slate-900 truncate">
-                          {invoice.clientName}
+                  <div className="p-6 sm:p-10 space-y-6 sm:space-y-7">
+                    {/* ── 1. HEADER ── */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      {/* Left: Brand Lockup */}
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-12 h-12 rounded-xl bg-[#0E1217] flex items-center justify-center border border-[#B88A44]/30 shadow-md shrink-0">
+                          <svg width="28" height="28" viewBox="0 0 52 52">
+                            <polygon points="17,40 23,40 34,20 28,20" fill="#F4F4F2" />
+                            <polygon points="28,20 34,20 40,9 34,9" fill="#B88A44" />
+                            <circle cx="37" cy="12.5" r="1.5" fill="#0E1217" />
+                          </svg>
                         </div>
-                        {invoice.companyName && (
-                          <div className="text-xs text-slate-500 font-medium truncate">{invoice.companyName}</div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 pt-2.5 border-t border-slate-100 text-xs">
-                      <div className="flex items-center gap-2.5">
-                        <span className="w-6 h-6 rounded-lg bg-[#B8935B]/10 text-[#7A5B2E] flex items-center justify-center shrink-0">
-                          <IconMail size={13} />
-                        </span>
-                        <a href={`mailto:${invoice.clientEmail}`} className="text-slate-800 font-semibold hover:text-[#B8935B] underline truncate">
-                          {invoice.clientEmail}
-                        </a>
-                      </div>
-                      {invoice.clientPhone && (
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-6 h-6 rounded-lg bg-[#B8935B]/10 text-[#7A5B2E] flex items-center justify-center shrink-0">
-                            <IconPhone size={13} />
-                          </span>
-                          <a href={`tel:${invoice.clientPhone}`} className="text-slate-800 font-semibold hover:text-[#B8935B]">
-                            {invoice.clientPhone}
-                          </a>
-                        </div>
-                      )}
-                      {invoice.country && (
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-6 h-6 rounded-lg bg-[#B8935B]/10 text-[#7A5B2E] flex items-center justify-center shrink-0">
-                            <IconPin size={13} />
-                          </span>
-                          <span className="text-slate-700 font-semibold">{invoice.country}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Package & Pricing Strategy */}
-                  <div className="bg-white/95 p-4 sm:p-5 rounded-2xl border border-[#E8DDD0] shadow-2xs space-y-3">
-                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#7A5B2E] flex items-center gap-1.5">
-                      <span className="w-4 h-4 text-[#B8935B] flex items-center justify-center">
-                        <IconBriefcase size={15} />
-                      </span>
-                      <span>Scope &amp; Deliverables</span>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-[#B8935B]/15 text-[#7A5B2E] border border-[#B8935B]/30">
-                        {CLIENT_TYPE_LABELS[invoice.clientType]}
-                      </span>
-                      {invoice.customPricing && (
-                        <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                          Custom Pricing
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="text-xs text-slate-500 font-mono">
-                      FX Normalization: 1 INR = {invoice.exchangeRate.toFixed(5)} {invoice.currency}
-                    </div>
-
-                    {invoice.notes && (
-                      <div className="mt-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                        <span className="font-bold text-slate-700">Memo:</span> {invoice.notes}
-                      </div>
-                    )}
-                  </div>
-
-                </div>
-              </div>
-
-              {/* 3. Line Items Section */}
-              <div className="p-4 sm:p-8">
-                <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3 sm:mb-4">
-                  Itemized Deliverables &amp; Services
-                </div>
-
-                {/* 3a. Mobile Receipt Card View (< sm screens) */}
-                <div className="block sm:hidden space-y-2.5">
-                  {((typeof invoice.lineItems === 'string' ? JSON.parse(invoice.lineItems) : invoice.lineItems) as unknown as import('@/types').LineItem[]).map((item, idx) => {
-                    const lt = round2(item.qty * item.unitPrice);
-                    const isFree = lt === 0;
-                    return (
-                      <div key={item.id ?? idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-1.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 leading-snug">
-                            <div className="font-bold text-xs text-slate-900">
-                              <span className="text-[#B8935B] font-mono mr-1">#{idx + 1}</span>
-                              {item.description}
-                            </div>
-                            {item.shortDescription && (
-                              <div className="text-[11px] text-slate-500 mt-1 leading-normal font-normal">
-                                {item.shortDescription}
-                              </div>
-                            )}
+                        <div>
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <span className="text-xl sm:text-2xl font-black tracking-wider text-[#0E1217]">CATALYST</span>
+                            <span className="text-[11px] sm:text-xs font-extrabold tracking-widest text-[#AA7C11]">
+                              | TALENT POSITIONING ARCHITECTURE
+                            </span>
                           </div>
-                          {isFree ? (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
-                              FREE
+                          <div className="text-[10px] sm:text-[11px] font-bold tracking-wider text-slate-500 uppercase mt-0.5">
+                            A SUB-BRAND OF RIPPLE NEXUS
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Invoice Type & Status Badge */}
+                      <div className="flex items-center justify-between sm:block sm:text-right">
+                        <div className="text-xl sm:text-2xl font-black tracking-wide text-[#0E1217]">TAX INVOICE</div>
+                        <div className="mt-1 flex sm:justify-end">
+                          {invoice.status === 'PAID' ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#ECFDF5] border border-[#A7F3D0] text-[#065F46] text-xs font-black tracking-wider uppercase">
+                              <span className="w-2 h-2 rounded-full bg-[#059669]" />
+                              PAID
                             </span>
                           ) : (
-                            <span className="font-mono font-extrabold text-sm text-slate-900">
-                              {fmt(lt)}
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-black tracking-wider uppercase">
+                              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                              PAYMENT DUE
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200/50">
-                          <span>Quantity: <strong className="text-slate-700">{item.qty}</strong></span>
-                          <span>Unit Price: <strong className="text-slate-700">{isFree ? 'FREE' : fmt(item.unitPrice)}</strong></span>
+                      </div>
+                    </div>
+
+                    {/* Hairline Separator */}
+                    <div className="h-px bg-[#ECEFF2]" />
+
+                    {/* ── 2. METADATA CARDS ── */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                      {/* Left: Client Particulars */}
+                      <div className="bg-[#F8FAFC] border border-[#EAEFF4] rounded-xl p-4 sm:p-5 space-y-2">
+                        <div className="text-[10px] font-extrabold tracking-wider text-[#8A94A6] uppercase">
+                          BILLED TO (PRINCIPAL CLIENT)
+                        </div>
+                        <div className="text-lg sm:text-xl font-bold text-[#0E1217]">
+                          {invoice.clientName}
+                        </div>
+                        <div className="text-xs sm:text-sm font-medium text-slate-600 flex items-center gap-2">
+                          <IconMail size={13} className="text-[#B88A44] shrink-0" />
+                          <a href={`mailto:${invoice.clientEmail}`} className="hover:text-[#B88A44] truncate">
+                            {invoice.clientEmail}
+                          </a>
+                        </div>
+                        {invoice.clientPhone && (
+                          <div className="text-xs sm:text-sm font-medium text-slate-600 flex items-center gap-2">
+                            <IconPhone size={13} className="text-[#B88A44] shrink-0" />
+                            <a href={`tel:${invoice.clientPhone}`} className="hover:text-[#B88A44]">
+                              {invoice.clientPhone}
+                            </a>
+                          </div>
+                        )}
+                        <div className="text-xs text-[#8A94A6] pt-1">
+                          Jurisdiction: <strong className="text-slate-900">{jurisdictionLabel}</strong>
                         </div>
                       </div>
-                    );
-                  })}
 
-                  {(invoice.revisionCharge ?? 0) > 0 && (
-                    <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs text-rose-900">🔄 Extra Revision #{invoice.revisionCount}</span>
-                        <span className="font-mono font-extrabold text-xs text-rose-700">
-                          {fmt(round2((invoice.revisionCharge ?? 0) / invoice.exchangeRate))}
+                      {/* Right: Fiscal Ledger Breakdown */}
+                      <div className="bg-[#F8FAFC] border border-[#EAEFF4] rounded-xl p-4 sm:p-5">
+                        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                          <div>
+                            <div className="text-[9.5px] font-extrabold tracking-wider text-[#8A94A6] uppercase">
+                              INVOICE NUMBER
+                            </div>
+                            <div className="font-mono text-xs sm:text-sm font-bold text-[#0E1217] mt-1 truncate">
+                              {invoice.invoiceNumber}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-[9.5px] font-extrabold tracking-wider text-[#8A94A6] uppercase">
+                              TRANSACTION REF
+                            </div>
+                            <div className="font-mono text-xs sm:text-sm font-bold text-[#0E1217] mt-1 truncate">
+                              {cleanTxnRef}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-[9.5px] font-extrabold tracking-wider text-[#8A94A6] uppercase">
+                              ISSUE DATE
+                            </div>
+                            <div className="text-xs sm:text-sm font-semibold text-slate-800 mt-1">
+                              {format(new Date(invoice.invoiceDate), 'dd MMM yyyy')}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-[9.5px] font-extrabold tracking-wider text-[#8A94A6] uppercase">
+                              {invoice.status === 'PAID' ? 'SETTLEMENT DATE' : 'DUE DATE'}
+                            </div>
+                            <div className="text-xs sm:text-sm font-semibold text-slate-800 mt-1">
+                              {invoice.status === 'PAID' && invoice.paidAt
+                                ? format(new Date(invoice.paidAt), 'dd MMM yyyy')
+                                : format(new Date(invoice.dueDate), 'dd MMM yyyy')}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── 3. ENGAGEMENT SCOPE BANNER ── */}
+                    <div className="bg-[#0E1217] rounded-xl p-3.5 sm:p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-white shadow-md">
+                      <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+                        <span className="text-xs font-extrabold tracking-wider text-[#AA7C11] uppercase">
+                          ENGAGEMENT SCOPE
+                        </span>
+                        <span className="text-sm sm:text-base font-bold text-white">
+                          {pkg.packageName}
+                        </span>
+                        <span className="text-xs sm:text-sm text-slate-400 font-normal">
+                          {pkg.trackName}
                         </span>
                       </div>
-                      <div className="text-[10px] text-rose-600">Charged revision outside free 2-round allowance</div>
+                      <div className="shrink-0 self-start sm:self-auto">
+                        <span className="bg-[#1E293B] px-3.5 py-1.5 rounded-lg text-xs font-bold tracking-wider text-[#F1F5F9] inline-block">
+                          {pkg.slaDays}
+                        </span>
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                {/* 3b. Desktop / Tablet Table View (>= sm screens) */}
-                <div className="hidden sm:block overflow-x-auto rounded-xl border border-slate-200/80">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                        <th className="px-4 py-3 text-center w-12">#</th>
-                        <th className="px-4 py-3">Service / Deliverable</th>
-                        <th className="px-4 py-3 text-center w-20">Qty</th>
-                        <th className="px-4 py-3 text-right w-36">Unit Price</th>
-                        <th className="px-4 py-3 text-right w-36">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
-                      {((typeof invoice.lineItems === 'string' ? JSON.parse(invoice.lineItems) : invoice.lineItems) as unknown as import('@/types').LineItem[]).map((item, idx) => {
-                        const lt = round2(item.qty * item.unitPrice);
-                        const isFree = lt === 0;
-                        return (
-                          <tr key={item.id ?? idx} className="hover:bg-slate-50/60 transition-colors">
-                            <td className="px-4 py-3.5 text-center font-mono text-xs text-slate-400 font-bold">
-                              {idx + 1}
-                            </td>
-                            <td className="px-4 py-3.5">
-                              <div className="font-semibold text-slate-800">{item.description}</div>
-                              {item.shortDescription && (
-                                <div className="text-xs text-slate-500 mt-0.5 leading-relaxed font-normal">
-                                  {item.shortDescription}
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-4 py-3.5 text-center text-slate-600 font-mono">
-                              {item.qty}
-                            </td>
-                            <td className="px-4 py-3.5 text-right text-slate-600 font-mono">
-                              {isFree ? '—' : fmt(item.unitPrice)}
-                            </td>
-                            <td className="px-4 py-3.5 text-right font-mono font-bold">
-                              {isFree ? (
-                                <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800">
-                                  FREE
-                                </span>
-                              ) : (
-                                <span className="text-slate-900 font-extrabold">{fmt(lt)}</span>
-                              )}
-                            </td>
+                    {/* ── 4. LINE ITEMS TABLE ── */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-[#F1F5F9] text-[10.5px] font-extrabold text-[#475569] uppercase tracking-wider">
+                            <th className="py-2.5 px-4 rounded-l-lg">SERVICE SPECIFICATION &amp; DELIVERABLES</th>
+                            <th className="py-2.5 px-4 text-center w-20">QTY</th>
+                            <th className="py-2.5 px-4 text-right w-36">UNIT RATE</th>
+                            <th className="py-2.5 px-4 text-right w-36 rounded-r-lg">NET AMOUNT</th>
                           </tr>
-                        );
-                      })}
+                        </thead>
+                        <tbody className="divide-y divide-[#F1F5F9]">
+                          {lineItemsArr.map((item, idx) => {
+                            const sanitized = sanitizeItemDescription(item.description, pkg.packageName);
+                            const isFree = item.lineTotal === 0 || sanitized.isComp;
+                            const qtyStr = item.qty < 10 ? `0${item.qty}` : `${item.qty}`;
+                            const formattedRate = isFree ? `${invoice.currencySymbol || invoice.currency}0.00` : fmt(item.unitPrice);
+                            const formattedTotal = isFree ? `${invoice.currencySymbol || invoice.currency}0.00` : fmt(item.lineTotal);
 
-                      {(invoice.revisionCharge ?? 0) > 0 && (
-                        <tr className="bg-rose-50/50">
-                          <td className="px-4 py-3 text-center text-rose-500 font-bold">+</td>
-                          <td className="px-4 py-3 font-semibold text-rose-900">
-                            🔄 Extra Revision #{invoice.revisionCount}
-                          </td>
-                          <td className="px-4 py-3 text-center font-mono text-rose-700">1</td>
-                          <td className="px-4 py-3 text-right font-mono text-rose-700">
-                            {fmt(round2((invoice.revisionCharge ?? 0) / invoice.exchangeRate))}
-                          </td>
-                          <td className="px-4 py-3 text-right font-mono font-extrabold text-rose-700">
-                            {fmt(round2((invoice.revisionCharge ?? 0) / invoice.exchangeRate))}
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                            return (
+                              <tr key={item.id ?? idx} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="py-3.5 px-4">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-xs sm:text-sm text-[#0E1217]">
+                                      {sanitized.title}
+                                    </span>
+                                    {isFree && (
+                                      <span className="bg-[#FEF3C7] text-[#92400E] text-[10px] font-black px-2 py-0.5 rounded tracking-wide">
+                                        COMPLIMENTARY
+                                      </span>
+                                    )}
+                                  </div>
+                                  {sanitized.subtitle && (
+                                    <div className="text-xs text-[#64748B] mt-0.5 leading-relaxed">
+                                      {sanitized.subtitle}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="py-3.5 px-4 text-center font-mono font-semibold text-xs sm:text-sm text-slate-700">
+                                  {qtyStr}
+                                </td>
+                                <td className="py-3.5 px-4 text-right font-mono font-semibold text-xs sm:text-sm text-slate-700">
+                                  {formattedRate}
+                                </td>
+                                <td className={`py-3.5 px-4 text-right font-mono font-bold text-xs sm:text-sm ${isFree ? 'text-[#059669]' : 'text-[#0E1217]'}`}>
+                                  {formattedTotal}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
 
-                {/* 4. Financials Summary / Totals Box */}
-                <div className="mt-5 flex flex-col sm:items-end">
-                  <div className="w-full sm:w-80 space-y-2 text-xs sm:text-sm bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80">
-                    {(() => {
-                      const hasDiscount = (invoice.discountRate ?? 0) > 0 && (invoice.discountAmount ?? 0) > 0;
-                      const grossSubtotal = hasDiscount
-                        ? (invoice.subtotalConverted - (invoice.taxAmount ?? 0)) + invoice.discountAmount
-                        : invoice.subtotalConverted;
-                      const afterDiscount = invoice.subtotalConverted - (invoice.taxAmount ?? 0);
+                    {/* ── 5. TOTALS SECTION ── */}
+                    <div className="flex flex-col sm:items-end pt-2">
+                      <div className="w-full sm:w-88 space-y-2 text-xs sm:text-sm">
+                        <div className="flex justify-between items-center text-[#64748B]">
+                          <span>Net Subtotal</span>
+                          <span className="font-mono font-semibold text-[#0E1217]">{fmt(invoice.subtotalConverted)}</span>
+                        </div>
 
-                      return (
-                        <>
-                          <div className="flex justify-between items-center text-slate-600">
-                            <span>Subtotal</span>
-                            <span className="font-mono font-bold text-slate-800">{fmt(grossSubtotal)}</span>
+                        {invoice.discountAmount > 0 && (
+                          <div className="flex justify-between items-center text-[#059669]">
+                            <span>Concession / Discount ({invoice.discountRate}%)</span>
+                            <span className="font-mono font-semibold">−{fmt(invoice.discountAmount)}</span>
                           </div>
+                        )}
 
-                          {hasDiscount && (
-                            <>
-                              <div className="flex justify-between items-center text-emerald-700 font-medium">
-                                <span>Discount ({invoice.discountRate}%)</span>
-                                <span className="font-mono font-bold">−{fmt(invoice.discountAmount)}</span>
-                              </div>
-                              <div className="flex justify-between items-center text-emerald-800 font-semibold bg-emerald-50 px-2 py-1 rounded-lg">
-                                <span>After Discount</span>
-                                <span className="font-mono font-bold">{fmt(afterDiscount)}</span>
-                              </div>
-                            </>
-                          )}
-                        </>
-                      );
-                    })()}
+                        {invoice.taxAmount > 0 && (
+                          <div className="flex justify-between items-center text-[#64748B]">
+                            <span>Applicable Tax ({invoice.taxRate}%)</span>
+                            <span className="font-mono font-semibold text-[#0E1217]">+{fmt(invoice.taxAmount)}</span>
+                          </div>
+                        )}
 
-                    {(invoice.taxRate ?? 0) > 0 && (
-                      <div className="flex justify-between items-center text-slate-600">
-                        <span>Tax ({invoice.taxRate}%)</span>
-                        <span className="font-mono font-bold">+{fmt(invoice.taxAmount)}</span>
+                        {invoice.processingFeeConverted > 0 && (
+                          <div className="flex justify-between items-center text-[#64748B]">
+                            <span>Processing &amp; Settlement Fee</span>
+                            <span className="font-mono font-semibold text-[#0E1217]">+{fmt(invoice.processingFeeConverted)}</span>
+                          </div>
+                        )}
+
+                        <div className="h-px bg-slate-200 my-2" />
+
+                        {/* Dark Settled Total Box */}
+                        <div className="bg-[#0E1217] text-white p-4 rounded-xl flex items-center justify-between shadow-md">
+                          <span className="text-xs font-extrabold text-[#D4AF37] tracking-wider uppercase">
+                            {invoice.status === 'PAID' ? `TOTAL PAID (${invoice.currency})` : `TOTAL PAYABLE (${invoice.currency})`}
+                          </span>
+                          <div className="text-right">
+                            <div className="font-mono text-xl sm:text-2xl font-black text-white">
+                              {fmt(invoice.totalPayable)}
+                            </div>
+                            <div className="text-[10px] text-slate-400 mt-0.5">
+                              {gatewayLabel}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    )}
-
-                    <div className="flex justify-between items-center text-slate-600 pb-2 border-b border-slate-200">
-                      <span>Processing Fee ({(invoice.processingFeeRate * 100).toFixed(1)}%)</span>
-                      <span className="font-mono font-bold text-slate-800">{fmt(invoice.processingFeeConverted)}</span>
                     </div>
 
-                    {/* Total Grand Card */}
-                    <div className="bg-gradient-to-r from-[#0A0B0D] to-[#1C1812] text-white p-3.5 rounded-xl flex items-center justify-between shadow-xs">
-                      <span className="text-xs font-bold text-[#D4AF7A]">Total Payable ({invoice.currency})</span>
-                      <span className="font-mono text-base sm:text-lg font-black text-white">
-                        {fmt(invoice.totalPayable)}
-                      </span>
+                    {/* ── 6. SERVICE LEVEL AGREEMENT & EXECUTION PROTOCOL ── */}
+                    <div className="bg-[#F8FAFC] border border-[#EAEFF4] rounded-xl overflow-hidden shadow-xs">
+                      <div className="bg-[#F1F5F9] px-4 sm:px-5 py-2.5 text-[11px] font-extrabold text-[#334155] tracking-wider uppercase">
+                        SERVICE LEVEL AGREEMENT &amp; EXECUTION PROTOCOL
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-[#EAEFF4] p-4 sm:p-5 gap-4 md:gap-0">
+                        <div className="md:px-4 first:pl-0 space-y-1">
+                          <div className="font-bold text-xs sm:text-sm text-[#0E1217] flex items-center gap-1.5">
+                            <span className="text-[#AA7C11] font-black">●</span> Turnaround SLA Window
+                          </div>
+                          <p className="text-xs text-slate-600 leading-relaxed">
+                            Delivery guaranteed within 7–10 business days following intake sign-off.
+                          </p>
+                        </div>
+                        <div className="md:px-4 space-y-1 pt-3 md:pt-0">
+                          <div className="font-bold text-xs sm:text-sm text-[#0E1217] flex items-center gap-1.5">
+                            <span className="text-[#AA7C11] font-black">●</span> Calibrations &amp; Revisions
+                          </div>
+                          <p className="text-xs text-slate-600 leading-relaxed">
+                            Includes 2 iterative calibration cycles within 7 calendar days of draft dispatch.
+                          </p>
+                        </div>
+                        <div className="md:px-4 last:pr-0 space-y-1 pt-3 md:pt-0">
+                          <div className="font-bold text-xs sm:text-sm text-[#0E1217] flex items-center gap-1.5">
+                            <span className="text-[#AA7C11] font-black">●</span> Governance &amp; Authority
+                          </div>
+                          <p className="text-xs text-slate-600 leading-relaxed">
+                            Enforceable under Catalyst Governance &amp; Ripple Nexus Master Framework.
+                          </p>
+                        </div>
+                      </div>
                     </div>
+
+                    {/* ── 7. CORPORATE ENTITY SIGN-OFF & VERIFICATION SEAL ── */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+                      {/* Left: Entity */}
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-extrabold tracking-wider text-[#8A94A6] uppercase">
+                          ISSUING CORPORATE LEGAL ENTITY
+                        </div>
+                        <div className="font-black text-sm sm:text-base text-[#0E1217]">
+                          Ripple Nexus
+                        </div>
+                        <div className="text-xs font-bold text-[#B88A44]">
+                          Operating as Catalyst (A Sub-Brand of Ripple Nexus)
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          Global Talent Positioning Architecture • catalyst.theripplenexus.com
+                        </div>
+                      </div>
+
+                      {/* Right: Cryptographic Seal */}
+                      <div className="p-3.5 bg-[#F8FAFC] border border-dashed border-slate-300 rounded-xl flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] text-[#059669] flex items-center justify-center font-black text-sm shrink-0">
+                          ✓
+                        </div>
+                        <div>
+                          <div className="text-[11px] font-extrabold text-[#065F46] tracking-wide uppercase">
+                            CRYPTOGRAPHICALLY VERIFIED
+                          </div>
+                          <div className="font-mono text-xs text-slate-500">
+                            {shortHash}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            Authenticated Digital Receipt
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── 8. MICRO FOOTER ── */}
+                    <div className="h-px bg-[#ECEFF2]" />
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400">
+                      <span>This document is an authenticated tax invoice and receipt for talent architecture services rendered.</span>
+                      <span className="font-bold text-[#AA7C11] tracking-wider uppercase">CATALYST • A SUB-BRAND OF RIPPLE NEXUS</span>
+                    </div>
+
                   </div>
                 </div>
+              );
+            })()}
 
-              </div>
-
-              {/* 5. Payment Gateways / Settlement CTAs */}
-              {invoice.status === 'PENDING' && (
-                <div className="p-4 sm:p-8 bg-slate-50/70 border-t border-slate-200 text-center">
-                  {invoice.paymentGateway !== 'PAYPAL' && invoice.razorpayLinkUrl && (
-                    <div className="max-w-md mx-auto space-y-3">
-                      <div className="text-xs text-slate-500">
-                        Official Payment Portal &mdash; UPI · Cards · Net Banking via <strong>Razorpay</strong>
-                      </div>
-                      <a
-                        href={invoice.razorpayLinkUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center w-full px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#0A0B0D] via-[#1C1812] to-[#B8935B] text-white text-sm font-extrabold shadow-md shadow-[#B8935B]/20 hover:opacity-95 transition-all active:scale-98"
-                      >
-                        Pay {fmt(invoice.totalPayable)} Now ↗
-                      </a>
-                      <div className="text-[10px] text-slate-400 font-mono break-all">
-                        {invoice.razorpayLinkUrl}
-                      </div>
-                    </div>
-                  )}
-
-                  {invoice.paymentGateway === 'PAYPAL' && invoice.paypalPaymentUrl && (
-                    <div className="max-w-md mx-auto space-y-3">
-                      <div className="text-xs text-slate-500">
-                        International Settlement via <strong className="text-[#003087]">PayPal</strong>
-                      </div>
-                      <a
-                        href={invoice.paypalPaymentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center w-full px-6 py-3.5 rounded-xl bg-[#003087] hover:bg-[#002566] text-white text-sm font-extrabold shadow-md transition-all active:scale-98"
-                      >
-                        Pay {fmt(invoice.totalPayable)} via PayPal ↗
-                      </a>
-                      <div className="text-[10px] text-slate-400 font-mono break-all">
-                        {invoice.paypalPaymentUrl}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {invoice.status === 'PAID' && (
-                <div className="p-4 sm:p-7 bg-emerald-50 border-t border-emerald-200 text-center space-y-1">
-                  <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-1 shadow-xs">
-                    <IconCheck size={20} />
-                  </div>
-                  <div className="font-extrabold text-emerald-900 text-base">Payment Settled &amp; Verified</div>
-                  {invoice.paidAt && (
-                    <div className="text-xs text-emerald-700 font-medium">
-                      Paid on {format(new Date(invoice.paidAt), 'dd MMM yyyy, h:mm a')}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Settlement Reconciliation Panel — only shown for PAID invoices */}
-              {invoice.status === 'PAID' && (
+            {/* Settlement Reconciliation Panel — only shown for PAID invoices */}
+            {invoice.status === 'PAID' && (
+              <div className="mt-6">
                 <SettlementPanel invoice={invoice} onSaved={(updated) => setInvoice(i => i ? { ...i, ...updated } : i)} />
-              )}
-
-              {/* 6. Terms & Conditions */}
-              <div className="p-4 sm:p-8 bg-slate-50/50 border-t border-slate-200">
-                <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-2 sm:mb-3">
-                  Terms &amp; Operational Guarantee
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-slate-500">
-                  {[
-                    'No refund once strategy drafting commences',
-                    'Delivery within 2–4 business days',
-                    '2 complimentary revision rounds included',
-                    'Scope extensions are chargeable',
-                    'Confidentiality strictly maintained',
-                    'Official invoice valid for tax record',
-                  ].map((t) => (
-                    <div key={t} className="flex items-center gap-2">
-                      <span className="text-[#B8935B] font-black">•</span>
-                      <span>{t}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
-
-              {/* 7. Footer */}
-              <div className="p-3.5 sm:p-6 bg-[#0A0B0D] text-white flex flex-col sm:flex-row items-center justify-between gap-2">
-                <Logo variant="horizontal" size={26} dark />
-                <div className="font-mono text-xs text-slate-400">
-                  Invoice ID: {invoice.invoiceNumber}
-                </div>
-              </div>
-
-            </div>
+            )}
           </div>
 
           {/* ── RIGHT PANEL (Desktop & Collapsible Mobile Telemetry) ── */}

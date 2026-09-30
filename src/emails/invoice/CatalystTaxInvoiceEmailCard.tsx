@@ -18,11 +18,19 @@ interface CatalystTaxInvoiceEmailCardProps {
 function getPackageDetails(clientType?: string | null, notes?: string | null, lineItems: LineItem[] = []) {
   const combined = `${clientType || ''} ${notes || ''} ${lineItems.map(i => i.description).join(' ')}`.toLowerCase();
 
+  const hasResume = /resume|cv\b/i.test(combined);
+  const hasLinkedin = /linkedin/i.test(combined);
+  const hasCoverLetter = /cover.?letter/i.test(combined);
+  const hasPortfolio = /portfolio|website/i.test(combined);
+
   const isPremiumPlus =
     combined.includes('executive_plus') ||
     combined.includes('premium plus') ||
     combined.includes('exec+') ||
-    combined.includes('plus package');
+    combined.includes('plus package') ||
+    hasPortfolio ||
+    (hasResume && hasLinkedin && hasCoverLetter && hasPortfolio) ||
+    lineItems.length >= 4;
 
   if (isPremiumPlus) {
     return {
@@ -736,7 +744,7 @@ export function CatalystTaxInvoiceEmailCard({
                         Operating as Catalyst (A Sub-Brand of Ripple Nexus)
                       </div>
                       <div style={{ fontSize: '11px', color: '#64748B' }}>
-                        Global Talent Positioning Architecture • theripplenexus.com
+                        Global Talent Positioning Architecture • catalyst.theripplenexus.com
                       </div>
                     </td>
 
