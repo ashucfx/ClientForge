@@ -42,12 +42,14 @@ export const SLA_AGREEMENT_SECTIONS: SlaSection[] = [
   },
   {
     title: '4. Revision Policy & Fair-Use Terms',
-    content: 'Your satisfaction and confidence in your career documents are paramount. We offer complimentary revision cycles under clear fair-use parameters:',
+    content: 'Your satisfaction and confidence in your career documents are paramount. We offer complimentary revision cycles under clear, bounded fair-use parameters:',
     subpoints: [
-      'Each standard package includes up to 2 complimentary revision rounds.',
-      'Revision requests must be submitted within 7 calendar days of draft delivery via the client portal.',
+      'Each individual service component includes up to 2 complimentary revision rounds (Resume Rewrite, LinkedIn Profile Optimization, Cover Letter, Portfolio Website).',
+      'Draft Review Window: You have 14 calendar days from the delivery of each draft to review and submit revisions via the client portal.',
+      'Final Delivery Window: Following final document delivery, you have strictly 7 calendar days to request any final minor corrections (subject to remaining complimentary revision quota).',
+      'Post-Window Expiration: Once the 14-day draft window or 7-day post-completion window has elapsed, complimentary revisions are strictly prohibited. Any further revisions require an evaluated out-of-scope quote from your Catalyst team.',
       'Revisions encompass adjustments to tone, bullet refinement, quantifiable metrics, skills prioritization, and formatting emphasis.',
-      'A change in the foundational career direction (e.g., pivoting to an entirely different target role, industry, or writing for a different individual) constitutes a new project and is outside the complimentary revision scope.',
+      'A change in the foundational career direction (e.g., pivoting to an entirely different target role, industry, or writing for a different individual) constitutes a new engagement and is outside the complimentary revision scope.',
     ],
   },
   {

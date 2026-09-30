@@ -8,6 +8,8 @@ import { PACKAGE_LABELS, SERVICE_LABELS, STATUS_LABELS, parseRevisionNote, OUT_O
 import type { CareerStatus, CareerPackage, CareerServiceSlug, EmailTrigger, OutOfScopeCategoryKey } from '@/lib/career/types';
 import { TRIGGER_LABELS } from '@/lib/career/triggerLabels';
 import { expandClientServices } from '@/lib/career/services';
+import { AdminSlaViewModal } from '@/components/AdminSlaViewModal';
+import type { RevisionWindowInfo } from '@/lib/career/revisionWindow';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -57,6 +59,7 @@ interface ClientDetail {
   Feedback?: { id: string; npsScore: number; rating: number; submittedAt: string } | null;
   Review?: { id: string; content: string; permissionToUse: boolean; submittedAt: string } | null;
   invoice?: { id?: string; invoiceNumber: string; totalPayable: number; currency: string; status: string } | null;
+  revisionWindow?: RevisionWindowInfo;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -206,6 +209,7 @@ export default function CareerClientDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [showEdit,    setShowEdit]    = useState(false);
   const [showDelete,  setShowDelete]  = useState(false);
+  const [showSlaModal, setShowSlaModal] = useState(false);
   const [welcomeSignal, setWelcomeSignal] = useState(0);
 
   const triggerWelcome = () => {
@@ -360,35 +364,65 @@ export default function CareerClientDetailPage() {
             const slaLog = client.activityLogs?.find(l => l.action === 'sla_agreement_accepted');
             if (slaLog) {
               return (
-                <div className="mt-4 flex items-center justify-between px-4 py-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl text-xs">
-                  <div className="flex items-center gap-2 text-emerald-800 font-semibold">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs shadow-2xs">
+                  <div className="flex items-center gap-2.5 text-emerald-900 font-semibold">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-xs" />
                     <span>Master Services Agreement &amp; Turnaround SLA Bound ({String(slaLog.metadata?.version || 'v2026.1')})</span>
+                    <span className="text-[11px] font-normal text-emerald-700 hidden sm:inline">
+                      · Signed &amp; cryptographically verified
+                    </span>
                   </div>
-                  <span className="text-[11px] text-slate-500">
-                    Accepted on {fmt(slaLog.createdAt, true)}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] text-slate-500">
+                      Accepted on {fmt(slaLog.createdAt, true)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowSlaModal(true)}
+                      className="px-3 py-1.5 bg-white border border-emerald-300 hover:border-emerald-400 text-emerald-800 hover:text-emerald-900 text-xs font-bold rounded-lg shadow-2xs hover:shadow-xs transition-all flex items-center gap-1.5"
+                    >
+                      <span>📄</span>
+                      <span>View Signed SLA</span>
+                    </button>
+                  </div>
                 </div>
               );
             }
             if (client.status === 'COMPLETED') {
               return (
-                <div className="mt-4 flex items-center justify-between px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs">
                   <div className="flex items-center gap-2 text-slate-700 font-medium">
                     <span className="w-2 h-2 rounded-full bg-slate-400" />
                     <span>Historical Client · Fulfilled under Baseline Service Terms</span>
                   </div>
-                  <span className="text-[11px] text-slate-500">Service Completed</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowSlaModal(true)}
+                    className="px-3 py-1 text-xs text-slate-600 border border-slate-200 hover:bg-white rounded-lg transition-colors font-medium flex items-center gap-1"
+                  >
+                    <span>📄</span>
+                    <span>View Standard Agreement</span>
+                  </button>
                 </div>
               );
             }
             return (
-              <div className="mt-4 flex items-center justify-between px-4 py-2.5 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs">
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs">
                 <div className="flex items-center gap-2 text-amber-800 font-semibold">
                   <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                   <span>SLA Agreement: Pending Client Intake Acceptance</span>
                 </div>
-                <span className="text-[11px] text-amber-700">Client will be prompted on portal access</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-amber-700">Client will be prompted on portal access</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowSlaModal(true)}
+                    className="px-3 py-1 text-xs text-amber-800 border border-amber-300 hover:bg-white rounded-lg transition-colors font-semibold flex items-center gap-1"
+                  >
+                    <span>📄</span>
+                    <span>Preview SLA Terms</span>
+                  </button>
+                </div>
               </div>
             );
           })()}
@@ -537,7 +571,13 @@ export default function CareerClientDetailPage() {
 
       {/* ── REVISIONS ── */}
       {activeTab === 'revisions' && (
-        <RevisionAdminTab clientId={client.id} clientName={client.name} clientPackage={client.packageType ?? null} services={client.services ?? []} />
+        <RevisionAdminTab
+          clientId={client.id}
+          clientName={client.name}
+          clientPackage={client.packageType ?? null}
+          services={client.services ?? []}
+          revisionWindow={client.revisionWindow}
+        />
       )}
 
       {/* ── COMMENTS ── */}
@@ -672,6 +712,18 @@ export default function CareerClientDetailPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* ── Signed SLA & Master Services Agreement Audit Modal ── */}
+      {showSlaModal && (
+        <AdminSlaViewModal
+          isOpen={showSlaModal}
+          onClose={() => setShowSlaModal(false)}
+          clientName={client.name}
+          clientEmail={client.email}
+          acceptedAt={client.activityLogs?.find(l => l.action === 'sla_agreement_accepted')?.createdAt ?? null}
+          metadata={client.activityLogs?.find(l => l.action === 'sla_agreement_accepted')?.metadata ?? null}
+        />
       )}
     </div>
   );
@@ -2560,11 +2612,12 @@ const REV_STATUS_STYLE: Record<string, string> = {
   DENIED:   'bg-red-50 text-red-700 border-red-200',
 };
 
-function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
+function RevisionAdminTab({ clientId, clientName, clientPackage, services, revisionWindow }: {
   clientId: string;
   clientName: string;
   clientPackage: CareerPackage | null;
   services: { slug: string; name: string }[];
+  revisionWindow?: RevisionWindowInfo;
 }) {
   const [revisions,      setRevisions]      = useState<RevisionItem[]>([]);
   const [loading,        setLoading]        = useState(true);
@@ -2876,6 +2929,56 @@ function RevisionAdminTab({ clientId, clientName, clientPackage, services }: {
           + New Revision
         </button>
       </div>
+
+      {/* Revision Window Policy & Active Countdown for Admin */}
+      {revisionWindow && revisionWindow.stage !== 'NOT_DELIVERED' && (
+        <div className={`p-4 rounded-xl border flex flex-wrap items-center justify-between gap-3 text-xs ${
+          revisionWindow.stage === 'EXPIRED'
+            ? 'bg-rose-50/70 border-rose-200 text-rose-900'
+            : revisionWindow.stage === 'FINAL_DELIVERY'
+              ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+              : 'bg-amber-50/80 border-amber-200 text-amber-900'
+        }`}>
+          <div className="flex items-start sm:items-center gap-3">
+            <span className="text-xl flex-shrink-0">
+              {revisionWindow.stage === 'EXPIRED' ? '⛔' : '⏳'}
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm">
+                  {revisionWindow.stage === 'DRAFT' && 'Draft Review Window (14 Calendar Days)'}
+                  {revisionWindow.stage === 'FINAL_DELIVERY' && 'Final Delivery Review Window (7 Calendar Days)'}
+                  {revisionWindow.stage === 'EXPIRED' && 'Complimentary Revision Window Concluded'}
+                </span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${
+                  revisionWindow.stage === 'EXPIRED'
+                    ? 'bg-rose-100 text-rose-700 border-rose-300'
+                    : 'bg-white text-slate-700 border-slate-200'
+                }`}>
+                  {revisionWindow.statusLabel}
+                </span>
+              </div>
+              <p className="text-[11px] opacity-80 mt-0.5 leading-relaxed">
+                {revisionWindow.reason ?? (
+                  revisionWindow.stage === 'DRAFT'
+                    ? `${revisionWindow.daysRemaining} days remaining for complimentary draft revisions.`
+                    : revisionWindow.stage === 'FINAL_DELIVERY'
+                      ? `${revisionWindow.daysRemaining} days remaining for complimentary post-completion revisions.`
+                      : 'Free revision window has ended. Additional requests are quoted as paid engagements.'
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="text-left sm:text-right flex-shrink-0">
+            <span className="text-[10px] uppercase tracking-wider font-semibold opacity-70 block">Review Period</span>
+            <span className="font-bold text-slate-800">
+              {revisionWindow.isExpired
+                ? 'Expired'
+                : `${revisionWindow.daysRemaining} of ${revisionWindow.windowDays}d left`}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Free-revision usage per component service */}
       {componentServices.length > 0 && (

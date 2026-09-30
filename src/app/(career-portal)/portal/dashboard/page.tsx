@@ -35,6 +35,8 @@ interface Me {
   revisionCount?: number;
   revisionsLeft?: number;
   revisionSummary?: RevisionSummary[];
+  revisionWindow?: import('@/lib/career/revisionWindow').RevisionWindowInfo;
+  draftSentAt?: string | null;
   expectedDeliveryAt?: string | null;
   waitingOn?: string;
   services?: { slug: string; name: string }[];
@@ -1068,21 +1070,30 @@ export default function PortalDashboardPage() {
           {/* Revisions */}
           <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-3">Free Revisions</p>
-            {me.status === 'COMPLETED' && (me.firstCompletedAt || me.completedAt) && (() => {
-              const anchor = me.firstCompletedAt ?? me.completedAt!;
-              const days = Math.floor((Date.now() - new Date(anchor).getTime()) / (1000 * 60 * 60 * 24));
-              const daysLeft = 15 - days;
-              if (daysLeft <= 0) return (
-                <p className="text-[11px] text-red-500 font-medium mb-2 flex items-center gap-1">
-                  <span>⚠️</span> Revision window closed · contact us for paid support
-                </p>
+            {me.revisionWindow && me.revisionWindow.stage !== 'NOT_DELIVERED' && (() => {
+              const rw = me.revisionWindow;
+              if (rw.isExpired) {
+                return (
+                  <div className="mb-3 p-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center justify-between">
+                    <span className="font-bold flex items-center gap-1.5">
+                      <span>⛔</span> {rw.statusLabel}
+                    </span>
+                    <Link href="/portal/dashboard/files" className="font-bold underline hover:text-red-900 text-[11px]">
+                      Request Paid Quote →
+                    </Link>
+                  </div>
+                );
+              }
+              return (
+                <div className="mb-3 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center justify-between">
+                  <span className="font-bold flex items-center gap-1.5">
+                    <span>⏳</span> {rw.statusLabel}
+                  </span>
+                  <span className="text-[10px] text-emerald-600 font-medium">
+                    {rw.stage === 'FINAL_DELIVERY' ? '7d Final Review Policy' : '14d Draft Review Policy'}
+                  </span>
+                </div>
               );
-              if (daysLeft <= 5) return (
-                <p className="text-[11px] text-amber-600 font-medium mb-2">
-                  {daysLeft} day{daysLeft !== 1 ? 's' : ''} left in your free revision window
-                </p>
-              );
-              return null;
             })()}
             {me.revisionSummary && me.revisionSummary.length > 0 ? (
               <div className="space-y-3">

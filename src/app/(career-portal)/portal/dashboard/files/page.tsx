@@ -123,9 +123,17 @@ export default function FilesPage() {
     return 'RESUME';
   };
 
+  const [revWindowExpired, setRevWindowExpired] = useState(false);
+
   const openRevision = (file?: FileItem) => {
     setRevFile(file?.label || '');
     setRevSlug(file ? mapFileTypeToServiceSlug(file.fileType) : 'GENERAL');
+    if (file && file.fileCategory === 'draft') {
+      const daysSince = Math.floor((Date.now() - new Date(file.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+      setRevWindowExpired(daysSince > 14);
+    } else {
+      setRevWindowExpired(false);
+    }
     setShowRevModal(true);
   };
 
@@ -218,29 +226,47 @@ export default function FilesPage() {
                 <path stroke="#d97706" strokeWidth="2" strokeLinecap="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
               <p className="text-xs text-amber-800 leading-relaxed">
-                Review each draft carefully and use the <strong>Request Revision</strong> button if you need any changes. Free revisions are limited per service.
+                Review each draft carefully within <strong>14 calendar days</strong> of upload. Free revisions are limited to 2 per component. Once the 14-day window expires or quota is reached, additional requests are quoted as paid engagements.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {drafts.map(file => {
                 const ft = FILE_ICONS[file.fileType] ?? FILE_ICONS.other;
+                const fileSlug = mapFileTypeToServiceSlug(file.fileType);
+                const qItem = revSummary.find(s => s.slug === fileSlug);
+                const isExhausted = qItem ? qItem.revisionsLeft === 0 : false;
+                const daysSince = Math.floor((Date.now() - new Date(file.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+                const daysLeft = Math.max(0, 14 - daysSince);
+                const isExpired = daysSince > 14;
+
                 return (
                   <div key={file.id}
                     className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs hover:shadow-md hover:border-amber-200 hover-lift transition-all flex flex-col justify-between">
                     <div>
-                      <div className="flex items-start justify-between gap-4 mb-4">
+                      <div className="flex items-start justify-between gap-4 mb-3">
                         <div className={`w-14 h-14 ${ft.bg} rounded-2xl flex items-center justify-center flex-shrink-0 relative`}>
                           {ft.icon}
                         </div>
-                        <span className="px-2.5 py-1 bg-amber-100 text-amber-700 text-status font-bold rounded-full uppercase tracking-widest flex-shrink-0">
-                          Draft
-                        </span>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="px-2.5 py-1 bg-amber-100 text-amber-700 text-status font-bold rounded-full uppercase tracking-widest flex-shrink-0">
+                            Draft
+                          </span>
+                          {isExpired ? (
+                            <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold rounded-full">
+                              ⛔ 14d review closed
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold rounded-full flex items-center gap-1">
+                              <span>⏳</span> {daysLeft}d left to review
+                            </span>
+                          )}
+                        </div>
                       </div>
                       
                       <p className="text-body font-bold text-slate-900 truncate mb-1" title={file.label}>{file.label}</p>
                       
-                      <div className="flex items-center gap-2 mb-6">
+                      <div className="flex items-center gap-2 mb-3">
                         <span className="text-metadata text-slate-500 capitalize">
                           {file.fileType.replace(/_/g, ' ')}
                         </span>
@@ -251,6 +277,15 @@ export default function FilesPage() {
                           })}
                         </span>
                       </div>
+
+                      {qItem && (
+                        <div className="mb-4 flex items-center justify-between px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl text-[11px]">
+                          <span className="text-slate-500">Complimentary Revisions:</span>
+                          <span className={`font-bold ${isExhausted ? 'text-amber-700' : 'text-slate-700'}`}>
+                            {qItem.freeUsed}/{qItem.freeLimit} used ({qItem.revisionsLeft} left)
+                          </span>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex items-center gap-2 mt-auto">
@@ -264,10 +299,23 @@ export default function FilesPage() {
                       </a>
                       <button
                         onClick={() => openRevision(file)}
-                        className="flex-1 flex items-center justify-center gap-2 h-10 bg-orange-50 border border-orange-200 text-orange-700 font-semibold text-sm rounded-xl hover:bg-orange-100 hover:border-orange-300 transition-all"
-                        title="Request Revision">
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                        Revision
+                        className={`flex-1 flex items-center justify-center gap-1.5 h-10 font-semibold text-xs sm:text-sm rounded-xl transition-all ${
+                          isExpired || isExhausted
+                            ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-xs'
+                            : 'bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100 hover:border-orange-300'
+                        }`}
+                        title={isExpired || isExhausted ? 'Request Paid Quote' : 'Request Revision'}>
+                        {isExpired || isExhausted ? (
+                          <>
+                            <span>📋</span>
+                            <span>Request Quote</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            <span>Revision</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -572,6 +620,7 @@ export default function FilesPage() {
           fileLabel={revFile}
           serviceSlug={revSlug}
           summaryItem={selectedSummary}
+          isWindowExpired={revWindowExpired}
           onClose={() => setShowRevModal(false)}
           onAdded={afterRevisionAdded}
         />
@@ -594,21 +643,24 @@ function RevisionModal({
   fileLabel,
   serviceSlug,
   summaryItem,
+  isWindowExpired = false,
   onClose,
   onAdded,
 }: {
   fileLabel: string;
   serviceSlug: string;
   summaryItem?: RevisionSummaryItem;
+  isWindowExpired?: boolean;
   onClose: () => void;
   onAdded: (r: RevisionItem) => void;
 }) {
   const isFreeQuotaExhausted = summaryItem ? summaryItem.revisionsLeft === 0 : false;
+  const isPaidMandatory = isFreeQuotaExhausted || isWindowExpired;
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [note,    setNote]    = useState('');
-  const [isOutOfScope, setIsOutOfScope] = useState(isFreeQuotaExhausted);
+  const [isOutOfScope, setIsOutOfScope] = useState(isPaidMandatory);
   const [outOfScopeCategory, setOutOfScopeCategory] = useState<OutOfScopeCategoryKey>(
-    isFreeQuotaExhausted ? 'POST_WINDOW' : 'CAREER_PIVOT'
+    isPaidMandatory ? 'POST_WINDOW' : 'CAREER_PIVOT'
   );
   const [preferredCurrency, setPreferredCurrency] = useState('USD');
   const [loading, setLoading] = useState(false);
@@ -620,7 +672,7 @@ function RevisionModal({
   const toggleArea = (a: string) =>
     setSelectedAreas(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]);
 
-  const activeOutOfScope = isOutOfScope || isFreeQuotaExhausted;
+  const activeOutOfScope = isOutOfScope || isPaidMandatory;
   const selectedCatDef = OUT_OF_SCOPE_CATEGORIES[outOfScopeCategory];
 
   const composedNote = (): string => {
@@ -700,7 +752,11 @@ function RevisionModal({
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">
-                  {activeOutOfScope ? 'Request Out-of-Scope Quotation' : 'Request a Revision'}
+                  {isWindowExpired
+                    ? 'Request Post-Window Revision Quote'
+                    : activeOutOfScope
+                      ? 'Request Out-of-Scope Quotation'
+                      : 'Request a Revision'}
                 </h3>
                 {fileLabel && <p className="text-xs text-slate-400 mt-0.5">Re: {fileLabel}</p>}
               </div>
@@ -708,6 +764,19 @@ function RevisionModal({
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{error}</p>}
+
+              {/* ── 14-Day Window Notice (if expired) ── */}
+              {isWindowExpired && (
+                <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2.5">
+                  <span className="text-amber-800 text-base flex-shrink-0">⏱️</span>
+                  <div>
+                    <p className="text-xs font-bold text-amber-900">14-Day Draft Review Window Concluded</p>
+                    <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                      Per the Master Services Agreement &amp; Turnaround SLA, complimentary draft revisions must be submitted within 14 calendar days of draft upload. Because this window has concluded, this request will be reviewed by the Catalyst team as an out-of-scope engagement for quote evaluation.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* ── Revision Policy Box ─────────────────────────── */}
               <div className="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden text-xs">
@@ -738,7 +807,7 @@ function RevisionModal({
                     <ul className="space-y-0.5 text-slate-600">
                       <li>Full rewrites or entirely new sections</li>
                       <li>Adding roles / projects not in brief</li>
-                      <li>Strategic profile repositioning</li>
+                      <li>Post-window submissions (&gt;14d draft / &gt;7d final)</li>
                     </ul>
                   </div>
                 </div>
@@ -750,7 +819,7 @@ function RevisionModal({
                   <input
                     type="checkbox"
                     checked={activeOutOfScope}
-                    disabled={isFreeQuotaExhausted}
+                    disabled={isPaidMandatory}
                     onChange={e => setIsOutOfScope(e.target.checked)}
                     className="mt-0.5 w-4 h-4 rounded border-slate-300 accent-[#B8935B]"
                   />
@@ -759,9 +828,11 @@ function RevisionModal({
                       This request is out of scope or an additional engagement
                     </span>
                     <span className="text-[11px] text-slate-500 block mt-0.5">
-                      {isFreeQuotaExhausted
-                        ? 'All free revisions have been used. Our team will review the scope and provide a custom quote in your currency.'
-                        : 'Check this if you are requesting major additions or new sections. Our team will quote this as a paid engagement.'}
+                      {isWindowExpired
+                        ? 'Draft review window (14 days) has elapsed. Our team will review the scope and provide a custom quote in your currency.'
+                        : isFreeQuotaExhausted
+                          ? 'All free revisions have been used. Our team will review the scope and provide a custom quote in your currency.'
+                          : 'Check this if you are requesting major additions or new sections. Our team will quote this as a paid engagement.'}
                     </span>
                   </div>
                 </label>

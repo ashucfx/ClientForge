@@ -16,6 +16,7 @@ import type { CareerPackage, CareerStatus, CareerServiceSlug } from '@/lib/caree
 import { waitUntil } from '@vercel/functions';
 import { sendCareerEmail } from '@/lib/career/email';
 import { expandClientServices, migrateClientToComponentServices } from '@/lib/career/services';
+import { calculateRevisionWindow } from '@/lib/career/revisionWindow';
 
 export async function GET(req: NextRequest) {
   void req;
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
     select: {
       id: true, name: true, email: true, phone: true, contact: { select: { country: true } },
       packageType: true, status: true,
-      lifecycleStatus: true, completedAt: true, firstCompletedAt: true,
+      lifecycleStatus: true, completedAt: true, firstCompletedAt: true, draftSentAt: true,
       waitingOn: true,
       pinHash: true, currency: true,
       createdAt: true,
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
         orderBy: { submittedAt: 'desc' },
       },
       deliverables: {
-        select: { fileType: true, fileCategory: true, label: true, approvalStatus: true },
+        select: { id: true, fileType: true, fileCategory: true, label: true, approvalStatus: true, createdAt: true },
         orderBy: { createdAt: 'desc' },
       },
       revisions: {
@@ -228,6 +229,15 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: 'desc' },
   });
 
+  const draftFiles = client.deliverables.filter(d => d.fileCategory === 'draft');
+  const revisionWindow = calculateRevisionWindow({
+    status: client.status,
+    draftSentAt: client.draftSentAt,
+    completedAt: client.completedAt,
+    firstCompletedAt: client.firstCompletedAt,
+    deliverableCreatedAt: draftFiles[0]?.createdAt ?? null,
+  });
+
   return NextResponse.json({
     id: client.id,
     name: client.name,
@@ -251,6 +261,8 @@ export async function GET(req: NextRequest) {
     revisionSummary,
     completedAt: client.completedAt,
     firstCompletedAt: client.firstCompletedAt,
+    draftSentAt: client.draftSentAt,
+    revisionWindow,
     availableForms,
     submittedForms: Array.from(submittedFormsNormalized),
     forms: formsNormalized,

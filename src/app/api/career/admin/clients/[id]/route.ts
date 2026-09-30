@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 import { expandClientServices, migrateClientToComponentServices } from '@/lib/career/services';
+import { calculateRevisionWindow } from '@/lib/career/revisionWindow';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -90,6 +91,15 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     void migrateClientToComponentServices(client.id, expandedServices);
   }
 
+  const draftFiles = (client.deliverables || []).filter((d: any) => d.fileCategory === 'draft');
+  const revisionWindow = calculateRevisionWindow({
+    status: client.status,
+    draftSentAt: client.draftSentAt,
+    completedAt: client.completedAt,
+    firstCompletedAt: client.firstCompletedAt,
+    deliverableCreatedAt: draftFiles[0]?.createdAt ?? null,
+  });
+
   return NextResponse.json({
     client: {
       ...rest,
@@ -99,6 +109,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       forms: optimizedForms,
       services: expandedServices,
       invoice: linkedInvoice,
+      revisionWindow,
     },
   });
 }

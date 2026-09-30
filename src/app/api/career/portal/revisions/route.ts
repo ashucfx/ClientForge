@@ -12,6 +12,7 @@ import { notifyAllAdmins } from '@/lib/notifications';
 import { waitUntil } from '@vercel/functions';
 import { addWorkingDays, getHolidaySet } from '@/lib/workingDays';
 import { expandServiceSlugs } from '@/lib/career/services';
+import { calculateRevisionWindow } from '@/lib/career/revisionWindow';
 
 
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'catalyst@theripplenexus.com';
@@ -28,8 +29,13 @@ async function getClient() {
     where: { id: payload.clientId },
     select: {
       id: true, name: true, email: true, status: true,
-      completedAt: true, firstCompletedAt: true, lifecycleStatus: true,
+      completedAt: true, firstCompletedAt: true, draftSentAt: true, lifecycleStatus: true,
       services: { select: { service: { select: { slug: true } } } },
+      deliverables: {
+        where: { fileCategory: 'draft' },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, label: true, fileType: true, createdAt: true },
+      },
     },
   });
   return client ?? null;
@@ -89,15 +95,20 @@ export async function POST(req: NextRequest) {
   const outOfScopeCategory = (body?.outOfScopeCategory as string | undefined)?.trim().toUpperCase();
   const customReason      = (body?.outOfScopeReason as string | undefined)?.trim();
 
-  // 15-day post-delivery window check
-  const windowAnchor = client.firstCompletedAt ?? client.completedAt;
-  let isWindowExpired = false;
-  if (client.status === 'COMPLETED' && windowAnchor) {
-    const daysSinceDelivery = Math.floor((Date.now() - new Date(windowAnchor).getTime()) / (1000 * 60 * 60 * 24));
-    if (daysSinceDelivery > 15) {
-      isWindowExpired = true;
-    }
-  }
+  // Dynamic revision window check (14 days for draft review, 7 days post-completion)
+  const matchingDraft = fileLabel
+    ? client.deliverables?.find(d => d.label === fileLabel)
+    : client.deliverables?.[0];
+
+  const windowInfo = calculateRevisionWindow({
+    status: client.status,
+    draftSentAt: client.draftSentAt,
+    completedAt: client.completedAt,
+    firstCompletedAt: client.firstCompletedAt,
+    deliverableCreatedAt: matchingDraft?.createdAt ?? null,
+  });
+
+  const isWindowExpired = windowInfo.isExpired;
 
   // Resolve service slug: map any package slugs to constituent components
   const rawServiceSlugs = client.services.map(s => s.service.slug);
@@ -148,7 +159,7 @@ export async function POST(req: NextRequest) {
         isQuotaExhausted
           ? `Complimentary revision quota (${FREE_LIMIT}/${FREE_LIMIT}) exhausted.`
           : isWindowExpired
-          ? 'Complimentary 15-day delivery revision window has elapsed.'
+          ? (windowInfo.reason || 'Complimentary revision window has elapsed.')
           : 'Substantive scope addition outside baseline complimentary revision guidelines.'
       );
       finalNote = `[OUT_OF_SCOPE_CATEGORY: ${category}]\n[OUT_OF_SCOPE_REASON: ${reason}]\n[PREFERRED_CURRENCY: ${preferredCurrency}]\n\n${rawNote}`;
