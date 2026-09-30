@@ -459,8 +459,8 @@ export function CatalystTaxInvoiceEmailCard({
                     const sanitized = sanitizeItemDescription(item.description, pkg.packageName);
                     const isFree = item.lineTotal === 0 || sanitized.isComp;
                     const qtyStr = item.qty < 10 ? `0${item.qty}` : `${item.qty}`;
-                    const formattedRate = isFree ? `${curSym}0.00` : fmt(item.unitPrice);
-                    const formattedTotal = isFree ? `${curSym}0.00` : fmt(item.lineTotal);
+                    const formattedRate = isFree ? fmt(0) : fmt(item.unitPrice);
+                    const formattedTotal = isFree ? fmt(0) : fmt(item.lineTotal);
 
                     return (
                       <tr key={item.id || idx} style={{ borderBottom: '1px solid #F1F5F9' }}>

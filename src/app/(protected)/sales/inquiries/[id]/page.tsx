@@ -25,17 +25,9 @@ const SERVICE_CATALOG = [
   { label: 'Custom',                  description: '',                                     price: 0    },
 ];
 
-const CURRENCY_OPTIONS = [
-  { code: 'INR', symbol: '₹' },
-  { code: 'USD', symbol: '$' },
-  { code: 'GBP', symbol: '£' },
-  { code: 'EUR', symbol: '€' },
-  { code: 'AED', symbol: 'AED' },
-  { code: 'SAR', symbol: 'SAR' },
-  { code: 'SGD', symbol: 'S$' },
-  { code: 'AUD', symbol: 'A$' },
-  { code: 'CAD', symbol: 'C$' },
-];
+import { SUPPORTED_CURRENCIES } from '@/lib/currency';
+
+const CURRENCY_OPTIONS = SUPPORTED_CURRENCIES;
 
 interface LineItemRow {
   id: string;
@@ -476,7 +468,7 @@ export default function SalesInquiryDetailPage() {
                         className="border rounded-lg px-3 py-2 text-sm"
                       >
                         {CURRENCY_OPTIONS.map(c => (
-                          <option key={c.code} value={c.code}>{c.code} {c.symbol}</option>
+                          <option key={c.code} value={c.code}>{c.code} ({c.symbol}) — {c.name}</option>
                         ))}
                       </select>
                     </div>

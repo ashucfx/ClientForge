@@ -1,6 +1,7 @@
 // src/lib/currency.ts
 
 import type { CurrencyInfo } from '@/types';
+import { ALL_CURRENCIES } from './allCurrencies';
 
 // ─────────────────────────────────────────────
 // COUNTRY → CURRENCY MAPPING
@@ -146,12 +147,28 @@ export function countryNameFromIso(iso: string): string | null {
   return ISO2_TO_COUNTRY[iso.toUpperCase()] ?? null;
 }
 
-// All unique currencies
-export const SUPPORTED_CURRENCIES: CurrencyInfo[] = Array.from(
-  new Map(
-    Object.values(COUNTRY_CURRENCY_MAP).map(c => [c.code, c])
-  ).values()
-).sort((a, b) => a.code.localeCompare(b.code));
+// All unique currencies — combination of curated country mapping and complete ISO-4217 registry (160+ currencies)
+const curatedMap = new Map<string, CurrencyInfo>(
+  Object.values(COUNTRY_CURRENCY_MAP).map(c => [c.code, c])
+);
+
+export const SUPPORTED_CURRENCIES: CurrencyInfo[] = ALL_CURRENCIES.map(code => {
+  if (curatedMap.has(code)) {
+    return curatedMap.get(code)!;
+  }
+  let name = code;
+  let symbol = code;
+  try {
+    const displayNames = new Intl.DisplayNames(['en'], { type: 'currency' });
+    name = displayNames.of(code) || code;
+  } catch {}
+  try {
+    const parts = new Intl.NumberFormat('en', { style: 'currency', currency: code }).formatToParts(0);
+    const s = parts.find(p => p.type === 'currency')?.value;
+    if (s) symbol = s;
+  } catch {}
+  return { code, symbol, name };
+}).sort((a, b) => a.code.localeCompare(b.code));
 
 // ─────────────────────────────────────────────
 // GET CURRENCY FOR COUNTRY
@@ -161,8 +178,9 @@ export function getCurrencyForCountry(country: string): CurrencyInfo {
 }
 
 export function getCurrencyByCode(code: string): CurrencyInfo {
-  return SUPPORTED_CURRENCIES.find(c => c.code === code) ?? 
-    { code: 'USD', symbol: '$', name: 'US Dollar' };
+  const upper = (code || '').toUpperCase().trim();
+  return SUPPORTED_CURRENCIES.find(c => c.code === upper) ?? 
+    { code: upper || 'USD', symbol: upper === 'INR' ? '₹' : (upper === 'MYR' ? 'RM' : '$'), name: upper || 'US Dollar' };
 }
 
 // ─────────────────────────────────────────────

@@ -232,10 +232,21 @@ export function round2(n: number): number {
 }
 
 export function formatCurrency(amount: number, symbol: string): string {
-  return `${symbol}${amount.toLocaleString('en-US', {
+  const isNegative = amount < 0;
+  const absAmount = Math.abs(amount);
+  const formatted = absAmount.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })}`;
+  });
+  if (!symbol) return isNegative ? `-${formatted}` : formatted;
+  const trimmed = symbol.trim();
+  // Standard international financial typography:
+  // Multi-character or alphabetical symbols (e.g. RM, AED, SAR, SGD, CAD, AUD, CHF, kr, zł, QR)
+  // require a space so letters don't blend into digits: "RM 750.00", "AED 1,500.00"
+  // Single typographic glyphs (e.g. ₹, $, £, €) stay attached: "₹750.00", "$750.00"
+  const needsSpace = /[A-Za-z]/.test(trimmed) || trimmed.length > 1;
+  const symPart = `${trimmed}${needsSpace ? ' ' : ''}`;
+  return isNegative ? `-${symPart}${formatted}` : `${symPart}${formatted}`;
 }
 
 export function toSmallestUnit(amount: number, currency: string): number {

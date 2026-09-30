@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { COUNTRIES, ISO2_TO_COUNTRY } from '@/lib/currency';
 import { parsePhoneNumberFromString } from 'libphonenumber-js/min';
-import { CLIENT_TYPE_LABELS, FEE_RATES, round2, getServiceDescription } from '@/lib/pricing';
+import { CLIENT_TYPE_LABELS, FEE_RATES, round2, getServiceDescription, formatCurrency } from '@/lib/pricing';
 import type { BankRoutingIntelligence } from '@/lib/bankRouting';
 import { DEFAULT_PRICING, PACKAGE_COMPLEMENTARY } from '@/lib/pricing-v2';
 import type { ServiceSlug, PackageSlug, PricingConfig } from '@/lib/pricing-v2';
@@ -35,7 +35,7 @@ const CLIENT_META: Record<ClientType, { sub: string; color: string }> = {
 function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
 
 function fmt(n: number, sym: string) {
-  return `${sym}${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return formatCurrency(n, sym);
 }
 
 function makeItem(description = '', qty = 1, unitPrice = 0, shortDescription = ''): LineItem {

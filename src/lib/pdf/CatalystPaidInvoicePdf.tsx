@@ -21,6 +21,7 @@ import crypto from 'crypto';
 import type { InvoiceData, LineItem } from '@/types';
 import { parseInvoiceLineItems } from '@/lib/invoiceLineItems';
 import { resolveInvoicePackage } from '@/lib/invoicePackageResolver';
+import { formatCurrency } from '@/lib/pricing';
 
 // ── Palette Tokens matching gemini-svg.svg ────────────────────────────────────
 const COLORS = {
@@ -662,6 +663,7 @@ function sanitizeItemDescription(rawDesc: string, pkgName: string): { title: str
 export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData }) {
   const lineItems: LineItem[] = parseInvoiceLineItems(invoice.lineItems);
   const curSym = invoice.currencySymbol || invoice.currency;
+  const fmt = (n: number) => formatCurrency(n, curSym);
 
   // Derive package display (Career Booster Package vs Premium Plus Package)
   const pkg = getPackageDetails(invoice.clientType, invoice.notes, lineItems);
@@ -816,8 +818,8 @@ export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData 
                 const sanitized = sanitizeItemDescription(item.description, pkg.packageName);
                 const isFree = item.lineTotal === 0 || sanitized.isComp;
                 const qtyStr = item.qty < 10 ? `0${item.qty}` : `${item.qty}`;
-                const formattedRate = isFree ? `${curSym}0.00` : `${curSym}${item.unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                const formattedTotal = isFree ? `${curSym}0.00` : `${curSym}${item.lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                const formattedRate = isFree ? fmt(0) : fmt(item.unitPrice);
+                const formattedTotal = isFree ? fmt(0) : fmt(item.lineTotal);
 
                 return (
                   <View key={item.id || idx} style={styles.tableRow}>
@@ -846,7 +848,7 @@ export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData 
                 <View style={styles.totalRow}>
                   <Text style={styles.totalRowLabel}>Net Subtotal</Text>
                   <Text style={styles.totalRowVal}>
-                    {curSym}{invoice.subtotalConverted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {fmt(invoice.subtotalConverted)}
                   </Text>
                 </View>
 
@@ -856,7 +858,7 @@ export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData 
                       Concession / Discount (-{invoice.discountRate}%)
                     </Text>
                     <Text style={[styles.totalRowVal, { color: COLORS.emeraldDot }]}>
-                      -{curSym}{invoice.discountAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      -{fmt(invoice.discountAmount)}
                     </Text>
                   </View>
                 )}
@@ -865,7 +867,7 @@ export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData 
                   <View style={styles.totalRow}>
                     <Text style={styles.totalRowLabel}>Applicable Tax (+{invoice.taxRate}%)</Text>
                     <Text style={styles.totalRowVal}>
-                      +{curSym}{invoice.taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      +{fmt(invoice.taxAmount)}
                     </Text>
                   </View>
                 )}
@@ -874,7 +876,7 @@ export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData 
                   <View style={styles.totalRow}>
                     <Text style={styles.totalRowLabel}>Processing &amp; Settlement Fee</Text>
                     <Text style={styles.totalRowVal}>
-                      +{curSym}{invoice.processingFeeConverted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      +{fmt(invoice.processingFeeConverted)}
                     </Text>
                   </View>
                 )}
@@ -886,7 +888,7 @@ export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData 
                   <Text style={styles.settledLeft}>TOTAL PAID ({invoice.currency})</Text>
                   <View style={styles.settledRight}>
                     <Text style={styles.settledAmount}>
-                      {curSym}{invoice.totalPayable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {fmt(invoice.totalPayable)}
                     </Text>
                     <Text style={styles.settledSub}>{gatewayLabel}</Text>
                   </View>

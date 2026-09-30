@@ -6,6 +6,7 @@ import Link from 'next/link';
 import AppShell from '@/components/AppShell';
 import { STATUS_LABELS, SERVICE_LABELS, PACKAGE_LABELS } from '@/lib/career/types';
 import type { CareerStatus, CareerServiceSlug, CareerPackage } from '@/lib/career/types';
+import { SUPPORTED_CURRENCIES, getCurrencyByCode } from '@/lib/currency';
 
 const STATUS_COLORS: Record<CareerStatus, string> = {
   NOT_STARTED:        'bg-slate-100 text-slate-600',
@@ -294,24 +295,11 @@ export default function CareerClientsPage() {
 
 // ── Add Client Modal ──────────────────────────────────────────────────────────
 
-const CURRENCIES = [
-  { code: 'INR', symbol: '₹',   label: 'INR ₹' },
-  { code: 'USD', symbol: '$',   label: 'USD $' },
-  { code: 'GBP', symbol: '£',   label: 'GBP £' },
-  { code: 'EUR', symbol: '€',   label: 'EUR €' },
-  { code: 'AED', symbol: 'د.إ', label: 'AED د.إ' },
-  { code: 'SGD', symbol: 'S$',  label: 'SGD S$' },
-  { code: 'AUD', symbol: 'A$',  label: 'AUD A$' },
-  { code: 'CAD', symbol: 'C$',  label: 'CAD C$' },
-  { code: 'SAR', symbol: '﷼',   label: 'SAR ﷼' },
-  { code: 'QAR', symbol: 'QR',  label: 'QAR QR' },
-  { code: 'PKR', symbol: '₨',   label: 'PKR ₨' },
-  { code: 'BDT', symbol: '৳',   label: 'BDT ৳' },
-  { code: 'MYR', symbol: 'RM',  label: 'MYR RM' },
-  { code: 'ZAR', symbol: 'R',   label: 'ZAR R' },
-  { code: 'KES', symbol: 'KSh', label: 'KES KSh' },
-  { code: 'NGN', symbol: '₦',   label: 'NGN ₦' },
+const POPULAR_CURRENCY_CODES = [
+  'INR', 'USD', 'MYR', 'AED', 'SAR', 'GBP', 'EUR', 'SGD',
+  'CAD', 'AUD', 'QAR', 'KWD', 'BHD', 'OMR', 'NZD', 'ZAR'
 ];
+const POPULAR_CURRENCIES = POPULAR_CURRENCY_CODES.map(code => getCurrencyByCode(code));
 
 function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: () => void }) {
   const [form, setForm] = useState({
@@ -331,7 +319,7 @@ function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
     });
   };
 
-  const currencySymbol = CURRENCIES.find(c => c.code === form.currency)?.symbol ?? '';
+  const currencySymbol = getCurrencyByCode(form.currency).symbol || form.currency;
 
   const fetchInvoice = async () => {
     if (!form.invoiceId.trim()) return;
@@ -531,11 +519,22 @@ function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
               <select
                 value={form.currency}
                 onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
-                className="w-32 flex-shrink-0 px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 font-semibold text-slate-700"
+                className="w-40 sm:w-44 flex-shrink-0 px-3 py-2.5 text-xs sm:text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B8935B] bg-slate-50 font-semibold text-slate-700"
               >
-                {CURRENCIES.map(c => (
-                  <option key={c.code} value={c.code}>{c.label}</option>
-                ))}
+                <optgroup label="Popular Currencies">
+                  {POPULAR_CURRENCIES.map(c => (
+                    <option key={`pop-${c.code}`} value={c.code}>
+                      {c.code} ({c.symbol}) — {c.name}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="All Global Currencies">
+                  {SUPPORTED_CURRENCIES.map(c => (
+                    <option key={c.code} value={c.code}>
+                      {c.code} ({c.symbol}) — {c.name}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
               <div className="relative flex-1">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold pointer-events-none select-none">
@@ -545,8 +544,8 @@ function AddClientModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
                   type="number" min="0" step="0.01"
                   value={form.amountPaid}
                   onChange={e => setForm(f => ({ ...f, amountPaid: e.target.value }))}
-                  placeholder="0"
-                  className={`${inputCls} pl-7`}
+                  placeholder="0.00"
+                  className={`${inputCls} ${currencySymbol.length > 2 ? 'pl-14' : currencySymbol.length > 1 ? 'pl-11' : 'pl-8'}`}
                 />
               </div>
             </div>

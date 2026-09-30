@@ -692,7 +692,7 @@ function SettlementPanel({
             <div className="text-[10px] text-slate-500 font-medium">
               {invoice.amountSettledInr !== null
                 ? isForeign
-                  ? `Settled: ₹${invoice.amountSettledInr.toLocaleString('en-IN')} (≈ ${sym}${convertInrToForeign(invoice.amountSettledInr, invoice.currency, invoice.exchangeRate).toLocaleString('en-US', { minimumFractionDigits: 2 })}) · Gap: ${gapInr !== null ? (gapInr >= 0 ? `₹${gapInr.toLocaleString('en-IN')} (≈ ${sym}${gapForeign})` : `-₹${Math.abs(gapInr).toLocaleString('en-IN')}`) : '—'} (${gapPct}%)`
+                  ? `Settled: ₹${invoice.amountSettledInr.toLocaleString('en-IN')} (≈ ${formatCurrency(convertInrToForeign(invoice.amountSettledInr, invoice.currency, invoice.exchangeRate), sym)}) · Gap: ${gapInr !== null ? (gapInr >= 0 ? `₹${gapInr.toLocaleString('en-IN')} (≈ ${formatCurrency(gapForeign ?? 0, sym)})` : `-₹${Math.abs(gapInr).toLocaleString('en-IN')}`) : '—'} (${gapPct}%)`
                   : `Settled: ₹${invoice.amountSettledInr.toLocaleString('en-IN')} · Gap: ${gapInr !== null ? `₹${Math.abs(gapInr).toLocaleString('en-IN')}` : '—'} (${gapPct}%)`
                 : 'Enter actual amount credited to your bank account'}
             </div>
@@ -708,17 +708,17 @@ function SettlementPanel({
             {[
               {
                 label: 'Invoiced (gross)',
-                val: `${sym}${grossForeign.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                val: formatCurrency(grossForeign, sym),
                 sub: isForeign ? `≈ ₹${grossInr.toLocaleString('en-IN')} (incl. tax & fees)` : 'incl. fees & tax',
               },
               {
                 label: 'Net Revenue',
-                val: `${sym}${netForeign.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                val: formatCurrency(netForeign, sym),
                 sub: isForeign ? `≈ ₹${netInr.toLocaleString('en-IN')} (target net)` : 'your subtotal',
               },
               {
                 label: 'Processing Fee',
-                val: `${sym}${feeForeign.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                val: formatCurrency(feeForeign, sym),
                 sub: isForeign ? `≈ ₹${feeInr.toLocaleString('en-IN')}` : 'in invoice currency',
               },
               {
@@ -814,7 +814,7 @@ function SettlementPanel({
                 <div className="mt-1 text-[11px] text-slate-500 font-medium flex items-center justify-between">
                   <span>
                     {inputMode === 'INR'
-                      ? `Equivalent in ${invoice.currency}: ≈ ${sym}${equivalentForeign?.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                      ? `Equivalent in ${invoice.currency}: ≈ ${formatCurrency(equivalentForeign || 0, sym)}`
                       : `Credited to Indian bank: ≈ ₹${parsedInr.toLocaleString('en-IN')}`}
                   </span>
                   <span className="text-[10px] text-slate-400 font-mono">
