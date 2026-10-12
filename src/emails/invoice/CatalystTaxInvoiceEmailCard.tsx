@@ -21,6 +21,8 @@ function getPackageDetails(clientType?: string | null, notes?: string | null, li
   return resolveInvoicePackage(clientType, notes, lineItems);
 }
 
+const catalystEmailLogoUrl = `${(process.env.NEXT_PUBLIC_APP_URL ?? 'https://clientforge.theripplenexus.com').replace(/\/$/, '')}/logos/catalyst-email-mark.png`;
+
 function sanitizeItemDescription(rawDesc: string, pkgName: string): { title: string; subtitle?: string; isComp?: boolean } {
   const lower = (rawDesc || '').toLowerCase().trim();
 
@@ -214,7 +216,7 @@ export function CatalystTaxInvoiceEmailCard({
                           <tr>
                             <td valign="middle" style={{ width: '48px', paddingRight: '12px' }}>
                               <img
-                                src="https://catalyst.theripplenexus.com/logos/catalyst-email-mark.png"
+                                src={catalystEmailLogoUrl}
                                 alt="Catalyst"
                                 width="44"
                                 height="44"
