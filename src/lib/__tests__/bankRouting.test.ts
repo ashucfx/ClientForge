@@ -25,21 +25,21 @@ describe('isAccountSwiftCapable', () => {
 });
 
 describe('getServiceDescription & pre-filled component descriptions', () => {
-  it('returns appropriate tier-tailored descriptions', () => {
+  it('returns professional descriptions independent of career history', () => {
     const fresherResume = getServiceDescription('RESUME', 'FRESHER');
-    expect(fresherResume).toContain('ATS-optimized');
+    expect(fresherResume).toContain('target role');
 
     const execResume = getServiceDescription('RESUME', 'EXECUTIVE');
-    expect(execResume).toContain('Executive-grade');
+    expect(execResume).toContain('professional value');
 
     const execPortfolio = getServiceDescription('PORTFOLIO', 'EXECUTIVE');
-    expect(execPortfolio).toContain('Executive bio');
+    expect(execPortfolio).toContain('Professional portfolio');
 
     const midLinkedin = getServiceDescription('LINKEDIN', 'MID_CAREER');
-    expect(midLinkedin).toContain('LinkedIn transformation');
+    expect(midLinkedin).toContain('professional narrative');
 
     const execConnect = getServiceDescription('EXECUTIVE_CONNECT', 'EXECUTIVE');
-    expect(execConnect).toContain('executive positioning');
+    expect(execConnect).toContain('Personalized strategy consultation');
   });
 
   it('parses and normalizes line items with shortDescription', () => {
@@ -91,4 +91,3 @@ describe('convertForeignToInr', () => {
     expect(inr).toBe(8350);
   });
 });
-
