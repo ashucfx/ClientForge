@@ -18,6 +18,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
 
+    const submittedEmail = String(clientEmail).trim().toLowerCase();
+    const invoiceEmail = invoice.clientEmail.trim().toLowerCase();
+    if (submittedEmail !== invoiceEmail) {
+      return NextResponse.json(
+        { error: 'The submitted email does not match the invoice.' },
+        { status: 403 }
+      );
+    }
+
     // Check if a request already exists
     const existing = await db.bankTransferRequest.findFirst({
       where: { invoiceId }
@@ -31,7 +40,7 @@ export async function POST(req: NextRequest) {
       data: {
         invoiceId: invoice.id,
         clientName: clientName,
-        clientEmail: clientEmail,
+        clientEmail: submittedEmail,
         clientPhone: clientPhone,
         currency: invoice.currency,
         amount: invoice.totalPayable,
