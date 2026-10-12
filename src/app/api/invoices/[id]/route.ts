@@ -228,7 +228,11 @@ export async function DELETE(
       );
     }
 
-    const secret = process.env.ADMIN_SESSION_SECRET || process.env.CAREER_PORTAL_SECRET || 'catalyst-otp-secret';
+    const secret = process.env.ADMIN_SESSION_SECRET || process.env.CAREER_PORTAL_SECRET;
+    if (!secret) {
+      console.error('[invoice-delete] OTP signing secret is not configured');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
     const expectedSig = createHmac('sha256', secret)
       .update(`${invoice.id}:${otpCode.trim()}:${tokenData.exp}`)
       .digest('hex');

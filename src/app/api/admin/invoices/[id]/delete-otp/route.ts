@@ -59,7 +59,11 @@ export async function POST(
     const adminEmail = admin?.email || process.env.ADMIN_NOTIFY_EMAIL || BRAND_EMAIL;
 
     // Generate 6-digit cryptographic OTP
-    const secret = process.env.ADMIN_SESSION_SECRET || process.env.CAREER_PORTAL_SECRET || 'catalyst-otp-secret';
+    const secret = process.env.ADMIN_SESSION_SECRET || process.env.CAREER_PORTAL_SECRET;
+    if (!secret) {
+      console.error('[invoice-delete-otp] OTP signing secret is not configured');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
     const code = String(randomInt(100000, 1000000)).padStart(6, '0');
     const exp = Date.now() + 5 * 60 * 1000; // 5 minutes validity
 
