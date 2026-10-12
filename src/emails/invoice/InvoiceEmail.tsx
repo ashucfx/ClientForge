@@ -21,6 +21,7 @@ export function InvoiceEmail({ invoice, bankAccount }: InvoiceEmailProps) {
   return (
     <Html lang="en" dir="ltr">
       <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <style>{`
           @media only screen and (max-width: 640px) {
             .email-container { width: 100% !important; padding: 0 !important; }

@@ -783,6 +783,13 @@ textarea.input { resize: vertical; min-height: 80px; }
   gap: 16px;
 }
 
+.email-preview-frame {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
 /* ═══════════════════════════════════════════════
    MOBILE TOPBAR  (hidden on desktop)
 ═══════════════════════════════════════════════ */
@@ -948,6 +955,19 @@ textarea.input { resize: vertical; min-height: 80px; }
   /* ── Invoice form grid — stack on mobile ─── */
   .invoice-form-grid { grid-template-columns: 1fr; gap: 16px; }
   .invoice-preview-col { position: static; }
+
+  .email-preview-heading {
+    align-items: flex-start !important;
+    flex-wrap: wrap;
+  }
+
+  .email-preview-heading > button {
+    margin-left: auto;
+  }
+
+  .email-preview-frame {
+    border-radius: var(--radius-md);
+  }
 
   /* ── New invoice page padding ────────────── */
   .page-wrapper[style] { padding: 0 !important; }
@@ -1267,5 +1287,4 @@ hr.section { border: none; border-top: 1px solid var(--border); margin: 24px 0; 
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(184, 147, 91, 0.25);
 }
-
 

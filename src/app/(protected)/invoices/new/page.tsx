@@ -211,7 +211,7 @@ function EmailPreviewPane({
       </div>
 
       {/* Content */}
-      <div style={{ position: 'relative', minHeight: 360 }}>
+      <div className="email-preview-frame" style={{ position: 'relative', minHeight: 360 }}>
         {loading && !html && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--muted)' }}>
             <span style={{ display: 'inline-flex', animation: 'spin 0.9s linear infinite', color: 'var(--brand)' }}>
@@ -231,11 +231,11 @@ function EmailPreviewPane({
             srcDoc={html}
             title="Email Preview"
             sandbox="allow-same-origin"
-            style={{ width: '100%', height: 700, border: 'none', display: 'block' }}
+            style={{ width: '100%', maxWidth: '100%', height: 700, border: 'none', display: 'block' }}
           />
         )}
         {!html && !loading && !error && (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+          <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
             Click <strong>Refresh</strong> to render the email preview.
           </div>
         )}
@@ -1783,8 +1783,8 @@ export default function NewInvoicePage() {
         {/* ── Invoice Preview tab ── */}
         {activeTab === 'invoice' && (
           <div style={{ maxWidth: 580, margin: '0 auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="email-preview-heading" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                 <span style={{
                   width: 30, height: 30,
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -1792,11 +1792,11 @@ export default function NewInvoicePage() {
                 }}>
                   <IconDocument size={15} />
                 </span>
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
                     {clientName || 'Invoice Preview'}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', overflowWrap: 'anywhere' }}>
                     Live — updates as you fill the form
                   </div>
                 </div>
