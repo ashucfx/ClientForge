@@ -65,7 +65,9 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      sessions: formattedSessions,
+      // Revoked sessions are hidden from the operational list, but their
+      // AuditLog rows remain available for security and compliance review.
+      sessions: formattedSessions.filter(session => !session.isRevoked),
       blockedIps,
       currentSessionId: session.sessionId ?? null,
     });
@@ -148,7 +150,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: `Logged out from all other devices (${countRevoked} session${countRevoked === 1 ? '' : 's'} terminated). Your current session remains active and audit logs are safely preserved.`,
+        message: `Logged out from all other devices (${countRevoked} session${countRevoked === 1 ? '' : 's'} terminated). Your current session remains active, revoked sessions are cleared from this list, and audit evidence is preserved.`,
         revokedCount: countRevoked,
       });
     }
