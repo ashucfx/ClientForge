@@ -102,7 +102,7 @@ function sanitizeItemDescription(rawDesc: string, pkgName: string): { title: str
 
   if (lower.includes('resume') || lower.includes('cv')) {
     return {
-      title: 'Resume Rewrite & Product Leadership Positioning',
+      title: 'Resume Rewrite & Professional Positioning',
       subtitle: 'Catalyst Talent Positioning Architecture Deliverable Suite',
     };
   }

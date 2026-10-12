@@ -96,7 +96,6 @@ export default function LoginClient() {
                   size={48}
                   brandId="catalyst"
                   dark={false}
-                  subtitle="Talent Positioning Architecture"
                 />
               </div>
               <div className="mt-9">
@@ -104,7 +103,7 @@ export default function LoginClient() {
                   Admin Operations Suite
                 </span>
                 <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
-                  Catalyst ClientForge
+                  Operations workspace
                 </h1>
                 <p className="mt-3 text-slate-600 text-sm leading-relaxed max-w-sm">
                   Executive workspace for Catalyst client lifecycle, project fulfillment, multi-currency invoicing, and SLA management.
@@ -129,7 +128,6 @@ export default function LoginClient() {
                 size={42}
                 brandId="catalyst"
                 dark={false}
-                subtitle="Talent Positioning Architecture"
               />
             </div>
 
@@ -212,7 +210,7 @@ export default function LoginClient() {
                     <span>Authenticating…</span>
                   </>
                 ) : (
-                  <span>Sign In to ClientForge →</span>
+                  <span>Sign in to admin console →</span>
                 )}
               </button>
             </form>
@@ -226,4 +224,3 @@ export default function LoginClient() {
     </div>
   );
 }
-

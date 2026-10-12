@@ -137,8 +137,23 @@ export const SERVICE_DESCRIPTIONS: Record<ClientType, {
   },
 };
 
+const UNIVERSAL_SERVICE_DESCRIPTIONS = {
+  resume:
+    'Professionally rewritten resume tailored to the target role, industry, and career direction — translating experience into clear, credible professional value.',
+  linkedin:
+    'LinkedIn profile transformation aligned to the target role and professional narrative, with stronger positioning, keywords, and recruiter visibility.',
+  coverLetter:
+    'Professionally crafted cover letter connecting the candidate’s experience and strengths to the target opportunity with a clear, authentic narrative.',
+  portfolio:
+    'Professional portfolio website presenting selected work, capabilities, outcomes, and credibility in a clear format for the intended audience.',
+  executiveConnect:
+    'Personalized strategy consultation focused on professional direction, positioning, opportunity selection, and an actionable next-step plan.',
+  executiveConnectPlus:
+    'Extended professional positioning and career strategy partnership tailored to the client’s goals, market, and next-stage opportunities.',
+} satisfies SERVICE_DESCRIPTIONS[ClientType];
+
 export function getServiceDescription(serviceIdentifier: string, clientType: ClientType): string {
-  const descriptions = SERVICE_DESCRIPTIONS[clientType] ?? SERVICE_DESCRIPTIONS.MID_CAREER;
+  const descriptions = UNIVERSAL_SERVICE_DESCRIPTIONS;
   const normalized = serviceIdentifier.toUpperCase().replace(/[\s-]+/g, '_');
   if (normalized.includes('EXECUTIVE_CONNECT_PLUS')) return descriptions.executiveConnectPlus;
   if (normalized.includes('EXECUTIVE_CONNECT') || normalized.includes('STRATEGY_CONSULTATION')) return descriptions.executiveConnect;

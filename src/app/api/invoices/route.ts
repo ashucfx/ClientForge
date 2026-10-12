@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
     const taxAmount         = round2(afterDiscount * taxRate / 100);
     const subtotalConverted = round2(afterDiscount + taxAmount);
     const isIndia = country.trim().toLowerCase() === 'india' || currencyCode === 'INR';
-    const gateway: 'RAZORPAY' | 'PAYPAL' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' = isIndia ? 'RAZORPAY' : (requestedGateway ?? 'RAZORPAY');
+    const gateway: 'RAZORPAY' | 'PAYPAL' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' | 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' = requestedGateway ?? 'RAZORPAY';
 
     // Validate bank routing capabilities
     if (gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' || gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT') {
@@ -202,10 +202,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const processingFeeRate = currencyCode === 'INR' 
-      ? FEE_RATES.RAZORPAY_DOMESTIC 
-      : (
-          gateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL :
+    const processingFeeRate = gateway === 'PAYPAL'
+      ? FEE_RATES.PAYPAL_INTL
+      : currencyCode === 'INR'
+        ? FEE_RATES.RAZORPAY_DOMESTIC
+        : (
           gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' ? FEE_RATES.BANK_TRANSFER_NATIVE :
           gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' ? FEE_RATES.BANK_TRANSFER_SWIFT :
           gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER' ? 0 :

@@ -278,10 +278,11 @@ function InvoicePreview({
   const subtotal        = round2(afterDiscount + taxAmount);
   
   const gateway = paymentGateway ?? 'RAZORPAY';
-  const feeRate = code === 'INR' 
-    ? FEE_RATES.RAZORPAY_DOMESTIC 
-    : (
-        gateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL :
+  const feeRate = gateway === 'PAYPAL'
+    ? FEE_RATES.PAYPAL_INTL
+    : code === 'INR'
+      ? FEE_RATES.RAZORPAY_DOMESTIC
+      : (
         gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' ? FEE_RATES.BANK_TRANSFER_NATIVE :
         gateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' ? FEE_RATES.BANK_TRANSFER_SWIFT :
         FEE_RATES.RAZORPAY_INTL
@@ -709,8 +710,7 @@ export default function NewInvoicePage() {
           country,
           clientType,
           currencyOverride: currencyOverride.trim() || undefined,
-          // INR always uses Razorpay (enforced server-side too)
-          paymentGateway: effectiveCurrency === 'INR' ? 'RAZORPAY' : paymentGateway,
+          paymentGateway,
           installmentCount,
           sourceChannel: referralId.trim() ? 'CLIENT_REFERRAL' : 'CLIENTFORGE_INVOICE',
           referralId: referralId.trim() || undefined,
@@ -750,10 +750,11 @@ export default function NewInvoicePage() {
   const formAfterDiscount = round2(formGrossSubtotal - formDiscountAmount);
   const formTaxAmount = round2(formAfterDiscount * taxRate / 100);
   const formSubtotal = round2(formAfterDiscount + formTaxAmount);
-  const formFeeRate = localCode === 'INR'
-    ? FEE_RATES.RAZORPAY_DOMESTIC
-    : (
-        paymentGateway === 'PAYPAL' ? FEE_RATES.PAYPAL_INTL :
+  const formFeeRate = paymentGateway === 'PAYPAL'
+    ? FEE_RATES.PAYPAL_INTL
+    : localCode === 'INR'
+      ? FEE_RATES.RAZORPAY_DOMESTIC
+      : (
         paymentGateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' ? FEE_RATES.BANK_TRANSFER_NATIVE :
         paymentGateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' ? FEE_RATES.BANK_TRANSFER_SWIFT :
         FEE_RATES.RAZORPAY_INTL
@@ -808,7 +809,7 @@ export default function NewInvoicePage() {
                 color: paypalWillConvertToUsd ? '#92400e' : '#15803d',
               }}>
                 <IconCreditCard size={10} />
-                {localCode === 'INR' || paymentGateway === 'RAZORPAY' ? 'Razorpay' : 
+                {paymentGateway === 'RAZORPAY' ? 'Razorpay' :
                  paymentGateway === 'PAYPAL' ? 'PayPal' : 
                  paymentGateway === 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' ? 'Bank Transfer (Native)' : 'Bank Transfer (SWIFT)'}
                 {paypalWillConvertToUsd && <span style={{ marginLeft: 2 }}>→ USD</span>}
@@ -1513,7 +1514,7 @@ export default function NewInvoicePage() {
                 }}>
                   <span style={{ color: '#B8935B', marginTop: 2 }}><IconCheck size={16} /></span>
                   <div style={{ fontSize: 12, color: '#9A7540', lineHeight: 1.5 }}>
-                    <strong>India Domestic INR Rules:</strong> Under Indian payment guidelines, domestic payments in INR are exclusively processed through Razorpay (UPI, NetBanking, and domestic Debit/Credit cards). International rails (PayPal, foreign wire transfers) are automatically disabled for domestic transactions.
+                    <strong>India payment guidance:</strong> Razorpay is recommended for INR payments because it supports UPI, NetBanking, and domestic cards. PayPal remains available where the client prefers it and may be settled in USD when INR is not supported by PayPal.
                   </div>
                 </div>
               )}
@@ -1526,23 +1527,23 @@ export default function NewInvoicePage() {
                     sub: isIndia ? 'UPI, NetBanking & Indian Cards' : 'Cards & Instant Local Currency Checkout',
                     fee: isIndia ? 'Standard Domestic Fee (2.36%)' : 'International Multi-Currency',
                     color: '#B8935B',
-                    badge: isIndia ? 'Exclusive for India' : 'Instant Links',
+                    badge: isIndia ? 'Recommended for India' : 'Instant Links',
                     disabled: false,
                   },
                   {
                     value: 'PAYPAL' as const,
                     label: 'PayPal Invoice',
-                    sub: isIndia ? 'Disabled for domestic INR accounts' : 'Global PayPal & Cards (USD)',
+                    sub: isIndia ? 'Available, but Razorpay is recommended for INR domestic payments' : 'Global PayPal & Cards (USD)',
                     fee: 'Global Checkout',
                     color: '#003087',
-                    badge: isIndia ? 'Restricted in India' : 'International',
-                    disabled: isIndia,
+                    badge: isIndia ? 'Not recommended for India' : 'International',
+                    disabled: false,
                   },
                   {
                     value: 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_NATIVE' as const,
                     label: 'Bank Transfer (Native Rails)',
                     sub: isIndia
-                      ? 'Disabled for domestic accounts'
+                      ? 'Not recommended for domestic accounts'
                       : (bankRouting && !bankRouting.nativeTransfer.available)
                         ? (bankRouting.nativeTransfer.disabledReason || `No local bank account for ${currencyInfo?.code ?? 'this currency'}`)
                         : (bankRouting?.nativeTransfer?.railName
@@ -1551,7 +1552,7 @@ export default function NewInvoicePage() {
                     fee: '1.18% Fee (1% + 18% GST)',
                     color: '#059669',
                     badge: isIndia
-                      ? 'Restricted in India'
+                      ? 'Not recommended for India'
                       : (bankRouting && !bankRouting.nativeTransfer.available)
                         ? 'No Native Route'
                         : 'Lowest Fee (1.18%)',
@@ -1561,14 +1562,14 @@ export default function NewInvoicePage() {
                     value: 'RAZORPAY_INTERNATIONAL_BANK_TRANSFER_SWIFT' as const,
                     label: 'Bank Transfer (Global SWIFT)',
                     sub: isIndia
-                      ? 'Disabled for domestic accounts'
+                      ? 'Not recommended for domestic accounts'
                       : (bankRouting && !bankRouting.swiftTransfer.available)
                         ? (bankRouting.swiftTransfer.disabledReason || `SWIFT wire not configured for ${currencyInfo?.code ?? 'this currency'}`)
                         : `International Wire Transfer via SWIFT${bankRouting?.swiftTransfer?.swiftBic ? ` (${bankRouting.swiftTransfer.swiftBic})` : ''}`,
                     fee: '3.54% Fee (3% + 18% GST)',
                     color: '#0284c7',
                     badge: isIndia
-                      ? 'Restricted in India'
+                      ? 'Not recommended for India'
                       : (bankRouting && !bankRouting.swiftTransfer.available)
                         ? 'SWIFT Unavailable'
                         : 'Global Wire (3.54%)',
