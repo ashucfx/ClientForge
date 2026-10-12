@@ -1,6 +1,8 @@
 // prisma/seed-admin.ts
 import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
+const { assertMaintenanceDatabase } = require('../scripts/maintenance-guard');
+assertMaintenanceDatabase();
 
 const prisma = new PrismaClient();
 
@@ -13,8 +15,11 @@ export function hashPassword(password: string, salt: string): string {
 
 async function main() {
   const email = 'catalyst@theripplenexus.com'; // Default admin email
-  const password = process.env.ADMIN_PASSWORD || 'ChangeMe123!';
-  const salt = process.env.ADMIN_SESSION_SECRET || 'default-salt';
+  const password = process.env.ADMIN_PASSWORD;
+  const salt = process.env.ADMIN_SESSION_SECRET;
+  if (!password || !salt) {
+    throw new Error('ADMIN_PASSWORD and ADMIN_SESSION_SECRET are required');
+  }
   
   const passwordHash = hashPassword(password, salt);
 
