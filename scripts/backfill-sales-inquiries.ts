@@ -7,6 +7,8 @@
  */
 
 import { PrismaClient, InquiryStatus } from '@prisma/client';
+const { assertMaintenanceDatabase } = require('./maintenance-guard');
+assertMaintenanceDatabase();
 
 const db = new PrismaClient();
 const EXECUTE = process.argv.includes('--execute');

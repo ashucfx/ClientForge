@@ -1,4 +1,8 @@
 import { PrismaClient } from '@prisma/client';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+require('./maintenance-guard').assertMaintenanceDatabase();
 
 const prisma = new PrismaClient();
 

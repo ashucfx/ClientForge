@@ -5,6 +5,8 @@
 // Safe to run multiple times — skips invoices that already have a log entry.
 
 const { PrismaClient } = require('@prisma/client');
+const { assertMaintenanceDatabase } = require('./maintenance-guard');
+assertMaintenanceDatabase();
 const db = new PrismaClient();
 
 async function main() {

@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client';
+const { assertMaintenanceDatabase } = require('./maintenance-guard');
+assertMaintenanceDatabase();
 const db = new PrismaClient();
 
 async function syncCareerClientToFlywheel(clientId: string) {

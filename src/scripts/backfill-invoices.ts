@@ -1,5 +1,7 @@
 // src/scripts/backfill-invoices.ts
 import { PrismaClient } from '@prisma/client';
+const { assertMaintenanceDatabase } = require('../../scripts/maintenance-guard');
+assertMaintenanceDatabase();
 
 const prisma = new PrismaClient();
 
