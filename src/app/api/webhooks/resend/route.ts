@@ -35,25 +35,28 @@ export async function POST(req: NextRequest) {
 
   // HMAC-SHA256 signature verification
   const secret = process.env.RESEND_WEBHOOK_SECRET;
-  if (secret) {
-    const sig = req.headers.get('svix-signature') ?? '';
-    // svix sends: "v1,<timestamp>.<hex-sig>" or multiple comma-separated
-    const sigParts = sig.split(' ').flatMap(s => s.split(','));
-    const ts = sigParts.find(p => p.startsWith('t='))?.slice(2) ?? '';
-    const v1Sigs = sigParts.filter(p => p.startsWith('v1=')).map(p => p.slice(3));
-
-    const expectedPayload = `${ts}.${rawBody}`;
-    const hmac = createHmac('sha256', Buffer.from(secret, 'base64'));
-    hmac.update(expectedPayload);
-    const expectedSig = hmac.digest('hex');
-
-    const verified = v1Sigs.some(s => {
-      try { return timingSafeEqual(Buffer.from(s, 'hex'), Buffer.from(expectedSig, 'hex')); }
-      catch { return false; }
-    });
-
-    if (!verified) return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+  if (!secret) {
+    console.error('[Resend Webhook] RESEND_WEBHOOK_SECRET is not configured');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
   }
+
+  const sig = req.headers.get('svix-signature') ?? '';
+  // svix sends: "v1,<timestamp>.<hex-sig>" or multiple comma-separated
+  const sigParts = sig.split(' ').flatMap(s => s.split(','));
+  const ts = sigParts.find(p => p.startsWith('t='))?.slice(2) ?? '';
+  const v1Sigs = sigParts.filter(p => p.startsWith('v1=')).map(p => p.slice(3));
+
+  const expectedPayload = `${ts}.${rawBody}`;
+  const hmac = createHmac('sha256', Buffer.from(secret, 'base64'));
+  hmac.update(expectedPayload);
+  const expectedSig = hmac.digest('hex');
+
+  const verified = v1Sigs.some(s => {
+    try { return timingSafeEqual(Buffer.from(s, 'hex'), Buffer.from(expectedSig, 'hex')); }
+    catch { return false; }
+  });
+
+  if (!verified) return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
 
   let payload: ResendWebhookPayload;
   try {

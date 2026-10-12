@@ -10,16 +10,21 @@ export async function POST(req: NextRequest) {
     const signature = req.headers.get('x-cal-signature-256');
     const secret = process.env.CAL_WEBHOOK_SECRET;
 
-    if (secret && signature) {
-      const hmac = crypto.createHmac('sha256', secret);
-      const computedSignature = hmac.update(rawBody).digest('hex');
-      if (signature !== computedSignature) {
-        console.warn('[Cal.com Webhook] Invalid signature');
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-      }
-    } else if (secret && !signature) {
+    if (!secret) {
+      console.error('[Cal.com Webhook] CAL_WEBHOOK_SECRET is not configured');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
+    if (!signature) {
       console.warn('[Cal.com Webhook] Missing signature');
       return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+    }
+
+    const hmac = crypto.createHmac('sha256', secret);
+    const computedSignature = hmac.update(rawBody).digest('hex');
+    if (signature !== computedSignature) {
+      console.warn('[Cal.com Webhook] Invalid signature');
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
     const body = JSON.parse(rawBody);
