@@ -23,10 +23,6 @@ export async function POST(
       return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     }
 
-    if (request.status !== 'PENDING') {
-      return NextResponse.json({ error: 'Request is already processed' }, { status: 400 });
-    }
-
     const invoice = await db.invoice.findUnique({
       where: { id: request.invoiceId }
     });
@@ -42,9 +38,13 @@ export async function POST(
     // Wrap in a transaction to ensure atomic update
     const result = await db.$transaction(async (tx) => {
       // 1. Mark request as VERIFIED
-      const updatedReq = await tx.bankTransferRequest.update({
+      const claimed = await tx.bankTransferRequest.updateMany({
+        where: { id: request.id, status: 'PENDING' },
+        data: { status: 'VERIFIED' },
+      });
+      if (claimed.count !== 1) return null;
+      const updatedReq = await tx.bankTransferRequest.findUniqueOrThrow({
         where: { id: request.id },
-        data: { status: 'VERIFIED' }
       });
 
       // 2. Mark Invoice as PAID
@@ -60,6 +60,10 @@ export async function POST(
 
       return { updatedReq, updatedInvoice };
     });
+
+    if (!result) {
+      return NextResponse.json({ error: 'Request is already processed' }, { status: 409 });
+    }
 
     // 3. Trigger async side-effects
     sendPaymentConfirmationEmail(result.updatedInvoice as any).catch(err => console.error(err));
