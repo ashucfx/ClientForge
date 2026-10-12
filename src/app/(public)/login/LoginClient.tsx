@@ -124,8 +124,8 @@ export default function LoginClient() {
           <div className="p-8 md:p-12 flex flex-col justify-center bg-white">
             <div className="md:hidden flex justify-center mb-6">
               <Logo
-                variant="horizontal"
-                size={42}
+                variant="icon"
+                size={52}
                 brandId="catalyst"
                 dark={false}
               />
