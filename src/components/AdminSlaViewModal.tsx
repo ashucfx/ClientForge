@@ -56,15 +56,15 @@ export function AdminSlaViewModal({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-auto max-h-[92vh]"
+        className="relative w-full max-w-4xl min-w-0 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-auto max-h-[92dvh]"
         onClick={e => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
       >
         {/* Header */}
-        <div className="bg-[#0A0B0D] px-6 py-5 border-b border-[#B8935B]/30 flex-shrink-0 flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
+        <div className="bg-[#0A0B0D] px-4 sm:px-6 py-4 sm:py-5 border-b border-[#B8935B]/30 flex-shrink-0 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-[10px] font-bold uppercase tracking-widest text-[#B8935B]">
                 Legal &amp; Compliance Audit Record
@@ -73,7 +73,7 @@ export function AdminSlaViewModal({
                 {version}
               </span>
             </div>
-            <h2 className="text-xl font-serif font-bold text-white">
+            <h2 className="text-lg sm:text-xl font-serif font-bold text-white break-words">
               Signed Master Services Agreement &amp; Turnaround SLA
             </h2>
             <p className="text-xs text-slate-300 mt-1">
@@ -89,8 +89,8 @@ export function AdminSlaViewModal({
         </div>
 
         {/* Digital Execution & Assent Certificate */}
-        <div className="bg-[#FBF8F3] px-6 py-4 border-b border-[#E8DDD0] flex-shrink-0 text-xs">
-          <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="bg-[#FBF8F3] px-4 sm:px-6 py-4 border-b border-[#E8DDD0] flex-shrink-0 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <span className="font-bold text-[#9A7540] uppercase tracking-wide flex items-center gap-1.5">
               <span>🛡️</span> Digital Assent Certificate
             </span>
@@ -140,7 +140,7 @@ export function AdminSlaViewModal({
         </div>
 
         {/* Scrollable Agreement Terms */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6 overscroll-contain">
           <div className="border-b border-slate-200 pb-3">
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
               Executed Agreement Clauses &amp; Terms
@@ -168,16 +168,16 @@ export function AdminSlaViewModal({
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-50 px-6 py-3.5 border-t border-slate-200 flex-shrink-0 flex items-center justify-between gap-3">
+        <div className="bg-slate-50 px-4 sm:px-6 py-3.5 border-t border-slate-200 flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
           <button
             onClick={() => window.print()}
-            className="px-4 py-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-bold text-xs rounded-xl shadow-2xs transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-bold text-xs rounded-xl shadow-2xs transition-colors flex items-center justify-center gap-2"
           >
             <span>🖨️</span> Print Agreement Document
           </button>
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors"
+            className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors text-center"
           >
             Close Audit View
           </button>

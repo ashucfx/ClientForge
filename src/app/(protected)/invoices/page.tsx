@@ -182,7 +182,7 @@ export default function InvoicesPage() {
 
   return (
     <AppShell>
-      <div className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6 pb-16">
+      <div className="w-full min-w-0 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-5 sm:space-y-6 pb-16">
         {/* Toast */}
         {toastMsg && (
           <div className="fixed bottom-6 right-6 z-50 bg-[#0A0B0D] text-white px-4 py-3 rounded-xl shadow-xl border border-[#B8935B]/40 text-xs font-semibold flex items-center gap-2">
@@ -192,23 +192,23 @@ export default function InvoicesPage() {
         )}
 
         {/* ── Top Header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
               <span className="w-2 h-2 rounded-full bg-[#B8935B]" />
               <span>Financial Suite</span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Invoices Registry</h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            <h1 className="text-lg sm:text-2xl font-bold text-slate-900">Invoices Registry</h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5 leading-relaxed">
               Comprehensive ledger of client billings, gateway links, and settlement tracking.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             <button
               onClick={exportCsv}
               disabled={filtered.length === 0}
-              className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-40"
+              className="flex-1 sm:flex-none px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-40"
             >
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -217,7 +217,7 @@ export default function InvoicesPage() {
             </button>
             <Link
               href="/invoices/new"
-              className="px-4 py-2 rounded-xl bg-[#B8935B] hover:bg-[#9A7540] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+              className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-[#B8935B] hover:bg-[#9A7540] text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5"
             >
               <IconPlus size={14} />
               <span>Create Invoice</span>
@@ -278,7 +278,7 @@ export default function InvoicesPage() {
 
         {/* ── Filters & Search Control ── */}
         <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
-          <div className="flex flex-col md:flex-row md:items-center gap-3">
+          <div className="flex flex-col md:flex-row md:items-center gap-3 min-w-0">
             {/* Search Input */}
             <div className="relative flex-1">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
@@ -302,11 +302,11 @@ export default function InvoicesPage() {
             </div>
 
             {/* Currency Select */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
               <select
                 value={currencyFilter}
                 onChange={e => setCurrency(e.target.value)}
-                className="px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:border-[#B8935B] shadow-2xs"
+                className="min-w-0 flex-1 sm:flex-none px-2.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:border-[#B8935B] shadow-2xs"
               >
                 <option value="ALL">All Currencies</option>
                 {availableCurrencies.map(c => (
@@ -318,7 +318,7 @@ export default function InvoicesPage() {
               <select
                 value={typeFilter}
                 onChange={e => setType(e.target.value)}
-                className="px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:border-[#B8935B] shadow-2xs"
+                className="min-w-0 flex-1 sm:flex-none px-2.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:border-[#B8935B] shadow-2xs"
               >
                 <option value="ALL">All Packages</option>
                 <option value="FRESHER">Fresher</option>

@@ -66,17 +66,17 @@ export function ClientSlaModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-[#0A0B0D]/85 backdrop-blur-md animate-fade-in overflow-y-auto">
       <div 
-        className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-[#B8935B]/30 overflow-hidden flex flex-col my-auto max-h-[95vh] sm:max-h-[90vh]"
+        className="relative w-full max-w-3xl min-w-0 bg-white rounded-2xl shadow-2xl border border-[#B8935B]/30 overflow-hidden flex flex-col my-auto max-h-[95dvh] sm:max-h-[90dvh]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="sla-modal-title"
       >
         {/* Header */}
         <div className="bg-[#0A0B0D] px-4 sm:px-8 py-4 sm:py-5 border-b border-[#B8935B]/30 flex-shrink-0">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
               <span className="w-2.5 h-2.5 rounded-full bg-[#B8935B] animate-pulse shrink-0" />
-              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-[#B8935B]">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-[#B8935B] break-words">
                 Catalyst Legal &amp; Turnaround SLA
               </span>
             </div>
@@ -84,7 +84,7 @@ export function ClientSlaModal({
               {CURRENT_SLA_VERSION}
             </span>
           </div>
-          <h2 id="sla-modal-title" className="text-base sm:text-xl md:text-2xl font-serif font-bold text-white mt-1.5 sm:mt-2">
+          <h2 id="sla-modal-title" className="text-base sm:text-xl md:text-2xl font-serif font-bold text-white mt-1.5 sm:mt-2 break-words">
             Client Master Agreement &amp; Delivery SLAs
           </h2>
           <p className="text-[11px] sm:text-xs text-slate-300 mt-1 leading-relaxed">
