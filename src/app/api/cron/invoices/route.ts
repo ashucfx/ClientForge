@@ -95,19 +95,52 @@ export async function GET(request: NextRequest) {
       }
 
       if (newStatus && newStatus !== invoice.status) {
-        const claimed = await db.invoice.updateMany({
-          where: { id: invoice.id, status: invoice.status },
-          data: { 
-            status: newStatus as 'PAID' | 'PARTIALLY_PAID', 
-            ...(allPaid ? { paidAt: new Date() } : {}),
-            ...(invoice.installmentPlan ? { installments: invoice.installments as object[] } : {})
-          },
-        });
-        if (claimed.count !== 1) continue;
+        const updatedInvoice = invoice.installmentPlan
+          ? await db.$transaction(async (tx) => {
+              await tx.$queryRaw`SELECT "id" FROM "Invoice" WHERE "id" = ${invoice.id} FOR UPDATE`;
+              const current = await tx.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
+              if (current.status === 'PAID') return null;
 
-        const updatedInvoice = await db.invoice.findUniqueOrThrow({
-          where: { id: invoice.id },
-        });
+              const paidSeqs = (invoice.installments as unknown as Installment[])
+                .filter(inst => inst.status === 'PAID')
+                .map(inst => inst.seq);
+              const claimed = await tx.invoiceInstallment.updateMany({
+                where: { invoiceId: invoice.id, seq: { in: paidSeqs }, status: { not: 'PAID' } },
+                data: { status: 'PAID', paidAt: new Date() },
+              });
+              if (claimed.count === 0) return null;
+
+              const currentInstallments = (current.installments as unknown as Installment[]).map(inst =>
+                paidSeqs.includes(inst.seq)
+                  ? { ...inst, status: 'PAID' as const, paidAt: new Date().toISOString() }
+                  : inst
+              );
+              const relationalInstallments = await tx.invoiceInstallment.findMany({
+                where: { invoiceId: invoice.id },
+                select: { status: true },
+              });
+              const currentStatus = relationalInstallments.every(inst => inst.status === 'PAID')
+                ? 'PAID'
+                : 'PARTIALLY_PAID';
+
+              return tx.invoice.update({
+                where: { id: invoice.id },
+                data: {
+                  status: currentStatus,
+                  installments: currentInstallments as object[],
+                  ...(currentStatus === 'PAID' ? { paidAt: new Date() } : {}),
+                },
+              });
+            })
+          : await db.$transaction(async (tx) => {
+              const claimed = await tx.invoice.updateMany({
+                where: { id: invoice.id, status: invoice.status },
+                data: { status: newStatus as 'PAID' | 'PARTIALLY_PAID', ...(allPaid ? { paidAt: new Date() } : {}) },
+              });
+              if (claimed.count !== 1) return null;
+              return tx.invoice.findUniqueOrThrow({ where: { id: invoice.id } });
+            });
+        if (!updatedInvoice) continue;
         
         if (allPaid) {
           await onboardFromInvoice(updatedInvoice).catch((err: unknown) => {

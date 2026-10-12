@@ -75,21 +75,52 @@ export async function POST(
           
           newStatus = allPaid ? 'PAID' : 'PARTIALLY_PAID';
           
-          const updatedInvoice = await prisma.invoice.update({
-            where: { id: params.id },
-            data: {
-              status: newStatus as 'PAID' | 'PARTIALLY_PAID',
-              installments: installs as object[],
-              ...(allPaid ? { paidAt: new Date() } : {}),
-            },
+          const updatedInvoice = await prisma.$transaction(async (tx) => {
+            await tx.$queryRaw`SELECT "id" FROM "Invoice" WHERE "id" = ${params.id} FOR UPDATE`;
+            const current = await tx.invoice.findUniqueOrThrow({ where: { id: params.id } });
+            if (current.status === 'PAID') return null;
+
+            const paidSeqs = installs
+              .filter(inst => inst.status === 'PAID')
+              .map(inst => inst.seq);
+            const claimed = await tx.invoiceInstallment.updateMany({
+              where: { invoiceId: params.id, seq: { in: paidSeqs }, status: { not: 'PAID' } },
+              data: { status: 'PAID', paidAt: new Date() },
+            });
+            if (claimed.count === 0) return null;
+
+            const currentInstallments = (current.installments as unknown as Installment[]).map(inst =>
+              paidSeqs.includes(inst.seq)
+                ? { ...inst, status: 'PAID' as const, paidAt: new Date().toISOString() }
+                : inst
+            );
+            const relationalInstallments = await tx.invoiceInstallment.findMany({
+              where: { invoiceId: params.id },
+              select: { status: true },
+            });
+            const currentStatus = relationalInstallments.every(inst => inst.status === 'PAID')
+              ? 'PAID'
+              : 'PARTIALLY_PAID';
+
+            return tx.invoice.update({
+              where: { id: params.id },
+              data: {
+                status: currentStatus,
+                installments: currentInstallments as object[],
+                ...(currentStatus === 'PAID' ? { paidAt: new Date() } : {}),
+              },
+            });
           });
-          
-            if (allPaid) {
-              sendPaymentConfirmationEmail(updatedInvoice as any).catch((err: any) => console.error(err));
-              onboardFromInvoice(updatedInvoice).catch((err: any) => console.error(err));
-            }
-          
-          return NextResponse.json({ synced: true, newStatus, invoice: updatedInvoice });
+          if (!updatedInvoice) {
+            return NextResponse.json({ synced: false, message: 'No installments changed status', invoice });
+          }
+
+          if (updatedInvoice.status === 'PAID') {
+            sendPaymentConfirmationEmail(updatedInvoice as any).catch((err: any) => console.error(err));
+            onboardFromInvoice(updatedInvoice).catch((err: any) => console.error(err));
+          }
+
+          return NextResponse.json({ synced: true, newStatus: updatedInvoice.status, invoice: updatedInvoice });
         } else {
           const { normalizedStatus, rawStatus } = await fetchPaypalInvoiceStatus(invoice.paypalInvoiceId!);
           newStatus = normalizedStatus;
