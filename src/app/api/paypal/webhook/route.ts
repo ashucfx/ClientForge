@@ -94,9 +94,14 @@ export async function POST(request: NextRequest) {
       if (topLevelInvoice) {
         if (topLevelInvoice.status === 'PAID') return NextResponse.json({ received: true });
 
-        const updatedInvoice = await prisma.invoice.update({
-          where: { id: topLevelInvoice.id },
+        const claimed = await prisma.invoice.updateMany({
+          where: { id: topLevelInvoice.id, status: { not: 'PAID' } },
           data:  { status: 'PAID', paidAt: new Date() },
+        });
+        if (claimed.count !== 1) return NextResponse.json({ received: true });
+
+        const updatedInvoice = await prisma.invoice.findUniqueOrThrow({
+          where: { id: topLevelInvoice.id },
         });
 
         waitUntil(

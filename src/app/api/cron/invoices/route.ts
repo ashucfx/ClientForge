@@ -95,17 +95,22 @@ export async function GET(request: NextRequest) {
       }
 
       if (newStatus && newStatus !== invoice.status) {
-        const updatedInvoice = await db.invoice.update({
-          where: { id: invoice.id },
+        const claimed = await db.invoice.updateMany({
+          where: { id: invoice.id, status: invoice.status },
           data: { 
             status: newStatus as 'PAID' | 'PARTIALLY_PAID', 
             ...(allPaid ? { paidAt: new Date() } : {}),
             ...(invoice.installmentPlan ? { installments: invoice.installments as object[] } : {})
           },
         });
+        if (claimed.count !== 1) continue;
+
+        const updatedInvoice = await db.invoice.findUniqueOrThrow({
+          where: { id: invoice.id },
+        });
         
         if (allPaid) {
-          const result = await onboardFromInvoice(updatedInvoice).catch((err: unknown) => {
+          await onboardFromInvoice(updatedInvoice).catch((err: unknown) => {
             console.error(`[Invoice Cron] Career Onboarding failed for invoice ${invoice.id}:`, err);
             return null;
           });

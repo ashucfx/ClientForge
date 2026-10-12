@@ -96,8 +96,8 @@ export async function POST(request: NextRequest) {
       newStatus = allPaid ? 'PAID' : 'PARTIALLY_PAID';
     }
 
-    const invoice = await prisma.invoice.update({
-      where: { id: invoiceId },
+    const claimed = await prisma.invoice.updateMany({
+      where: { id: invoiceId, status: { not: 'PAID' } },
       data: {
         status: newStatus,
         razorpayPaymentId,
@@ -113,6 +113,11 @@ export async function POST(request: NextRequest) {
         } : {}),
 
       },
+    });
+    if (claimed.count !== 1) return NextResponse.json({ received: true });
+
+    const invoice = await prisma.invoice.findUniqueOrThrow({
+      where: { id: invoiceId },
     });
 
     if (newStatus === 'PAID') {
