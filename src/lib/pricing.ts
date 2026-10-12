@@ -63,14 +63,16 @@ export const CLIENT_TYPE_LABELS: Record<ClientType, string> = {
 // ─────────────────────────────────────────────
 // SERVICE DESCRIPTIONS BY CLIENT TYPE
 // ─────────────────────────────────────────────
-export const SERVICE_DESCRIPTIONS: Record<ClientType, {
+interface ServiceDescriptionSet {
   resume: string;
   linkedin: string;
   coverLetter: string;
   portfolio: string;
   executiveConnect: string;
   executiveConnectPlus: string;
-}> = {
+}
+
+export const SERVICE_DESCRIPTIONS: Record<ClientType, ServiceDescriptionSet> = {
   FRESHER: {
     resume:
       'ATS-optimized resume tailored to entry-level roles — highlights academic achievements, internships, and transferable skills to get you past the bots and onto the shortlist.',
@@ -150,7 +152,7 @@ const UNIVERSAL_SERVICE_DESCRIPTIONS = {
     'Personalized strategy consultation focused on professional direction, positioning, opportunity selection, and an actionable next-step plan.',
   executiveConnectPlus:
     'Extended professional positioning and career strategy partnership tailored to the client’s goals, market, and next-stage opportunities.',
-} satisfies SERVICE_DESCRIPTIONS[ClientType];
+} satisfies ServiceDescriptionSet;
 
 export function getServiceDescription(serviceIdentifier: string, clientType: ClientType): string {
   const descriptions = UNIVERSAL_SERVICE_DESCRIPTIONS;

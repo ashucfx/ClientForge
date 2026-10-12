@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     if (!existing) return NextResponse.json({ received: true });
     if (existing.status === 'PAID') return NextResponse.json({ received: true }); // idempotent
 
-    let invoice: Awaited<ReturnType<typeof prisma.invoice.findUniqueOrThrow>>;
+    let invoice: Awaited<ReturnType<typeof prisma.invoice.findUniqueOrThrow>> | null;
     if (existing.installmentPlan && installmentSeq !== null) {
       invoice = await prisma.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT "id" FROM "Invoice" WHERE "id" = ${invoiceId} FOR UPDATE`;
