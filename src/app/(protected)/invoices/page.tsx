@@ -22,7 +22,7 @@ const STATUS_CONFIG: Record<InvoiceStatus, { label: string; bg: string; text: st
 function StatusBadge({ status }: { status: InvoiceStatus }) {
   const m = STATUS_CONFIG[status] || STATUS_CONFIG.PENDING;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${m.bg} ${m.text} ${m.border}`}>
+    <span className={`inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${m.bg} ${m.text} ${m.border}`}>
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${m.dot}`} />
       {m.label}
     </span>
@@ -42,7 +42,7 @@ function TierTag({ type }: { type: ClientType }) {
   const label = CLIENT_TYPE_LABELS[type] ?? type;
   const cls   = TIER_COLORS[type] ?? 'bg-slate-100 text-slate-600 border-slate-200';
   return (
-    <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold border uppercase tracking-wider ${cls}`}>
+    <span className={`inline-block shrink-0 whitespace-nowrap px-2 py-0.5 rounded-md text-[10px] font-semibold border uppercase tracking-wider ${cls}`}>
       {label}
     </span>
   );
@@ -538,7 +538,7 @@ export default function InvoicesPage() {
                           </span>
                         )}
                       </div>
-                      <div className="flex flex-col items-end gap-1">
+                      <div className="flex flex-col items-end gap-1 shrink-0">
                         <TierTag type={inv.clientType} />
                         <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                           {inv.paymentGateway}
