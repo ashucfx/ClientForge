@@ -213,27 +213,13 @@ export function CatalystTaxInvoiceEmailCard({
                         <tbody>
                           <tr>
                             <td valign="middle" style={{ width: '48px', paddingRight: '12px' }}>
-                              {/* Catalyst Logo Mark */}
-                              <table
-                                role="presentation"
-                                cellPadding={0}
-                                cellSpacing={0}
-                                style={{
-                                  width: '44px',
-                                  height: '44px',
-                                  backgroundColor: '#0E1217',
-                                  borderRadius: '9px',
-                                  border: '1px solid rgba(184, 147, 91, 0.4)',
-                                }}
-                              >
-                                <tbody>
-                                  <tr>
-                                    <td align="center" valign="middle" style={{ color: '#F4F4F2', fontSize: '18px', fontWeight: 900, fontFamily: 'Georgia, serif' }}>
-                                      C<span style={{ color: '#B88A44', fontSize: '13px' }}>✦</span>
-                                    </td>
-                                  </tr>
-                                </tbody>
-                              </table>
+                              <img
+                                src="https://catalyst.theripplenexus.com/logos/catalyst-email-mark.png"
+                                alt="Catalyst"
+                                width="44"
+                                height="44"
+                                style={{ display: 'block', width: '44px', height: '44px', borderRadius: '9px' }}
+                              />
                             </td>
                             <td valign="middle">
                               <div style={{ fontSize: '18px', fontWeight: 900, letterSpacing: '2px', color: '#0E1217', lineHeight: 1.2 }}>

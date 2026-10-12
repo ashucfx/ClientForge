@@ -765,13 +765,11 @@ export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData 
               <View style={styles.headerLeft}>
                 {/* Catalyst Logo Vector Mark with Authentic Inflection Stroke */}
                 <View style={styles.logoBox}>
-                  <Svg width={36} height={42} viewBox="0 0 192 240">
-                    {/* Primary Trajectory Stroke */}
-                    <Polygon points="0,240 44,240 192,0 148,0" fill="#0A0B0D" />
-                    {/* Strategic Gold Intervention Stroke */}
-                    <Polygon points="192,0 148,0 100,76 144,76" fill="#B8935B" />
-                    {/* Inflection Pivot Dot */}
-                    <Circle cx="170" cy="22" r="5" fill="#FAF8F5" />
+                  <Svg width={38} height={38} viewBox="0 0 52 52">
+                    <Rect width={52} height={52} rx={10} fill="#0E1217" />
+                    <Polygon points="17,40 23,40 34,20 28,20" fill="#F4F4F2" />
+                    <Polygon points="28,20 34,20 40,9 34,9" fill="#B88A44" />
+                    <Circle cx="37" cy="12.5" r="1.2" fill="#0E1217" />
                   </Svg>
                 </View>
                 <View>

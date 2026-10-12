@@ -60,7 +60,7 @@ export function resolveInvoicePackage(
   if (isExplicitPremiumPlus || hasPortfolio || effectiveCount >= 4) {
     return {
       packageName: 'Premium Plus Package',
-      trackName: '— Executive C-Suite & Global Talent Positioning Architecture',
+      trackName: 'Executive and Global Talent Positioning Architecture',
       slaDays: 'SLA: 7–10 BIZ DAYS',
       isCustom: false,
       serviceCount: effectiveCount,
@@ -77,7 +77,7 @@ export function resolveInvoicePackage(
   if ((hasAllThreeCore && effectiveCount >= 3) || (isExplicitCareerBooster && effectiveCount >= 3)) {
     return {
       packageName: 'Career Booster Package',
-      trackName: '— Accelerated Career Positioning Architecture',
+      trackName: 'Professional Career Positioning Architecture',
       slaDays: 'SLA: 7–10 BIZ DAYS',
       isCustom: false,
       serviceCount: effectiveCount,
@@ -91,7 +91,7 @@ export function resolveInvoicePackage(
     if (hasResume) {
       return {
         packageName: 'Professional Resume Writing',
-        trackName: '— Bespoke Executive Career Asset Formulation',
+        trackName: 'Bespoke Professional Career Asset Formulation',
         slaDays: 'SLA: 3–5 BIZ DAYS',
         isCustom: false,
         serviceCount: 1,
@@ -100,7 +100,7 @@ export function resolveInvoicePackage(
     if (hasLinkedin) {
       return {
         packageName: 'LinkedIn Profile Optimisation & Personal Branding',
-        trackName: '— Executive Presence & Algorithm Positioning Architecture',
+        trackName: 'Professional Presence and Profile Positioning Architecture',
         slaDays: 'SLA: 3–5 BIZ DAYS',
         isCustom: false,
         serviceCount: 1,
@@ -109,7 +109,7 @@ export function resolveInvoicePackage(
     if (hasCoverLetter) {
       return {
         packageName: 'Strategic Executive Cover Letter Writing',
-        trackName: '— High-Impact Narrative & Target Pitch Architecture',
+        trackName: 'High-Impact Narrative and Target Pitch Architecture',
         slaDays: 'SLA: 2–3 BIZ DAYS',
         isCustom: false,
         serviceCount: 1,
@@ -118,7 +118,7 @@ export function resolveInvoicePackage(
     if (hasExecutiveConnect) {
       return {
         packageName: 'Executive Connect Strategy Consultation',
-        trackName: '— 1-on-1 Strategic Career Advisory & Roadmap Alignment',
+        trackName: 'Strategic Career Advisory and Roadmap Alignment',
         slaDays: 'SLA: 1–2 BIZ DAYS',
         isCustom: false,
         serviceCount: 1,
@@ -129,7 +129,7 @@ export function resolveInvoicePackage(
     const cleanTitle = singleDesc ? singleDesc.replace(/\s*\([^)]*\)/g, '').trim() : 'Specialized Career Architecture';
     return {
       packageName: cleanTitle,
-      trackName: '— Specialized Talent Architecture Engagement',
+      trackName: 'Specialized Professional Architecture Engagement',
       slaDays: 'SLA: 3–5 BIZ DAYS',
       isCustom: true,
       serviceCount: 1,
@@ -140,7 +140,7 @@ export function resolveInvoicePackage(
   if (hasResume && hasLinkedin) {
     return {
       packageName: 'Resume & LinkedIn Alignment Track',
-      trackName: '— Dual-Asset Career Repositioning Architecture',
+      trackName: 'Dual-Asset Career Repositioning Architecture',
       slaDays: 'SLA: 5–7 BIZ DAYS',
       isCustom: false,
       serviceCount: 2,
@@ -150,7 +150,7 @@ export function resolveInvoicePackage(
   if (hasResume && hasCoverLetter) {
     return {
       packageName: 'Resume & Strategic Cover Letter Track',
-      trackName: '— Targeted Executive Application Architecture',
+      trackName: 'Targeted Professional Application Architecture',
       slaDays: 'SLA: 5–7 BIZ DAYS',
       isCustom: false,
       serviceCount: 2,
@@ -160,7 +160,7 @@ export function resolveInvoicePackage(
   if (hasLinkedin && hasCoverLetter) {
     return {
       packageName: 'LinkedIn & Outreach Positioning Track',
-      trackName: '— Executive Outreach & Personal Branding Architecture',
+      trackName: 'Professional Outreach and Personal Branding Architecture',
       slaDays: 'SLA: 5–7 BIZ DAYS',
       isCustom: false,
       serviceCount: 2,
@@ -178,7 +178,7 @@ export function resolveInvoicePackage(
 
   return {
     packageName: comboTitle,
-    trackName: '— Multi-Asset Talent Positioning Architecture',
+    trackName: 'Multi-Asset Talent Positioning Architecture',
     slaDays: effectiveCount <= 2 ? 'SLA: 5–7 BIZ DAYS' : 'SLA: 7–10 BIZ DAYS',
     isCustom: true,
     serviceCount: effectiveCount,
