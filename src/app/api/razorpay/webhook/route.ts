@@ -82,45 +82,53 @@ export async function POST(request: NextRequest) {
     if (!existing) return NextResponse.json({ received: true });
     if (existing.status === 'PAID') return NextResponse.json({ received: true }); // idempotent
 
-    let newStatus: 'PAID' | 'PARTIALLY_PAID' = 'PAID';
-    let updatedInstallments = existing.installments as unknown as Installment[];
+    let invoice: Awaited<ReturnType<typeof prisma.invoice.findUniqueOrThrow>>;
+    if (existing.installmentPlan && installmentSeq !== null) {
+      invoice = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "Invoice" WHERE "id" = ${invoiceId} FOR UPDATE`;
 
-    if (existing.installmentPlan && installmentSeq !== null && Array.isArray(updatedInstallments)) {
-      // Mark this instalment paid
-      updatedInstallments = updatedInstallments.map(inst =>
-        inst.seq === installmentSeq
-          ? { ...inst, status: 'PAID' as const, paidAt: new Date().toISOString() }
-          : inst
-      );
-      const allPaid = updatedInstallments.every(inst => inst.status === 'PAID');
-      newStatus = allPaid ? 'PAID' : 'PARTIALLY_PAID';
+        const current = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
+        if (current.status === 'PAID') return null;
+        const updatedInstallments = (current.installments as unknown as Installment[]).map(inst =>
+          inst.seq === installmentSeq
+            ? { ...inst, status: 'PAID' as const, paidAt: new Date().toISOString() }
+            : inst
+        );
+        const claimed = await tx.invoiceInstallment.updateMany({
+          where: { invoiceId, seq: installmentSeq, status: { not: 'PAID' } },
+          data: { status: 'PAID', paidAt: new Date() },
+        });
+        if (claimed.count !== 1) return null;
+
+        const allInstallments = await tx.invoiceInstallment.findMany({
+          where: { invoiceId },
+          select: { status: true },
+        });
+        const newStatus = allInstallments.every(inst => inst.status === 'PAID')
+          ? 'PAID'
+          : 'PARTIALLY_PAID';
+
+        return tx.invoice.update({
+          where: { id: invoiceId },
+          data: {
+            status: newStatus,
+            razorpayPaymentId,
+            installments: updatedInstallments as object[],
+            ...(newStatus === 'PAID' ? { paidAt: new Date() } : {}),
+          },
+        });
+      });
+      if (!invoice) return NextResponse.json({ received: true });
+    } else {
+      const claimed = await prisma.invoice.updateMany({
+        where: { id: invoiceId, status: existing.status },
+        data: { status: 'PAID', razorpayPaymentId, paidAt: new Date() },
+      });
+      if (claimed.count !== 1) return NextResponse.json({ received: true });
+      invoice = await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
     }
 
-    const claimed = await prisma.invoice.updateMany({
-      where: { id: invoiceId, status: { not: 'PAID' } },
-      data: {
-        status: newStatus,
-        razorpayPaymentId,
-        ...(newStatus === 'PAID' ? { paidAt: new Date() } : {}),
-        ...(existing.installmentPlan && installmentSeq !== null ? { 
-          installments: updatedInstallments as object[],
-          invoiceInstallments: {
-            updateMany: {
-              where: { seq: installmentSeq },
-              data: { status: 'PAID', paidAt: new Date() }
-            }
-          }
-        } : {}),
-
-      },
-    });
-    if (claimed.count !== 1) return NextResponse.json({ received: true });
-
-    const invoice = await prisma.invoice.findUniqueOrThrow({
-      where: { id: invoiceId },
-    });
-
-    if (newStatus === 'PAID') {
+    if (invoice.status === 'PAID') {
       waitUntil(
         sendPaymentConfirmationEmail(invoice as any)
           .catch(err => console.error('Confirmation email failed:', err))

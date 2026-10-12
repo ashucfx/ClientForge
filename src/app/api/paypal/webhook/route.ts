@@ -174,10 +174,17 @@ export async function POST(request: NextRequest) {
 
         // Atomic update: mark this installment paid and check if all are done
         const updatedInvoice = await prisma.$transaction(async (tx) => {
-          await tx.invoiceInstallment.update({
-            where: { id: installmentRow.id },
-            data:  { status: 'PAID', paidAt: new Date() },
+          await tx.$queryRaw`SELECT "id" FROM "Invoice" WHERE "id" = ${installmentRow.invoiceId} FOR UPDATE`;
+
+          const currentInvoice = await tx.invoice.findUniqueOrThrow({
+            where: { id: installmentRow.invoiceId },
           });
+          if (currentInvoice.status === 'PAID') return null;
+          const claimed = await tx.invoiceInstallment.updateMany({
+            where: { id: installmentRow.id, status: { not: 'PAID' } },
+            data: { status: 'PAID', paidAt: new Date() },
+          });
+          if (claimed.count !== 1) return null;
 
           const allInstallments = await tx.invoiceInstallment.findMany({
             where:  { invoiceId: installmentRow.invoiceId },
@@ -187,7 +194,7 @@ export async function POST(request: NextRequest) {
           const newStatus = allPaid ? 'PAID' : 'PARTIALLY_PAID';
 
           const paidAt = new Date().toISOString();
-          const updatedInstalls = (installmentRow.invoice.installments as unknown as Installment[]).map(inst =>
+          const updatedInstalls = (currentInvoice.installments as unknown as Installment[]).map(inst =>
             inst.paypalInvoiceId === paypalInvoiceId
               ? { ...inst, status: 'PAID' as const, paidAt }
               : inst
@@ -203,6 +210,7 @@ export async function POST(request: NextRequest) {
           });
         });
 
+        if (!updatedInvoice) return NextResponse.json({ received: true });
         const allPaid = updatedInvoice.status === 'PAID';
 
         if (allPaid) {
