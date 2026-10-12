@@ -1,13 +1,21 @@
 // scripts/db-sync.js
-// Schema sync that works in every environment:
-// - DIRECT_URL set            → prisma db push as-is
-// - only DATABASE_URL set     → derive the direct URL (Neon: strip "-pooler")
-// - no database configured    → skip (build continues; e.g. lint-only CI)
-// Additive schema changes only — db push never drops data without --accept-data-loss.
+// Explicitly opt-in local schema sync. This script must never run as part of a
+// production build or deployment.
 
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+
+if (process.env.NODE_ENV === 'production' || process.env.VERCEL || process.env.CI) {
+  console.error('[db-sync] Refusing to run in deployment, production, or CI environments.');
+  process.exit(1);
+}
+
+if (process.env.ALLOW_DB_PUSH !== 'true') {
+  console.error('[db-sync] Refusing to run without ALLOW_DB_PUSH=true.');
+  console.error('[db-sync] Use reviewed Prisma migrations for staging and production.');
+  process.exit(1);
+}
 
 // Local dev: hosted platforms inject env vars, but locally they live in
 // .env/.env.local (which the Prisma CLI reads itself). Mirror that here.
@@ -29,18 +37,15 @@ if (!dbUrl) {
   process.exit(0);
 }
 
-// CI pipelines build with a placeholder database (e.g. postgres@localhost)
-// that does not actually run. Never try to sync those — only real, remote
-// databases (Vercel/production) get schema sync, and there a failure is fatal.
 try {
   const host = new URL(dbUrl).hostname;
-  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') {
-    console.log(`[db-sync] DATABASE_URL points at ${host} (placeholder/CI database) — skipping schema sync.`);
-    process.exit(0);
+  if (!['localhost', '127.0.0.1', '::1'].includes(host)) {
+    console.error(`[db-sync] Refusing non-local database host: ${host}`);
+    process.exit(1);
   }
 } catch {
-  console.log('[db-sync] DATABASE_URL is not a valid URL — skipping schema sync.');
-  process.exit(0);
+  console.error('[db-sync] DATABASE_URL is not a valid URL.');
+  process.exit(1);
 }
 
 if (!process.env.DIRECT_URL) {
@@ -51,7 +56,7 @@ if (!process.env.DIRECT_URL) {
   console.log('[db-sync] DIRECT_URL not set — derived from DATABASE_URL.');
 }
 
-console.log('[db-sync] Running prisma db push…');
+console.log('[db-sync] Running explicitly authorized local prisma db push...');
 const result = spawnSync(
   process.platform === 'win32' ? 'npx.cmd' : 'npx',
   ['prisma', 'db', 'push'],
@@ -59,13 +64,8 @@ const result = spawnSync(
 );
 
 if (result.status !== 0) {
-  if (process.env.VERCEL || process.env.CI || process.env.NODE_ENV === 'production') {
-    console.error('[db-sync] Critical error: prisma db push failed in deployment environment.');
-    process.exit(result.status ?? 1);
-  } else {
-    console.warn('[db-sync] Warning: db push failed locally (e.g. network unreachable). Continuing local build.');
-    process.exit(0);
-  }
+  console.error('[db-sync] Local schema sync failed.');
+  process.exit(result.status ?? 1);
 }
 
 process.exit(0);
