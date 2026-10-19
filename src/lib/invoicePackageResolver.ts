@@ -52,7 +52,6 @@ export function resolveInvoicePackage(
 
   // ── CASE 1: Premium Plus Package (4+ items or contains Portfolio Website / Executive Plus) ──
   const isExplicitPremiumPlus =
-    combinedContext.includes('executive_plus') ||
     combinedContext.includes('premium plus') ||
     combinedContext.includes('exec+') ||
     combinedContext.includes('plus package');
