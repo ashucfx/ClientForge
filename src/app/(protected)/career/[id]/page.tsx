@@ -738,21 +738,24 @@ export default function CareerClientDetailPage() {
 }
 
 function ClientPresenceCard({ clientId }: { clientId: string }) {
-  const [data, setData] = useState<{ clientLastActiveAt?: string | null; teamLastActiveAt?: string | null; timezone?: string | null; country?: string | null } | null>(null);
+  const [data, setData] = useState<{ clientLastActiveAt?: string | null; teamLastActiveAt?: string | null; timezone?: string | null; country?: string | null; presenceAvailable?: boolean } | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     let alive = true;
     const refresh = async () => {
       try {
         const res = await fetch(`/api/career/admin/clients/${clientId}/presence`);
-        if (res.ok && alive) setData(await res.json());
-      } catch { /* Presence is best-effort. */ }
+        if (!res.ok) throw new Error('Presence request failed');
+        const result = await res.json();
+        if (alive) { setData(result); setUnavailable(false); }
+      } catch { if (alive) setUnavailable(true); }
     };
     void refresh();
     const timer = window.setInterval(() => { setNow(Date.now()); void refresh(); }, 60_000);
     return () => { alive = false; window.clearInterval(timer); };
   }, [clientId]);
-  if (!data) return <p className="text-[11px] text-slate-400 mt-1">Loading collaboration status…</p>;
+  if (!data) return <p className="text-[11px] text-slate-400 mt-1">{unavailable ? 'Collaboration status unavailable' : 'Loading collaboration status…'}</p>;
   const clientOnline = Boolean(data.clientLastActiveAt && now - new Date(data.clientLastActiveAt).getTime() < 120_000);
   const teamOnline = Boolean(data.teamLastActiveAt && now - new Date(data.teamLastActiveAt).getTime() < 120_000);
   const saveTimezone = async (timezone: string) => {
@@ -766,6 +769,7 @@ function ClientPresenceCard({ clientId }: { clientId: string }) {
     try { clientTime = `${new Intl.DateTimeFormat(undefined, { timeZone: data.timezone, timeStyle: 'short' }).format(now)} (${data.timezone})`; } catch { clientTime = 'Time zone needs review'; }
   }
   return <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+    {data.presenceAvailable === false && <span className="w-full text-amber-700">Live collaboration status is unavailable until the portal presence update is applied.</span>}
     <span><i className={`inline-block w-2 h-2 rounded-full mr-1.5 ${clientOnline ? 'bg-emerald-500' : 'bg-slate-400'}`} />Client {clientOnline ? 'Active now' : data.clientLastActiveAt ? `last seen ${new Date(data.clientLastActiveAt).toLocaleString()}` : 'not seen yet'}</span>
     <span><i className={`inline-block w-2 h-2 rounded-full mr-1.5 ${teamOnline ? 'bg-emerald-500' : 'bg-slate-400'}`} />Team {teamOnline ? 'Active now' : data.teamLastActiveAt ? `last seen ${new Date(data.teamLastActiveAt).toLocaleString()}` : 'not active yet'}</span>
     <span>{data.country ? `${data.country} · ` : ''}{clientTime}</span>
