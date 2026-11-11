@@ -35,6 +35,7 @@ model AdminUser {
   brandAccess  String[]  @default(["catalyst", "ripple_nexus"]) // RBAC brand isolation
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
+  lastActiveAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }
@@ -240,6 +241,9 @@ model CareerClient {
   magicTokenExpiry   DateTime?
   pinHash            String? // HMAC-SHA256 of 6-digit PIN
   lastLoginAt        DateTime?
+  lastActiveAt       DateTime?
+  lastViewedByAdminAt DateTime?
+  timezone           String?
   invoiceId          String?
   notes              String?
   expectedDeliveryAt DateTime?

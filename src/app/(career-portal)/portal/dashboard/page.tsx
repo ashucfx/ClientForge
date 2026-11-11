@@ -10,6 +10,7 @@ import { PACKAGE_LABELS, STATUS_LABELS } from '@/lib/career/types';
 import { DeliverableViewer } from '@/components/DeliverableViewer';
 import { ClientFeedbackForms } from '@/components/ClientFeedbackForms';
 import { ClientSlaModal } from '@/components/ClientSlaModal';
+import { CountryTimeZoneSelect } from '@/components/CountryTimeZoneSelect';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -54,6 +55,11 @@ interface Me {
   slaAccepted?: boolean;
   slaAcceptedAt?: string | null;
   slaVersion?: string | null;
+  timezone?: string | null;
+  country?: string | null;
+  clientLastActiveAt?: string | null;
+  teamLastActiveAt?: string | null;
+  lastViewedByAdminAt?: string | null;
 }
 interface ReferralStats {
   referralCode: string | null;
@@ -274,6 +280,8 @@ export default function PortalDashboardPage() {
   const [showSlaModal, setShowSlaModal] = useState(false);
   const [files, setFiles] = useState<DeliverableItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [presenceNow, setPresenceNow] = useState(Date.now());
+  const timezoneOverride = useRef<string | null>(null);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [newComment, setNewComment] = useState('');
   const [postingComment, setPostingComment] = useState(false);
@@ -517,6 +525,31 @@ export default function PortalDashboardPage() {
   };
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    let alive = true;
+    const ping = async () => {
+      try {
+        const timezone = timezoneOverride.current || Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const res = await fetch('/api/career/portal/presence', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timezone }) });
+        if (res.ok && alive) {
+          const data = await res.json();
+          setMe(prev => prev ? { ...prev, timezone: data.timezone || prev.timezone, country: data.country || prev.country, teamLastActiveAt: data.teamLastActiveAt, lastViewedByAdminAt: data.lastViewedByAdminAt, clientLastActiveAt: new Date().toISOString() } : prev);
+        }
+      } catch { /* Presence is best-effort; portal content remains available. */ }
+    };
+    void ping();
+    const heartbeat = window.setInterval(() => { void ping(); setPresenceNow(Date.now()); }, 60_000);
+    return () => { alive = false; window.clearInterval(heartbeat); };
+  }, []);
+
+  const saveTimezone = async (timezone: string) => {
+    timezoneOverride.current = timezone;
+    setMe(prev => prev ? { ...prev, timezone } : prev);
+    await fetch('/api/career/portal/presence', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timezone }),
+    }).catch(() => undefined);
+  };
 
   const logout = async () => {
     await fetch('/api/career/auth/verify', { method: 'DELETE' });
@@ -1611,6 +1644,17 @@ export default function PortalDashboardPage() {
 
         {/* ── Messages ── */}
         <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-6">
+          <div className="mb-4 rounded-xl bg-[#FBF8F3] border border-[#EBE4D9] px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="text-slate-600">
+              <span className={`inline-block w-2 h-2 rounded-full mr-2 ${me.teamLastActiveAt && presenceNow - new Date(me.teamLastActiveAt).getTime() < 120_000 ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+              Catalyst team {me.teamLastActiveAt && presenceNow - new Date(me.teamLastActiveAt).getTime() < 120_000 ? 'Active now' : me.teamLastActiveAt ? `Last seen ${new Date(me.teamLastActiveAt).toLocaleString()}` : 'availability not yet recorded'}
+              {me.lastViewedByAdminAt && <span className="ml-2 text-slate-500">· Account last viewed {new Date(me.lastViewedByAdminAt).toLocaleString()}</span>}
+            </div>
+            <label className="flex items-center gap-2 font-semibold text-slate-700">
+              <span>{me.country ? `${me.country} · ` : ''}{formatClientLocalTime(me.timezone, presenceNow)}</span>
+              <CountryTimeZoneSelect country={me.country} value={me.timezone} onChange={timezone => void saveTimezone(timezone)} ariaLabel="Your time zone" className="max-w-[250px] bg-white border border-[#EBE4D9] rounded-lg px-2 py-1 text-[11px] font-medium" />
+            </label>
+          </div>
           <div className="flex items-center gap-2 mb-5">
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Messages & Notes</p>
@@ -1844,13 +1888,22 @@ function PortalAttachmentChip({ att, onRemove }: { att: Attachment; onRemove?: (
   );
 }
 
+function formatClientLocalTime(timezone: string | null | undefined, timestamp: number): string {
+  if (!timezone) return `${new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(timestamp)} (device time)`;
+  try { return `${new Intl.DateTimeFormat(undefined, { timeZone: timezone, timeStyle: 'short' }).format(timestamp)} (${timezone})`; }
+  catch { return 'Time zone needs review'; }
+}
+
 function PortalMessageBubble({ c, myName, showHeader = true, onEdit, onDelete }: {
   c: CommentItem; myName: string; showHeader?: boolean;
   onEdit?: (id: string, content: string) => void;
   onDelete?: (id: string) => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editClock, setEditClock] = useState(Date.now());
+  useEffect(() => { const timer = window.setInterval(() => setEditClock(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
   const isClient = c.authorType === 'client';
+  const editSeconds = Math.max(0, Math.ceil((new Date(c.createdAt).getTime() + 5 * 60_000 - editClock) / 1000));
   const atts = c.attachments ?? [];
   const authorName = isClient ? myName : 'Catalyst Team';
   const avatarChar = isClient ? (myName[0]?.toUpperCase() ?? 'C') : 'C';
@@ -1896,7 +1949,7 @@ function PortalMessageBubble({ c, myName, showHeader = true, onEdit, onDelete }:
             </div>
             {isClient && (onEdit || onDelete) && (
               <div className="absolute -top-1 -right-1 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5">
-                {onEdit && (
+                {onEdit && editSeconds > 0 && (
                   <button onClick={() => onEdit(c.id, c.content)}
                     className="p-1 rounded-md bg-white border border-[#EBE4D9] text-slate-400 hover:text-slate-700 shadow-sm" title="Edit">
                     <svg width="11" height="11" fill="none" viewBox="0 0 24 24">
@@ -1947,6 +2000,11 @@ function PortalMessageBubble({ c, myName, showHeader = true, onEdit, onDelete }:
             ))}
           </div>
         )}
+
+        {isClient && <div className="flex items-center gap-2 mt-1">
+          {editSeconds > 0 && <span className="text-[10px] text-slate-400">Edit available {Math.floor(editSeconds / 60)}:{String(editSeconds % 60).padStart(2, '0')}</span>}
+          {c.readByAdminAt && <span className="text-[10px] text-[#B8935B]">Seen by the team {fmtTime(c.readByAdminAt)}</span>}
+        </div>}
       </div>
     </div>
   );
