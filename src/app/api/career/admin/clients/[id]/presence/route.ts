@@ -24,19 +24,44 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  await db.careerClient.update({ where: { id: params.id }, data: { lastViewedByAdminAt: new Date() }, select: { id: true } });
-  const [client, activeTeam, thisAdmin] = await Promise.all([
-    db.careerClient.findUnique({ where: { id: params.id }, select: { lastActiveAt: true, lastLoginAt: true, lastViewedByAdminAt: true, timezone: true, contact: { select: { country: true, timezone: true } } } }),
-    db.adminUser.findFirst({ where: { isActive: true, brandAccess: { has: 'catalyst' }, lastActiveAt: { not: null } }, orderBy: { lastActiveAt: 'desc' }, select: { lastActiveAt: true } }),
-    db.adminUser.update({ where: { id: session.adminId }, data: { lastActiveAt: new Date() }, select: { lastActiveAt: true } }),
-  ]);
-  if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  return NextResponse.json({
-    clientLastActiveAt: client.lastActiveAt ?? client.lastLoginAt,
-    teamLastActiveAt: activeTeam?.lastActiveAt ?? null,
-    lastViewedByAdminAt: client.lastViewedByAdminAt,
-    timezone: client.timezone || client.contact?.timezone || null,
-    country: client.contact?.country || null,
-    adminLastActiveAt: thisAdmin.lastActiveAt,
-  });
+  try {
+    await db.careerClient.update({ where: { id: params.id }, data: { lastViewedByAdminAt: new Date() }, select: { id: true } });
+    const [client, activeTeam, thisAdmin] = await Promise.all([
+      db.careerClient.findUnique({ where: { id: params.id }, select: { lastActiveAt: true, lastLoginAt: true, lastViewedByAdminAt: true, timezone: true, contact: { select: { country: true, timezone: true } } } }),
+      db.adminUser.findFirst({ where: { isActive: true, brandAccess: { has: 'catalyst' }, lastActiveAt: { not: null } }, orderBy: { lastActiveAt: 'desc' }, select: { lastActiveAt: true } }),
+      db.adminUser.update({ where: { id: session.adminId }, data: { lastActiveAt: new Date() }, select: { lastActiveAt: true } }),
+    ]);
+    if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json({
+      clientLastActiveAt: client.lastActiveAt ?? client.lastLoginAt,
+      teamLastActiveAt: activeTeam?.lastActiveAt ?? null,
+      lastViewedByAdminAt: client.lastViewedByAdminAt,
+      timezone: client.timezone || client.contact?.timezone || null,
+      country: client.contact?.country || null,
+      adminLastActiveAt: thisAdmin.lastActiveAt,
+      presenceAvailable: true,
+    });
+  } catch (error) {
+    // Presence columns are additive and may not yet exist in older deployments.
+    // Keep the client account usable and return the older login/country details.
+    console.error('[client-presence] Presence fields unavailable:', error);
+    try {
+      const client = await db.careerClient.findUnique({
+        where: { id: params.id },
+        select: { lastLoginAt: true, contact: { select: { country: true } } },
+      });
+      if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return NextResponse.json({
+        clientLastActiveAt: client.lastLoginAt,
+        teamLastActiveAt: null,
+        lastViewedByAdminAt: null,
+        timezone: null,
+        country: client.contact?.country || null,
+        presenceAvailable: false,
+      });
+    } catch (fallbackError) {
+      console.error('[client-presence] Fallback lookup failed:', fallbackError);
+      return NextResponse.json({ error: 'Collaboration status is temporarily unavailable.' }, { status: 503 });
+    }
+  }
 }
