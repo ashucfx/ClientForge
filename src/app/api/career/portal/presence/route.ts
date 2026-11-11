@@ -1,25 +1,19 @@
 export const runtime = 'nodejs';
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma as db } from '@/lib/db';
 import { verifyPortalToken, PORTAL_COOKIE } from '@/lib/career/auth';
 
-function validTimezone(value: unknown): value is string {
-  if (typeof value !== 'string' || value.length > 80) return false;
-  try { new Intl.DateTimeFormat('en-US', { timeZone: value }); return true; } catch { return false; }
-}
-
-export async function POST(req: NextRequest) {
+export async function POST() {
   const token = cookies().get(PORTAL_COOKIE)?.value ?? '';
   const payload = await verifyPortalToken(token);
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const body = await req.json().catch(() => ({}));
-  const timezone = validTimezone(body?.timezone) ? body.timezone : undefined;
   try {
     const client = await db.careerClient.update({
       where: { id: payload.clientId },
-      data: { lastActiveAt: new Date(), ...(timezone ? { timezone } : {}) },
+      // Clients can update presence only; the admin controls the saved time zone.
+      data: { lastActiveAt: new Date() },
       select: { timezone: true, contact: { select: { country: true, timezone: true } } },
     });
     const [admins, account] = await Promise.all([
@@ -37,21 +31,7 @@ export async function POST(req: NextRequest) {
       presenceAvailable: true,
     });
   } catch (error) {
-    if (!timezone) {
-      console.error('[portal-presence] Failed to record activity:', error);
-      return NextResponse.json({ error: 'Collaboration status is temporarily unavailable.' }, { status: 503 });
-    }
-    try {
-      const account = await db.careerClient.findUnique({
-        where: { id: payload.clientId }, select: { contactId: true, contact: { select: { country: true } } },
-      });
-      if (!account) return NextResponse.json({ error: 'Client account not found.' }, { status: 404 });
-      if (!account.contactId) return NextResponse.json({ error: 'Your account has no linked contact record to save the time zone.' }, { status: 409 });
-      await db.contact.update({ where: { id: account.contactId }, data: { timezone } });
-      return NextResponse.json({ timezone, country: account.contact?.country || null, presenceAvailable: false });
-    } catch (fallbackError) {
-      console.error('[portal-presence] Failed to save time zone fallback:', fallbackError);
-      return NextResponse.json({ error: 'Could not save this time zone.' }, { status: 503 });
-    }
+    console.error('[portal-presence] Failed to record activity:', error);
+    return NextResponse.json({ error: 'Collaboration status is temporarily unavailable.' }, { status: 503 });
   }
 }
