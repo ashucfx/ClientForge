@@ -44,6 +44,15 @@ export async function POST(request: NextRequest) {
 
     const adminUser = await prisma.adminUser.findUnique({
       where: { email: email.toLowerCase() },
+      // Keep login compatible with additive schema changes that may not have
+      // reached the database yet. Fetch only fields required to authenticate.
+      select: {
+        id: true,
+        email: true,
+        passwordHash: true,
+        isActive: true,
+        role: true,
+      },
     });
 
     if (!adminUser || !adminUser.isActive) {
