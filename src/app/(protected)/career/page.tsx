@@ -101,7 +101,7 @@ export default function CareerClientsPage() {
 
   function SlaChip({ c }: { c: Client }) {
     if (c.status === 'COMPLETED') {
-      return <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700">
+      return <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-[#F5F0E8] border border-[#E5D4B4] text-[#8C6C39]">
         <svg aria-hidden="true" className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none"><path d="m3.5 8.2 2.8 2.8 6.2-6.3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
         Fulfilled
       </span>;
