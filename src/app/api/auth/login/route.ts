@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
     await prisma.adminUser.update({
       where: { id: adminUser.id },
       data: { lastLoginAt: new Date() },
+      select: { id: true },
     });
 
     const sessionId = crypto.randomUUID();
