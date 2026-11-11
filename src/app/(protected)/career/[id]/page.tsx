@@ -298,9 +298,9 @@ export default function CareerClientDetailPage() {
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="h-1.5 bg-gradient-to-r from-[#B8935B] via-[#B8935B] to-emerald-400" />
         <div className="p-4 sm:p-6">
-          <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             {/* Left: identity */}
-            <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center sm:gap-4">
+            <div className="flex min-w-0 items-start gap-3 sm:flex-1 sm:items-center sm:gap-4">
               <div className="w-12 h-12 rounded-xl bg-[#B8935B] flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
                 {client.name[0]?.toUpperCase()}
               </div>
@@ -321,8 +321,10 @@ export default function CareerClientDetailPage() {
                     </span>
                   )}
                 </div>
-                <p className="text-slate-500 text-sm">{client.email}</p>
-                {client.phone && <p className="text-slate-400 text-xs mt-0.5">{client.phone}</p>}
+                <div className="mt-1 flex min-w-0 flex-col items-start gap-0.5">
+                  <p className="m-0 block max-w-full break-all text-sm leading-snug text-slate-500">{client.email}</p>
+                  {client.phone && <p className="m-0 block max-w-full break-words text-xs leading-snug text-slate-400">{client.phone}</p>}
+                </div>
               </div>
             </div>
             {/* Right: badges */}
