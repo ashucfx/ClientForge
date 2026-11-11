@@ -304,7 +304,7 @@ export default function CareerClientDetailPage() {
               <div className="w-12 h-12 rounded-xl bg-[#B8935B] flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
                 {client.name[0]?.toUpperCase()}
               </div>
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-3">
                   <h1 className="text-xl font-bold text-slate-900">{client.name}</h1>
                   {client.slaDeadline && (
@@ -740,6 +740,8 @@ export default function CareerClientDetailPage() {
 function ClientPresenceCard({ clientId }: { clientId: string }) {
   const [data, setData] = useState<{ clientLastActiveAt?: string | null; teamLastActiveAt?: string | null; timezone?: string | null; country?: string | null; presenceAvailable?: boolean } | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const [timezoneSaving, setTimezoneSaving] = useState(false);
+  const [timezoneSaveError, setTimezoneSaveError] = useState('');
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     let alive = true;
@@ -759,22 +761,55 @@ function ClientPresenceCard({ clientId }: { clientId: string }) {
   const clientOnline = Boolean(data.clientLastActiveAt && now - new Date(data.clientLastActiveAt).getTime() < 120_000);
   const teamOnline = Boolean(data.teamLastActiveAt && now - new Date(data.teamLastActiveAt).getTime() < 120_000);
   const saveTimezone = async (timezone: string) => {
-    const res = await fetch(`/api/career/admin/clients/${clientId}/presence`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timezone }),
-    });
-    if (res.ok) setData(prev => prev ? { ...prev, timezone } : prev);
+    const previousTimezone = data.timezone;
+    setTimezoneSaving(true);
+    setTimezoneSaveError('');
+    setData(prev => prev ? { ...prev, timezone } : prev);
+    try {
+      const res = await fetch(`/api/career/admin/clients/${clientId}/presence`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timezone }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || 'Could not save this time zone.');
+      setData(prev => prev ? { ...prev, timezone, presenceAvailable: result.presenceAvailable ?? prev.presenceAvailable } : prev);
+    } catch (error) {
+      setData(prev => prev ? { ...prev, timezone: previousTimezone } : prev);
+      setTimezoneSaveError(error instanceof Error ? error.message : 'Could not save this time zone.');
+    } finally { setTimezoneSaving(false); }
   };
   let clientTime = 'Time zone not set';
   if (data.timezone) {
     try { clientTime = `${new Intl.DateTimeFormat(undefined, { timeZone: data.timezone, timeStyle: 'short' }).format(now)} (${data.timezone})`; } catch { clientTime = 'Time zone needs review'; }
   }
-  return <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
-    {data.presenceAvailable === false && <span className="w-full text-amber-700">Live collaboration status is unavailable until the portal presence update is applied.</span>}
-    <span><i className={`inline-block w-2 h-2 rounded-full mr-1.5 ${clientOnline ? 'bg-emerald-500' : 'bg-slate-400'}`} />Client {clientOnline ? 'Active now' : data.clientLastActiveAt ? `last seen ${new Date(data.clientLastActiveAt).toLocaleString()}` : 'not seen yet'}</span>
-    <span><i className={`inline-block w-2 h-2 rounded-full mr-1.5 ${teamOnline ? 'bg-emerald-500' : 'bg-slate-400'}`} />Team {teamOnline ? 'Active now' : data.teamLastActiveAt ? `last seen ${new Date(data.teamLastActiveAt).toLocaleString()}` : 'not active yet'}</span>
-    <span>{data.country ? `${data.country} · ` : ''}{clientTime}</span>
-    <CountryTimeZoneSelect country={data.country} value={data.timezone} onChange={timezone => void saveTimezone(timezone)} ariaLabel="Client time zone" className="max-w-[250px] bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[10px]" />
-  </div>;
+  return <section aria-label="Client collaboration status" className="mt-3 w-full max-w-2xl rounded-2xl border border-[#EBE4D9] bg-[#FFFEFC] p-3 shadow-[0_1px_4px_rgba(10,11,13,0.04)] sm:p-4">
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h2 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Collaboration</h2>
+        <p className="mt-0.5 text-xs font-semibold text-slate-700">Availability & local time</p>
+      </div>
+      <span className="rounded-full border border-[#EBE4D9] bg-white px-2.5 py-1 text-[10px] font-medium text-slate-500">Updates every minute</span>
+    </div>
+    {data.presenceAvailable === false && <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">Live activity tracking is unavailable until the portal presence update is applied. Your time zone preference can still be saved.</p>}
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="min-w-0 rounded-xl border border-[#F0E9E0] bg-white px-3 py-2.5">
+        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400"><i className={`h-2 w-2 shrink-0 rounded-full ${clientOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />Client</div>
+        <p className="mt-1 break-words text-xs font-medium text-slate-700">{clientOnline ? 'Active now' : data.clientLastActiveAt ? `Last seen ${new Date(data.clientLastActiveAt).toLocaleString()}` : 'Not seen yet'}</p>
+      </div>
+      <div className="min-w-0 rounded-xl border border-[#F0E9E0] bg-white px-3 py-2.5">
+        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400"><i className={`h-2 w-2 shrink-0 rounded-full ${teamOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />Catalyst team</div>
+        <p className="mt-1 break-words text-xs font-medium text-slate-700">{teamOnline ? 'Active now' : data.teamLastActiveAt ? `Last seen ${new Date(data.teamLastActiveAt).toLocaleString()}` : 'Availability not yet recorded'}</p>
+      </div>
+    </div>
+    <div className="mt-3 flex min-w-0 flex-col gap-2 border-t border-[#F0E9E0] pt-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Client local time</p>
+        <p className="mt-0.5 break-words text-xs font-semibold text-slate-700">{data.country ? `${data.country} · ` : ''}{clientTime}</p>
+        {timezoneSaving && <p className="mt-1 text-[10px] text-slate-400">Saving time zone…</p>}
+        {timezoneSaveError && <p role="alert" className="mt-1 text-[10px] text-red-600">{timezoneSaveError}</p>}
+      </div>
+      <CountryTimeZoneSelect country={data.country} value={data.timezone} onChange={timezone => void saveTimezone(timezone)} ariaLabel="Client time zone" className="sm:shrink-0" />
+    </div>
+  </section>;
 }
 
 

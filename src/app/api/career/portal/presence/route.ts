@@ -16,20 +16,42 @@ export async function POST(req: NextRequest) {
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const timezone = validTimezone(body?.timezone) ? body.timezone : undefined;
-  const client = await db.careerClient.update({
-    where: { id: payload.clientId },
-    data: { lastActiveAt: new Date(), ...(timezone ? { timezone } : {}) },
-    select: { timezone: true, contact: { select: { country: true, timezone: true } } },
-  });
-  const admins = await db.adminUser.findMany({
-    where: { isActive: true, brandAccess: { has: 'catalyst' } },
-    orderBy: { lastActiveAt: 'desc' }, take: 1, select: { lastActiveAt: true },
-  });
-  const account = await db.careerClient.findUnique({ where: { id: payload.clientId }, select: { lastViewedByAdminAt: true } });
-  return NextResponse.json({
-    timezone: client.timezone || client.contact?.timezone || null,
-    country: client.contact?.country || null,
-    teamLastActiveAt: admins[0]?.lastActiveAt ?? null,
-    lastViewedByAdminAt: account?.lastViewedByAdminAt ?? null,
-  });
+  try {
+    const client = await db.careerClient.update({
+      where: { id: payload.clientId },
+      data: { lastActiveAt: new Date(), ...(timezone ? { timezone } : {}) },
+      select: { timezone: true, contact: { select: { country: true, timezone: true } } },
+    });
+    const [admins, account] = await Promise.all([
+      db.adminUser.findMany({
+        where: { isActive: true, brandAccess: { has: 'catalyst' } },
+        orderBy: { lastActiveAt: 'desc' }, take: 1, select: { lastActiveAt: true },
+      }),
+      db.careerClient.findUnique({ where: { id: payload.clientId }, select: { lastViewedByAdminAt: true } }),
+    ]);
+    return NextResponse.json({
+      timezone: client.timezone || client.contact?.timezone || null,
+      country: client.contact?.country || null,
+      teamLastActiveAt: admins[0]?.lastActiveAt ?? null,
+      lastViewedByAdminAt: account?.lastViewedByAdminAt ?? null,
+      presenceAvailable: true,
+    });
+  } catch (error) {
+    if (!timezone) {
+      console.error('[portal-presence] Failed to record activity:', error);
+      return NextResponse.json({ error: 'Collaboration status is temporarily unavailable.' }, { status: 503 });
+    }
+    try {
+      const account = await db.careerClient.findUnique({
+        where: { id: payload.clientId }, select: { contactId: true, contact: { select: { country: true } } },
+      });
+      if (!account) return NextResponse.json({ error: 'Client account not found.' }, { status: 404 });
+      if (!account.contactId) return NextResponse.json({ error: 'Your account has no linked contact record to save the time zone.' }, { status: 409 });
+      await db.contact.update({ where: { id: account.contactId }, data: { timezone } });
+      return NextResponse.json({ timezone, country: account.contact?.country || null, presenceAvailable: false });
+    } catch (fallbackError) {
+      console.error('[portal-presence] Failed to save time zone fallback:', fallbackError);
+      return NextResponse.json({ error: 'Could not save this time zone.' }, { status: 503 });
+    }
+  }
 }
