@@ -297,16 +297,16 @@ export default function CareerClientDetailPage() {
       {/* Hero card */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="h-1.5 bg-gradient-to-r from-[#B8935B] via-[#B8935B] to-emerald-400" />
-        <div className="p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="p-4 sm:p-6">
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
             {/* Left: identity */}
-            <div className="flex items-center gap-4">
+            <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center sm:gap-4">
               <div className="w-12 h-12 rounded-xl bg-[#B8935B] flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
                 {client.name[0]?.toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-3">
-                  <h1 className="text-xl font-bold text-slate-900">{client.name}</h1>
+                <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+                  <h1 className="min-w-0 break-words text-xl font-bold text-slate-900">{client.name}</h1>
                   {client.slaDeadline && (
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider ${
                       client.status === 'COMPLETED' ? 'bg-[#F5F0E8] text-[#8C6C39] border border-[#E5D4B4]' :
@@ -323,7 +323,6 @@ export default function CareerClientDetailPage() {
                 </div>
                 <p className="text-slate-500 text-sm">{client.email}</p>
                 {client.phone && <p className="text-slate-400 text-xs mt-0.5">{client.phone}</p>}
-                <ClientPresenceCard clientId={client.id} />
               </div>
             </div>
             {/* Right: badges */}
@@ -349,6 +348,8 @@ export default function CareerClientDetailPage() {
               </span>
             </div>
           </div>
+
+          <ClientPresenceCard clientId={client.id} />
 
           {/* Stats row */}
           <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -785,20 +786,32 @@ function ClientPresenceCard({ clientId }: { clientId: string }) {
   if (selectedTimezone) {
     try { clientTime = `${new Intl.DateTimeFormat(undefined, { timeZone: selectedTimezone, timeStyle: 'short' }).format(now)} (${selectedTimezone})`; } catch { clientTime = 'Time zone needs review'; }
   }
-  return <section aria-label="Client collaboration status" className="mt-3 w-full max-w-2xl rounded-2xl border border-[#EBE4D9] bg-[#FFFEFC] p-3">
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <span className="inline-flex items-center gap-2 text-xs text-slate-600"><i className={`h-2 w-2 shrink-0 rounded-full ${clientOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} /><b className="font-semibold text-slate-700">Client</b>{clientOnline ? 'Active now' : data.clientLastActiveAt ? `Last seen ${new Date(data.clientLastActiveAt).toLocaleString()}` : 'Not seen yet'}</span>
-      <span className="inline-flex items-center gap-2 text-xs text-slate-600"><i className={`h-2 w-2 shrink-0 rounded-full ${teamOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} /><b className="font-semibold text-slate-700">Catalyst team</b>{teamOnline ? 'Active now' : data.teamLastActiveAt ? `Last seen ${new Date(data.teamLastActiveAt).toLocaleString()}` : 'Availability not yet recorded'}</span>
+  return <section aria-label="Client collaboration status" className="mt-3 w-full min-w-0 max-w-full rounded-2xl border border-[#EBE4D9] bg-[#FFFEFC] p-3 sm:max-w-2xl">
+    <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="flex min-w-0 items-start gap-2 rounded-xl border border-[#F0E9E0] bg-white px-2.5 py-2">
+        <i className={`mt-1 h-2 w-2 shrink-0 rounded-full ${clientOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Client</p>
+          <p className="mt-0.5 break-words text-xs leading-relaxed text-slate-600">{clientOnline ? 'Active now' : data.clientLastActiveAt ? `Last seen ${new Date(data.clientLastActiveAt).toLocaleString()}` : 'Not seen yet'}</p>
+        </div>
+      </div>
+      <div className="flex min-w-0 items-start gap-2 rounded-xl border border-[#F0E9E0] bg-white px-2.5 py-2">
+        <i className={`mt-1 h-2 w-2 shrink-0 rounded-full ${teamOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Catalyst team</p>
+          <p className="mt-0.5 break-words text-xs leading-relaxed text-slate-600">{teamOnline ? 'Active now' : data.teamLastActiveAt ? `Last seen ${new Date(data.teamLastActiveAt).toLocaleString()}` : 'Availability not yet recorded'}</p>
+        </div>
+      </div>
     </div>
     {data.presenceAvailable === false && <p className="mt-2 text-[10px] leading-relaxed text-amber-700">Live activity tracking is unavailable until the portal presence update is applied.</p>}
-    <div className="mt-3 flex min-w-0 flex-col gap-2 border-t border-[#F0E9E0] pt-3 sm:flex-row sm:items-center">
+    <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 border-t border-[#F0E9E0] pt-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,auto)] sm:items-center">
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{data.country ? `${data.country} local time` : 'Client local time'}</p>
         <p className="mt-0.5 break-words text-xs font-semibold text-slate-700">{clientTime}{timezoneDirty && <span className="ml-2 text-[10px] font-medium text-amber-700">Unsaved</span>}</p>
       </div>
-      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,250px)_auto] sm:items-center">
         <CountryTimeZoneSelect country={data.country} value={selectedTimezone} disabled={timezoneSaving} onChange={setDraftTimezone} ariaLabel="Client time zone" />
-        <button type="button" onClick={() => void saveTimezone()} disabled={!timezoneDirty || timezoneSaving} className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[#9A7540] px-4 text-xs font-semibold text-white transition hover:bg-[#836338] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">{timezoneSaving ? 'Saving…' : 'Save'}</button>
+        <button type="button" onClick={() => void saveTimezone()} disabled={!timezoneDirty || timezoneSaving} className="inline-flex min-h-10 items-center justify-center justify-self-start rounded-xl bg-[#9A7540] px-4 text-xs font-semibold text-white transition hover:bg-[#836338] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 sm:justify-self-auto">{timezoneSaving ? 'Saving…' : 'Save'}</button>
       </div>
     </div>
     {timezoneSaveError && <p role="alert" className="mt-2 text-[10px] text-red-600">{timezoneSaveError}</p>}
