@@ -26,12 +26,14 @@ export function CountryTimeZoneSelect({
   value,
   onChange,
   ariaLabel,
+  disabled,
   className,
 }: {
   country?: string | null;
   value?: string | null;
   onChange: (timezone: string) => void;
   ariaLabel: string;
+  disabled?: boolean;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -108,11 +110,12 @@ export function CountryTimeZoneSelect({
     <div ref={rootRef} className="relative w-full min-w-0 sm:w-auto">
       <button
         type="button"
+        disabled={disabled}
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => { setOpen(current => !current); setQuery(''); }}
-        className={`flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-[#E8DDD0] bg-white px-3 py-2 text-left text-sm font-medium text-slate-800 shadow-sm transition hover:border-[#B8935B] hover:bg-[#FFFEFC] focus:outline-none focus:ring-2 focus:ring-[#B8935B]/30 sm:w-[250px] ${className ?? ''}`}
+        className={`flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-[#E8DDD0] bg-white px-3 py-2 text-left text-sm font-medium text-slate-800 shadow-sm transition hover:border-[#B8935B] hover:bg-[#FFFEFC] focus:outline-none focus:ring-2 focus:ring-[#B8935B]/30 disabled:cursor-not-allowed disabled:opacity-60 sm:w-[250px] ${className ?? ''}`}
       >
         <span className="min-w-0">
           <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Time zone</span>

@@ -308,12 +308,13 @@ export default function CareerClientDetailPage() {
                 <div className="flex items-center gap-3">
                   <h1 className="text-xl font-bold text-slate-900">{client.name}</h1>
                   {client.slaDeadline && (
-                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider ${
-                      client.status === 'COMPLETED' ? 'bg-slate-100 text-slate-600 border border-slate-200' :
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider ${
+                      client.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                       new Date(client.slaDeadline).getTime() < Date.now() ? 'bg-red-100 text-red-700 border border-red-200' :
                       new Date(client.slaDeadline).getTime() < Date.now() + 86400000 ? 'bg-amber-100 text-amber-700 border border-amber-200' :
                       'bg-emerald-100 text-emerald-700 border border-emerald-200'
                     }`}>
+                      {client.status === 'COMPLETED' && <svg aria-hidden="true" className="h-3 w-3" viewBox="0 0 16 16" fill="none"><path d="m3.5 8.2 2.8 2.8 6.2-6.3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                       {client.status === 'COMPLETED' ? 'FULFILLED' :
                        new Date(client.slaDeadline).getTime() < Date.now() ? 'SLA BREACHED' :
                        new Date(client.slaDeadline).getTime() < Date.now() + 86400000 ? 'DUE SOON' : 'ON TRACK'}
@@ -742,6 +743,7 @@ function ClientPresenceCard({ clientId }: { clientId: string }) {
   const [unavailable, setUnavailable] = useState(false);
   const [timezoneSaving, setTimezoneSaving] = useState(false);
   const [timezoneSaveError, setTimezoneSaveError] = useState('');
+  const [draftTimezone, setDraftTimezone] = useState('');
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     let alive = true;
@@ -760,11 +762,13 @@ function ClientPresenceCard({ clientId }: { clientId: string }) {
   if (!data) return <p className="text-[11px] text-slate-400 mt-1">{unavailable ? 'Collaboration status unavailable' : 'Loading collaboration status…'}</p>;
   const clientOnline = Boolean(data.clientLastActiveAt && now - new Date(data.clientLastActiveAt).getTime() < 120_000);
   const teamOnline = Boolean(data.teamLastActiveAt && now - new Date(data.teamLastActiveAt).getTime() < 120_000);
-  const saveTimezone = async (timezone: string) => {
-    const previousTimezone = data.timezone;
+  const selectedTimezone = draftTimezone || data.timezone || '';
+  const timezoneDirty = Boolean(draftTimezone && draftTimezone !== data.timezone);
+  const saveTimezone = async () => {
+    if (!timezoneDirty || !draftTimezone) return;
+    const timezone = draftTimezone;
     setTimezoneSaving(true);
     setTimezoneSaveError('');
-    setData(prev => prev ? { ...prev, timezone } : prev);
     try {
       const res = await fetch(`/api/career/admin/clients/${clientId}/presence`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timezone }),
@@ -772,43 +776,32 @@ function ClientPresenceCard({ clientId }: { clientId: string }) {
       const result = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(result.error || 'Could not save this time zone.');
       setData(prev => prev ? { ...prev, timezone, presenceAvailable: result.presenceAvailable ?? prev.presenceAvailable } : prev);
+      setDraftTimezone('');
     } catch (error) {
-      setData(prev => prev ? { ...prev, timezone: previousTimezone } : prev);
       setTimezoneSaveError(error instanceof Error ? error.message : 'Could not save this time zone.');
     } finally { setTimezoneSaving(false); }
   };
   let clientTime = 'Time zone not set';
-  if (data.timezone) {
-    try { clientTime = `${new Intl.DateTimeFormat(undefined, { timeZone: data.timezone, timeStyle: 'short' }).format(now)} (${data.timezone})`; } catch { clientTime = 'Time zone needs review'; }
+  if (selectedTimezone) {
+    try { clientTime = `${new Intl.DateTimeFormat(undefined, { timeZone: selectedTimezone, timeStyle: 'short' }).format(now)} (${selectedTimezone})`; } catch { clientTime = 'Time zone needs review'; }
   }
-  return <section aria-label="Client collaboration status" className="mt-3 w-full max-w-2xl rounded-2xl border border-[#EBE4D9] bg-[#FFFEFC] p-3 shadow-[0_1px_4px_rgba(10,11,13,0.04)] sm:p-4">
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <div>
-        <h2 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Collaboration</h2>
-        <p className="mt-0.5 text-xs font-semibold text-slate-700">Availability & local time</p>
-      </div>
-      <span className="rounded-full border border-[#EBE4D9] bg-white px-2.5 py-1 text-[10px] font-medium text-slate-500">Updates every minute</span>
+  return <section aria-label="Client collaboration status" className="mt-3 w-full max-w-2xl rounded-2xl border border-[#EBE4D9] bg-[#FFFEFC] p-3">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <span className="inline-flex items-center gap-2 text-xs text-slate-600"><i className={`h-2 w-2 shrink-0 rounded-full ${clientOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} /><b className="font-semibold text-slate-700">Client</b>{clientOnline ? 'Active now' : data.clientLastActiveAt ? `Last seen ${new Date(data.clientLastActiveAt).toLocaleString()}` : 'Not seen yet'}</span>
+      <span className="inline-flex items-center gap-2 text-xs text-slate-600"><i className={`h-2 w-2 shrink-0 rounded-full ${teamOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} /><b className="font-semibold text-slate-700">Catalyst team</b>{teamOnline ? 'Active now' : data.teamLastActiveAt ? `Last seen ${new Date(data.teamLastActiveAt).toLocaleString()}` : 'Availability not yet recorded'}</span>
     </div>
-    {data.presenceAvailable === false && <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800">Live activity tracking is unavailable until the portal presence update is applied. Your time zone preference can still be saved.</p>}
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-      <div className="min-w-0 rounded-xl border border-[#F0E9E0] bg-white px-3 py-2.5">
-        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400"><i className={`h-2 w-2 shrink-0 rounded-full ${clientOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />Client</div>
-        <p className="mt-1 break-words text-xs font-medium text-slate-700">{clientOnline ? 'Active now' : data.clientLastActiveAt ? `Last seen ${new Date(data.clientLastActiveAt).toLocaleString()}` : 'Not seen yet'}</p>
+    {data.presenceAvailable === false && <p className="mt-2 text-[10px] leading-relaxed text-amber-700">Live activity tracking is unavailable until the portal presence update is applied.</p>}
+    <div className="mt-3 flex min-w-0 flex-col gap-2 border-t border-[#F0E9E0] pt-3 sm:flex-row sm:items-center">
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{data.country ? `${data.country} local time` : 'Client local time'}</p>
+        <p className="mt-0.5 break-words text-xs font-semibold text-slate-700">{clientTime}{timezoneDirty && <span className="ml-2 text-[10px] font-medium text-amber-700">Unsaved</span>}</p>
       </div>
-      <div className="min-w-0 rounded-xl border border-[#F0E9E0] bg-white px-3 py-2.5">
-        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400"><i className={`h-2 w-2 shrink-0 rounded-full ${teamOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />Catalyst team</div>
-        <p className="mt-1 break-words text-xs font-medium text-slate-700">{teamOnline ? 'Active now' : data.teamLastActiveAt ? `Last seen ${new Date(data.teamLastActiveAt).toLocaleString()}` : 'Availability not yet recorded'}</p>
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+        <CountryTimeZoneSelect country={data.country} value={selectedTimezone} disabled={timezoneSaving} onChange={setDraftTimezone} ariaLabel="Client time zone" />
+        <button type="button" onClick={() => void saveTimezone()} disabled={!timezoneDirty || timezoneSaving} className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[#9A7540] px-4 text-xs font-semibold text-white transition hover:bg-[#836338] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">{timezoneSaving ? 'Saving…' : 'Save'}</button>
       </div>
     </div>
-    <div className="mt-3 flex min-w-0 flex-col gap-2 border-t border-[#F0E9E0] pt-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Client local time</p>
-        <p className="mt-0.5 break-words text-xs font-semibold text-slate-700">{data.country ? `${data.country} · ` : ''}{clientTime}</p>
-        {timezoneSaving && <p className="mt-1 text-[10px] text-slate-400">Saving time zone…</p>}
-        {timezoneSaveError && <p role="alert" className="mt-1 text-[10px] text-red-600">{timezoneSaveError}</p>}
-      </div>
-      <CountryTimeZoneSelect country={data.country} value={data.timezone} onChange={timezone => void saveTimezone(timezone)} ariaLabel="Client time zone" className="sm:shrink-0" />
-    </div>
+    {timezoneSaveError && <p role="alert" className="mt-2 text-[10px] text-red-600">{timezoneSaveError}</p>}
   </section>;
 }
 

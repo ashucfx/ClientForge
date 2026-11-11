@@ -10,7 +10,6 @@ import { PACKAGE_LABELS, STATUS_LABELS } from '@/lib/career/types';
 import { DeliverableViewer } from '@/components/DeliverableViewer';
 import { ClientFeedbackForms } from '@/components/ClientFeedbackForms';
 import { ClientSlaModal } from '@/components/ClientSlaModal';
-import { CountryTimeZoneSelect } from '@/components/CountryTimeZoneSelect';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -282,9 +281,6 @@ export default function PortalDashboardPage() {
   const [files, setFiles] = useState<DeliverableItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [presenceNow, setPresenceNow] = useState(Date.now());
-  const timezoneOverride = useRef<string | null>(null);
-  const [timezoneSaving, setTimezoneSaving] = useState(false);
-  const [timezoneSaveError, setTimezoneSaveError] = useState('');
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [newComment, setNewComment] = useState('');
   const [postingComment, setPostingComment] = useState(false);
@@ -533,11 +529,10 @@ export default function PortalDashboardPage() {
     let alive = true;
     const ping = async () => {
       try {
-        const timezone = timezoneOverride.current || Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const res = await fetch('/api/career/portal/presence', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timezone }) });
+        const res = await fetch('/api/career/portal/presence', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
         if (res.ok && alive) {
           const data = await res.json();
-          setMe(prev => prev ? { ...prev, timezone: data.timezone || prev.timezone, country: data.country || prev.country, teamLastActiveAt: data.teamLastActiveAt, lastViewedByAdminAt: data.lastViewedByAdminAt, clientLastActiveAt: new Date().toISOString(), presenceAvailable: data.presenceAvailable ?? prev.presenceAvailable } : prev);
+          setMe(prev => prev ? { ...prev, teamLastActiveAt: data.teamLastActiveAt, lastViewedByAdminAt: data.lastViewedByAdminAt, clientLastActiveAt: new Date().toISOString(), presenceAvailable: data.presenceAvailable ?? prev.presenceAvailable } : prev);
         }
       } catch { /* Presence is best-effort; portal content remains available. */ }
     };
@@ -545,26 +540,6 @@ export default function PortalDashboardPage() {
     const heartbeat = window.setInterval(() => { void ping(); setPresenceNow(Date.now()); }, 60_000);
     return () => { alive = false; window.clearInterval(heartbeat); };
   }, []);
-
-  const saveTimezone = async (timezone: string) => {
-    const previousTimezone = me?.timezone;
-    timezoneOverride.current = timezone;
-    setMe(prev => prev ? { ...prev, timezone } : prev);
-    setTimezoneSaving(true);
-    setTimezoneSaveError('');
-    try {
-      const res = await fetch('/api/career/portal/presence', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timezone }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Could not save this time zone.');
-      setMe(prev => prev ? { ...prev, timezone: data.timezone || timezone, country: data.country || prev.country, presenceAvailable: data.presenceAvailable ?? prev.presenceAvailable } : prev);
-    } catch (error) {
-      timezoneOverride.current = previousTimezone || null;
-      setMe(prev => prev ? { ...prev, timezone: previousTimezone } : prev);
-      setTimezoneSaveError(error instanceof Error ? error.message : 'Could not save this time zone.');
-    } finally { setTimezoneSaving(false); }
-  };
 
   const logout = async () => {
     await fetch('/api/career/auth/verify', { method: 'DELETE' });
@@ -1659,28 +1634,19 @@ export default function PortalDashboardPage() {
 
         {/* ── Messages ── */}
         <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-4 sm:p-6">
-          <section aria-label="Team availability and your local time" className="mb-5 rounded-2xl border border-[#EBE4D9] bg-[#FFFEFC] p-3 sm:p-4">
-            <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,auto)] lg:items-center">
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Collaboration</p>
-                <div className="mt-2 flex items-start gap-2.5">
-                  <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ring-4 ${me.teamLastActiveAt && presenceNow - new Date(me.teamLastActiveAt).getTime() < 120_000 ? 'bg-emerald-500 ring-emerald-100' : 'bg-slate-300 ring-slate-100'}`} />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-800">Catalyst team</p>
-                    <p className="mt-0.5 break-words text-xs text-slate-500">{me.teamLastActiveAt && presenceNow - new Date(me.teamLastActiveAt).getTime() < 120_000 ? 'Active now' : me.teamLastActiveAt ? `Last seen ${new Date(me.teamLastActiveAt).toLocaleString()}` : 'Availability not yet recorded'}</p>
-                    {me.lastViewedByAdminAt && <p className="mt-1 break-words text-[11px] text-slate-400">Account last viewed {new Date(me.lastViewedByAdminAt).toLocaleString()}</p>}
-                  </div>
-                </div>
+          <section aria-label="Team availability and your local time" className="mb-5 flex min-w-0 flex-col gap-3 rounded-xl border border-[#EBE4D9] bg-[#FFFEFC] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Collaboration</p>
+              <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                <span className="inline-flex items-center gap-2"><i className={`h-2 w-2 rounded-full ${me.teamLastActiveAt && presenceNow - new Date(me.teamLastActiveAt).getTime() < 120_000 ? 'bg-emerald-500' : 'bg-slate-300'}`} /><b className="font-semibold text-slate-700">Catalyst team</b>{me.teamLastActiveAt && presenceNow - new Date(me.teamLastActiveAt).getTime() < 120_000 ? 'Active now' : me.teamLastActiveAt ? `Last seen ${new Date(me.teamLastActiveAt).toLocaleString()}` : 'Availability not yet recorded'}</span>
+                {me.lastViewedByAdminAt && <span className="text-[11px] text-slate-400">Account viewed {new Date(me.lastViewedByAdminAt).toLocaleString()}</span>}
               </div>
-              <div className="min-w-0 border-t border-[#F0E9E0] pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Your local time</p>
-                <p className="mt-1 break-words text-xs font-semibold text-slate-700">{me.country ? `${me.country} · ` : ''}{formatClientLocalTime(me.timezone, presenceNow)}</p>
-                {timezoneSaving && <p className="mt-1 text-[10px] text-slate-400">Saving time zone…</p>}
-                {timezoneSaveError && <p role="alert" className="mt-1 text-[10px] text-red-600">{timezoneSaveError}</p>}
-                <div className="mt-2"><CountryTimeZoneSelect country={me.country} value={me.timezone} onChange={timezone => void saveTimezone(timezone)} ariaLabel="Your time zone" /></div>
-              </div>
+              {me.presenceAvailable === false && <p className="mt-1 text-[10px] text-amber-700">Live activity status is unavailable.</p>}
             </div>
-            {me.presenceAvailable === false && <p className="mt-3 border-t border-[#F0E9E0] pt-2 text-[11px] leading-relaxed text-amber-800">Live activity status is not available yet. Your time zone preference is saved.</p>}
+            <div className="min-w-0 border-t border-[#F0E9E0] pt-2 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{me.country ? `${me.country} local time` : 'Local time'}</p>
+              <p className="mt-0.5 break-words text-xs font-semibold text-slate-700">{formatClientLocalTime(me.timezone, presenceNow)}</p>
+            </div>
           </section>
           <div className="flex items-center gap-2 mb-5">
             <div>

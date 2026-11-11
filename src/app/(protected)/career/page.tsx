@@ -101,7 +101,10 @@ export default function CareerClientsPage() {
 
   function SlaChip({ c }: { c: Client }) {
     if (c.status === 'COMPLETED') {
-      return <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-500">✔ Fulfilled</span>;
+      return <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700">
+        <svg aria-hidden="true" className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none"><path d="m3.5 8.2 2.8 2.8 6.2-6.3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        Fulfilled
+      </span>;
     }
     const effectiveSla = c.ConversationReadState?.adminSlaDeadline || c.expectedDeliveryAt;
     if (!effectiveSla) return <span className="text-xs text-slate-400">—</span>;
