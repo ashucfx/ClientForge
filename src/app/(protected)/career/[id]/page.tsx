@@ -309,7 +309,7 @@ export default function CareerClientDetailPage() {
                   <h1 className="text-xl font-bold text-slate-900">{client.name}</h1>
                   {client.slaDeadline && (
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider ${
-                      client.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                      client.status === 'COMPLETED' ? 'bg-[#F5F0E8] text-[#8C6C39] border border-[#E5D4B4]' :
                       new Date(client.slaDeadline).getTime() < Date.now() ? 'bg-red-100 text-red-700 border border-red-200' :
                       new Date(client.slaDeadline).getTime() < Date.now() + 86400000 ? 'bg-amber-100 text-amber-700 border border-amber-200' :
                       'bg-emerald-100 text-emerald-700 border border-emerald-200'
