@@ -27,13 +27,16 @@ export async function GET(req: NextRequest) {
   const client = await db.careerClient.findUnique({
     where: { id: payload.clientId },
     select: {
-      id: true, name: true, email: true, phone: true, contact: { select: { country: true } },
+      id: true, name: true, email: true, phone: true, contact: { select: { country: true, timezone: true } },
       packageType: true, status: true,
       lifecycleStatus: true, completedAt: true, firstCompletedAt: true, draftSentAt: true,
       waitingOn: true,
       pinHash: true, currency: true,
       createdAt: true,
       lastLoginAt: true,
+      lastActiveAt: true,
+      lastViewedByAdminAt: true,
+      timezone: true,
       expectedDeliveryAt: true,
       consultationStatus: true,
       consultationScheduledAt: true,
@@ -58,6 +61,11 @@ export async function GET(req: NextRequest) {
   });
 
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const activeTeamMember = await db.adminUser.findFirst({
+    where: { isActive: true, brandAccess: { has: 'catalyst' }, lastActiveAt: { not: null } },
+    orderBy: { lastActiveAt: 'desc' }, select: { lastActiveAt: true },
+  });
 
   // Robustly synchronize lastLoginAt (throttle updates to every 15 minutes)
   const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
@@ -293,5 +301,9 @@ export async function GET(req: NextRequest) {
     consultationStatus: client.consultationStatus,
     consultationScheduledAt: client.consultationScheduledAt,
     consultationJoinUrl: client.consultationJoinUrl,
+    timezone: client.timezone || client.contact?.timezone || null,
+    clientLastActiveAt: client.lastActiveAt ?? client.lastLoginAt,
+    teamLastActiveAt: activeTeamMember?.lastActiveAt ?? null,
+    lastViewedByAdminAt: client.lastViewedByAdminAt,
   });
 }

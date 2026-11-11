@@ -12,6 +12,7 @@ import { AdminSlaViewModal } from '@/components/AdminSlaViewModal';
 import { RevisionNoteViewer } from '@/components/career/RevisionNoteViewer';
 import type { RevisionWindowInfo } from '@/lib/career/revisionWindow';
 import { SUPPORTED_CURRENCIES } from '@/lib/currency';
+import { CountryTimeZoneSelect } from '@/components/CountryTimeZoneSelect';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,7 @@ interface ClientDetail {
   lifecycleStatus: string;
   amountPaid: number; currency: string; notes: string | null;
   createdAt: string; lastLoginAt: string | null; invoiceId: string | null;
+  country?: string | null; timezone?: string | null;
   slaDeadline: string | null; slaStatus: string | null; expectedDeliveryAt: string | null;
   forms: FormSubmission[];
   deliverables: Deliverable[];
@@ -320,6 +322,7 @@ export default function CareerClientDetailPage() {
                 </div>
                 <p className="text-slate-500 text-sm">{client.email}</p>
                 {client.phone && <p className="text-slate-400 text-xs mt-0.5">{client.phone}</p>}
+                <ClientPresenceCard clientId={client.id} />
               </div>
             </div>
             {/* Right: badges */}
@@ -733,6 +736,43 @@ export default function CareerClientDetailPage() {
     </div>
   );
 }
+
+function ClientPresenceCard({ clientId }: { clientId: string }) {
+  const [data, setData] = useState<{ clientLastActiveAt?: string | null; teamLastActiveAt?: string | null; timezone?: string | null; country?: string | null } | null>(null);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    let alive = true;
+    const refresh = async () => {
+      try {
+        const res = await fetch(`/api/career/admin/clients/${clientId}/presence`);
+        if (res.ok && alive) setData(await res.json());
+      } catch { /* Presence is best-effort. */ }
+    };
+    void refresh();
+    const timer = window.setInterval(() => { setNow(Date.now()); void refresh(); }, 60_000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, [clientId]);
+  if (!data) return <p className="text-[11px] text-slate-400 mt-1">Loading collaboration status…</p>;
+  const clientOnline = Boolean(data.clientLastActiveAt && now - new Date(data.clientLastActiveAt).getTime() < 120_000);
+  const teamOnline = Boolean(data.teamLastActiveAt && now - new Date(data.teamLastActiveAt).getTime() < 120_000);
+  const saveTimezone = async (timezone: string) => {
+    const res = await fetch(`/api/career/admin/clients/${clientId}/presence`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timezone }),
+    });
+    if (res.ok) setData(prev => prev ? { ...prev, timezone } : prev);
+  };
+  let clientTime = 'Time zone not set';
+  if (data.timezone) {
+    try { clientTime = `${new Intl.DateTimeFormat(undefined, { timeZone: data.timezone, timeStyle: 'short' }).format(now)} (${data.timezone})`; } catch { clientTime = 'Time zone needs review'; }
+  }
+  return <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+    <span><i className={`inline-block w-2 h-2 rounded-full mr-1.5 ${clientOnline ? 'bg-emerald-500' : 'bg-slate-400'}`} />Client {clientOnline ? 'Active now' : data.clientLastActiveAt ? `last seen ${new Date(data.clientLastActiveAt).toLocaleString()}` : 'not seen yet'}</span>
+    <span><i className={`inline-block w-2 h-2 rounded-full mr-1.5 ${teamOnline ? 'bg-emerald-500' : 'bg-slate-400'}`} />Team {teamOnline ? 'Active now' : data.teamLastActiveAt ? `last seen ${new Date(data.teamLastActiveAt).toLocaleString()}` : 'not active yet'}</span>
+    <span>{data.country ? `${data.country} · ` : ''}{clientTime}</span>
+    <CountryTimeZoneSelect country={data.country} value={data.timezone} onChange={timezone => void saveTimezone(timezone)} ariaLabel="Client time zone" className="max-w-[250px] bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[10px]" />
+  </div>;
+}
+
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 
@@ -3573,7 +3613,10 @@ function MessageBubble({ c, isAdmin, showHeader = true, onEdit, onDelete }: {
   onDelete?: (id: string) => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editClock, setEditClock] = useState(Date.now());
+  useEffect(() => { const timer = window.setInterval(() => setEditClock(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
   const mine = isAdmin ? c.authorType === 'admin' : c.authorType === 'client';
+  const editSeconds = Math.max(0, Math.ceil((new Date(c.createdAt).getTime() + 5 * 60_000 - editClock) / 1000));
   const seenAt = mine ? (isAdmin ? c.readByClientAt : c.readByAdminAt) : null;
   const atts = c.attachments ?? [];
 
@@ -3619,7 +3662,7 @@ function MessageBubble({ c, isAdmin, showHeader = true, onEdit, onDelete }: {
             </div>
             {(mine || isAdmin) && (onEdit || onDelete) && (
               <div className="absolute -top-1 -right-1 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5">
-                {mine && onEdit && (
+                {mine && onEdit && editSeconds > 0 && (
                   <button onClick={() => onEdit(c.id, c.content)}
                     className="p-1 rounded-md bg-white border border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300 shadow-sm" title="Edit">
                     <svg width="11" height="11" fill="none" viewBox="0 0 24 24">
@@ -3676,6 +3719,7 @@ function MessageBubble({ c, isAdmin, showHeader = true, onEdit, onDelete }: {
         {/* Meta: time + read receipt */}
         {mine && (
           <div className="flex items-center gap-2 mt-1">
+            {mine && editSeconds > 0 && <span className="text-[10px] text-slate-400">Edit available {Math.floor(editSeconds / 60)}:{String(editSeconds % 60).padStart(2, '0')}</span>}
             {seenAt ? (
               <span className="text-[10px] text-[#B8935B] font-medium flex items-center gap-0.5">
                 <svg width="10" height="10" fill="none" viewBox="0 0 24 24">

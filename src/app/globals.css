@@ -9,6 +9,9 @@
 
 /* ─── Design Tokens ──────────────────────────── */
 :root {
+  --font-inter: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-cinzel: Georgia, "Times New Roman", serif;
+
   /* Brand — Signal Gold (primary interactive) */
   --brand:          #B8935B;
   --brand-dark:     #9A7540;

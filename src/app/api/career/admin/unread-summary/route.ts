@@ -19,6 +19,11 @@ export async function GET() {
 
   // Robustly synchronize AdminUser.lastLoginAt (throttle updates to every 15 minutes)
   if (session) {
+    void db.adminUser.update({
+      where: { id: session.adminId },
+      data: { lastActiveAt: new Date() },
+      select: { id: true },
+    }).catch(err => console.error('[unread-summary] failed to sync admin presence:', err));
     const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
     void db.adminUser.updateMany({
       where: {

@@ -101,9 +101,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (content.length > 4000) return NextResponse.json({ error: 'Message too long (max 4000 chars).' }, { status: 400 });
 
   const existing = await db.careerComment.findFirst({
-    where: { id: commentId, clientId: params.id, authorType: 'admin' },
+    where: { id: commentId, clientId: params.id, authorType: 'admin', isDeleted: false },
   });
   if (!existing) return NextResponse.json({ error: 'Comment not found' }, { status: 404 });
+  if (Date.now() - existing.createdAt.getTime() > 5 * 60 * 1000) {
+    return NextResponse.json({ error: 'The 5-minute edit window has expired.' }, { status: 403 });
+  }
 
   const updated = await db.careerComment.update({
     where: { id: commentId },
