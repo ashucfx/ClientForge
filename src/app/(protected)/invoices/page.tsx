@@ -50,6 +50,7 @@ function TierTag({ type }: { type: ClientType }) {
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<InvoiceData[]>([]);
+  const [drafts, setDrafts] = useState<Array<{ id: string; draftNumber: string; clientName: string | null; clientEmail: string | null; updatedAt: string }>>([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
   const [statusFilter, setStatus] = useState<string>('ALL');
@@ -62,11 +63,12 @@ export default function InvoicesPage() {
   const fetchInvoices = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/invoices?limit=100', { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        setInvoices(data.invoices ?? []);
-      }
+      const [res, draftsRes] = await Promise.all([
+        fetch('/api/invoices?limit=100', { cache: 'no-store' }),
+        fetch('/api/invoice-drafts', { cache: 'no-store' }),
+      ]);
+      if (res.ok) setInvoices((await res.json()).invoices ?? []);
+      if (draftsRes.ok) setDrafts((await draftsRes.json()).drafts ?? []);
     } catch {
       setToastMsg('Failed to load invoices');
     } finally {
@@ -371,6 +373,44 @@ export default function InvoicesPage() {
             })}
           </div>
         </div>
+
+        {drafts.length > 0 && (
+          <section className="bg-[#FFFCF5] p-3.5 sm:p-4 rounded-2xl border border-[#E8DDD0] shadow-2xs">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">Saved Drafts</h2>
+                <p className="text-[11px] text-slate-500 mt-0.5">Incomplete invoices are kept separate from live payment invoices.</p>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#9A7540]">{drafts.length} draft{drafts.length === 1 ? '' : 's'}</span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {drafts.map(draft => (
+                <div key={draft.id} className="flex items-center justify-between gap-3 min-w-0 p-3 rounded-xl bg-white border border-[#E8DDD0]">
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-slate-800 truncate">{draft.clientName || 'Unnamed client'}</div>
+                    <div className="text-[11px] text-slate-500 truncate">{draft.clientEmail || 'Client details incomplete'}</div>
+                    <div className="text-[10px] text-slate-400 mt-1">Updated {format(new Date(draft.updatedAt), 'dd MMM yyyy, HH:mm')}</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Link href={`/invoices/new?draftId=${encodeURIComponent(draft.id)}`} className="px-2.5 py-1.5 rounded-lg bg-[#B8935B] text-white text-[11px] font-bold">
+                      Resume
+                    </Link>
+                    <button
+                      onClick={async () => {
+                        const res = await fetch(`/api/invoice-drafts/${draft.id}`, { method: 'DELETE' });
+                        if (res.ok) setDrafts(prev => prev.filter(item => item.id !== draft.id));
+                        else showToast('Could not delete draft');
+                      }}
+                      className="px-2 py-1.5 rounded-lg border border-slate-200 text-slate-500 text-[11px] font-bold"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ── Table / Cards View ── */}
         {loading ? (

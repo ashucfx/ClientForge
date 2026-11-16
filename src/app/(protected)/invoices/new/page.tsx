@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { COUNTRIES, ISO2_TO_COUNTRY } from '@/lib/currency';
 import { parsePhoneNumberFromString } from 'libphonenumber-js/min';
 import { CLIENT_TYPE_LABELS, FEE_RATES, round2, getServiceDescription, formatCurrency } from '@/lib/pricing';
@@ -434,6 +434,7 @@ function InvoicePreview({
 // ─── Main page ─────────────────────────────────
 export default function NewInvoicePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { hasCatalystAccess, isSuperAdmin } = useAdmin();
   const { activeBrand } = useBrand();
 
@@ -442,6 +443,7 @@ export default function NewInvoicePage() {
   const [clientName,  setClientName]  = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [clientPhone, setClientPhone] = useState('');
+  const [clientId, setClientId] = useState<string | undefined>(undefined);
   const [companyName, setCompanyName] = useState('');
   const [country,     setCountry]     = useState('India');
   const [clientType,   setClientType]   = useState<ClientType>('FRESHER');
@@ -603,8 +605,72 @@ export default function NewInvoicePage() {
   const [toast,            setToast]            = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [activeTab,        setActiveTab]        = useState<'form' | 'invoice' | 'email'>('form');
   const [emailPreviewKey,  setEmailPreviewKey]  = useState(0);
+  const [draftId, setDraftId] = useState<string | undefined>(undefined);
+  const [draftSaving, setDraftSaving] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorRef   = useRef<HTMLDivElement | null>(null);
+
+  const applyDraftPayload = useCallback((payload: Record<string, unknown>, id?: string) => {
+    if (typeof payload.clientId === 'string') setClientId(payload.clientId);
+    if (typeof payload.clientName === 'string') setClientName(payload.clientName);
+    if (typeof payload.clientEmail === 'string') setClientEmail(payload.clientEmail);
+    if (typeof payload.clientPhone === 'string') setClientPhone(payload.clientPhone);
+    if (typeof payload.companyName === 'string') setCompanyName(payload.companyName);
+    if (typeof payload.country === 'string' && payload.country) setCountry(payload.country);
+    if (typeof payload.clientType === 'string') setClientType(payload.clientType as ClientType);
+    if (typeof payload.currencyOverride === 'string') setCurrencyOverride(payload.currencyOverride);
+    if (typeof payload.packageSlug === 'string') setPackageSlug(payload.packageSlug as PackageSlug);
+    if (Array.isArray(payload.lineItems)) setLineItems(payload.lineItems as LineItem[]);
+    if (typeof payload.discountRate === 'number') setDiscountRate(payload.discountRate);
+    if (typeof payload.taxRate === 'number') setTaxRate(payload.taxRate);
+    if (typeof payload.notes === 'string') setNotes(payload.notes);
+    if (typeof payload.dueDays === 'number') setDueDays(payload.dueDays);
+    if (typeof payload.paymentGateway === 'string') setPaymentGateway(payload.paymentGateway as typeof paymentGateway);
+    if (payload.installmentCount === 1 || payload.installmentCount === 2 || payload.installmentCount === 3) {
+      setInstallmentCount(payload.installmentCount);
+    }
+    if (typeof payload.sourceChannel === 'string') setSourceChannel(payload.sourceChannel as typeof sourceChannel);
+    if (typeof payload.referralId === 'string') setReferralId(payload.referralId);
+    if (id) setDraftId(id);
+  }, []);
+
+  useEffect(() => {
+    const requestedDraftId = searchParams.get('draftId');
+    const requestedClientId = searchParams.get('clientId');
+    if (requestedDraftId) {
+      fetch(`/api/invoice-drafts/${encodeURIComponent(requestedDraftId)}`)
+        .then(async res => {
+          if (!res.ok) throw new Error('Draft could not be loaded');
+          return res.json() as Promise<{ draft: { id: string; payload: Record<string, unknown> } }>;
+        })
+        .then(({ draft }) => {
+          draftHydrating.current = true;
+          applyDraftPayload(draft.payload, draft.id);
+        })
+        .catch(() => setError('This invoice draft could not be loaded.'));
+      return;
+    }
+    if (requestedClientId) {
+      setClientId(requestedClientId);
+      fetch(`/api/career/admin/clients/${encodeURIComponent(requestedClientId)}`)
+        .then(async res => {
+          if (!res.ok) throw new Error('Client could not be loaded');
+          return res.json() as Promise<{ client: { id: string; name: string; email: string; phone?: string | null; country?: string | null; companyName?: string | null; packageType?: string | null } }>;
+        })
+        .then(({ client }) => {
+          setClientId(client.id);
+          setClientName(client.name);
+          setClientEmail(client.email);
+          setClientPhone(client.phone ?? '');
+          setCompanyName(client.companyName ?? '');
+          if (client.country) setCountry(client.country);
+          if (client.packageType === 'MID_CAREER' || client.packageType === 'EXECUTIVE' || client.packageType === 'EXECUTIVE_PLUS') {
+            setClientType(client.packageType as ClientType);
+          }
+        })
+        .catch(() => setError('The selected client could not be loaded.'));
+    }
+  }, [applyDraftPayload, searchParams]);
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -648,7 +714,9 @@ export default function NewInvoicePage() {
 
   // Re-populate default items when client type, package, or exchange rate changes
   const initialized = useRef(false);
+  const draftHydrating = useRef(false);
   useEffect(() => {
+    if (draftHydrating.current) return;
     if (!initialized.current) {
       initialized.current = true;
     }
@@ -671,6 +739,48 @@ export default function NewInvoicePage() {
 
   const addItem = () => setLineItems(prev => [...prev, makeItem()]);
   const removeItem = (id: string) => setLineItems(prev => prev.length > 1 ? prev.filter(i => i.id !== id) : prev);
+
+  const getDraftPayload = () => ({
+    clientId,
+    clientName: clientName.trim(),
+    clientEmail: clientEmail.trim(),
+    clientPhone: clientPhone.trim(),
+    companyName: companyName.trim(),
+    country,
+    clientType,
+    currencyOverride: currencyOverride.trim(),
+    packageSlug,
+    lineItems,
+    discountRate,
+    taxRate,
+    notes: notes.trim(),
+    dueDays,
+    paymentGateway,
+    installmentCount,
+    sourceChannel,
+    referralId: referralId.trim(),
+    brandId,
+  });
+
+  const saveDraft = async () => {
+    setDraftSaving(true);
+    setError('');
+    try {
+      const res = await fetch(draftId ? `/api/invoice-drafts/${draftId}` : '/api/invoice-drafts', {
+        method: draftId ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(getDraftPayload()),
+      });
+      const data = await res.json() as { error?: string; draft?: { id: string } };
+      if (!res.ok || !data.draft) throw new Error(data.error ?? 'Could not save draft');
+      setDraftId(data.draft.id);
+      showToast('Invoice draft saved');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not save draft');
+    } finally {
+      setDraftSaving(false);
+    }
+  };
 
   // ── Submit ──
   const handleSubmit = async () => {
@@ -724,6 +834,9 @@ export default function NewInvoicePage() {
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error ?? 'Invoice creation failed');
+      }
+      if (draftId) {
+        await fetch(`/api/invoice-drafts/${draftId}`, { method: 'DELETE' });
       }
       showToast('Invoice created & payment link sent!');
       setTimeout(() => router.push(`/invoices/${data.invoice.id}?created=true`), 800);
@@ -1743,7 +1856,15 @@ export default function NewInvoicePage() {
             )}
 
             {/* Submit */}
-            <div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                onClick={saveDraft}
+                disabled={draftSaving || submitting}
+                className="btn btn-ghost"
+                style={{ width: '100%', justifyContent: 'center', padding: '15px 20px', fontSize: 15, fontWeight: 700, borderRadius: 12, gap: 10 }}
+              >
+                {draftSaving ? 'Saving draft…' : draftId ? 'Save Draft Changes' : 'Save as Draft'}
+              </button>
               <button
                 onClick={handleSubmit}
                 disabled={submitting}

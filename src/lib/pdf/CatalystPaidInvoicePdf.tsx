@@ -600,8 +600,16 @@ function getPackageDetails(clientType?: string | null, notes?: string | null, li
 }
 
 // ── Clean Line Item Description Sanitizer (Strictly No Internal Leaks) ────────
-function sanitizeItemDescription(rawDesc: string, pkgName: string): { title: string; subtitle?: string; isComp?: boolean } {
+function sanitizeItemDescription(rawDesc: string, pkgName: string, shortDescription?: string): { title: string; subtitle?: string; isComp?: boolean } {
   const lower = (rawDesc || '').toLowerCase().trim();
+
+  if (rawDesc.trim()) {
+    return {
+      title: rawDesc.trim(),
+      subtitle: shortDescription?.trim() || undefined,
+      isComp: lower.includes('complimentary'),
+    };
+  }
 
   // Strip internal database / automated strings
   if (lower.includes('portal automated upgrade') || lower.includes('target:') || lower.includes('upgrade')) {
@@ -855,7 +863,7 @@ export function CatalystPaidInvoiceDocument({ invoice }: { invoice: InvoiceData 
               </View>
 
               {displayItems.map((item, idx) => {
-                const sanitized = sanitizeItemDescription(item.description, pkg.packageName);
+                const sanitized = sanitizeItemDescription(item.description, pkg.packageName, item.shortDescription);
                 const isFree = item.lineTotal === 0 || sanitized.isComp;
                 const qtyStr = item.qty < 10 ? `0${item.qty}` : `${item.qty}`;
                 const formattedRate = isFree ? fmt(0) : fmt(item.unitPrice);
