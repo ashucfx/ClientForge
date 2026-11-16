@@ -154,7 +154,7 @@ export function ClientSlaModal({
             <button
               onClick={handleAccept}
               disabled={!agreed || submitting}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#B8935B] hover:bg-[#9A7540] active:scale-98 text-white text-xs sm:text-sm font-bold uppercase tracking-wider transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 flex items-center justify-center gap-2"
+              className="w-full sm:w-auto min-h-[46px] px-4 sm:px-6 py-3 rounded-xl bg-[#B8935B] hover:bg-[#9A7540] active:scale-98 text-white text-xs sm:text-sm font-bold uppercase tracking-wide transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 flex items-center justify-center gap-2 whitespace-nowrap"
             >
               {submitting ? (
                 <>
@@ -162,7 +162,7 @@ export function ClientSlaModal({
                   <span>Recording Assent…</span>
                 </>
               ) : (
-                <span>Accept Agreement &amp; Continue →</span>
+                <span>Accept &amp; Continue →</span>
               )}
             </button>
           </div>

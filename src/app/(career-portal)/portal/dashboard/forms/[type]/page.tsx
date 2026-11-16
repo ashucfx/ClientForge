@@ -468,7 +468,7 @@ export default function FormPage() {
 
         {/* Submit button */}
         <button type="submit" disabled={submitting}
-          className="w-full py-4 bg-gradient-to-r from-[#B8935B] to-[#D4AF7A] text-white text-sm font-bold rounded-xl hover:from-[#9A7540] hover:to-[#B8935B] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-md shadow-[#E8DDD0] flex items-center justify-center gap-2">
+          className="w-full min-h-[48px] px-3 py-4 bg-gradient-to-r from-[#B8935B] to-[#D4AF7A] text-white text-sm font-bold rounded-xl hover:from-[#9A7540] hover:to-[#B8935B] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-md shadow-[#E8DDD0] flex items-center justify-center gap-2 whitespace-nowrap">
           {submitting ? (
             <>
               <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

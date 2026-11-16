@@ -635,12 +635,12 @@ export default function PortalDashboardPage() {
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-5 sm:space-y-7 motion-fade-in-up">
         {/* ── Upgrade Preview Modal ── */}
         {upgradeTarget && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 motion-fade-in-up"
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 motion-fade-in-up overflow-y-auto"
             onClick={() => { if (!upgrading) { setUpgradeTarget(null); setUpgradePreview(null); } }}>
-            <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[92dvh] sm:max-h-[90vh] flex flex-col motion-scale-in"
+            <div className="bg-white w-full sm:max-w-md min-w-0 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[calc(100dvh-1.5rem)] sm:max-h-[90dvh] min-h-0 flex flex-col motion-scale-in"
               onClick={e => e.stopPropagation()}>
               {/* Header */}
-              <div className="relative bg-gradient-to-br from-[#0A0B0D] to-[#1C1812] px-6 pt-6 pb-8 text-white overflow-hidden">
+              <div className="relative bg-gradient-to-br from-[#0A0B0D] to-[#1C1812] px-4 sm:px-6 pt-5 sm:pt-6 pb-6 sm:pb-8 text-white overflow-hidden shrink-0">
                 <div className="absolute top-0 right-0 w-48 h-48 bg-[#B8935B]/15 rounded-full blur-3xl -translate-y-16 translate-x-16 pointer-events-none motion-glow" />
                 <div className="relative flex items-start justify-between mb-3">
                   <div>
@@ -673,7 +673,7 @@ export default function PortalDashboardPage() {
               </div>
 
               {/* Body */}
-              <div className="px-6 py-5 overflow-y-auto flex-1">
+              <div className="px-4 sm:px-6 py-4 sm:py-5 overflow-y-auto flex-1 min-h-0 overscroll-contain">
                 {upgradePreviewLoading ? (
                   <div className="flex items-center justify-center py-8 gap-3">
                     <span className="w-5 h-5 border-2 border-[#B8935B] border-t-transparent rounded-full animate-spin" />
@@ -741,7 +741,7 @@ export default function PortalDashboardPage() {
                                   </span>
                                   {opt.recommended && <span className="text-[8px] font-bold text-[#B8935B] bg-[#B8935B]/10 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Best</span>}
                                 </div>
-                                <p className="text-[11px] text-slate-500 mt-0.5 whitespace-nowrap">
+                                <p className="text-[11px] text-slate-500 mt-0.5 break-words">
                                   {desc}
                                 </p>
                                 <p className="text-xs font-bold text-slate-700 mt-1">{opt.currencySymbol}{opt.totalPayable.toLocaleString()}</p>
@@ -787,12 +787,12 @@ export default function PortalDashboardPage() {
                     <button
                       onClick={confirmUpgrade}
                       disabled={upgrading}
-                      className="w-full py-3.5 bg-[#B8935B] text-white font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center justify-center gap-2 tracking-wide">
+                      className="w-full min-h-[46px] px-3 py-3 bg-[#B8935B] text-white text-sm font-bold rounded-xl hover:bg-[#9A7540] disabled:opacity-50 transition-colors flex items-center justify-center gap-2 tracking-wide whitespace-nowrap">
                       {upgrading
                         ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Processing…</>
                         : upgradePreview?.existingPaymentUrl
-                          ? (upgradePreview.gateway === 'PAYPAL' ? 'Resume via PayPal →' : 'Resume Payment →')
-                          : (upgradePreview?.gateway === 'PAYPAL' ? 'Pay via PayPal →' : 'Continue to Payment →')
+                          ? (upgradePreview.gateway === 'PAYPAL' ? 'Resume PayPal Payment →' : 'Resume Payment →')
+                          : (upgradePreview?.gateway === 'PAYPAL' ? 'Continue with PayPal →' : 'Continue to Secure Payment →')
                       }
                     </button>
                     <p className="text-center text-[11px] text-slate-400 mt-3">
