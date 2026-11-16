@@ -1856,35 +1856,37 @@ export default function NewInvoicePage() {
             )}
 
             {/* Submit */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <button
-                onClick={saveDraft}
-                disabled={draftSaving || submitting}
-                className="btn btn-ghost"
-                style={{ width: '100%', justifyContent: 'center', padding: '15px 20px', fontSize: 15, fontWeight: 700, borderRadius: 12, gap: 10 }}
-              >
-                {draftSaving ? 'Saving draft…' : draftId ? 'Save Draft Changes' : 'Save as Draft'}
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="btn btn-primary"
-                style={{ width: '100%', justifyContent: 'center', padding: '15px 20px', fontSize: 15, fontWeight: 700, borderRadius: 12, gap: 10 }}
-              >
-                {submitting ? (
-                  <>
-                    <span style={{ display: 'inline-flex', animation: 'spin 0.9s linear infinite' }}>
-                      <IconSpinner size={17} />
-                    </span>
-                    Creating invoice…
-                  </>
-                ) : (
-                  <>
-                    <IconMail size={17} />
-                    Create Invoice &amp; Send Email
-                  </>
-                )}
-              </button>
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={saveDraft}
+                  disabled={draftSaving || submitting}
+                  className="btn btn-ghost min-h-[48px] flex-1"
+                  style={{ width: '100%', justifyContent: 'center', padding: '12px 16px', fontSize: 14, fontWeight: 700, borderRadius: 12, gap: 8 }}
+                >
+                  {draftSaving ? 'Saving draft…' : draftId ? 'Save Draft Changes' : 'Save as Draft'}
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="btn btn-primary min-h-[48px] flex-1"
+                  style={{ width: '100%', justifyContent: 'center', padding: '12px 16px', fontSize: 14, fontWeight: 700, borderRadius: 12, gap: 8 }}
+                >
+                  {submitting ? (
+                    <>
+                      <span style={{ display: 'inline-flex', animation: 'spin 0.9s linear infinite' }}>
+                        <IconSpinner size={17} />
+                      </span>
+                      Creating invoice…
+                    </>
+                  ) : (
+                    <>
+                      <IconMail size={17} />
+                      Create Invoice &amp; Send Email
+                    </>
+                  )}
+                </button>
+              </div>
               <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, flexWrap: 'wrap' as const }}>
                 {([
                   [<IconCheck key="a" size={11} />, 'Secure payment link'],
