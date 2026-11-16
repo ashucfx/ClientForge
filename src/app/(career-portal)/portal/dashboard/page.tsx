@@ -272,6 +272,55 @@ function portalChipIcon(type: string) {
   return null;
 }
 
+function PortalSidebar({ clientName, unreadMessages }: { clientName: string; unreadMessages?: number }) {
+  return (
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-[#E8DDD0] bg-[#fffdfa] lg:flex lg:flex-col">
+      <div className="border-b border-[#E8DDD0] px-6 py-6">
+        <Link href="/portal/dashboard/profile" className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0A0B0D] text-sm font-bold text-[#C9A96E]">C</span>
+          <span>
+            <span className="block text-sm font-bold tracking-tight text-slate-900">Catalyst</span>
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9A7540]">Client workspace</span>
+          </span>
+        </Link>
+      </div>
+      <div className="flex-1 px-4 py-6">
+        <p className="px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Workspace</p>
+        <nav className="mt-3 space-y-1" aria-label="Client workspace">
+          <Link href="/portal/dashboard" className="flex min-h-11 items-center gap-3 rounded-xl bg-[#F5F1EB] px-3 text-sm font-semibold text-[#7A5B2E]">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-[#B8935B]">⌂</span>
+            Overview
+          </Link>
+          <Link href="/portal/dashboard#forms" className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]">□</span>
+            My brief
+          </Link>
+          <Link href="/portal/dashboard/files" className="flex min-h-11 items-center justify-between rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
+            <span className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]">↧</span>Files</span>
+          </Link>
+          <Link href="/portal/dashboard#messages" className="flex min-h-11 items-center justify-between rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
+            <span className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]">↗</span>Messages</span>
+            {unreadMessages ? <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">{unreadMessages}</span> : null}
+          </Link>
+          <Link href="/portal/dashboard/profile" className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]">◯</span>
+            Profile
+          </Link>
+        </nav>
+      </div>
+      <div className="border-t border-[#E8DDD0] p-4">
+        <Link href="/portal/dashboard/profile" className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-[#F8F5F1]">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#B8935B] text-sm font-bold text-white">{clientName[0]?.toUpperCase()}</span>
+          <span className="min-w-0">
+            <span className="block truncate text-xs font-bold text-slate-800">{clientName}</span>
+            <span className="block text-[10px] text-slate-400">View profile</span>
+          </span>
+        </Link>
+      </div>
+    </aside>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function PortalDashboardPage() {
@@ -573,7 +622,7 @@ export default function PortalDashboardPage() {
   if (loading) return <DashboardSkeleton />;
   if (!me) return null;
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(160deg, #F8F5F1 0%, #FAF8F4 60%, #F5F1EB 100%)' }}>
+    <div className="min-h-screen bg-[#F8F6F1]">
 
       {/* Mandatory SLA Agreement Modal */}
       <ClientSlaModal
@@ -586,9 +635,11 @@ export default function PortalDashboardPage() {
         }}
       />
 
+      <PortalSidebar clientName={me.name} unreadMessages={me.unreadMessages} />
+
       {/* ── Navbar ── */}
       <header className="sticky top-0 z-30 border-b border-[#E8DDD0] bg-[#fffdfa]/95 shadow-[0_4px_18px_rgba(15,23,42,.04)] backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:pl-[17rem]">
           <Link href="/portal/dashboard/profile" className="flex items-center gap-2.5" aria-label="Open your Catalyst profile">
           <div className="w-9 h-9 rounded-xl overflow-hidden border border-[#D8C8B0] shadow-sm flex-shrink-0 bg-black flex items-center justify-center">
               <Image src="/logos/catalyst-symbol-dark.svg" width={20} height={20} alt="Catalyst" className="object-contain" />
@@ -635,7 +686,14 @@ export default function PortalDashboardPage() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-5 sm:space-y-7 motion-fade-in-up">
+      <main className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-10 lg:pl-[17rem] motion-fade-in-up">
+        <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#9A7540]">Your workspace</p>
+            <p className="mt-1 text-sm text-slate-500">Everything you need to move your career project forward.</p>
+          </div>
+          <Link href="/portal/dashboard/profile" className="text-xs font-bold text-[#9A7540] hover:text-[#7A5B2E]">Manage your profile →</Link>
+        </div>
         {/* ── Upgrade Preview Modal ── */}
         {upgradeTarget && (
           <div className="fixed inset-0 z-50 h-[100dvh] bg-black/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 motion-fade-in-up overflow-hidden"
@@ -833,13 +891,8 @@ export default function PortalDashboardPage() {
           </div>
         )}
 
-        {/* ── Premium Hero Banner ── */}
-        <div className="relative overflow-hidden rounded-3xl border border-white/10 shadow-2xl"
-          style={{ background: 'linear-gradient(135deg, #0A0B0D 0%, #1A1208 55%, #0D0E10 100%)' }}>
-          {/* Atmospheric glow layers */}
-          <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-[#B8935B]/15 blur-3xl -translate-y-24 translate-x-24 pointer-events-none motion-glow" />
-          <div className="absolute bottom-0 left-0 w-40 h-40 rounded-full bg-[#B8935B]/10 blur-2xl translate-y-14 -translate-x-10 pointer-events-none motion-float" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_85%_85%,rgba(184,147,91,0.08),transparent)] pointer-events-none" />
+        {/* ── Project overview ── */}
+        <div className="relative overflow-hidden rounded-2xl border border-[#27251F] bg-[#171817] shadow-[0_12px_30px_rgba(15,23,42,.12)]">
 
           <div className="relative px-5 pt-7 pb-6 sm:px-8 sm:pt-9 sm:pb-8">
             {/* Top row */}
@@ -1460,7 +1513,7 @@ export default function PortalDashboardPage() {
         )}
 
         {/* ── Forms Section ── */}
-        <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-6">
+        <div id="forms" className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Your Forms</p>
@@ -2160,9 +2213,9 @@ function ReferralSection({ data }: { data: ReferralStats }) {
 
 function DashboardSkeleton() {
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(160deg, #F8F5F1 0%, #FAF8F4 60%, #F5F1EB 100%)' }}>
+    <div className="min-h-screen bg-[#F8F6F1]">
       <header className="bg-white/90 border-b border-[#EDE6DA] h-14 flex items-center px-4">
-        <div className="max-w-3xl mx-auto w-full flex items-center justify-between">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 sm:px-6 lg:pl-[17rem]">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-[#EBE4D9] animate-pulse" />
             <div className="w-24 h-4 bg-[#EBE4D9] rounded animate-pulse" />
@@ -2173,7 +2226,7 @@ function DashboardSkeleton() {
           </div>
         </div>
       </header>
-      <main className="max-w-3xl mx-auto px-4 py-8 space-y-5">
+      <main className="mx-auto max-w-6xl space-y-5 px-4 py-8 sm:px-6 lg:pl-[17rem]">
         <div className="space-y-2">
           <div className="h-3 w-20 bg-[#EBE4D9] rounded animate-pulse" />
           <div className="h-9 w-44 bg-[#E5DDD2] rounded-lg animate-pulse" />
