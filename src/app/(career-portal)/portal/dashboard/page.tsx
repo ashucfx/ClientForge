@@ -272,44 +272,67 @@ function portalChipIcon(type: string) {
   return null;
 }
 
-function PortalSidebar({ clientName, unreadMessages }: { clientName: string; unreadMessages?: number }) {
+function PortalNavIcon({ kind }: { kind: 'home' | 'brief' | 'files' | 'messages' | 'profile' | 'menu' | 'close' }) {
+  const paths = {
+    home: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Z" /><path d="M9 21v-6h6v6" /></>,
+    brief: <><path d="M5 4h14v16H5z" /><path d="M8 8h8M8 12h8M8 16h5" /></>,
+    files: <><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10H4V6Z" /><path d="M4 9h16" /></>,
+    messages: <><path d="M4 5h16v12H8l-4 3V5Z" /><path d="M8 9h8M8 13h5" /></>,
+    profile: <><circle cx="12" cy="8" r="3" /><path d="M5 20a7 7 0 0 1 14 0" /></>,
+    menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
+    close: <><path d="m6 6 12 12M18 6 6 18" /></>,
+  } as const;
+  return <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[kind]}</svg>;
+}
+
+function PortalSidebar({ clientName, unreadMessages, mobileOpen, onClose }: {
+  clientName: string;
+  unreadMessages?: number;
+  mobileOpen: boolean;
+  onClose: () => void;
+}) {
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-[#E8DDD0] bg-[#fffdfa] lg:flex lg:flex-col">
+    <>
+    {mobileOpen && <button type="button" aria-label="Close navigation" onClick={onClose} className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-[2px] lg:hidden" />}
+    <aside className={`fixed inset-y-0 left-0 z-50 flex w-[min(82vw,18rem)] flex-col border-r border-[#E8DDD0] bg-[#fffdfa] shadow-xl transition-transform duration-200 lg:z-30 lg:w-64 lg:translate-x-0 lg:shadow-none ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:flex'}`}>
       <div className="border-b border-[#E8DDD0] px-6 py-6">
-        <Link href="/portal/dashboard/profile" className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3">
+        <Link href="/portal/dashboard/profile" onClick={onClose} className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0A0B0D] text-sm font-bold text-[#C9A96E]">C</span>
           <span>
             <span className="block text-sm font-bold tracking-tight text-slate-900">Catalyst</span>
             <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9A7540]">Client workspace</span>
           </span>
         </Link>
+        <button type="button" aria-label="Close navigation" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-[#F8F5F1] lg:hidden"><PortalNavIcon kind="close" /></button>
+        </div>
       </div>
       <div className="flex-1 px-4 py-6">
         <p className="px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Workspace</p>
         <nav className="mt-3 space-y-1" aria-label="Client workspace">
-          <Link href="/portal/dashboard" className="flex min-h-11 items-center gap-3 rounded-xl bg-[#F5F1EB] px-3 text-sm font-semibold text-[#7A5B2E]">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-[#B8935B]">⌂</span>
+          <Link href="/portal/dashboard" onClick={onClose} className="flex min-h-11 items-center gap-3 rounded-xl bg-[#F5F1EB] px-3 text-sm font-semibold text-[#7A5B2E]">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-[#B8935B]"><PortalNavIcon kind="home" /></span>
             Overview
           </Link>
-          <Link href="/portal/dashboard#forms" className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]">□</span>
+          <Link href="/portal/dashboard#forms" onClick={onClose} className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]"><PortalNavIcon kind="brief" /></span>
             My brief
           </Link>
-          <Link href="/portal/dashboard/files" className="flex min-h-11 items-center justify-between rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
-            <span className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]">↧</span>Files</span>
+          <Link href="/portal/dashboard/files" onClick={onClose} className="flex min-h-11 items-center justify-between rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
+            <span className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]"><PortalNavIcon kind="files" /></span>Files</span>
           </Link>
-          <Link href="/portal/dashboard#messages" className="flex min-h-11 items-center justify-between rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
-            <span className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]">↗</span>Messages</span>
+          <Link href="/portal/dashboard#messages" onClick={onClose} className="flex min-h-11 items-center justify-between rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
+            <span className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]"><PortalNavIcon kind="messages" /></span>Messages</span>
             {unreadMessages ? <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">{unreadMessages}</span> : null}
           </Link>
-          <Link href="/portal/dashboard/profile" className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]">◯</span>
+          <Link href="/portal/dashboard/profile" onClick={onClose} className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]"><PortalNavIcon kind="profile" /></span>
             Profile
           </Link>
         </nav>
       </div>
       <div className="border-t border-[#E8DDD0] p-4">
-        <Link href="/portal/dashboard/profile" className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-[#F8F5F1]">
+        <Link href="/portal/dashboard/profile" onClick={onClose} className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-[#F8F5F1]">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#B8935B] text-sm font-bold text-white">{clientName[0]?.toUpperCase()}</span>
           <span className="min-w-0">
             <span className="block truncate text-xs font-bold text-slate-800">{clientName}</span>
@@ -318,6 +341,7 @@ function PortalSidebar({ clientName, unreadMessages }: { clientName: string; unr
         </Link>
       </div>
     </aside>
+    </>
   );
 }
 
@@ -329,6 +353,7 @@ export default function PortalDashboardPage() {
   const [showSlaModal, setShowSlaModal] = useState(false);
   const [files, setFiles] = useState<DeliverableItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [presenceNow, setPresenceNow] = useState(Date.now());
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -635,11 +660,19 @@ export default function PortalDashboardPage() {
         }}
       />
 
-      <PortalSidebar clientName={me.name} unreadMessages={me.unreadMessages} />
+      <PortalSidebar
+        clientName={me.name}
+        unreadMessages={me.unreadMessages}
+        mobileOpen={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+      />
 
       {/* ── Navbar ── */}
       <header className="sticky top-0 z-30 border-b border-[#E8DDD0] bg-[#fffdfa]/95 shadow-[0_4px_18px_rgba(15,23,42,.04)] backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:pl-[17rem]">
+          <button type="button" aria-label="Open workspace navigation" onClick={() => setMobileNavOpen(true)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5D8C5] text-slate-600 hover:bg-[#F8F5F1] lg:hidden">
+            <PortalNavIcon kind="menu" />
+          </button>
           <Link href="/portal/dashboard/profile" className="flex items-center gap-2.5" aria-label="Open your Catalyst profile">
           <div className="w-9 h-9 rounded-xl overflow-hidden border border-[#D8C8B0] shadow-sm flex-shrink-0 bg-black flex items-center justify-center">
               <Image src="/logos/catalyst-symbol-dark.svg" width={20} height={20} alt="Catalyst" className="object-contain" />
