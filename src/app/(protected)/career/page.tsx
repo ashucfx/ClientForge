@@ -151,7 +151,7 @@ export default function CareerClientsPage() {
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4">
             <input
               type="text"
-              placeholder="Search name or email…"
+              placeholder="Search name, email or phone…"
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
               className="w-full sm:w-64 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B8935B]"
