@@ -855,7 +855,7 @@ function FormShell({ schema, children }: { schema: FormSchema; children: React.R
 
       {/* Hero banner */}
       <div className="bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#0A0B0D] border-b border-[#2A1F0E]">
-        <div className="max-w-2xl mx-auto px-4 py-5 flex items-center gap-4">
+        <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-5 sm:px-6">
           <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white flex-shrink-0">
             {formTypeIcon[schema.formType] ?? formTypeIcon.resume}
           </div>
@@ -866,7 +866,7 @@ function FormShell({ schema, children }: { schema: FormSchema; children: React.R
         </div>
       </div>
 
-      <main className="max-w-2xl mx-auto px-4 py-8" style={{ animation: 'fadeSlideIn 0.35s ease-out' }}>
+      <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-10" style={{ animation: 'fadeSlideIn 0.35s ease-out' }}>
         <style>{`@keyframes fadeSlideIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }`}</style>
         {children}
       </main>

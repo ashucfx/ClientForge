@@ -178,7 +178,7 @@ export default function FilesPage() {
     <div className="min-h-screen bg-gradient-to-br from-[#FAFAF8] via-[#F5F2EC]/30 to-[#FAFAF8]">
       <ClientPortalHeader title="My deliverables" backHref="/portal/dashboard" />
 
-      <main className="max-w-2xl mx-auto px-4 py-7 space-y-6">
+      <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6 sm:py-10">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Your Files</h2>
           <p className="text-slate-500 text-sm mt-1">
