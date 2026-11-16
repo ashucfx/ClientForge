@@ -564,6 +564,15 @@ export default function PortalDashboardPage() {
     () => getClientGreeting(me?.timezone, presenceNow),
     [me?.timezone, presenceNow],
   );
+  const catalystTeamIsActive = Boolean(
+    me?.teamLastActiveAt && presenceNow - new Date(me.teamLastActiveAt).getTime() < 120_000,
+  );
+  const catalystTeamLastSeen = me?.teamLastActiveAt
+    ? formatClientActivityTime(me.teamLastActiveAt, me.timezone)
+    : null;
+  const accountLastViewed = me?.lastViewedByAdminAt
+    ? formatClientActivityTime(me.lastViewedByAdminAt, me.timezone)
+    : null;
 
   if (loading) return <DashboardSkeleton />;
   if (!me) return null;
@@ -581,7 +590,7 @@ export default function PortalDashboardPage() {
         }}
       />
 
-      <ClientPortalShell clientName={me.name} unreadMessages={me.unreadMessages} title="Overview" />
+      <ClientPortalShell clientName={me.name} unreadMessages={me.unreadMessages} title="Overview" greeting={greeting} />
 
       <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 pb-28 sm:px-6 sm:py-9 lg:ml-64 lg:mr-auto lg:px-8 lg:py-9 lg:pb-10 motion-fade-in-up">
         <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -1589,22 +1598,82 @@ export default function PortalDashboardPage() {
 
         {/* ── Messages ── */}
         <div id="messages" className="scroll-mt-20 bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-4 sm:p-6">
-          <section aria-label="Team availability and your local time" className="mb-5 flex min-w-0 flex-col gap-3 rounded-xl border border-[#EBE4D9] bg-[#FFFEFC] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Collaboration</p>
-              <div className="mt-1.5 flex min-w-0 flex-col gap-1.5 text-xs text-slate-600 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4">
-                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                  <i className={`h-2 w-2 shrink-0 rounded-full ${me.teamLastActiveAt && presenceNow - new Date(me.teamLastActiveAt).getTime() < 120_000 ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                  <b className="font-semibold text-slate-700">Catalyst team</b>
-                  <span className="min-w-0 break-words">{me.teamLastActiveAt && presenceNow - new Date(me.teamLastActiveAt).getTime() < 120_000 ? 'Active now' : me.teamLastActiveAt ? `Last seen ${new Date(me.teamLastActiveAt).toLocaleString()}` : 'Availability not yet recorded'}</span>
-                </span>
-                {me.lastViewedByAdminAt && <span className="break-words text-[11px] text-slate-400">Account viewed {new Date(me.lastViewedByAdminAt).toLocaleString()}</span>}
+          <section aria-label="Team availability and your local time" className="relative isolate mb-6 overflow-hidden rounded-[22px] border border-[#E4D6BD] bg-[#F7F3EA] shadow-[0_10px_28px_rgba(67,50,25,.06)]">
+            <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-[#D4AF7A]/20 blur-3xl" />
+            <div className="relative grid min-w-0 gap-3 p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+              <div className="min-w-0 p-1 sm:p-2">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#D9C7A8] bg-white text-[#96713B] shadow-sm">
+                    <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.8M17 14a5 5 0 0 1 3.5 4.8"/></svg>
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-bold uppercase tracking-[.2em] text-[#947243]">Collaboration</p>
+                    <h3 className="truncate text-sm font-bold tracking-tight text-[#171613] sm:text-base">Your team, in sync</h3>
+                  </div>
+                  <span className="ml-auto hidden shrink-0 items-center gap-1.5 rounded-full border border-[#D9C7A8] bg-white/80 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[.1em] text-[#80643A] sm:inline-flex">
+                    <svg aria-hidden="true" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    {me.presenceAvailable === false ? 'Status unavailable' : 'Live updates'}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid min-w-0 gap-2.5 sm:grid-cols-2">
+                  <div className="min-w-0 rounded-2xl border border-[#EAE1D3] bg-white/90 p-3.5 shadow-[0_2px_8px_rgba(25,22,17,.025)]">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F3EBDD] text-[#876639]">
+                        <svg aria-hidden="true" className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM16 11a4 4 0 0 0 0-8M20 21v-2a4 4 0 0 0-3-3.87"/></svg>
+                        <span className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white ${catalystTeamIsActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex min-w-0 flex-wrap items-center justify-between gap-1.5">
+                          <p className="text-[9px] font-bold uppercase tracking-[.16em] text-slate-400">Catalyst team</p>
+                          <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold ${catalystTeamIsActive ? 'bg-emerald-50 text-emerald-700' : 'bg-[#F4F1EB] text-slate-500'}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${catalystTeamIsActive ? 'bg-emerald-500 motion-pulse-slow' : 'bg-slate-400'}`} />
+                            {catalystTeamIsActive ? 'Active now' : catalystTeamLastSeen ? 'Away' : me.presenceAvailable === false ? 'Unavailable' : 'Not recorded'}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-[10px] font-medium text-slate-400">{catalystTeamIsActive ? 'Here with you now' : catalystTeamLastSeen ? 'Last seen' : 'No recent activity'}</p>
+                        {catalystTeamLastSeen && !catalystTeamIsActive && <time dateTime={me.teamLastActiveAt ?? undefined} className="mt-0.5 block break-words text-xs font-semibold leading-relaxed text-slate-800">{catalystTeamLastSeen}</time>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="min-w-0 rounded-2xl border border-[#EAE1D3] bg-white/90 p-3.5 shadow-[0_2px_8px_rgba(25,22,17,.025)]">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F3EBDD] text-[#876639]">
+                        <svg aria-hidden="true" className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[9px] font-bold uppercase tracking-[.16em] text-slate-400">Account viewed</p>
+                        {accountLastViewed ? (
+                          <>
+                            <time dateTime={me.lastViewedByAdminAt ?? undefined} className="mt-2 block break-words text-xs font-semibold leading-relaxed text-slate-800">{accountLastViewed}</time>
+                            <p className="mt-0.5 text-[10px] text-slate-400">Opened by the Catalyst team</p>
+                          </>
+                        ) : (
+                          <p className="mt-2 text-xs font-semibold text-slate-700">No account view recorded yet</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {me.presenceAvailable === false && <p className="mt-3 px-1 text-[10px] leading-relaxed text-[#8A6B3D]">Live availability is temporarily unavailable. The last recorded activity is still shown above.</p>}
               </div>
-              {me.presenceAvailable === false && <p className="mt-1 text-[10px] text-amber-700">Live activity status is unavailable.</p>}
-            </div>
-            <div className="min-w-0 border-t border-[#F0E9E0] pt-2 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{me.country ? `${me.country} local time` : 'Local time'}</p>
-              <p className="mt-0.5 break-words text-xs font-semibold text-slate-700">{formatClientLocalTime(me.timezone, presenceNow)}</p>
+
+              <aside className="flex min-w-0 flex-col justify-between rounded-2xl border border-[#302A1F] bg-[#111210] p-4 text-white shadow-[0_8px_20px_rgba(10,11,13,.12)] sm:flex-row sm:items-center sm:gap-4 lg:flex-col lg:items-stretch lg:gap-0">
+                <div className="flex min-w-0 items-center gap-3 lg:items-start">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#D4AF7A]/25 bg-[#D4AF7A]/10 text-[#DCC18E]">
+                    <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-bold uppercase tracking-[.18em] text-white/45">Your local time</p>
+                    <p className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums text-[#F3E5C6]">{formatClientLocalTime(me.timezone, presenceNow)}</p>
+                  </div>
+                </div>
+                <div className="ml-[52px] min-w-0 sm:ml-0 sm:text-right lg:ml-0 lg:mt-5 lg:text-left">
+                  <p className="break-all text-[10px] font-medium text-white/75">{me.timezone || 'Using device time'}</p>
+                  <p className="mt-0.5 text-[9px] text-white/40">{me.country ? `${me.country} · ` : ''}Updates every minute</p>
+                </div>
+              </aside>
             </div>
           </section>
           <div className="flex items-center gap-2 mb-5">
@@ -1772,7 +1841,7 @@ function fmtTime(iso: string) {
 
 // ── Revision Policy Toggle (used inside the Free Revisions card) ───────────────
 function RevisionPolicyToggle() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   return (
     <div className="mt-3 pt-2.5 border-t border-[#F0EAE0]">
       <button
@@ -1841,9 +1910,21 @@ function PortalAttachmentChip({ att, onRemove }: { att: Attachment; onRemove?: (
 }
 
 function formatClientLocalTime(timezone: string | null | undefined, timestamp: number): string {
-  if (!timezone) return `${new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(timestamp)} (device time)`;
-  try { return `${new Intl.DateTimeFormat(undefined, { timeZone: timezone, timeStyle: 'short' }).format(timestamp)} (${timezone})`; }
+  if (!timezone) return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(timestamp);
+  try { return new Intl.DateTimeFormat(undefined, { timeZone: timezone, timeStyle: 'short' }).format(timestamp); }
   catch { return 'Time zone needs review'; }
+}
+
+function formatClientActivityTime(value: string, timezone: string | null | undefined): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Time unavailable';
+  const options: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' };
+  try {
+    if (timezone) options.timeZone = timezone;
+    return new Intl.DateTimeFormat(undefined, options).format(date);
+  } catch {
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  }
 }
 
 function getClientGreeting(timezone: string | null | undefined, timestamp: number): string {
