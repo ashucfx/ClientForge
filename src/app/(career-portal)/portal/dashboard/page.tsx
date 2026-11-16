@@ -4,12 +4,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import type { CareerStatus, CareerPackage, FormType } from '@/lib/career/types';
 import { PACKAGE_LABELS, STATUS_LABELS } from '@/lib/career/types';
 import { DeliverableViewer } from '@/components/DeliverableViewer';
 import { ClientFeedbackForms } from '@/components/ClientFeedbackForms';
 import { ClientSlaModal } from '@/components/ClientSlaModal';
+import { ClientPortalShell } from '@/components/ClientPortalShell';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -272,79 +272,6 @@ function portalChipIcon(type: string) {
   return null;
 }
 
-function PortalNavIcon({ kind }: { kind: 'home' | 'brief' | 'files' | 'messages' | 'profile' | 'menu' | 'close' }) {
-  const paths = {
-    home: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Z" /><path d="M9 21v-6h6v6" /></>,
-    brief: <><path d="M5 4h14v16H5z" /><path d="M8 8h8M8 12h8M8 16h5" /></>,
-    files: <><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10H4V6Z" /><path d="M4 9h16" /></>,
-    messages: <><path d="M4 5h16v12H8l-4 3V5Z" /><path d="M8 9h8M8 13h5" /></>,
-    profile: <><circle cx="12" cy="8" r="3" /><path d="M5 20a7 7 0 0 1 14 0" /></>,
-    menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
-    close: <><path d="m6 6 12 12M18 6 6 18" /></>,
-  } as const;
-  return <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[kind]}</svg>;
-}
-
-function PortalSidebar({ clientName, unreadMessages, mobileOpen, onClose }: {
-  clientName: string;
-  unreadMessages?: number;
-  mobileOpen: boolean;
-  onClose: () => void;
-}) {
-  return (
-    <>
-    {mobileOpen && <button type="button" aria-label="Close navigation" onClick={onClose} className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-[2px] lg:hidden" />}
-    <aside className={`fixed left-0 top-0 bottom-0 z-50 flex w-[min(82vw,18rem)] flex-col border-r border-[#E8DDD0] bg-[#fffdfa] shadow-xl transition-transform duration-200 lg:bottom-0 lg:top-16 lg:z-30 lg:w-64 lg:translate-x-0 lg:shadow-none ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:flex'}`}>
-      <div className="border-b border-[#E8DDD0] px-6 py-6">
-        <div className="flex items-center justify-between gap-3">
-        <Link href="/portal/dashboard/profile" onClick={onClose} className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0A0B0D] text-sm font-bold text-[#C9A96E]">C</span>
-          <span>
-            <span className="block text-sm font-bold tracking-tight text-slate-900">Catalyst</span>
-            <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9A7540]">Client workspace</span>
-          </span>
-        </Link>
-        <button type="button" aria-label="Close navigation" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-[#F8F5F1] lg:hidden"><PortalNavIcon kind="close" /></button>
-        </div>
-      </div>
-      <div className="flex-1 px-4 py-6">
-        <p className="px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Workspace</p>
-        <nav className="mt-3 space-y-1" aria-label="Client workspace">
-          <Link href="/portal/dashboard" onClick={onClose} className="flex min-h-11 items-center gap-3 rounded-xl bg-[#F5F1EB] px-3 text-sm font-semibold text-[#7A5B2E]">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-[#B8935B]"><PortalNavIcon kind="home" /></span>
-            Overview
-          </Link>
-          <Link href="/portal/dashboard#forms" onClick={onClose} className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]"><PortalNavIcon kind="brief" /></span>
-            My brief
-          </Link>
-          <Link href="/portal/dashboard/files" onClick={onClose} className="flex min-h-11 items-center justify-between rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
-            <span className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]"><PortalNavIcon kind="files" /></span>Files</span>
-          </Link>
-          <Link href="/portal/dashboard#messages" onClick={onClose} className="flex min-h-11 items-center justify-between rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
-            <span className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]"><PortalNavIcon kind="messages" /></span>Messages</span>
-            {unreadMessages ? <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">{unreadMessages}</span> : null}
-          </Link>
-          <Link href="/portal/dashboard/profile" onClick={onClose} className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-[#F8F5F1] hover:text-slate-900">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F8F5F1] text-[#B8935B]"><PortalNavIcon kind="profile" /></span>
-            Profile
-          </Link>
-        </nav>
-      </div>
-      <div className="border-t border-[#E8DDD0] p-4">
-        <Link href="/portal/dashboard/profile" onClick={onClose} className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-[#F8F5F1]">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#B8935B] text-sm font-bold text-white">{clientName[0]?.toUpperCase()}</span>
-          <span className="min-w-0">
-            <span className="block truncate text-xs font-bold text-slate-800">{clientName}</span>
-            <span className="block text-[10px] text-slate-400">View profile</span>
-          </span>
-        </Link>
-      </div>
-    </aside>
-    </>
-  );
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function PortalDashboardPage() {
@@ -353,7 +280,6 @@ export default function PortalDashboardPage() {
   const [showSlaModal, setShowSlaModal] = useState(false);
   const [files, setFiles] = useState<DeliverableItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [presenceNow, setPresenceNow] = useState(Date.now());
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -615,11 +541,6 @@ export default function PortalDashboardPage() {
     return () => { alive = false; window.clearInterval(heartbeat); };
   }, []);
 
-  const logout = async () => {
-    await fetch('/api/career/auth/verify', { method: 'DELETE' });
-    router.push('/portal/login');
-  };
-
   const currentKey = useMemo(() => {
     if (!me) return '';
     if (me.status === 'REVISION_REQUESTED') return 'REVISION_IN_PROGRESS';
@@ -660,66 +581,9 @@ export default function PortalDashboardPage() {
         }}
       />
 
-      <PortalSidebar
-        clientName={me.name}
-        unreadMessages={me.unreadMessages}
-        mobileOpen={mobileNavOpen}
-        onClose={() => setMobileNavOpen(false)}
-      />
+      <ClientPortalShell clientName={me.name} unreadMessages={me.unreadMessages} title="Overview" />
 
-      {/* ── Navbar ── */}
-      <header className="sticky top-0 z-40 border-b border-[#E8DDD0] bg-[#fffdfa]/95 shadow-[0_4px_18px_rgba(15,23,42,.04)] backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:pl-[17rem]">
-          <button type="button" aria-label="Open workspace navigation" onClick={() => setMobileNavOpen(true)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5D8C5] text-slate-600 hover:bg-[#F8F5F1] lg:hidden">
-            <PortalNavIcon kind="menu" />
-          </button>
-          <Link href="/portal/dashboard/profile" className="flex items-center gap-2.5" aria-label="Open your Catalyst profile">
-          <div className="w-9 h-9 rounded-xl overflow-hidden border border-[#D8C8B0] shadow-sm flex-shrink-0 bg-black flex items-center justify-center">
-              <Image src="/logos/catalyst-symbol-dark.svg" width={20} height={20} alt="Catalyst" className="object-contain" />
-            </div>
-            <div>
-            <p className="text-[15px] font-bold text-slate-900 leading-tight tracking-tight">Catalyst</p>
-            <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#9A7540] leading-tight">Client portal</p>
-            </div>
-          </Link>
-        <div className="flex items-center gap-1.5 sm:gap-2">
-            <Link href="/portal/dashboard/files" className="hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-[#F5F1EB] hover:text-slate-900 sm:inline-flex">
-              Files
-            </Link>
-            <Link href="/portal/dashboard/profile" className="hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-[#F5F1EB] hover:text-slate-900 sm:inline-flex">
-              Profile
-            </Link>
-            <button onClick={() => {
-              if (threadRef.current) {
-                threadRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }
-          }} aria-label="Open messages" title="Messages"
-            className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-[#F5F1EB] hover:text-slate-700 transition-colors">
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
-                <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9zM13.73 21a2 2 0 01-3.46 0"/>
-              </svg>
-              {me.unreadMessages ? (
-                <span className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-              ) : null}
-            </button>
-            <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 bg-[#FBF8F3] rounded-xl border border-[#E5D8C5]">
-              <div className="w-7 h-7 rounded-full bg-[#B8935B] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                {me.name[0]?.toUpperCase()}
-              </div>
-              <span className="text-xs font-semibold text-slate-700 max-w-[80px] sm:max-w-[140px] truncate">{me.name.split(' ')[0]}</span>
-            </div>
-            <button onClick={logout} aria-label="Sign out" title="Sign out"
-              className="inline-flex h-10 items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700 px-2.5 sm:px-3 border border-[#E5D8C5] rounded-xl hover:bg-white transition-colors">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-                <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-              </svg>
-              <span className="hidden sm:inline">Sign out</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-10 lg:pl-[17rem] motion-fade-in-up">
+      <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 pb-28 sm:px-6 sm:py-9 lg:ml-64 lg:mr-auto lg:px-8 lg:py-9 lg:pb-10 motion-fade-in-up">
         <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#9A7540]">Your workspace</p>
@@ -901,14 +765,21 @@ export default function PortalDashboardPage() {
           </div>
         )}
 
-        {/* ── Greeting ── */}
-        <div className="pt-1">
-          <p className="text-[10px] font-bold tracking-[0.22em] uppercase text-[#B8935B] mb-1">{greeting}</p>
-          <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight leading-none">
-            {me.name.split(' ')[0]}
-          </h1>
-          <p className="text-sm text-slate-400 mt-2.5">Your career investment is in expert hands</p>
-        </div>
+        {/* ── Workspace welcome ── */}
+        <section className="flex flex-col gap-4 rounded-2xl border border-[#E8DDD0] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,.035)] sm:flex-row sm:items-end sm:justify-between sm:p-5">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9A7540]">{greeting}</p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#0A0B0D] sm:text-3xl">Welcome, {me.name.split(' ')[0]}</h1>
+            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-slate-500">Your project, messages, and deliverables are together in one workspace.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="#forms" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#E8DDD0] bg-[#fffdfa] px-4 text-xs font-semibold text-slate-700 transition hover:border-[#D8C8B0] hover:bg-[#F8F5F0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8935B]/40">Review your brief</Link>
+            <Link href="#messages" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0A0B0D] px-4 text-xs font-semibold text-white transition hover:bg-[#29251E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8935B]/50">
+              Message your team
+              {me.unreadMessages ? <span className="rounded-full bg-[#C9A96E] px-1.5 py-0.5 text-[10px] font-bold text-[#17140F]">{me.unreadMessages > 99 ? '99+' : me.unreadMessages}</span> : null}
+            </Link>
+          </div>
+        </section>
 
         {me.lifecycleStatus === 'ARCHIVED' && (
           <div className="bg-slate-800 text-white p-4 rounded-2xl shadow-md border border-slate-700">
@@ -925,127 +796,122 @@ export default function PortalDashboardPage() {
         )}
 
         {/* ── Project overview ── */}
-        <div className="relative overflow-hidden rounded-2xl border border-[#27251F] bg-[#171817] shadow-[0_12px_30px_rgba(15,23,42,.12)]">
+        {(() => {
+          const progressIndex = Math.max(0, progressIdx);
+          const progressPercent = me.status === 'COMPLETED'
+            ? 100
+            : Math.min(100, Math.round((progressIndex / (STATUS_STEPS.length - 1)) * 100));
+          const isArchived = me.lifecycleStatus === 'ARCHIVED';
+          const nextActionHref = isArchived ? '/portal/dashboard/files' : !allFormsSubmitted ? '#forms' : '#messages';
+          const nextActionLabel = isArchived ? 'Open your files' : !allFormsSubmitted ? 'Continue your brief' : 'Open your conversation';
 
-          <div className="relative px-5 pt-7 pb-6 sm:px-8 sm:pt-9 sm:pb-8">
-            {/* Top row */}
-            <div className="flex items-start justify-between mb-7">
-              <div className="flex-1 min-w-0 pr-4">
-                <p className="text-[#B8935B] text-[9px] font-bold uppercase tracking-[0.26em] mb-3 flex items-center gap-2">
-                  <span className="w-5 h-px bg-[#B8935B]/50 flex-shrink-0" />
-                  Active Package
-                </p>
-                <h2 className="text-xl sm:text-3xl font-bold text-white tracking-tight leading-tight break-words">
-                  {me.packageLabel}
-                </h2>
-              </div>
-              <div className="flex-shrink-0 mt-1 px-2.5 py-1 bg-white/5 border border-white/8 rounded-full text-[9px] font-bold text-white/30 tracking-[0.18em] uppercase">
-                {me.currency ?? 'INR'}
-              </div>
-            </div>
+          return (
+            <section aria-labelledby="project-overview-title" className="relative isolate overflow-hidden rounded-[28px] border border-[#29251F] bg-[#111210] text-white shadow-[0_24px_64px_rgba(10,11,13,.14)]">
+              <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[#B8935B]/15 blur-3xl" />
+              <div aria-hidden="true" className="pointer-events-none absolute -bottom-36 left-1/3 h-64 w-64 rounded-full bg-[#D4B77F]/[.06] blur-3xl" />
+              <div className="relative grid min-w-0 gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,.65fr)] lg:gap-8 lg:p-8">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-2 rounded-full border border-[#D4B77F]/25 bg-[#D4B77F]/[.08] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-[#DCC18E]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#C9A96E]" />
+                      Project overview
+                    </span>
+                    <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[10px] font-semibold ${me.status === 'COMPLETED' ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200' : me.status === 'REVISION_REQUESTED' ? 'border-orange-300/25 bg-orange-300/10 text-orange-100' : 'border-white/10 bg-white/[.045] text-white/75'}`}>
+                      {me.statusLabel}
+                    </span>
+                    {me.waitingOn && <span className="rounded-full border border-white/10 bg-white/[.045] px-3 py-1.5 text-[10px] font-medium text-white/60">{me.waitingOn === 'CLIENT' ? 'Your input needed' : 'With Catalyst team'}</span>}
+                  </div>
 
-            {/* Gold accent line */}
-            <div className="w-14 h-px mb-7" style={{ background: 'linear-gradient(to right, #B8935B, transparent)' }} />
+                  <p className="mt-6 text-[10px] font-bold uppercase tracking-[.2em] text-white/40">Current package</p>
+                  <div className="mt-1 flex min-w-0 flex-wrap items-end justify-between gap-3">
+                    <h2 id="project-overview-title" className="min-w-0 break-words text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">{me.packageLabel}</h2>
+                    <span className="rounded-lg border border-white/10 bg-white/[.045] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.16em] text-white/45">{me.currency ?? 'INR'}</span>
+                  </div>
+                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">Track where your project stands and move directly to the next useful step.</p>
 
-            {/* Integrated motivational quote */}
-            <div className="mb-7">
-              <svg className="w-5 h-5 mb-2.5" fill="#B8935B" fillOpacity="0.25" viewBox="0 0 32 32">
-                <path d="M10 8C6.134 8 3 11.134 3 15v9h9v-9H6c0-2.21 1.79-4 4-4V8zm13 0c-3.866 0-7 3.134-7 7v9h9v-9h-6c0-2.21 1.79-4 4-4V8z"/>
-              </svg>
-              <p className="text-white/55 text-sm sm:text-[15px] leading-relaxed italic font-light">
-                &ldquo;{QUOTES[quoteIdx].text}&rdquo;
-              </p>
-              {QUOTES[quoteIdx].author && (
-                <p className="mt-2 text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: 'rgba(184,147,91,0.55)' }}>
-                  — {QUOTES[quoteIdx].author}
-                </p>
-              )}
-            </div>
+                  <div className="mt-7 rounded-2xl border border-white/[.08] bg-white/[.035] p-4 sm:p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[.16em] text-white/40">Project progress</p>
+                        <p className="mt-1 text-sm font-semibold text-white/90">{STATUS_STEPS[progressIndex]?.label ?? me.statusLabel}</p>
+                      </div>
+                      <span className="text-sm font-semibold tabular-nums text-[#DCC18E]">{progressPercent}%</span>
+                    </div>
+                    <div role="progressbar" aria-label="Project progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent} className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+                      <div className="h-full rounded-full bg-gradient-to-r from-[#B8935B] to-[#E3C98F] transition-[width] duration-500" style={{ width: `${progressPercent}%` }} />
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-[10px] font-medium text-white/35 sm:grid-cols-6">
+                      {STATUS_STEPS.map((step, index) => {
+                        const complete = me.status === 'COMPLETED' || index < progressIndex;
+                        const current = me.status !== 'COMPLETED' && index === progressIndex;
+                        return <span key={step.key} className={`min-w-0 truncate ${complete || current ? 'text-[#DCC18E]' : ''}`}>{step.label}</span>;
+                      })}
+                    </div>
+                  </div>
 
-            {/* Thin divider */}
-            <div className="w-full h-px bg-white/5 mb-6" />
-
-            {/* Status indicators */}
-            <div className="flex items-center flex-wrap gap-2 mb-4">
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${
-                me.status === 'COMPLETED'
-                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                  : me.status === 'REVISION_REQUESTED'
-                  ? 'border-orange-400/30 bg-orange-400/10 text-orange-300'
-                  : 'border-white/10 bg-white/5 text-white/55'
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full motion-pulse-slow flex-shrink-0 ${
-                  me.status === 'COMPLETED' ? 'bg-emerald-400' :
-                  me.status === 'REVISION_REQUESTED' ? 'bg-orange-400' : 'bg-[#B8935B]'
-                }`} />
-                {me.statusLabel}
-              </div>
-              {me.waitingOn && (
-                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold border ${
-                  me.waitingOn === 'CLIENT'
-                    ? 'border-amber-400/30 bg-amber-400/10 text-amber-300'
-                    : 'border-blue-400/30 bg-blue-400/10 text-blue-300'
-                }`}>
-                  Waiting: {me.waitingOn === 'CLIENT' ? 'You' : 'Catalyst'}
+                  {me.services && me.services.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {me.services.map(service => <span key={service.slug} className="rounded-full border border-white/10 bg-white/[.04] px-3 py-1.5 text-[10px] font-medium text-white/65">{service.name}</span>)}
+                    </div>
+                  )}
                 </div>
-              )}
-              {me.status === 'REVISION_REQUESTED' && (
-                <span className="text-orange-300/70 text-xs font-medium">Revision in progress</span>
-              )}
-            </div>
 
-            {/* Service pills */}
-            {me.services && me.services.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {me.services.map(s => (
-                  <span key={s.slug}
-                    className="px-2.5 py-1 rounded-full text-[10px] font-semibold border border-[#B8935B]/22 bg-[#B8935B]/8 tracking-wide transition-colors hover:border-[#B8935B]/40"
-                    style={{ color: '#C9A870' }}>
-                    {s.name}
-                  </span>
-                ))}
+                <aside className="flex min-w-0 flex-col rounded-2xl border border-[#D4B77F]/20 bg-gradient-to-br from-white/[.075] to-white/[.025] p-5 sm:p-6">
+                  <div className="flex items-center gap-2 text-[#DCC18E]">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#D4B77F]/10">
+                      <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v18M3 12h18"/><path d="m5 5 14 14" opacity=".25"/></svg>
+                    </span>
+                    <p className="text-[10px] font-bold uppercase tracking-[.18em]">Next step</p>
+                  </div>
+                  <h3 className="mt-5 text-lg font-semibold leading-snug text-white">{me.status === 'COMPLETED' ? 'Your deliverables are ready' : me.waitingOn === 'CLIENT' ? 'Your input can move this forward' : 'Catalyst is progressing your project'}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-white/55">{isArchived ? 'Your project is archived. Your completed files are still available to view and download.' : !allFormsSubmitted ? 'Finish your brief whenever you are ready. Your progress is saved as you go.' : me.status === 'COMPLETED' ? 'Open your files to review and download the completed work.' : 'Keep every question and update in one place by messaging your project team.'}</p>
+                  <Link href={nextActionHref} className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#D4B77F] px-4 text-xs font-bold text-[#17140F] transition hover:bg-[#E0C894] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
+                    {nextActionLabel}
+                    <span aria-hidden="true">→</span>
+                  </Link>
+                  <div className="mt-auto grid grid-cols-2 gap-2 pt-5">
+                    <Link href="/portal/dashboard/files" className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/10 px-3 text-[11px] font-semibold text-white/70 transition hover:border-white/20 hover:bg-white/[.04]">View files</Link>
+                    <Link href="#messages" className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/10 px-3 text-[11px] font-semibold text-white/70 transition hover:border-white/20 hover:bg-white/[.04]">Message team</Link>
+                  </div>
+                </aside>
               </div>
-            )}
 
-            {/* SLA Assent Status & Invoice Receipt */}
-            <div className="mt-4 pt-3.5 border-t border-white/10 flex flex-wrap items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${me.slaAccepted ? 'bg-emerald-400' : 'bg-amber-400 motion-pulse-slow'}`} />
-                <span className="text-[11px] text-white/70">
-                  {me.slaAccepted ? `Master Services & Turnaround SLA Bound (${me.slaVersion || 'v2026.1'})` : 'Awaiting SLA Acceptance'}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    const res = await fetch('/api/career/portal/invoice/pdf');
-                    if (res.ok) {
-                      const blob = await res.blob();
+              <div className="relative flex flex-col gap-3 border-t border-white/[.08] bg-black/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7 lg:px-8">
+                <div className="flex min-w-0 items-start gap-2.5">
+                  <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${me.slaAccepted ? 'bg-emerald-400' : 'bg-amber-400 motion-pulse-slow'}`} />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold text-white/75">{me.slaAccepted ? 'Service agreement accepted' : 'Service agreement awaiting acceptance'}</p>
+                    <p className="mt-0.5 break-words text-[10px] text-white/40">{me.slaAccepted ? `Master Services & Turnaround SLA · ${me.slaVersion || 'v2026.1'}` : 'Please review the agreement to continue your project.'}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/career/portal/invoice/pdf');
+                      if (!response.ok) { alert('Invoice receipt is being prepared. Please check back in a moment.'); return; }
+                      const blob = await response.blob();
                       const url = window.URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `Catalyst-Official-Invoice-PAID.pdf`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                    } else {
-                      alert('Invoice receipt is being prepared. Please check back in a moment.');
+                      const anchor = document.createElement('a');
+                      anchor.href = url;
+                      anchor.download = 'Catalyst-Official-Invoice-PAID.pdf';
+                      document.body.appendChild(anchor);
+                      anchor.click();
+                      document.body.removeChild(anchor);
+                      window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+                    } catch {
+                      alert('Could not download invoice. Please try again.');
                     }
-                  } catch {
-                    alert('Could not download invoice. Please try again.');
-                  }
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-[#B8935B]/40 text-[#E0C59E] hover:text-white text-[11px] font-semibold transition-all cursor-pointer btn-press"
-              >
-                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                <span>Download Official Receipt (PDF)</span>
-              </button>
-            </div>
-          </div>
-        </div>
+                  }}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-xl border border-[#D4B77F]/30 bg-white/[.04] px-3 text-[11px] font-semibold text-[#E7D1A7] transition hover:bg-white/[.09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4B77F]/50 sm:self-auto"
+                >
+                  <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 17v3h14v-3"/></svg>
+                  Download invoice
+                </button>
+              </div>
+            </section>
+          );
+        })()}
 
         {/* ── Dynamic Upgrades ── */}
         {(() => {
@@ -1546,7 +1412,7 @@ export default function PortalDashboardPage() {
         )}
 
         {/* ── Forms Section ── */}
-        <div id="forms" className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-6">
+        <div id="forms" className="scroll-mt-20 bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Your Forms</p>
@@ -1722,13 +1588,17 @@ export default function PortalDashboardPage() {
         </div>
 
         {/* ── Messages ── */}
-        <div id="messages" className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-4 sm:p-6">
+        <div id="messages" className="scroll-mt-20 bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-4 sm:p-6">
           <section aria-label="Team availability and your local time" className="mb-5 flex min-w-0 flex-col gap-3 rounded-xl border border-[#EBE4D9] bg-[#FFFEFC] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Collaboration</p>
-              <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
-                <span className="inline-flex items-center gap-2"><i className={`h-2 w-2 rounded-full ${me.teamLastActiveAt && presenceNow - new Date(me.teamLastActiveAt).getTime() < 120_000 ? 'bg-emerald-500' : 'bg-slate-300'}`} /><b className="font-semibold text-slate-700">Catalyst team</b>{me.teamLastActiveAt && presenceNow - new Date(me.teamLastActiveAt).getTime() < 120_000 ? 'Active now' : me.teamLastActiveAt ? `Last seen ${new Date(me.teamLastActiveAt).toLocaleString()}` : 'Availability not yet recorded'}</span>
-                {me.lastViewedByAdminAt && <span className="text-[11px] text-slate-400">Account viewed {new Date(me.lastViewedByAdminAt).toLocaleString()}</span>}
+              <div className="mt-1.5 flex min-w-0 flex-col gap-1.5 text-xs text-slate-600 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4">
+                <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                  <i className={`h-2 w-2 shrink-0 rounded-full ${me.teamLastActiveAt && presenceNow - new Date(me.teamLastActiveAt).getTime() < 120_000 ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <b className="font-semibold text-slate-700">Catalyst team</b>
+                  <span className="min-w-0 break-words">{me.teamLastActiveAt && presenceNow - new Date(me.teamLastActiveAt).getTime() < 120_000 ? 'Active now' : me.teamLastActiveAt ? `Last seen ${new Date(me.teamLastActiveAt).toLocaleString()}` : 'Availability not yet recorded'}</span>
+                </span>
+                {me.lastViewedByAdminAt && <span className="break-words text-[11px] text-slate-400">Account viewed {new Date(me.lastViewedByAdminAt).toLocaleString()}</span>}
               </div>
               {me.presenceAvailable === false && <p className="mt-1 text-[10px] text-amber-700">Live activity status is unavailable.</p>}
             </div>
@@ -2247,19 +2117,8 @@ function ReferralSection({ data }: { data: ReferralStats }) {
 function DashboardSkeleton() {
   return (
     <div className="min-h-screen bg-[#F8F6F1]">
-      <header className="bg-white/90 border-b border-[#EDE6DA] h-14 flex items-center px-4">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 sm:px-6 lg:pl-[17rem]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#EBE4D9] animate-pulse" />
-            <div className="w-24 h-4 bg-[#EBE4D9] rounded animate-pulse" />
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-24 sm:w-32 h-8 rounded-xl bg-[#EBE4D9] animate-pulse" />
-            <div className="w-10 sm:w-20 h-8 rounded-xl bg-[#EBE4D9] animate-pulse" />
-          </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-6xl space-y-5 px-4 py-8 sm:px-6 lg:pl-[17rem]">
+      <ClientPortalShell title="Overview" />
+      <main className="mx-auto max-w-7xl space-y-5 px-4 py-8 pb-28 sm:px-6 lg:ml-64 lg:mr-auto lg:px-8 lg:pb-10">
         <div className="space-y-2">
           <div className="h-3 w-20 bg-[#EBE4D9] rounded animate-pulse" />
           <div className="h-9 w-44 bg-[#E5DDD2] rounded-lg animate-pulse" />

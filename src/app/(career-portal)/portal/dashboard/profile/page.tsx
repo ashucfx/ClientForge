@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ClientPortalHeader } from '@/components/ClientPortalHeader';
+import { ClientPortalShell } from '@/components/ClientPortalShell';
 import { SERVICE_LABELS } from '@/lib/career/types';
 import type { CareerServiceSlug } from '@/lib/career/types';
 
@@ -81,14 +81,19 @@ export default function ClientProfilePage() {
   }, [submission]);
 
   if (loading) {
-    return <div className="min-h-screen bg-[#FAF8F4] p-6 text-sm text-slate-500">Loading your profile…</div>;
+    return (
+      <div className="min-h-screen bg-[#FAF8F4]">
+        <ClientPortalShell title="Your profile" />
+        <main className="mx-auto max-w-7xl px-4 py-8 pb-28 text-sm text-slate-500 sm:px-6 lg:ml-64 lg:mr-auto lg:px-8 lg:pb-10">Loading your profile…</main>
+      </div>
+    );
   }
   if (!me) return null;
 
   return (
     <div className="min-h-screen bg-[#FAF8F4]">
-      <ClientPortalHeader clientName={me.name} title="Your profile" />
-      <main className="mx-auto w-full max-w-4xl space-y-5 px-4 py-6 sm:px-6 sm:py-10">
+      <ClientPortalShell clientName={me.name} title="Your profile" />
+      <main className="mx-auto w-full max-w-7xl space-y-5 px-4 py-6 pb-28 sm:px-6 sm:py-9 lg:ml-64 lg:mr-auto lg:w-auto lg:px-8 lg:py-9 lg:pb-10">
         <section className="overflow-hidden rounded-3xl bg-[#0A0B0D] p-6 text-white shadow-xl sm:p-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
