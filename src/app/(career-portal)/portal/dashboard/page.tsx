@@ -294,7 +294,7 @@ function PortalSidebar({ clientName, unreadMessages, mobileOpen, onClose }: {
   return (
     <>
     {mobileOpen && <button type="button" aria-label="Close navigation" onClick={onClose} className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-[2px] lg:hidden" />}
-    <aside className={`fixed inset-y-0 left-0 z-50 flex w-[min(82vw,18rem)] flex-col border-r border-[#E8DDD0] bg-[#fffdfa] shadow-xl transition-transform duration-200 lg:z-30 lg:w-64 lg:translate-x-0 lg:shadow-none ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:flex'}`}>
+    <aside className={`fixed left-0 top-0 bottom-0 z-50 flex w-[min(82vw,18rem)] flex-col border-r border-[#E8DDD0] bg-[#fffdfa] shadow-xl transition-transform duration-200 lg:bottom-0 lg:top-16 lg:z-30 lg:w-64 lg:translate-x-0 lg:shadow-none ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:flex'}`}>
       <div className="border-b border-[#E8DDD0] px-6 py-6">
         <div className="flex items-center justify-between gap-3">
         <Link href="/portal/dashboard/profile" onClick={onClose} className="flex items-center gap-3">
@@ -668,7 +668,7 @@ export default function PortalDashboardPage() {
       />
 
       {/* ── Navbar ── */}
-      <header className="sticky top-0 z-30 border-b border-[#E8DDD0] bg-[#fffdfa]/95 shadow-[0_4px_18px_rgba(15,23,42,.04)] backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-[#E8DDD0] bg-[#fffdfa]/95 shadow-[0_4px_18px_rgba(15,23,42,.04)] backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:pl-[17rem]">
           <button type="button" aria-label="Open workspace navigation" onClick={() => setMobileNavOpen(true)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5D8C5] text-slate-600 hover:bg-[#F8F5F1] lg:hidden">
             <PortalNavIcon kind="menu" />
