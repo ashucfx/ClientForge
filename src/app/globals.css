@@ -112,6 +112,15 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 body {
   background: var(--bg);
   color: var(--text-primary);
@@ -540,6 +549,7 @@ a:focus-visible {
 .data-table tbody tr { transition: background .1s; cursor: pointer; }
 .data-table tbody tr:last-child td { border-bottom: none; }
 .data-table tbody tr:hover td { background: rgba(184,147,91,.06); }
+.data-table tbody tr:focus-within td { background: rgba(184,147,91,.08); }
 
 /* ═══════════════════════════════════════════════
    LINE ITEMS TABLE (Invoice editor)
@@ -617,6 +627,8 @@ a:focus-visible {
   box-shadow: var(--shadow-2xl);
   width: 100%;
   max-width: 480px;
+  max-height: min(720px, calc(100dvh - 32px));
+  overflow-y: auto;
   animation: slideUp .2s cubic-bezier(.22,1,.36,1);
 }
 .modal-lg  { max-width: 600px; }
@@ -940,12 +952,17 @@ a:focus-visible {
   .items-table { min-width: 480px; }
 
   /* ── Modal ───────────────────────────────── */
-  .modal-backdrop { padding: 12px; align-items: flex-end; }
+  .modal-backdrop { padding: 12px; align-items: center; }
   .modal {
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    border-radius: var(--radius-xl);
     max-width: 100% !important;
+    max-height: calc(100dvh - 24px);
     animation: slideUp .25s cubic-bezier(.22,1,.36,1);
   }
+  .modal-header { padding: 18px 18px 0; }
+  .modal-body { padding: 16px 18px; }
+  .modal-footer { padding: 0 18px 18px; flex-direction: column-reverse; }
+  .modal-footer .btn { width: 100%; }
 
   /* ── Toast ───────────────────────────────── */
   .toast-stack { left: 12px; right: 12px; bottom: 16px; }
