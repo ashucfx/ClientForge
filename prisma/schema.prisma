@@ -169,6 +169,25 @@ model Invoice {
   @@index([checkoutSessionId])
 }
 
+// Draft snapshots are intentionally separate from Invoice. They may contain
+// incomplete form data and never participate in payment or settlement flows.
+model InvoiceDraft {
+  id              String   @id @default(cuid())
+  draftNumber     String   @unique @default(cuid())
+  brandId         String   @default("catalyst")
+  clientId        String?
+  clientName      String?
+  clientEmail     String?
+  payload         Json
+  createdByAdminId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([brandId, updatedAt])
+  @@index([clientId])
+  @@index([clientEmail])
+}
+
 model ExchangeRateCache {
   id             String   @id @default(cuid())
   baseCurrency   String   @default("INR")
