@@ -44,7 +44,10 @@ export async function GET(req: NextRequest) {
   const [clients, total] = await Promise.all([
     db.careerClient.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [
+        { reEngagedAt: { sort: 'desc', nulls: 'last' } },
+        { updatedAt: 'desc' },
+      ],
       skip: (page - 1) * limit,
       take: limit,
       select: {
@@ -52,6 +55,12 @@ export async function GET(req: NextRequest) {
         packageType: true, status: true, amountPaid: true, currency: true,
         slaDeadline: true, waitingOn: true, updatedAt: true,
         createdAt: true, lastLoginAt: true, expectedDeliveryAt: true,
+        reEngagedAt: true, reEngagedFrom: true,
+        engagements: {
+          orderBy: { sequence: 'desc' },
+          take: 1,
+          select: { sequence: true, addedServices: true, startedAt: true, status: true },
+        },
         services: { select: { service: { select: { slug: true, name: true } } } },
         _count: { select: { forms: true, deliverables: true } },
         ConversationReadState: { select: { unreadByAdmin: true, adminSlaDeadline: true } },

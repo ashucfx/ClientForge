@@ -305,6 +305,7 @@ model CareerClient {
   revisions    CareerRevision[]
   comments     CareerComment[]
   services     CareerClientService[]
+  engagements  CareerEngagement[]
   messages     CareerMessage[]
   deleteOtp    CareerDeleteOtp?
   bugReports   BugReport[]
@@ -327,6 +328,29 @@ model CareerClient {
   @@index([lifecycleStatus])
   @@index([completedAt])
   @@index([contactId])
+}
+
+// A returning client starts a new engagement without creating a duplicate client.
+// The service snapshots preserve the original scope and the new add-on scope.
+model CareerEngagement {
+  id              String   @id @default(cuid())
+  clientId        String
+  sequence        Int
+  kind            String   @default("RE_ONBOARDING") // INITIAL | RE_ONBOARDING
+  status          String   @default("ACTIVE") // ACTIVE | COMPLETED | CANCELLED
+  previousServices Json
+  addedServices    Json
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  client CareerClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, sequence])
+  @@index([clientId, updatedAt])
+  @@index([status, updatedAt])
 }
 
 model CareerFormSubmission {
