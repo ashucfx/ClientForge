@@ -4128,7 +4128,7 @@ function UpgradeInvoicesTab({ clientId }: { clientId: string }) {
 
         <div className="flex items-center gap-2.5">
           <Link
-            href="/invoices/new"
+            href={`/invoices/new?clientId=${encodeURIComponent(clientId)}`}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#B8935B] to-[#9A7540] hover:opacity-95 text-white text-xs font-bold transition-all shadow-2xs"
           >
             <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
@@ -4188,7 +4188,7 @@ function UpgradeInvoicesTab({ clientId }: { clientId: string }) {
           </p>
           <div className="mt-4">
             <Link
-              href="/invoices/new"
+              href={`/invoices/new?clientId=${encodeURIComponent(clientId)}`}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#B8935B] hover:bg-[#9A7540] text-white text-xs font-bold transition-all shadow-xs"
             >
               <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">

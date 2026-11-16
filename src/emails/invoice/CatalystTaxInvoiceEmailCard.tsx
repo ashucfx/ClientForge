@@ -23,8 +23,16 @@ function getPackageDetails(clientType?: string | null, notes?: string | null, li
 
 const catalystEmailLogoUrl = `${(process.env.NEXT_PUBLIC_APP_URL ?? 'https://clientforge.theripplenexus.com').replace(/\/$/, '')}/logos/catalyst-email-mark.png`;
 
-function sanitizeItemDescription(rawDesc: string, pkgName: string): { title: string; subtitle?: string; isComp?: boolean } {
+function sanitizeItemDescription(rawDesc: string, pkgName: string, shortDescription?: string): { title: string; subtitle?: string; isComp?: boolean } {
   const lower = (rawDesc || '').toLowerCase().trim();
+
+  if (rawDesc.trim()) {
+    return {
+      title: rawDesc.trim(),
+      subtitle: shortDescription?.trim() || undefined,
+      isComp: lower.includes('complimentary'),
+    };
+  }
 
   if (lower.includes('portal automated upgrade') || lower.includes('target:') || lower.includes('upgrade')) {
     if (lower.includes('plus') || lower.includes('executive_plus')) {
@@ -444,7 +452,7 @@ export function CatalystTaxInvoiceEmailCard({
                 </thead>
                 <tbody>
                   {displayItems.map((item, idx) => {
-                    const sanitized = sanitizeItemDescription(item.description, pkg.packageName);
+                    const sanitized = sanitizeItemDescription(item.description, pkg.packageName, item.shortDescription);
                     const isFree = item.lineTotal === 0 || sanitized.isComp;
                     const qtyStr = item.qty < 10 ? `0${item.qty}` : `${item.qty}`;
                     const formattedRate = isFree ? fmt(0) : fmt(item.unitPrice);
