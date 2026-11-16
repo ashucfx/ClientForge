@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { parseRevisionNote, OUT_OF_SCOPE_CATEGORIES } from '@/lib/career/types';
 import type { OutOfScopeCategoryKey } from '@/lib/career/types';
 import { RevisionNoteViewer } from '@/components/career/RevisionNoteViewer';
+import { ClientPortalHeader } from '@/components/ClientPortalHeader';
 
 interface FileItem {
   id: string; label: string; fileUrl: string;
@@ -175,27 +176,7 @@ export default function FilesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#FAFAF8] via-[#F5F2EC]/30 to-[#FAFAF8]">
-      {/* Header */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
-          <Link href="/portal/dashboard"
-            className="flex items-center gap-1.5 text-slate-400 hover:text-[#B8935B] transition-colors flex-shrink-0">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
-              <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M19 12H5m7-7l-7 7 7 7"/>
-            </svg>
-            <span className="text-sm hidden sm:inline">Dashboard</span>
-          </Link>
-          <div className="w-px h-4 bg-slate-200" />
-          <h1 className="text-sm font-bold text-slate-900">My Deliverables</h1>
-          {!loading && files.length > 0 && (
-            <span className="ml-auto text-xs text-slate-400">
-              {drafts.length > 0 && `${drafts.length} draft${drafts.length !== 1 ? 's' : ''}`}
-              {drafts.length > 0 && finals.length > 0 && ' · '}
-              {finals.length > 0 && `${finals.length} final${finals.length !== 1 ? 's' : ''}`}
-            </span>
-          )}
-        </div>
-      </header>
+      <ClientPortalHeader title="My deliverables" backHref="/portal/dashboard" />
 
       <main className="max-w-2xl mx-auto px-4 py-7 space-y-6">
         <div>

@@ -1630,7 +1630,7 @@ export default function PortalDashboardPage() {
         </div>
 
         {/* ── Messages ── */}
-        <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-4 sm:p-6">
+        <div id="messages" className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-4 sm:p-6">
           <section aria-label="Team availability and your local time" className="mb-5 flex min-w-0 flex-col gap-3 rounded-xl border border-[#EBE4D9] bg-[#FFFEFC] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Collaboration</p>
