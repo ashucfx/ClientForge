@@ -565,12 +565,10 @@ export default function PortalDashboardPage() {
     return daysSinceEpoch % QUOTES.length;
   }, []);
 
-  const greeting = useMemo(() => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
-  }, []);
+  const greeting = useMemo(
+    () => getClientGreeting(me?.timezone, presenceNow),
+    [me?.timezone, presenceNow],
+  );
 
   if (loading) return <DashboardSkeleton />;
   if (!me) return null;
@@ -590,24 +588,23 @@ export default function PortalDashboardPage() {
 
       {/* ── Navbar ── */}
       <header className="bg-white/90 backdrop-blur-md border-b border-[#EDE6DA] sticky top-0 z-20 shadow-[0_1px_0_rgba(10,11,13,0.04)]">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl overflow-hidden border border-slate-200 shadow-sm flex-shrink-0 bg-black flex items-center justify-center">
+          <div className="w-9 h-9 rounded-xl overflow-hidden border border-[#D8C8B0] shadow-sm flex-shrink-0 bg-black flex items-center justify-center">
               <Image src="/logos/catalyst-symbol-dark.svg" width={20} height={20} alt="Catalyst" className="object-contain" />
             </div>
             <div>
-              <p className="text-base font-bold text-slate-900 leading-tight tracking-tight">Catalyst</p>
-              <span className="inline-block px-1.5 py-0.5 bg-[#F0EAE0] text-[#9A7540] text-[9px] font-bold rounded tracking-wide leading-none">
-                CareerPilot
-              </span>
+            <p className="text-[15px] font-bold text-slate-900 leading-tight tracking-tight">Catalyst</p>
+            <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#9A7540] leading-tight">Client portal</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2">
             <button onClick={() => {
               if (threadRef.current) {
                 threadRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
               }
-            }} className="relative p-2 text-slate-400 hover:text-slate-700 transition-colors">
+          }} aria-label="Open messages" title="Messages"
+            className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-[#F5F1EB] hover:text-slate-700 transition-colors">
               <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
                 <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9zM13.73 21a2 2 0 01-3.46 0"/>
               </svg>
@@ -615,14 +612,14 @@ export default function PortalDashboardPage() {
                 <span className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
               ) : null}
             </button>
-            <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 bg-[#F5F1EB] rounded-xl border border-[#EDE6DA]">
-              <div className="w-6 h-6 rounded-full bg-[#B8935B] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+            <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 bg-[#FBF8F3] rounded-xl border border-[#E5D8C5]">
+              <div className="w-7 h-7 rounded-full bg-[#B8935B] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                 {me.name[0]?.toUpperCase()}
               </div>
               <span className="text-xs font-semibold text-slate-700 max-w-[80px] sm:max-w-[140px] truncate">{me.name.split(' ')[0]}</span>
             </div>
-            <button onClick={logout} aria-label="Sign out"
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 px-2 sm:px-3 py-1.5 border border-[#EDE6DA] rounded-xl hover:bg-white transition-colors">
+            <button onClick={logout} aria-label="Sign out" title="Sign out"
+              className="inline-flex h-10 items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700 px-2.5 sm:px-3 border border-[#E5D8C5] rounded-xl hover:bg-white transition-colors">
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
                 <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
               </svg>
@@ -635,7 +632,7 @@ export default function PortalDashboardPage() {
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-5 sm:space-y-7 motion-fade-in-up">
         {/* ── Upgrade Preview Modal ── */}
         {upgradeTarget && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 motion-fade-in-up overflow-y-auto"
+          <div className="fixed inset-0 z-50 h-[100dvh] bg-black/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 motion-fade-in-up overflow-hidden"
             onClick={() => { if (!upgrading) { setUpgradeTarget(null); setUpgradePreview(null); } }}>
             <div className="bg-white w-full sm:max-w-md min-w-0 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[calc(100dvh-1.5rem)] sm:max-h-[90dvh] min-h-0 flex flex-col motion-scale-in"
               onClick={e => e.stopPropagation()}>
@@ -1885,6 +1882,26 @@ function formatClientLocalTime(timezone: string | null | undefined, timestamp: n
   if (!timezone) return `${new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(timestamp)} (device time)`;
   try { return `${new Intl.DateTimeFormat(undefined, { timeZone: timezone, timeStyle: 'short' }).format(timestamp)} (${timezone})`; }
   catch { return 'Time zone needs review'; }
+}
+
+function getClientGreeting(timezone: string | null | undefined, timestamp: number): string {
+  let hour: number;
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      ...(timezone ? { timeZone: timezone } : {}),
+      hour: 'numeric',
+      hourCycle: 'h23',
+    }).formatToParts(timestamp);
+    hour = Number(parts.find(part => part.type === 'hour')?.value);
+  } catch {
+    hour = new Date(timestamp).getHours();
+  }
+
+  if (hour < 5) return 'Good night';
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  if (hour < 21) return 'Good evening';
+  return 'Good night';
 }
 
 function PortalMessageBubble({ c, myName, showHeader = true, onEdit, onDelete }: {
