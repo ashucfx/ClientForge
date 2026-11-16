@@ -41,6 +41,9 @@ interface Client {
   createdAt: string;
   _count: { forms: number; deliverables: number };
   expectedDeliveryAt?: string | null;
+  reEngagedAt?: string | null;
+  reEngagedFrom?: string | null;
+  engagements?: { sequence: number; addedServices: { slug: string; name: string }[]; startedAt: string; status: string }[];
   ConversationReadState?: { unreadByAdmin: number; adminSlaDeadline?: string | null } | null;
 }
 
@@ -63,6 +66,7 @@ function clientServiceLabel(c: Client): string {
       .map(slug => SERVICE_LABELS[slug as CareerServiceSlug] ?? slug)
       .join(', ');
   }
+
   if (c.packageType) {
     return (
       SERVICE_LABELS[c.packageType as CareerServiceSlug] ??
@@ -71,6 +75,15 @@ function clientServiceLabel(c: Client): string {
     );
   }
   return '—';
+}
+
+function ReturningClientBadge({ client }: { client: Client }) {
+  if (!client.reEngagedAt) return null;
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-[#E5D4B4] bg-[#F8F1E5] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#8C6C39]">
+      Returning · {new Date(client.reEngagedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+    </span>
+  );
 }
 
 export default function CareerClientsPage() {
@@ -185,6 +198,7 @@ export default function CareerClientsPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-semibold text-slate-900 text-sm">{c.name}</span>
+                      <ReturningClientBadge client={c} />
                       {c.ConversationReadState && c.ConversationReadState.unreadByAdmin > 0 && (
                         <span className="flex items-center justify-center w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse">
                           {c.ConversationReadState.unreadByAdmin}
@@ -231,6 +245,7 @@ export default function CareerClientsPage() {
                       <div className="flex flex-col">
                         <Link href={`/career/${c.id}`} className="font-semibold text-slate-900 hover:text-[#B8935B] transition-colors flex items-center gap-2">
                           {c.name}
+                          <ReturningClientBadge client={c} />
                           {c.ConversationReadState && c.ConversationReadState.unreadByAdmin > 0 && (
                             <span className="flex items-center justify-center w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full animate-pulse shadow-sm shadow-red-500/50">
                               {c.ConversationReadState.unreadByAdmin}

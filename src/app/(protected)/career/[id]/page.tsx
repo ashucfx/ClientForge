@@ -32,6 +32,15 @@ interface ActivityLog {
   id: string; action: string; performedBy: string;
   createdAt: string; metadata: Record<string, unknown> | null;
 }
+interface Engagement {
+  id: string;
+  sequence: number;
+  status: string;
+  previousServices: { slug: string; name: string }[];
+  addedServices: { slug: string; name: string }[];
+  createdAt: string;
+  reEngagedFrom: string | null;
+}
 interface RevisionItem {
   id: string; note: string; fileLabel?: string; status: string;
   requestedBy: string; adminNote?: string; createdAt: string;
@@ -205,6 +214,147 @@ function SlaDeadlineCell({ client, onUpdated }: {
   );
 }
 
+function ReOnboardingPanel({ client, onCreated }: {
+  client: ClientDetail;
+  onCreated: () => void;
+}) {
+  const [engagements, setEngagements] = useState<Engagement[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [selected, setSelected] = useState<CareerServiceSlug[]>(['RESUME']);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const serviceOptions: CareerServiceSlug[] = ['RESUME', 'COVER_LETTER', 'LINKEDIN', 'PORTFOLIO', 'EXECUTIVE_CONNECT'];
+  const originalServices = useMemo(
+    () => expandClientServices(client.services ?? [], client.packageType).map(service => service.slug),
+    [client.packageType, client.services],
+  );
+
+  const loadEngagements = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/career/admin/clients/${client.id}/engagements`);
+      if (!response.ok) throw new Error('Could not load engagement history.');
+      const data = await response.json() as { engagements: Engagement[] };
+      setEngagements(data.engagements);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load engagement history.');
+    } finally {
+      setLoading(false);
+    }
+  }, [client.id]);
+
+  useEffect(() => { void loadEngagements(); }, [loadEngagements]);
+
+  const toggleService = (slug: CareerServiceSlug) => {
+    setSelected(current => current.includes(slug)
+      ? current.filter(item => item !== slug)
+      : [...current, slug]);
+  };
+
+  const createEngagement = async () => {
+    if (selected.length === 0) {
+      setError('Select at least one additional service.');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/career/admin/clients/${client.id}/engagements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ services: selected }),
+      });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error ?? 'Could not start re-onboarding.');
+      setShowForm(false);
+      setSelected(['RESUME']);
+      await loadEngagements();
+      onCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start re-onboarding.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="mt-4 rounded-xl border border-[#E8DDD0] bg-[#FBF8F3] p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold text-slate-900">Client engagement history</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Original services remain attached to this client. New work is tracked as a separate engagement.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => { setShowForm(value => !value); setError(''); }}
+          className="rounded-lg bg-[#B8935B] px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-[#9A7540]"
+        >
+          {showForm ? 'Cancel' : 'Start re-onboarding'}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Additional services</p>
+          <p className="mt-1 text-xs text-slate-500">Choose only what the returning client purchased this time.</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {serviceOptions.map(slug => (
+              <label key={slug} className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(slug)}
+                  onChange={() => toggleService(slug)}
+                  className="accent-[#B8935B]"
+                />
+                {SERVICE_LABELS[slug]}
+              </label>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] text-slate-400">
+              Existing services: {originalServices.map(slug => SERVICE_LABELS[slug as CareerServiceSlug] ?? slug).join(', ') || 'None'}
+            </p>
+            <button
+              type="button"
+              onClick={() => void createEngagement()}
+              disabled={saving || selected.length === 0}
+              className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? 'Starting…' : 'Create engagement'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error && <p className="mt-3 text-xs font-semibold text-red-600">{error}</p>}
+
+      {loading ? (
+        <p className="mt-4 text-xs text-slate-400">Loading engagement history…</p>
+      ) : engagements.length === 0 ? (
+        <p className="mt-4 text-xs text-slate-400">No returning engagements recorded.</p>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {engagements.map(engagement => (
+            <div key={engagement.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+              <div>
+                <p className="text-xs font-bold text-slate-800">Engagement #{engagement.sequence} · {engagement.status}</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  Added: {engagement.addedServices.map(service => service.name).join(', ')}
+                </p>
+              </div>
+              <span className="text-[11px] text-slate-400">{fmt(engagement.createdAt, true)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function CareerClientDetailPage() {
@@ -257,6 +407,13 @@ export default function CareerClientDetailPage() {
           <span className="text-slate-700 font-medium truncate max-w-[200px]">{client.name}</span>
         </nav>
         <div className="flex gap-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => document.getElementById('re-onboarding')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+            className="flex items-center gap-1.5 rounded-lg border border-[#E5D4B4] bg-[#FBF8F3] px-3 py-1.5 text-xs font-semibold text-[#8C6C39] transition-all hover:bg-[#F5F0E8]"
+          >
+            Re-onboard
+          </button>
           <button onClick={() => setShowEdit(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all">
             <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -498,6 +655,10 @@ export default function CareerClientDetailPage() {
               <span className="font-semibold">Note: </span>{client.notes}
             </div>
           )}
+
+          <div id="re-onboarding">
+            <ReOnboardingPanel client={client} onCreated={() => void reload()} />
+          </div>
 
           {/* Portal activation banner — only when never logged in AND no welcome email sent */}
           {!client.lastLoginAt && !client.emailLogs.some(l => l.trigger === 'WELCOME') && (() => {
