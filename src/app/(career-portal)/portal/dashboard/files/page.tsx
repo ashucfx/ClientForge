@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { parseRevisionNote, OUT_OF_SCOPE_CATEGORIES } from '@/lib/career/types';
 import type { OutOfScopeCategoryKey } from '@/lib/career/types';
 import { RevisionNoteViewer } from '@/components/career/RevisionNoteViewer';
-import { ClientPortalHeader } from '@/components/ClientPortalHeader';
+import { ClientPortalShell } from '@/components/ClientPortalShell';
 
 interface FileItem {
   id: string; label: string; fileUrl: string;
@@ -109,6 +109,7 @@ export default function FilesPage() {
   const [files,     setFiles]     = useState<FileItem[]>([]);
   const [revisions, setRevisions] = useState<RevisionItem[]>([]);
   const [revSummary, setRevSummary] = useState<RevisionSummaryItem[]>([]);
+  const [clientName, setClientName] = useState('');
   const [loading,   setLoading]   = useState(true);
   const [copying,   setCopying]   = useState<string | null>(null);
   const [showRevModal, setShowRevModal] = useState(false);
@@ -125,11 +126,12 @@ export default function FilesPage() {
       const [fData, rData, mData] = await Promise.all([
         fRes.json() as Promise<{ files: FileItem[] }>,
         rRes.ok ? rRes.json() as Promise<{ revisions: RevisionItem[] }> : Promise.resolve({ revisions: [] }),
-        mRes.ok ? mRes.json() as Promise<{ revisionSummary?: RevisionSummaryItem[] }> : Promise.resolve({ revisionSummary: [] }),
+        mRes.ok ? mRes.json() as Promise<{ revisionSummary?: RevisionSummaryItem[]; name?: string }> : Promise.resolve({ revisionSummary: [], name: undefined }),
       ]);
       setFiles(fData.files ?? []);
       setRevisions(rData.revisions ?? []);
       setRevSummary(mData.revisionSummary ?? []);
+      setClientName(mData.name ?? '');
       setLoading(false);
     }).catch(() => router.replace('/portal/login'));
   }, [router]);
@@ -176,9 +178,9 @@ export default function FilesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#FAFAF8] via-[#F5F2EC]/30 to-[#FAFAF8]">
-      <ClientPortalHeader title="My deliverables" backHref="/portal/dashboard" />
+      <ClientPortalShell clientName={clientName} title="My deliverables" />
 
-      <main className="max-w-2xl mx-auto px-4 py-7 space-y-6">
+      <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 pb-28 sm:px-6 sm:py-9 lg:ml-64 lg:mr-auto lg:w-auto lg:px-8 lg:py-9 lg:pb-10">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Your Files</h2>
           <p className="text-slate-500 text-sm mt-1">

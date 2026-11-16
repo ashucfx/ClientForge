@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { FormSchema, FormField } from '@/lib/career/types';
-import { ClientPortalHeader } from '@/components/ClientPortalHeader';
+import { ClientPortalShell } from '@/components/ClientPortalShell';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -851,11 +851,11 @@ function FormShell({ schema, children }: { schema: FormSchema; children: React.R
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#FAFAF8] via-[#F5F2EC]/30 to-[#FAFAF8]">
-      <ClientPortalHeader title={schema.title} backHref="/portal/dashboard" />
+      <ClientPortalShell title={schema.title} />
 
       {/* Hero banner */}
       <div className="bg-gradient-to-br from-[#0A0B0D] via-[#1C1812] to-[#0A0B0D] border-b border-[#2A1F0E]">
-        <div className="max-w-2xl mx-auto px-4 py-5 flex items-center gap-4">
+        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-5 sm:px-6 lg:ml-64 lg:mr-auto lg:pl-8">
           <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white flex-shrink-0">
             {formTypeIcon[schema.formType] ?? formTypeIcon.resume}
           </div>
@@ -866,7 +866,7 @@ function FormShell({ schema, children }: { schema: FormSchema; children: React.R
         </div>
       </div>
 
-      <main className="max-w-2xl mx-auto px-4 py-8" style={{ animation: 'fadeSlideIn 0.35s ease-out' }}>
+      <main className="mx-auto w-full max-w-7xl px-4 py-6 pb-28 sm:px-6 sm:py-9 lg:ml-64 lg:mr-auto lg:w-auto lg:px-8 lg:py-9 lg:pb-10" style={{ animation: 'fadeSlideIn 0.35s ease-out' }}>
         <style>{`@keyframes fadeSlideIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }`}</style>
         {children}
       </main>
@@ -878,10 +878,13 @@ function FormShell({ schema, children }: { schema: FormSchema; children: React.R
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#FAFAF8] via-[#F5F2EC]/30 to-[#FAFAF8] flex items-center justify-center">
-      <div className="text-center">
+    <div className="min-h-screen bg-gradient-to-br from-[#FAFAF8] via-[#F5F2EC]/30 to-[#FAFAF8]">
+      <ClientPortalShell title="Your brief" />
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-7xl items-center justify-center px-4 pb-28 sm:px-6 lg:ml-64 lg:mr-auto lg:px-8 lg:pb-10">
+       <div className="text-center">
         <div className="w-12 h-12 border-2 border-[#B8935B] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
         <p className="text-slate-500 text-sm font-medium">Loading your form…</p>
+       </div>
       </div>
     </div>
   );
