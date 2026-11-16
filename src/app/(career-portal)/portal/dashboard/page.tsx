@@ -587,9 +587,9 @@ export default function PortalDashboardPage() {
       />
 
       {/* ── Navbar ── */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-[#EDE6DA] sticky top-0 z-20 shadow-[0_1px_0_rgba(10,11,13,0.04)]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+      <header className="sticky top-0 z-30 border-b border-[#E8DDD0] bg-[#fffdfa]/95 shadow-[0_4px_18px_rgba(15,23,42,.04)] backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
+          <Link href="/portal/dashboard/profile" className="flex items-center gap-2.5" aria-label="Open your Catalyst profile">
           <div className="w-9 h-9 rounded-xl overflow-hidden border border-[#D8C8B0] shadow-sm flex-shrink-0 bg-black flex items-center justify-center">
               <Image src="/logos/catalyst-symbol-dark.svg" width={20} height={20} alt="Catalyst" className="object-contain" />
             </div>
@@ -597,8 +597,14 @@ export default function PortalDashboardPage() {
             <p className="text-[15px] font-bold text-slate-900 leading-tight tracking-tight">Catalyst</p>
             <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#9A7540] leading-tight">Client portal</p>
             </div>
-          </div>
+          </Link>
         <div className="flex items-center gap-1.5 sm:gap-2">
+            <Link href="/portal/dashboard/files" className="hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-[#F5F1EB] hover:text-slate-900 sm:inline-flex">
+              Files
+            </Link>
+            <Link href="/portal/dashboard/profile" className="hidden rounded-xl px-3 py-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-[#F5F1EB] hover:text-slate-900 sm:inline-flex">
+              Profile
+            </Link>
             <button onClick={() => {
               if (threadRef.current) {
                 threadRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });

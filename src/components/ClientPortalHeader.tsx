@@ -42,7 +42,7 @@ export function ClientPortalHeader({
               <span aria-hidden>←</span>
             </Link>
           ) : null}
-          <Link href="/portal/dashboard" className="flex min-w-0 items-center gap-2.5" aria-label="Catalyst client portal">
+          <Link href="/portal/dashboard/profile" className="flex min-w-0 items-center gap-2.5" aria-label="Open your Catalyst profile">
             <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D8C8B0] bg-black shadow-sm">
               <Image src="/logos/catalyst-symbol-dark.svg" width={20} height={20} alt="" className="object-contain" />
             </span>
@@ -71,6 +71,14 @@ export function ClientPortalHeader({
             }`}
           >
             Files
+          </Link>
+          <Link
+            href="/portal/dashboard/profile"
+            className={`hidden rounded-xl px-3 py-2 text-xs font-semibold transition-colors sm:inline-flex ${
+              pathname.startsWith('/portal/dashboard/profile') ? 'bg-[#F5F1EB] text-[#7A5B2E]' : 'text-slate-500 hover:bg-[#F5F1EB] hover:text-slate-900'
+            }`}
+          >
+            Profile
           </Link>
           <Link
             href="/portal/dashboard#messages"
