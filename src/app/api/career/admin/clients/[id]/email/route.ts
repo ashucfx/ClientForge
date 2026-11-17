@@ -47,7 +47,7 @@ const PORTAL_URL =
     ? 'http://localhost:3000'
     : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://catalyst.theripplenexus.com');
 const VALID_TRIGGERS: EmailTrigger[] = [
-  'WELCOME', 'FORM_CONFIRM', 'DRAFT_READY', 'LINKEDIN_DRAFT', 'REVISED_DRAFT',
+  'WELCOME', 'REENGAGEMENT', 'FORM_CONFIRM', 'DRAFT_READY', 'LINKEDIN_DRAFT', 'REVISED_DRAFT',
   'REVISION', 'FINAL_DELIVERY', 'LINKEDIN_SECURITY',
 ];
 
@@ -89,14 +89,31 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       },
       revisions: { where: { requestedBy: 'client' }, select: { id: true } },
       services: { select: { service: { select: { slug: true, name: true } } } },
+      engagements: { orderBy: { sequence: 'desc' }, take: 1, select: { id: true, sequence: true, addedServices: true } },
     },
   });
   if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
 
   let portalUrl = `${PORTAL_URL}/portal/dashboard`;
 
-  // Regenerate magic token for WELCOME re-send
   if (trigger === 'WELCOME') {
+    const [alreadyWelcomed, welcomeInFlight] = await Promise.all([
+      db.careerEmailLog.findFirst({
+        where: { clientId: client.id, trigger: 'WELCOME', status: 'sent' },
+        select: { id: true },
+      }),
+      db.emailQueue.findFirst({
+        where: { clientId: client.id, trigger: 'WELCOME', status: { in: ['PROCESSING', 'PENDING', 'SENT'] } },
+        select: { id: true },
+      }),
+    ]);
+    if (alreadyWelcomed || welcomeInFlight) {
+      return NextResponse.json({ error: 'A welcome email was already sent. Use Re-engagement Email for a fresh link.' }, { status: 409 });
+    }
+  }
+
+  // First-time welcome and explicit re-engagement both issue a fresh, single-use link.
+  if (trigger === 'WELCOME' || trigger === 'REENGAGEMENT') {
     const magicToken  = generateMagicToken();
     const tokenExpiry = magicTokenExpiry();
     await db.careerClient.update({
@@ -130,12 +147,24 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     to: client.email,
     trigger: effectiveTrigger,
     clientId: client.id,
+    ...(effectiveTrigger === 'REENGAGEMENT' && {
+      logMetadata: {
+        engagementId: client.engagements[0]?.id ?? null,
+        engagementSequence: client.engagements[0]?.sequence ?? 1,
+      },
+    }),
     data: {
       name: client.name,
       packageLabel,
       portalUrl,
-      files: client.deliverables.filter(d => d.fileCategory === 'final'),
+      files: client.deliverables.filter(d => d.fileCategory === 'final').map(({ label, fileUrl }) => ({ label, url: fileUrl })),
       revisionsLeft,
+      ...(effectiveTrigger === 'REENGAGEMENT' && {
+        engagementSequence: client.engagements[0]?.sequence ?? 1,
+        addedServices: Array.isArray(client.engagements[0]?.addedServices)
+          ? (client.engagements[0]?.addedServices as { slug?: string; name?: string }[]).map(service => service.name ?? service.slug ?? '').filter(Boolean)
+          : [],
+      }),
     },
   });
 
@@ -144,9 +173,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       clientId: client.id,
       action: 'email_sent_manual',
       performedBy: 'admin',
-      metadata: { trigger },
+      metadata: { trigger, queueId: resendId },
     },
-  });
+  }).catch(err => console.error('[career/email] Could not record manual email activity:', err));
 
-  return NextResponse.json({ ok: true, resendId });
+  return NextResponse.json({ ok: true, resendId, queued: true });
 }

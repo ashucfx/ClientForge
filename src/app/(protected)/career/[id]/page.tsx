@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { PACKAGE_LABELS, SERVICE_LABELS, STATUS_LABELS, parseRevisionNote, OUT_OF_SCOPE_CATEGORIES } from '@/lib/career/types';
 import type { CareerStatus, CareerPackage, CareerServiceSlug, EmailTrigger, OutOfScopeCategoryKey } from '@/lib/career/types';
-import { TRIGGER_LABELS } from '@/lib/career/triggerLabels';
+import { getTriggerLabel } from '@/lib/career/triggerLabels';
 import { expandClientServices } from '@/lib/career/services';
 import { AdminSlaViewModal } from '@/components/AdminSlaViewModal';
 import { RevisionNoteViewer } from '@/components/career/RevisionNoteViewer';
@@ -40,6 +40,9 @@ interface Engagement {
   addedServices: { slug: string; name: string }[];
   createdAt: string;
   reEngagedFrom: string | null;
+  emailStatus?: string | null;
+  emailError?: string | null;
+  emailUpdatedAt?: string | null;
 }
 interface RevisionItem {
   id: string; note: string; fileLabel?: string; status: string;
@@ -94,6 +97,7 @@ const STATUS_STYLES: Record<CareerStatus, { bg: string; text: string; dot: strin
 // when admin picks a LinkedIn file type in the document picker. No separate manual trigger needed.
 const EMAIL_TRIGGERS: { value: EmailTrigger; label: string; desc: string }[] = [
   { value: 'WELCOME',           label: 'Welcome Email',           desc: 'Sends a new magic link + onboarding steps' },
+  { value: 'REENGAGEMENT',      label: 'Re-engagement Email',     desc: 'Sends a fresh sign-in link and links to available documents' },
   { value: 'FORM_CONFIRM',      label: 'Form Confirmation',       desc: 'Confirms form was received' },
   { value: 'DRAFT_READY',       label: 'Draft Ready',             desc: 'Notifies client their draft is available for review' },
   { value: 'REVISED_DRAFT',     label: 'Revised Draft Ready',     desc: 'Updated draft after revision is ready' },
@@ -221,9 +225,13 @@ function ReOnboardingPanel({ client, onCreated }: {
   const [engagements, setEngagements] = useState<Engagement[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [selected, setSelected] = useState<CareerServiceSlug[]>(['RESUME']);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editSelected, setEditSelected] = useState<CareerServiceSlug[]>([]);
+  const [emailActionId, setEmailActionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const serviceOptions: CareerServiceSlug[] = ['RESUME', 'COVER_LETTER', 'LINKEDIN', 'PORTFOLIO', 'EXECUTIVE_CONNECT'];
   const originalServices = useMemo(
@@ -266,16 +274,88 @@ function ReOnboardingPanel({ client, onCreated }: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ services: selected }),
       });
-      const data = await response.json() as { error?: string };
+      const data = await response.json() as { error?: string; emailQueued?: boolean; emailError?: string };
       if (!response.ok) throw new Error(data.error ?? 'Could not start re-onboarding.');
       setShowForm(false);
       setSelected(['RESUME']);
+      setNotice(data.emailQueued
+        ? 'Engagement started. The welcome-back email is queued with the available documents.'
+        : data.emailError ?? 'Engagement started, but its email could not be queued. Use the resend action below.');
       await loadEngagements();
       onCreated();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not start re-onboarding.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const beginEdit = (engagement: Engagement) => {
+    const currentSlugs = engagement.addedServices
+      .map(service => service.slug as CareerServiceSlug)
+      .filter(slug => serviceOptions.includes(slug));
+    setEditingId(engagement.id);
+    setEditSelected(currentSlugs);
+    setShowForm(false);
+    setError('');
+    setNotice('');
+  };
+
+  const toggleEditService = (slug: CareerServiceSlug) => {
+    setEditSelected(current => current.includes(slug)
+      ? current.filter(item => item !== slug)
+      : [...current, slug]);
+  };
+
+  const saveAndResend = async () => {
+    if (!editingId || editSelected.length === 0) {
+      setError('Select at least one service for this engagement.');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch(`/api/career/admin/clients/${client.id}/engagements`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ engagementId: editingId, services: editSelected }),
+      });
+      const data = await response.json() as { error?: string; emailQueued?: boolean; emailError?: string };
+      if (!response.ok) throw new Error(data.error ?? 'Could not update this engagement.');
+      setNotice(data.emailQueued
+        ? 'Engagement updated. The revised welcome-back email is queued.'
+        : data.emailError ?? 'Engagement updated, but the email could not be queued. Use Resend email to try again.');
+      setEditingId(null);
+      await loadEngagements();
+      onCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update this engagement.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const resendEngagementEmail = async (engagementId: string) => {
+    setEmailActionId(engagementId);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch(`/api/career/admin/clients/${client.id}/engagements`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ engagementId, resendEmail: true }),
+      });
+      const data = await response.json() as { error?: string; emailQueued?: boolean; emailError?: string };
+      if (!response.ok) throw new Error(data.error ?? 'Could not resend the email.');
+      setNotice(data.emailQueued
+        ? 'A fresh welcome-back email is queued. Its new sign-in link replaces any unused earlier link.'
+        : data.emailError ?? 'The email could not be queued. Try again in a moment.');
+      await loadEngagements();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not resend the email.');
+    } finally {
+      setEmailActionId(null);
     }
   };
 
@@ -331,6 +411,7 @@ function ReOnboardingPanel({ client, onCreated }: {
       )}
 
       {error && <p className="mt-3 text-xs font-semibold text-red-600">{error}</p>}
+      {notice && <p role="status" className="mt-3 text-xs font-semibold text-[#76562A]">{notice}</p>}
 
       {loading ? (
         <p className="mt-4 text-xs text-slate-400">Loading engagement history…</p>
@@ -338,17 +419,60 @@ function ReOnboardingPanel({ client, onCreated }: {
         <p className="mt-4 text-xs text-slate-400">No returning engagements recorded.</p>
       ) : (
         <div className="mt-4 space-y-2">
-          {engagements.map(engagement => (
-            <div key={engagement.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5">
-              <div>
-                <p className="text-xs font-bold text-slate-800">Engagement #{engagement.sequence} · {engagement.status}</p>
-                <p className="mt-0.5 text-[11px] text-slate-500">
-                  Added: {engagement.addedServices.map(service => service.name).join(', ')}
-                </p>
+          {engagements.map(engagement => {
+            const emailSending = engagement.emailStatus === 'PROCESSING';
+            return (
+            <div key={engagement.id} className="rounded-lg border border-slate-200 bg-white px-3 py-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-800">Engagement #{engagement.sequence} · {engagement.status}</p>
+                  <p className="mt-0.5 break-words text-[11px] text-slate-500">
+                    Added: {engagement.addedServices.map(service => service.name).join(', ')}
+                  </p>
+                  <p className={`mt-1 text-[10px] font-semibold ${engagement.emailStatus === 'SENT' ? 'text-emerald-700' : engagement.emailStatus === 'PERMANENTLY_FAILED' ? 'text-red-600' : 'text-slate-500'}`}>
+                    {!engagement.emailStatus ? 'No re-engagement email queued yet'
+                      : engagement.emailStatus === 'SENT' ? 'Welcome-back email sent'
+                      : engagement.emailStatus === 'PERMANENTLY_FAILED' ? 'Email failed after retries'
+                      : engagement.emailStatus === 'CANCELLED' ? 'Previous email retry was replaced'
+                      : emailSending ? 'Welcome-back email is sending'
+                      : 'Delivery retry pending — resend will replace the queued retry'}
+                  </p>
+                  {engagement.emailError && <p className="mt-0.5 break-words text-[10px] text-red-600">{engagement.emailError}</p>}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] text-slate-400">{fmt(engagement.createdAt, true)}</span>
+                  <button type="button" onClick={() => beginEdit(engagement)} disabled={emailSending} className="min-h-9 rounded-lg border border-slate-200 px-2.5 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Edit</button>
+                  <button
+                    type="button"
+                    onClick={() => void resendEngagementEmail(engagement.id)}
+                    disabled={emailActionId === engagement.id || saving || emailSending}
+                    className="min-h-9 rounded-lg bg-[#B8935B] px-2.5 text-[11px] font-semibold text-white transition-colors hover:bg-[#9A7540] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {emailActionId === engagement.id ? 'Queueing…' : emailSending ? 'Email sending…' : 'Resend email'}
+                  </button>
+                </div>
               </div>
-              <span className="text-[11px] text-slate-400">{fmt(engagement.createdAt, true)}</span>
+              {editingId === engagement.id && (
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Edit engagement services</p>
+                  <p className="mt-1 text-[10px] leading-4 text-amber-700">Saving sends a revised welcome-back email with a fresh sign-in link. Any unused earlier link will stop working.</p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {serviceOptions.map(slug => (
+                      <label key={slug} className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">
+                        <input type="checkbox" checked={editSelected.includes(slug)} onChange={() => toggleEditService(slug)} className="accent-[#B8935B]" />
+                        {SERVICE_LABELS[slug]}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex justify-end gap-2">
+                    <button type="button" onClick={() => setEditingId(null)} disabled={saving} className="min-h-9 rounded-lg border border-slate-200 px-3 text-[11px] font-semibold text-slate-600">Cancel</button>
+                    <button type="button" onClick={() => void saveAndResend()} disabled={saving || editSelected.length === 0} className="min-h-9 rounded-lg bg-slate-900 px-3 text-[11px] font-semibold text-white disabled:opacity-50">{saving ? 'Saving…' : 'Save changes & resend'}</button>
+                  </div>
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>
@@ -367,9 +491,11 @@ export default function CareerClientDetailPage() {
   const [showDelete,  setShowDelete]  = useState(false);
   const [showSlaModal, setShowSlaModal] = useState(false);
   const [welcomeSignal, setWelcomeSignal] = useState(0);
+  const [welcomeEmailType, setWelcomeEmailType] = useState<'WELCOME' | 'REENGAGEMENT'>('WELCOME');
 
-  const triggerWelcome = () => {
+  const triggerWelcome = (trigger: 'WELCOME' | 'REENGAGEMENT' = 'WELCOME') => {
     setActiveTab('overview');
+    setWelcomeEmailType(trigger);
     setWelcomeSignal(n => n + 1);
   };
   // OTP delete flow: 'idle' | 'requesting' | 'confirm' | 'deleting' | 'done'
@@ -660,8 +786,9 @@ export default function CareerClientDetailPage() {
             <ReOnboardingPanel client={client} onCreated={() => void reload()} />
           </div>
 
-          {/* Portal activation banner — only when never logged in AND no welcome email sent */}
-          {!client.lastLoginAt && !client.emailLogs.some(l => l.trigger === 'WELCOME') && (() => {
+          {/* Portal access reminder stays available until the client has signed in. */}
+          {!client.lastLoginAt && (() => {
+            const welcomePreviouslySent = client.emailLogs.some(l => l.trigger === 'WELCOME');
             const slugs = client.services?.map(s => s.slug) ?? [];
             const tier = getPackageTier(slugs);
             const formsCopy = tier === 'premium' ? 'Resume, LinkedIn, and Portfolio forms'
@@ -674,16 +801,18 @@ export default function CareerClientDetailPage() {
                 <div className="flex items-center gap-3">
                   <span className="text-lg flex-shrink-0">🔑</span>
                   <div>
-                    <p className="text-sm font-bold text-amber-900">Portal not yet activated</p>
+                      <p className="text-sm font-bold text-amber-900">Portal not yet activated</p>
                     <p className="text-xs text-amber-700">
-                      Send the Welcome Email so <strong>{client.name.split(' ')[0]}</strong> can submit their {formsCopy} to get started.
+                      {welcomePreviouslySent
+                        ? <>A fresh sign-in link can help <strong>{client.name.split(' ')[0]}</strong> access their {formsCopy}.</>
+                        : <>Send the Welcome Email so <strong>{client.name.split(' ')[0]}</strong> can submit their {formsCopy} to get started.</>}
                     </p>
                   </div>
                 </div>
                 <button
-                  onClick={triggerWelcome}
+                  onClick={() => triggerWelcome(welcomePreviouslySent ? 'REENGAGEMENT' : 'WELCOME')}
                   className="flex-shrink-0 px-3 py-1.5 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 transition-colors">
-                  Send Welcome →
+                  {welcomePreviouslySent ? 'Re-engage →' : 'Send Welcome →'}
                 </button>
               </div>
             );
@@ -710,7 +839,7 @@ export default function CareerClientDetailPage() {
 
       {/* ── OVERVIEW ── */}
       {activeTab === 'overview' && (
-        <OverviewTab client={client} onUpdated={reload} welcomeSignal={welcomeSignal} />
+        <OverviewTab client={client} onUpdated={reload} welcomeSignal={welcomeSignal} welcomeTrigger={welcomeEmailType} />
       )}
 
       {/* ── FORMS ── */}
@@ -984,7 +1113,12 @@ function ClientPresenceCard({ clientId }: { clientId: string }) {
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetail; onUpdated: () => void; welcomeSignal: number }) {
+function OverviewTab({ client, onUpdated, welcomeSignal, welcomeTrigger }: {
+  client: ClientDetail;
+  onUpdated: () => void;
+  welcomeSignal: number;
+  welcomeTrigger: 'WELCOME' | 'REENGAGEMENT';
+}) {
   const [statusLoading,   setStatusLoading]   = useState(false);
   const [pendingStatus,   setPendingStatus]   = useState<CareerStatus | null>(null);
   const [emailSending,    setEmailSending]    = useState(false);
@@ -1027,10 +1161,10 @@ function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetai
   // Group triggers for the manual send panel
   const draftTriggers    = clientTriggers.filter(t => ['DRAFT_READY','REVISED_DRAFT'].includes(t.value));
   const finalTriggers    = clientTriggers.filter(t => ['FINAL_DELIVERY','LINKEDIN_SECURITY'].includes(t.value));
-  const accountTriggers  = clientTriggers.filter(t => ['WELCOME','FORM_CONFIRM','REVISION'].includes(t.value));
+  const accountTriggers  = clientTriggers.filter(t => ['WELCOME','REENGAGEMENT','FORM_CONFIRM','REVISION'].includes(t.value));
 
   const defaultTrigger: EmailTrigger =
-    isLinkedInOnly ? 'DRAFT_READY' : 'WELCOME';
+    isLinkedInOnly ? 'DRAFT_READY' : client.emailLogs.some(log => log.trigger === 'WELCOME') ? 'REENGAGEMENT' : 'WELCOME';
   const [selectedTrigger, setSelectedTrigger] = useState<EmailTrigger>(defaultTrigger);
 
   // Revision actions inline in the manual email panel
@@ -1075,10 +1209,10 @@ function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetai
   // When banner/Forms tab triggers welcome signal, auto-select WELCOME and scroll
   useEffect(() => {
     if (welcomeSignal > 0) {
-      setSelectedTrigger('WELCOME');
+      setSelectedTrigger(welcomeTrigger);
       setTimeout(() => emailPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
     }
-  }, [welcomeSignal]);
+  }, [welcomeSignal, welcomeTrigger]);
 
   // Lazy-load pending revisions when admin selects the REVISION trigger
   useEffect(() => {
@@ -1161,7 +1295,7 @@ function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetai
     if (res.ok) {
       const label = clientTriggers.find(t => t.value === selectedTrigger)?.label ?? selectedTrigger;
       const docNote = isDraftTrigger ? ` for "${draftEmailLabel}"` : '';
-      showToast(`"${label}" email sent to ${client.email}${docNote}`);
+      showToast(`"${label}" email queued for ${client.email}${docNote}`);
       onUpdated();
     } else {
       const d = await res.json() as { error?: string };
@@ -1653,9 +1787,10 @@ function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetai
                       </div>
                     </label>
 
-                    {/* Welcome Email expansion — shown when WELCOME is selected */}
-                    {t.value === 'WELCOME' && selectedTrigger === 'WELCOME' && (() => {
+                    {/* Account access email details */}
+                    {(t.value === 'WELCOME' || t.value === 'REENGAGEMENT') && selectedTrigger === t.value && (() => {
                       const prevWelcome = client.emailLogs.find(l => l.trigger === 'WELCOME');
+                      const prevReengagement = client.emailLogs.find(l => l.trigger.startsWith('REENGAGEMENT:'));
                       const tier = getPackageTier(slugs);
                       const tierLabel = tier === 'premium' ? 'Premium Plus Package'
                         : tier === 'booster' ? 'Career Booster Package'
@@ -1669,22 +1804,24 @@ function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetai
                         : '';
                       return (
                         <div className="mt-1.5 ml-1 space-y-2">
-                          {prevWelcome && (
+                          {(prevWelcome || prevReengagement) && (
                             <div className="px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
                               <p className="text-xs font-bold text-amber-800">
-                                ⚠ Welcome email was sent {relativeTime(prevWelcome.sentAt)}
+                                {prevReengagement
+                                  ? `Most recent re-engagement email was ${relativeTime(prevReengagement.sentAt)}`
+                                  : `Welcome email was sent ${relativeTime(prevWelcome!.sentAt)}`}
                               </p>
                               <p className="text-xs text-amber-700 mt-0.5">
-                                Sending again will generate a new magic link — the previous one stops working immediately.
+                                Sending again issues a fresh sign-in link; the previous unused link stops working.
                               </p>
                             </div>
                           )}
                           <div className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">What this email contains</p>
-                            <p className="text-xs text-slate-600 mb-1.5 font-medium">Subject: Welcome to Catalyst Career Boost</p>
+                            <p className="text-xs text-slate-600 mb-1.5 font-medium">Subject: {t.value === 'REENGAGEMENT' ? 'Welcome back to Catalyst — your project is ready to continue' : 'Welcome to Catalyst Career Boost'}</p>
                             <div className="space-y-0.5">
                               {[
-                                '✓ Fresh magic link (expires in 7 days)',
+                                '✓ Fresh sign-in link (expires in 30 minutes)',
                                 `✓ Package: ${tierLabel}`,
                                 ...(tierServices ? [`   ${tierServices}`] : []),
                                 '✓ Direct portal login URL',
@@ -1695,6 +1832,12 @@ function OverviewTab({ client, onUpdated, welcomeSignal }: { client: ClientDetai
                               ))}
                             </div>
                           </div>
+                          {t.value === 'REENGAGEMENT' && (
+                            <div className="px-3.5 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">Welcome-back email</p>
+                              <p className="mt-1 text-xs leading-relaxed text-emerald-700">Includes a fresh sign-in link, this client’s active engagement services, and links to available final documents.</p>
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
@@ -1955,7 +2098,7 @@ function FormsTab({ forms, packageType, clientId, services, emailLogs, onSendWel
   clientId: string;
   services: { slug: string; name: string }[];
   emailLogs: EmailLog[];
-  onSendWelcome: () => void;
+  onSendWelcome: (trigger: 'WELCOME' | 'REENGAGEMENT') => void;
   onRefresh?: () => void;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -2335,7 +2478,7 @@ function FormsTab({ forms, packageType, clientId, services, emailLogs, onSendWel
                 Send the Welcome Email first so the client can log in and submit their intake forms.
               </p>
               <button
-                onClick={onSendWelcome}
+                onClick={() => onSendWelcome('WELCOME')}
                 className="mt-4 px-4 py-2 bg-[#B8935B] text-white text-xs font-bold rounded-xl hover:bg-[#9A7540] transition-colors">
                 Send Welcome Email →
               </button>
@@ -2344,8 +2487,15 @@ function FormsTab({ forms, packageType, clientId, services, emailLogs, onSendWel
             <>
               <p className="text-slate-700 font-semibold text-sm">No forms submitted yet</p>
               <p className="text-slate-400 text-xs mt-1 max-w-sm mx-auto">
-                Forms will appear here once the client submits them via the portal. The Welcome email has been sent.
+                Forms will appear here once the client submits them via the portal. If they need access again, send a fresh link with their current documents.
               </p>
+              <button
+                type="button"
+                onClick={() => onSendWelcome('REENGAGEMENT')}
+                className="mt-4 rounded-xl bg-[#B8935B] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#9A7540]"
+              >
+                Send re-engagement email →
+              </button>
             </>
           )}
         </div>
@@ -2723,7 +2873,7 @@ function EmailsTab({ logs }: { logs: EmailLog[] }) {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-slate-900">
-                    {TRIGGER_LABELS[log.trigger] ?? log.trigger}
+                    {getTriggerLabel(log.trigger)}
                   </p>
                   <p className="text-xs text-slate-400" title={fmt(log.sentAt, true)}>
                     {relativeTime(log.sentAt)}
@@ -2745,7 +2895,7 @@ function EmailsTab({ logs }: { logs: EmailLog[] }) {
                 <div className="pt-3 grid grid-cols-2 gap-3 text-xs">
                   <div>
                     <p className="text-slate-400 font-medium uppercase tracking-wide text-[10px] mb-0.5">Trigger</p>
-                    <p className="font-semibold text-slate-800">{TRIGGER_LABELS[log.trigger] ?? log.trigger}</p>
+                    <p className="font-semibold text-slate-800">{getTriggerLabel(log.trigger)}</p>
                   </div>
                   <div>
                     <p className="text-slate-400 font-medium uppercase tracking-wide text-[10px] mb-0.5">Sent</p>

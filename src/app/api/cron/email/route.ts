@@ -50,6 +50,8 @@ export async function GET(req: Request) {
         attachmentUrls: payload?.attachmentUrls ?? [],
         clientId: email.clientId ?? undefined,
         replyTo: payload?.replyTo ?? undefined,
+        logTrigger: payload?.logTrigger ?? undefined,
+        logMetadata: payload?.logMetadata ?? undefined,
       });
 
       await db.emailQueue.update({

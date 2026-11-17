@@ -3,6 +3,7 @@
 import { render } from '@react-email/render';
 import type { EmailTrigger } from './types';
 import { WelcomeEmail }          from '@/emails/career/WelcomeEmail';
+import { ReengagementEmail }     from '@/emails/career/ReengagementEmail';
 import { LoginLinkEmail }        from '@/emails/career/LoginLinkEmail';
 import { FormConfirmEmail }      from '@/emails/career/FormConfirmEmail';
 import { DraftReadyEmail }       from '@/emails/career/DraftReadyEmail';
@@ -27,6 +28,28 @@ export async function buildEmail(
       return {
         subject: `Welcome to Catalyst Career Boost - Your services are now active`,
         html: await render(WelcomeEmail({ name, packageLabel: pkg, portalUrl })),
+      };
+    }
+
+    case 'REENGAGEMENT': {
+      const { name, packageLabel, portalUrl, engagementSequence, addedServices, files } = data as {
+        name: string;
+        packageLabel: string;
+        portalUrl: string;
+        engagementSequence: number;
+        addedServices: string[];
+        files: { label: string; url: string }[];
+      };
+      return {
+        subject: `Welcome back to Catalyst — your project is ready to continue`,
+        html: await render(ReengagementEmail({
+          name,
+          packageLabel,
+          portalUrl,
+          engagementSequence,
+          addedServices: addedServices ?? [],
+          files: files ?? [],
+        })),
       };
     }
 

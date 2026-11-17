@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import AppShell from '@/components/AppShell';
+import { getTriggerLabel } from '@/lib/career/triggerLabels';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -34,35 +35,9 @@ type Source = 'career' | 'admin';
 
 // ── Label maps ────────────────────────────────────────────────────────────────
 
-const TRIGGER_LABELS: Record<string, string> = {
-  WELCOME: 'Welcome',
-  LOGIN_LINK: 'Login Link',
-  FORM_CONFIRM: 'Form Submitted',
-  DRAFT_READY: 'Draft Ready',
-  LINKEDIN_DRAFT: 'LinkedIn Draft',
-  REVISED_DRAFT: 'Revised Draft',
-  FINAL_DELIVERY: 'Final Delivery',
-  REVISION: 'Revision Update',
-  LINKEDIN_SECURITY: 'LinkedIn Security',
-  MESSAGE_NOTIFY: 'New Message',
-  DELETE_OTP: 'Delete OTP',
-  UPSELL_PITCH: 'Upsell',
-  STALE_REMINDER: 'Stale Reminder',
-  DRAFT_REMINDER: 'Draft Reminder',
-  KEEP_WARM: 'Keep Warm',
-  GHOST_WARNING: 'Ghost Warning',
-  GHOST_CLOSURE: 'Ghost Closure',
-  REVIEW_REQUEST: 'Review Request',
-  REVISION_EXPIRING: 'Revision Expiring',
-  PROPOSAL_SENT: 'Proposal Sent',
-  INVOICE_SENT: 'Invoice Sent',
-  INVOICE_RESENT: 'Invoice Resent',
-  ADMIN_ALERT: 'Admin Alert',
-  CAMPAIGN: 'Campaign',
-};
-
 const TRIGGER_CATEGORY: Record<string, { label: string; color: string }> = {
   WELCOME: { label: 'Lifecycle', color: '#6366f1' },
+  REENGAGEMENT: { label: 'Lifecycle', color: '#6366f1' },
   LOGIN_LINK: { label: 'Auth', color: '#8b5cf6' },
   FORM_CONFIRM: { label: 'Lifecycle', color: '#6366f1' },
   DRAFT_READY: { label: 'Delivery', color: '#0891b2' },
@@ -135,8 +110,9 @@ function StatusChip({ status }: { status: string }) {
 }
 
 function TriggerLabel({ trigger }: { trigger: string }) {
-  const label = TRIGGER_LABELS[trigger] ?? trigger.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  const cat = TRIGGER_CATEGORY[trigger];
+  const categoryKey = trigger.startsWith('REENGAGEMENT:') ? 'REENGAGEMENT' : trigger;
+  const label = getTriggerLabel(trigger);
+  const cat = TRIGGER_CATEGORY[categoryKey];
   return (
     <div>
       <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{label}</span>

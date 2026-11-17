@@ -13,7 +13,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const COMPLEX_TRIGGERS = new Set([
-  'DRAFT_READY', 'LINKEDIN_DRAFT', 'REVISED_DRAFT', 'FINAL_DELIVERY',
+  'DRAFT_READY', 'LINKEDIN_DRAFT', 'REVISED_DRAFT', 'FINAL_DELIVERY', 'REENGAGEMENT',
   'REVISION', 'LOGIN_LINK', 'DELETE_OTP',
 ]);
 
@@ -83,10 +83,12 @@ export async function POST(req: NextRequest) {
 
   if (!log) return NextResponse.json({ error: 'Log entry not found' }, { status: 404 });
 
-  if (COMPLEX_TRIGGERS.has(log.trigger)) {
+  if (COMPLEX_TRIGGERS.has(log.trigger) || log.trigger.startsWith('REENGAGEMENT:')) {
     return NextResponse.json({
       ok: false,
-      error: `Cannot auto-resend "${log.trigger}" — it requires document context. Use the client page to re-trigger.`,
+      error: log.trigger.startsWith('REENGAGEMENT:')
+        ? 'Use the client engagement panel to edit the engagement or send its welcome-back email again.'
+        : `Cannot auto-resend "${log.trigger}" — it requires document context. Use the client page to re-trigger.`,
     }, { status: 422 });
   }
 
