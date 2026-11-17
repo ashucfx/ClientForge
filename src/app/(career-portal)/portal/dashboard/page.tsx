@@ -602,9 +602,9 @@ export default function PortalDashboardPage() {
         </div>
         {/* ── Upgrade Preview Modal ── */}
         {upgradeTarget && (
-          <div className="fixed inset-0 z-50 h-[100dvh] bg-black/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 motion-fade-in-up overflow-hidden"
+          <div className="fixed inset-0 z-50 h-[100dvh] bg-black/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fade-in overflow-hidden"
             onClick={() => { if (!upgrading) { setUpgradeTarget(null); setUpgradePreview(null); } }}>
-            <div className="bg-white w-full sm:max-w-md min-w-0 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[calc(100dvh-1.5rem)] sm:max-h-[90dvh] min-h-0 flex flex-col motion-scale-in"
+            <div className="bg-white w-full sm:max-w-md min-w-0 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[calc(100dvh-1.5rem)] sm:max-h-[90dvh] min-h-0 flex flex-col"
               onClick={e => e.stopPropagation()}>
               {/* Header */}
               <div className="relative bg-gradient-to-br from-[#0A0B0D] to-[#1C1812] px-4 sm:px-6 pt-5 sm:pt-6 pb-6 sm:pb-8 text-white overflow-hidden shrink-0">
@@ -950,7 +950,7 @@ export default function PortalDashboardPage() {
                       Unlock the complete Career Booster package including Professional Resume, LinkedIn Optimization, and Cover Letter.
                     </p>
                   </div>
-                  <button onClick={() => handleUpgrade('CAREER_BOOSTER')} className="px-4 py-2.5 bg-slate-900 text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-slate-800 btn-press transition-all shadow-sm">
+                  <button type="button" onClick={() => handleUpgrade('CAREER_BOOSTER')} className="px-4 py-2.5 bg-slate-900 text-white font-bold rounded-xl text-sm whitespace-nowrap hover:bg-slate-800 btn-press transition-all shadow-sm">
                     Upgrade Now
                   </button>
                 </div>
@@ -972,14 +972,14 @@ export default function PortalDashboardPage() {
                       Stand out with a stunning Personal Portfolio Website tailored to showcase your unique career journey.
                     </p>
                   </div>
-                  <button onClick={() => handleUpgrade('PREMIUM_PLUS')} className="relative z-10 px-4 py-2.5 bg-gradient-to-r from-[#B8935B] to-[#9A7540] text-white font-bold rounded-xl text-sm whitespace-nowrap hover:shadow-md hover:shadow-[#B8935B]/20 btn-press transition-all shadow-sm">
+                  <button type="button" onClick={() => handleUpgrade('PREMIUM_PLUS')} className="relative z-10 px-4 py-2.5 bg-gradient-to-r from-[#B8935B] to-[#9A7540] text-white font-bold rounded-xl text-sm whitespace-nowrap hover:shadow-md hover:shadow-[#B8935B]/20 btn-press transition-all shadow-sm">
                     Unlock Premium Plus
                   </button>
                 </div>
               )}
 
               {!hasExecutiveAccess && (
-                <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4 card-hover-lift transition-all">
+                <div className="bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-5 flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors">
                   <div>
                     <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
                       <span className="w-7 h-7 rounded-lg bg-[#B8935B]/15 flex items-center justify-center text-[#B8935B] shrink-0">
@@ -995,7 +995,7 @@ export default function PortalDashboardPage() {
                         : 'Unlock 1-on-1 Executive Connect strategy consultations with our leadership career mentors.'}
                     </p>
                   </div>
-                  <button onClick={() => handleUpgrade('EXECUTIVE_CONNECT')} className="px-4 py-2.5 bg-white border border-[#B8935B] text-[#B8935B] font-bold rounded-xl text-sm whitespace-nowrap hover:bg-[#F0EAE0] btn-press transition-all shadow-sm">
+                  <button type="button" onClick={() => handleUpgrade('EXECUTIVE_CONNECT')} className="w-full sm:w-auto min-h-11 px-4 py-2.5 bg-white border border-[#B8935B] text-[#B8935B] font-bold rounded-xl text-sm whitespace-nowrap hover:bg-[#F0EAE0] btn-press transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8935B]/50">
                     {me.consultationStatus === 'COMPLETED' ? 'Book Another Session' : 'Unlock Access'}
                   </button>
                 </div>

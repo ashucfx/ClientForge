@@ -199,14 +199,14 @@ export default function FilesPage() {
 
         {/* Empty */}
         {!loading && files.length === 0 && (
-          <div className="text-center py-20 bg-white border border-dashed border-slate-300 rounded-3xl">
-            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg width="32" height="32" fill="none" viewBox="0 0 24 24">
+          <div className="text-center py-14 sm:py-20 bg-white border border-dashed border-slate-300 rounded-3xl">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-5 sm:mb-6">
+              <svg width="28" height="28" className="sm:h-8 sm:w-8" fill="none" viewBox="0 0 24 24">
                 <path stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                   d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
               </svg>
             </div>
-            <p className="text-heading font-semibold text-slate-800 mb-2">Your library is empty</p>
+            <p className="text-lg sm:text-xl font-semibold text-slate-800 mb-2">Your library is empty</p>
             <p className="text-body text-slate-500 max-w-sm mx-auto leading-relaxed">
               Your premium deliverables will appear here once our team uploads them.
             </p>
@@ -253,10 +253,10 @@ export default function FilesPage() {
 
                 return (
                   <div key={file.id}
-                    className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs hover:border-amber-200 card-hover-lift transition-all flex flex-col justify-between">
+                    className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs hover:border-amber-200 card-hover-lift transition-all flex flex-col justify-between">
                     <div>
                       <div className="flex items-start justify-between gap-4 mb-3">
-                        <div className={`w-14 h-14 ${ft.bg} rounded-2xl flex items-center justify-center flex-shrink-0 relative transition-transform duration-300 group-hover:scale-105`}>
+                        <div className={`w-12 h-12 sm:w-14 sm:h-14 ${ft.bg} rounded-2xl flex items-center justify-center flex-shrink-0 relative transition-transform duration-300 group-hover:scale-105`}>
                           {ft.icon}
                         </div>
                         <div className="flex flex-col items-end gap-1">
@@ -275,7 +275,7 @@ export default function FilesPage() {
                         </div>
                       </div>
                       
-                      <p className="text-body font-bold text-slate-900 truncate mb-1" title={file.label}>{file.label}</p>
+                      <p className="text-[13px] leading-5 sm:text-sm font-bold text-slate-900 truncate mb-1" title={file.label}>{file.label}</p>
                       
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-metadata text-slate-500 capitalize">
@@ -367,10 +367,10 @@ export default function FilesPage() {
                 const ft = FILE_ICONS[file.fileType] ?? FILE_ICONS.other;
                 return (
                   <div key={file.id}
-                    className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs hover:border-emerald-200 card-hover-lift transition-all flex flex-col justify-between">
+                    className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs hover:border-emerald-200 card-hover-lift transition-all flex flex-col justify-between">
                     <div>
                       <div className="flex items-start justify-between gap-4 mb-4">
-                        <div className={`w-14 h-14 ${ft.bg} rounded-2xl flex items-center justify-center flex-shrink-0`}>
+                        <div className={`w-12 h-12 sm:w-14 sm:h-14 ${ft.bg} rounded-2xl flex items-center justify-center flex-shrink-0`}>
                           {ft.icon}
                         </div>
                         <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-status font-bold rounded-full uppercase tracking-widest flex-shrink-0">
@@ -378,7 +378,7 @@ export default function FilesPage() {
                         </span>
                       </div>
                       
-                      <p className="text-body font-bold text-slate-900 truncate mb-1" title={file.label}>{file.label}</p>
+                      <p className="text-[13px] leading-5 sm:text-sm font-bold text-slate-900 truncate mb-1" title={file.label}>{file.label}</p>
                       
                       <div className="flex items-center gap-2 mb-6">
                         <span className="text-metadata text-slate-500 capitalize">
