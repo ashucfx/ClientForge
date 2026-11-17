@@ -21,7 +21,7 @@ export function GlobalCommandPalette() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsOpen((prev) => !prev);
       }
@@ -30,7 +30,12 @@ export function GlobalCommandPalette() {
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    const openPalette = () => setIsOpen(true);
+    window.addEventListener('clientforge:open-command-palette', openPalette);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('clientforge:open-command-palette', openPalette);
+    };
   }, []);
 
   useEffect(() => {

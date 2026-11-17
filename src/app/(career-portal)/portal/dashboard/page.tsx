@@ -2,6 +2,7 @@
 // src/app/(career-portal)/portal/dashboard/page.tsx
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { CareerStatus, CareerPackage, FormType } from '@/lib/career/types';
@@ -346,6 +347,7 @@ export default function PortalDashboardPage() {
 
   const [referral, setReferral] = useState<ReferralStats | null>(null);
   const [upgrading,       setUpgrading]       = useState(false);
+  const [portalMounted,  setPortalMounted]  = useState(false);
   const [upgradeTarget,   setUpgradeTarget]   = useState<string | null>(null);
   const [upgradePreview,  setUpgradePreview]  = useState<{
     upgradeLabel: string;
@@ -366,6 +368,25 @@ export default function PortalDashboardPage() {
   } | null>(null);
   const [upgradePreviewLoading, setUpgradePreviewLoading] = useState(false);
   const [upgradeGateway, setUpgradeGateway] = useState<string>('RAZORPAY');
+
+  useEffect(() => { setPortalMounted(true); }, []);
+
+  useEffect(() => {
+    if (!upgradeTarget) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !upgrading) {
+        setUpgradeTarget(null);
+        setUpgradePreview(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [upgradeTarget, upgrading]);
 
   const handleUpgrade = async (targetService: string, gateway: string = 'RAZORPAY') => {
     setUpgradeTarget(targetService);
@@ -601,8 +622,11 @@ export default function PortalDashboardPage() {
           <Link href="/portal/dashboard/profile" className="text-xs font-bold text-[#9A7540] hover:text-[#7A5B2E]">Manage your profile →</Link>
         </div>
         {/* ── Upgrade Preview Modal ── */}
-        {upgradeTarget && (
+        {upgradeTarget && portalMounted && createPortal((
           <div className="fixed inset-0 z-50 h-[100dvh] bg-black/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fade-in overflow-hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="upgrade-dialog-title"
             onClick={() => { if (!upgrading) { setUpgradeTarget(null); setUpgradePreview(null); } }}>
             <div className="bg-white w-full sm:max-w-md min-w-0 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[calc(100dvh-1.5rem)] sm:max-h-[90dvh] min-h-0 flex flex-col"
               onClick={e => e.stopPropagation()}>
@@ -614,11 +638,12 @@ export default function PortalDashboardPage() {
                     <p className="text-[#B8935B] text-[9px] font-bold uppercase tracking-[0.22em] mb-1.5 flex items-center gap-1.5">
                       <span className="w-3 h-px bg-[#B8935B]/50" />Package Upgrade
                     </p>
-                    <h2 className="text-xl font-bold tracking-tight">{upgradePreview?.upgradeLabel ?? 'Loading…'}</h2>
+                    <h2 id="upgrade-dialog-title" className="text-xl font-bold tracking-tight">{upgradePreview?.upgradeLabel ?? 'Loading…'}</h2>
                   </div>
                   {!upgrading && (
                     <button onClick={() => { setUpgradeTarget(null); setUpgradePreview(null); }}
-                      className="text-white/40 hover:text-white p-1 transition-colors">
+                      aria-label="Close payment details"
+                      className="text-white/40 hover:text-white p-2 -mr-2 -mt-2 transition-colors">
                       <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
                         <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M18 6L6 18M6 6l12 12"/>
                       </svg>
@@ -772,7 +797,7 @@ export default function PortalDashboardPage() {
               </div>
             </div>
           </div>
-        )}
+        ), document.body)}
 
         {/* ── Workspace welcome ── */}
         <section className="flex flex-col gap-4 rounded-2xl border border-[#E8DDD0] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,.035)] sm:flex-row sm:items-end sm:justify-between sm:p-5">
