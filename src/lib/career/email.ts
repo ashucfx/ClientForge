@@ -2,6 +2,7 @@
 // Career Booster email sender — wraps Resend with React Email rendered HTML
 
 import { Resend } from 'resend';
+import { randomUUID } from 'node:crypto';
 import { waitUntil } from '@vercel/functions';
 import type { EmailTrigger } from './types';
 import { prisma as db }          from '@/lib/db';
@@ -22,6 +23,10 @@ interface SendEmailParams {
   clientId?: string;
   /** Optional: custom reply-to address */
   replyTo?: string;
+  /** Unique audit identity for intentionally repeatable email events. */
+  logTrigger?: string;
+  /** Context stored with the corresponding email log. */
+  logMetadata?: Record<string, unknown>;
 }
 
 
@@ -55,11 +60,16 @@ export async function sendCareerEmail({
   attachmentUrls = [],
   clientId,
   replyTo,
+  logTrigger,
+  logMetadata,
 }: SendEmailParams): Promise<string | null> {
+  const effectiveLogTrigger = logTrigger ?? (trigger === 'REENGAGEMENT' ? `REENGAGEMENT:${randomUUID()}` : undefined);
   // Store the raw params so the cron worker can process it
   const queueData = {
     data,
-    attachmentUrls
+    attachmentUrls,
+    ...(effectiveLogTrigger ? { logTrigger: effectiveLogTrigger } : {}),
+    ...(logMetadata ? { logMetadata } : {}),
   };
 
   const queued = await db.emailQueue.create({
@@ -74,7 +84,7 @@ export async function sendCareerEmail({
 
   // Execute immediately to bypass minutely cron restrictions on Vercel Hobby
   waitUntil(
-    processCareerEmail({ to, trigger, data, attachmentUrls, clientId, replyTo })
+    processCareerEmail({ to, trigger, data, attachmentUrls, clientId, replyTo, logTrigger: effectiveLogTrigger, logMetadata })
       .then(async () => {
         await db.emailQueue.update({
           where: { id: queued.id },
@@ -108,6 +118,8 @@ export async function processCareerEmail({
   attachmentUrls = [],
   clientId,
   replyTo,
+  logTrigger,
+  logMetadata,
 }: SendEmailParams): Promise<string | null> {
   const { buildEmail } = await import('./email-templates');
   const { subject, html } = await buildEmail(trigger, data);
@@ -130,26 +142,60 @@ export async function processCareerEmail({
     });
 
     // Log success if clientId provided
-    if (clientId) {
-      await db.careerEmailLog.create({
-        data: { clientId, trigger, resendId, status: 'sent' },
-      }).catch(() => null); // non-blocking
-    }
+    if (clientId) await writeEmailLog({ clientId, trigger, resendId, status: 'sent', logTrigger, logMetadata });
 
     return resendId;
   } catch (err) {
     // Log failure if clientId provided
     if (clientId) {
-      await db.careerEmailLog.create({
-        data: {
-          clientId,
-          trigger,
-          status: 'failed',
-          metadata: { error: err instanceof Error ? err.message : String(err) },
+      await writeEmailLog({
+        clientId,
+        trigger,
+        status: 'failed',
+        logTrigger,
+        logMetadata: {
+          ...logMetadata,
+          error: err instanceof Error ? err.message : String(err),
         },
-      }).catch(() => null);
+      });
     }
     throw err;
   }
+}
+
+async function writeEmailLog({
+  clientId,
+  trigger,
+  resendId,
+  status,
+  logTrigger,
+  logMetadata,
+}: {
+  clientId: string;
+  trigger: EmailTrigger;
+  resendId?: string | null;
+  status: 'sent' | 'failed';
+  logTrigger?: string;
+  logMetadata?: Record<string, unknown>;
+}) {
+  const recordTrigger = logTrigger ?? trigger;
+  const data = {
+    clientId,
+    trigger: recordTrigger,
+    resendId: resendId ?? null,
+    status,
+    ...(logMetadata ? { metadata: logMetadata as any } : {}),
+  };
+
+  await db.careerEmailLog.upsert({
+    where: { clientId_trigger: { clientId, trigger: recordTrigger } },
+    create: data,
+    update: {
+      resendId: resendId ?? null,
+      status,
+      sentAt: new Date(),
+      ...(logMetadata ? { metadata: logMetadata as any } : {}),
+    },
+  }).catch(() => null);
 }
 

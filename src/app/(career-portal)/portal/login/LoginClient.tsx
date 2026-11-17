@@ -323,17 +323,28 @@ function PortalShell({ children }: { children: React.ReactNode }) {
         <p className="relative z-10 text-xs text-white/40">Catalyst TPA · Secure client access</p>
       </aside>
 
-      <main className="flex min-h-dvh items-center justify-center px-4 py-7 sm:px-8 sm:py-10 lg:px-10 xl:px-16">
-        <div className="w-full max-w-[440px]">
-          <a href="https://catalyst.theripplenexus.com" target="_blank" rel="noopener noreferrer" className="mb-7 inline-flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8935B]/50 lg:hidden">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#E8DDD0] bg-white p-1"><Logo variant="icon" size={34} dark={false} /></span>
+      <section className="relative overflow-hidden bg-[#0A0B0D] px-5 pb-6 pt-[calc(1rem+env(safe-area-inset-top))] text-white lg:hidden">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 h-52 w-52 rounded-full bg-[#B8935B]/15 blur-3xl" />
+        <div className="relative mx-auto max-w-[440px]">
+          <a href="https://catalyst.theripplenexus.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF7A]/60">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#D4AF7A]/45 bg-white p-1"><Logo variant="icon" size={32} dark={false} /></span>
             <span>
-              <span className="block text-sm font-extrabold tracking-[0.14em] text-[#0A0B0D]">CATALYST</span>
-              <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9A7540]">Client workspace</span>
+              <span className="block text-sm font-extrabold tracking-[0.14em]">CATALYST</span>
+              <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#D4AF7A]">Client workspace</span>
             </span>
           </a>
+          <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#D4AF7A]">Your project, in one place</p>
+          <h1 className="mt-1 text-xl font-bold leading-tight tracking-tight">Everything for your next career move.</h1>
+          <p className="mt-1.5 max-w-md text-xs leading-5 text-white/60">Sign in below to view your brief, messages, documents, and project updates.</p>
+          <a href="#portal-sign-in" className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#D4AF7A]/45 bg-[#D4AF7A]/10 px-4 text-xs font-semibold text-[#F2DDAF] transition-colors hover:bg-[#D4AF7A]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF7A]/60">
+            Scroll down to sign in <span aria-hidden="true">↓</span>
+          </a>
+        </div>
+      </section>
 
-          <section className="overflow-hidden rounded-3xl border border-[#E8DDD0] bg-white shadow-[0_20px_60px_rgba(26,24,20,.08)]">
+      <main className="flex min-h-dvh items-center justify-center px-4 py-7 sm:px-8 sm:py-10 lg:px-10 xl:px-16">
+        <div className="w-full max-w-[440px]">
+          <section id="portal-sign-in" className="scroll-mt-4 overflow-hidden rounded-3xl border border-[#E8DDD0] bg-white shadow-[0_20px_60px_rgba(26,24,20,.08)]">
             <div aria-hidden="true" className="h-1 bg-gradient-to-r from-[#8B6738] via-[#D4AF7A] to-[#8B6738]" />
             <div className="p-5 sm:p-8">{children}</div>
           </section>

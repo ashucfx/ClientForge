@@ -11,6 +11,7 @@ export type CareerStatus =
 
 export type EmailTrigger =
   | 'WELCOME'
+  | 'REENGAGEMENT'
   | 'LOGIN_LINK'
   | 'FORM_CONFIRM'
   | 'ADMIN_FORM_FILLED'
