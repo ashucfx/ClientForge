@@ -224,6 +224,19 @@ export function ClientPortalShell({
             <PortalIcon kind="logout" className="h-[17px] w-[17px]" />
             Sign out
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              closeMenu();
+              window.dispatchEvent(new Event('client-portal:open-report-issue'));
+            }}
+            className="mt-1 inline-flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-xs font-semibold text-slate-600 transition hover:bg-[#F3EBDD] hover:text-[#76562A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8935B]/40 lg:hidden"
+          >
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-[#F3EBDD] text-[#9A7540]">
+              <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4m0 4h.01"/></svg>
+            </span>
+            Report an issue
+          </button>
           <a href="mailto:catalyst@theripplenexus.com" className="mt-1 flex min-h-10 items-center gap-3 rounded-xl px-3 text-xs font-medium text-slate-500 transition hover:bg-[#F8F5F0] hover:text-slate-900">
             <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-[#F3EBDD] text-[#9A7540]">?</span>
             Need help? Contact us
