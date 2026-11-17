@@ -1590,8 +1590,7 @@ export default function PortalDashboardPage() {
           <QuickLink href="https://catalyst.theripplenexus.com" title="Our Website" desc="catalyst.theripplenexus.com" external
             icon={<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#B8935B" strokeWidth="2"/><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>} />
           <QuickLinkButton title="Report an Issue" desc="Something not working?" onClick={() => {
-            const btn = document.querySelector('[title="Report an issue"]') as HTMLButtonElement | null;
-            btn?.click();
+            window.dispatchEvent(new Event('client-portal:open-report-issue'));
           }}
             icon={<svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="#B8935B" strokeWidth="2" strokeLinecap="round" d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8v4M12 16h.01"/></svg>} />
         </div>
