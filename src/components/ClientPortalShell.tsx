@@ -37,9 +37,47 @@ function PortalIcon({ kind, className = 'h-5 w-5' }: { kind: PortalNavItem['icon
 }
 
 function navIsActive(item: PortalNavItem, pathname: string, hash: string) {
+  if (item.icon === 'brief' && pathname.startsWith('/portal/dashboard/forms/')) return true;
   if (item.hash) return pathname === '/portal/dashboard' && hash === item.hash;
   if (item.href === '/portal/dashboard') return pathname === item.href && !hash;
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+function scrollToSectionWhenReady(hash: string) {
+  const sectionId = hash.slice(1);
+  let observer: MutationObserver | null = null;
+  let timeoutId: number | null = null;
+  let stopped = false;
+
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    observer?.disconnect();
+    if (timeoutId !== null) window.clearTimeout(timeoutId);
+  };
+
+  const findAndScroll = () => {
+    if (window.location.hash !== hash) {
+      stop();
+      return true;
+    }
+    const target = document.getElementById(sectionId);
+    if (!target) return false;
+
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+    window.requestAnimationFrame(() => target.scrollIntoView({ behavior, block: 'start' }));
+    stop();
+    return true;
+  };
+
+  if (!findAndScroll()) {
+    observer = new MutationObserver(() => { findAndScroll(); });
+    observer.observe(document.body, { childList: true, subtree: true });
+    timeoutId = window.setTimeout(stop, 10_000);
+    findAndScroll();
+  }
+
+  return stop;
 }
 
 export function ClientPortalShell({
@@ -66,10 +104,25 @@ export function ClientPortalShell({
   const compactName = name.length > 18 ? initials : firstName;
 
   useEffect(() => {
-    const readHash = () => setActiveHash(window.location.hash);
+    let cancelPendingScroll: (() => void) | null = null;
+    const readHash = () => {
+      const hash = window.location.hash;
+      setActiveHash(hash);
+      cancelPendingScroll?.();
+      cancelPendingScroll = null;
+
+      if (pathname === '/portal/dashboard' && (hash === '#forms' || hash === '#messages')) {
+        cancelPendingScroll = scrollToSectionWhenReady(hash);
+      }
+    };
     readHash();
     window.addEventListener('hashchange', readHash);
-    return () => window.removeEventListener('hashchange', readHash);
+    window.addEventListener('popstate', readHash);
+    return () => {
+      cancelPendingScroll?.();
+      window.removeEventListener('hashchange', readHash);
+      window.removeEventListener('popstate', readHash);
+    };
   }, [pathname]);
 
   useEffect(() => {
@@ -95,6 +148,12 @@ export function ClientPortalShell({
   };
 
   const closeMenu = () => setMobileOpen(false);
+  const handleNavClick = (item: PortalNavItem) => {
+    // App Router hash navigation uses history.pushState, which does not always
+    // emit hashchange. Set the selected section immediately on tap.
+    setActiveHash(item.hash ?? '');
+    closeMenu();
+  };
 
   const renderNavItem = (item: PortalNavItem, compact = false) => {
     const active = navIsActive(item, pathname, activeHash);
@@ -102,19 +161,25 @@ export function ClientPortalShell({
       <Link
         key={item.label}
         href={item.href}
-        onClick={closeMenu}
+        onClick={() => {
+          handleNavClick(item);
+          if (item.hash && pathname === '/portal/dashboard') {
+            window.requestAnimationFrame(() => { scrollToSectionWhenReady(item.hash!); });
+          }
+        }}
         aria-current={active ? 'page' : undefined}
         className={`group relative flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${
           active
             ? 'bg-[#F3EBDD] text-[#76562A]'
             : 'text-slate-600 hover:bg-[#F8F5F0] hover:text-slate-950'
-        } ${compact ? 'flex-col justify-center gap-1 px-1 py-2 text-[10px]' : 'py-2.5'}`}
+        } ${compact ? 'min-h-[3.5rem] flex-col justify-center gap-1 px-0.5 py-1.5 text-[10px] min-[380px]:text-[11px]' : 'py-2.5'}`}
       >
+        {compact && active && <span aria-hidden="true" className="absolute top-0.5 h-0.5 w-7 rounded-full bg-[#B8935B]" />}
         <span className={`relative flex shrink-0 items-center justify-center ${compact ? 'h-6 w-6' : 'h-8 w-8 rounded-lg'} ${active && !compact ? 'bg-white text-[#9A7540] shadow-[0_1px_3px_rgba(15,23,42,.08)]' : active ? 'text-[#9A7540]' : 'text-slate-400 group-hover:text-slate-700'}`}>
-          <PortalIcon kind={item.icon} className={compact ? 'h-[18px] w-[18px]' : 'h-[17px] w-[17px]'} />
+          <PortalIcon kind={item.icon} className={compact ? 'h-5 w-5' : 'h-[17px] w-[17px]'} />
           {item.icon === 'messages' && unreadMessages > 0 && compact && <span className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full border border-white bg-rose-500" />}
         </span>
-        <span className={compact ? 'max-w-full truncate' : 'min-w-0 flex-1 truncate'}>{item.label}</span>
+        <span className={compact ? 'max-w-full truncate leading-none' : 'min-w-0 flex-1 truncate'}>{item.label}</span>
         {!compact && item.icon === 'messages' && unreadMessages > 0 && (
           <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
             {unreadMessages > 99 ? '99+' : unreadMessages}

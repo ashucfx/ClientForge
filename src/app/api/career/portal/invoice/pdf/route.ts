@@ -10,7 +10,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  void req;
+  const requestedInvoiceId = new URL(req.url).searchParams.get('invoiceId');
   const token = cookies().get(PORTAL_COOKIE)?.value ?? '';
   const payload = await verifyPortalToken(token);
   if (!payload) return new NextResponse('Unauthorized', { status: 401 });
@@ -37,33 +37,56 @@ export async function GET(req: NextRequest) {
 
   let invoice: any = null;
 
-  // 1. Check direct invoiceId
-  if (client.invoiceId) {
-    invoice = await db.invoice.findUnique({ where: { id: client.invoiceId } });
-  }
+  if (requestedInvoiceId) {
+    const [linkedInvoice, directInvoice, emailInvoice] = await Promise.all([
+      db.invoiceClientLink.findFirst({
+        where: { clientId: client.id, invoiceId: requestedInvoiceId },
+        include: { invoice: true },
+      }),
+      client.invoiceId === requestedInvoiceId
+        ? db.invoice.findFirst({ where: { id: requestedInvoiceId, brandId: 'catalyst' } })
+        : Promise.resolve(null),
+      db.invoice.findFirst({
+        where: {
+          id: requestedInvoiceId,
+          brandId: 'catalyst',
+          clientEmail: { equals: client.email, mode: 'insensitive' },
+        },
+      }),
+    ]);
+    invoice = linkedInvoice?.invoice.brandId === 'catalyst'
+      ? linkedInvoice.invoice
+      : directInvoice ?? emailInvoice;
+  } else {
+    // 1. Check direct invoiceId
+    if (client.invoiceId) {
+      invoice = await db.invoice.findFirst({ where: { id: client.invoiceId, brandId: 'catalyst' } });
+    }
 
-  // 2. Check relational InvoiceClientLink
-  if (!invoice) {
-    const link = await db.invoiceClientLink.findFirst({
-      where: { clientId: client.id },
-      include: { invoice: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (link?.invoice) invoice = link.invoice;
-  }
+    // 2. Check relational InvoiceClientLink
+    if (!invoice) {
+      const link = await db.invoiceClientLink.findFirst({
+        where: { clientId: client.id },
+        include: { invoice: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (link?.invoice?.brandId === 'catalyst') invoice = link.invoice;
+    }
 
-  // 3. Check by client email (preferring PAID)
-  if (!invoice) {
-    invoice = await db.invoice.findFirst({
-      where: {
-        clientEmail: { equals: client.email, mode: 'insensitive' },
-      },
-      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
-    });
+    // 3. Check by client email (preferring PAID)
+    if (!invoice) {
+      invoice = await db.invoice.findFirst({
+        where: {
+          brandId: 'catalyst',
+          clientEmail: { equals: client.email, mode: 'insensitive' },
+        },
+        orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+      });
+    }
   }
 
   // 4. For completed/historical clients without an explicit DB invoice row, synthesize a valid tax receipt
-  if (!invoice && (client.amountPaid > 0 || client.status === 'COMPLETED')) {
+  if (!requestedInvoiceId && !invoice && (client.amountPaid > 0 || client.status === 'COMPLETED')) {
     const serviceNames = client.services?.map(s => s.service.name).join(', ') || client.packageType || 'Career Booster Services';
     invoice = {
       id: client.id,
@@ -107,7 +130,7 @@ export async function GET(req: NextRequest) {
   }
 
   // If client is already completed, ensure status displays PAID on receipt
-  if (client.status === 'COMPLETED' && invoice.status !== 'PAID') {
+  if (!requestedInvoiceId && client.status === 'COMPLETED' && invoice.status !== 'PAID') {
     invoice = { ...invoice, status: 'PAID', paidAt: invoice.paidAt || client.completedAt || client.createdAt };
   }
 

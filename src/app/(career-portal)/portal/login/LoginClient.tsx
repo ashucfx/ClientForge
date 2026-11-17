@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Image from 'next/image';
 import { Logo } from '@/components/Logo';
 
 type LoginTab = 'magic' | 'pin';
@@ -89,35 +88,27 @@ export function LoginClient() {
 
   if (sent) return (
     <PortalShell>
-      <div className="text-center motion-scale-in">
-        <div className="relative w-16 h-16 mx-auto mb-5">
-          <div className="absolute inset-0 rounded-2xl bg-emerald-400/20 blur-lg motion-pulse-slow" />
-          <div className="relative w-16 h-16 bg-emerald-50 border border-emerald-200/80 rounded-2xl flex items-center justify-center shadow-sm">
-            <svg width="28" height="28" fill="none" viewBox="0 0 24 24" className="text-emerald-600 transition-transform duration-300 hover:scale-110">
-              <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-            </svg>
-          </div>
+      <div role="status" aria-live="polite" className="motion-fade-in-up">
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#E5D4B4] bg-[#FBF8F3] text-[#9A7540]">
+          <svg width="25" height="25" fill="none" viewBox="0 0 24 24">
+            <path stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+          </svg>
         </div>
-        <h2 className="text-xl font-bold text-slate-900 tracking-tight mb-2">Check your inbox</h2>
-        <p className="text-slate-500 text-sm leading-relaxed">
-          If <strong className="text-slate-800 font-semibold">{email}</strong> has a registered CareerPilot account,
-          a secure one-click magic link has been dispatched.
-        </p>
-        <div className="mt-5 p-4 bg-slate-50/90 border border-slate-200/80 rounded-2xl text-left shadow-xs">
-          <p className="text-xs text-slate-700 font-bold mb-1.5 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#B8935B]" />
-            Did not receive it?
-          </p>
-          <ul className="text-xs text-slate-500 space-y-1 list-disc list-inside">
-            <li>Check your spam or junk folder</li>
-            <li>Link expires securely in 72 hours</li>
-            <li>Allow 1–2 minutes for delivery</li>
+        <p className="text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#9A7540]">Sign-in link requested</p>
+        <h2 className="mt-2 text-center text-2xl font-bold tracking-tight text-[#0A0B0D]">Check your inbox</h2>
+        <p className="mt-2 text-center text-sm leading-6 text-slate-500">If this address is registered, we’ve sent a secure sign-in link to:</p>
+        <p className="mt-3 break-all rounded-xl border border-[#E8DDD0] bg-[#FAF8F4] px-3 py-2.5 text-center text-sm font-semibold text-slate-800">{email}</p>
+        <div className="mt-5 rounded-2xl border border-[#E8DDD0] bg-white p-4">
+          <p className="text-xs font-bold text-slate-800">If it hasn’t arrived yet</p>
+          <ul className="mt-2 space-y-1.5 text-xs leading-5 text-slate-500">
+            <li>Check your spam or junk folder.</li>
+            <li>Allow a minute or two for delivery.</li>
+            <li>The link expires after 72 hours.</li>
           </ul>
         </div>
-        <button onClick={() => { setSent(false); setEmail(''); }}
-          className="mt-6 text-sm text-[#B8935B] hover:text-[#9A7540] font-semibold transition-all hover:underline flex items-center justify-center gap-1.5 mx-auto btn-press">
-          <span>←</span>
-          <span>Use a different email</span>
+        <button type="button" onClick={() => { setSent(false); setEmail(''); }}
+          className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#E8DDD0] bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:border-[#D4AF7A] hover:bg-[#FBF8F3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8935B]/40">
+          Use a different email
         </button>
       </div>
     </PortalShell>
@@ -129,37 +120,37 @@ export function LoginClient() {
         <div className="flex items-center justify-between mb-2">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#B8935B]/10 border border-[#B8935B]/25 text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#9A7540]">
             <span className="w-1.5 h-1.5 rounded-full bg-[#B8935B] animate-pulse" />
-            Executive Client Portal
-          </span>
-          <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
-            Catalyst TPA
+            Client workspace
           </span>
         </div>
-        <h2 className="text-2xl font-extrabold text-[#0A0B0D] tracking-tight">Sign in to CareerPilot</h2>
-        <p className="text-slate-500 text-xs sm:text-sm mt-1">Review strategic drafts, manage calibrations, and track career milestones</p>
+        <h2 className="text-2xl font-bold text-[#0A0B0D] tracking-tight sm:text-[28px]">Sign in to your workspace</h2>
+        <p className="text-slate-500 text-sm mt-1.5">View your brief, messages, and project files.</p>
       </div>
 
-      {/* Luxury Segmented Tabs */}
-      <div className="relative flex p-1 bg-[#F4EFE6]/80 rounded-2xl mb-6 border border-[#E5DAC8] shadow-inner">
+      <div role="tablist" aria-label="Choose a sign-in method" className="relative flex p-1 bg-[#F4F1EB] rounded-xl mb-6 border border-[#E8DDD0]">
         <button
           type="button"
           onClick={() => { setTab('magic'); setError(''); }}
-          className={`relative z-10 flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-300 btn-press ${
+          role="tab"
+          aria-selected={tab === 'magic'}
+          className={`relative z-10 flex-1 min-h-10 px-2 py-2 text-xs font-semibold rounded-lg transition-colors ${
             tab === 'magic'
-              ? 'bg-white text-[#0A0B0D] shadow-sm border border-[#E5DAC8]/70'
+              ? 'bg-white text-[#0A0B0D] shadow-sm'
               : 'text-slate-500 hover:text-[#0A0B0D]'
           }`}>
-          Login Link (Magic)
+          Email link
         </button>
         <button
           type="button"
           onClick={() => { setTab('pin'); setError(''); }}
-          className={`relative z-10 flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-300 btn-press ${
+          role="tab"
+          aria-selected={tab === 'pin'}
+          className={`relative z-10 flex-1 min-h-10 px-2 py-2 text-xs font-semibold rounded-lg transition-colors ${
             tab === 'pin'
-              ? 'bg-white text-[#0A0B0D] shadow-sm border border-[#E5DAC8]/70'
+              ? 'bg-white text-[#0A0B0D] shadow-sm'
               : 'text-slate-500 hover:text-[#0A0B0D]'
           }`}>
-          PIN Login
+          Security PIN
         </button>
       </div>
 
@@ -175,11 +166,10 @@ export function LoginClient() {
       {tab === 'magic' ? (
         <form onSubmit={requestMagicLink} className="space-y-4 motion-fade-in-up">
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Registered Email Address</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-2">Registered email address</label>
             <input
               type="email"
               required
-              autoFocus
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="you@company.com"
@@ -189,7 +179,7 @@ export function LoginClient() {
           <button
             type="submit"
             disabled={loading || !email}
-            className="w-full py-3.5 bg-gradient-to-r from-[#B8935B] via-[#C9A870] to-[#9A7540] text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-[#B8935B]/30 hover:brightness-105 btn-press disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300">
+            className="w-full min-h-12 py-3.5 bg-[#0A0B0D] text-white text-sm font-semibold rounded-xl hover:bg-[#29251E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8935B]/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -206,7 +196,7 @@ export function LoginClient() {
       ) : (
         <form onSubmit={loginWithPin} className="space-y-4 motion-fade-in-up">
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Registered Email Address</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-2">Registered email address</label>
             <input
               type="email"
               required
@@ -218,7 +208,7 @@ export function LoginClient() {
           </div>
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">6-Digit Security PIN</label>
+              <label className="block text-xs font-semibold text-slate-700">6-digit security PIN</label>
               <button
                 type="button"
                 onClick={() => setTab('magic')}
@@ -240,7 +230,7 @@ export function LoginClient() {
           <button
             type="submit"
             disabled={loading || !email || pin.length !== 6}
-            className="w-full py-3.5 bg-gradient-to-r from-[#B8935B] via-[#C9A870] to-[#9A7540] text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-[#B8935B]/30 hover:brightness-105 btn-press disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300">
+            className="w-full min-h-12 py-3.5 bg-[#0A0B0D] text-white text-sm font-semibold rounded-xl hover:bg-[#29251E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8935B]/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -253,13 +243,13 @@ export function LoginClient() {
         </form>
       )}
 
-      <div className="mt-8 pt-5 border-t border-[#E5DAC8]/60 text-center">
-        <p className="text-xs text-slate-500">
-          Ready to elevate your executive trajectory?{' '}
+      <div className="mt-6 pt-5 border-t border-[#E8DDD0] text-center">
+        <p className="text-xs leading-5 text-slate-500">
+          New to Catalyst?{' '}
           <a
             href="/checkout"
             className="text-[#B8935B] hover:text-[#9A7540] underline underline-offset-2 font-bold transition-colors">
-            Get started with CareerPilot →
+            Explore our services →
           </a>
         </p>
       </div>
@@ -269,63 +259,69 @@ export function LoginClient() {
 
 function PortalShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-[#FAFAF8] via-[#F4EFE6]/60 to-[#ECE6D8] flex items-center justify-center p-4">
-      {/* Ambient luxury lighting */}
-      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-[#B8935B]/10 rounded-full blur-3xl pointer-events-none motion-float" />
-      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-[#D4AF7A]/15 rounded-full blur-3xl pointer-events-none motion-float delay-200" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.7),transparent_70%)] pointer-events-none" />
-
-      <div className="w-full max-w-md relative z-10 motion-scale-in">
-        {/* Branding Header */}
-        <div className="text-center mb-8">
-          <a
-            href="https://catalyst.theripplenexus.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex flex-col items-center group btn-press focus:outline-none"
-          >
-            {/* Medallion & Wordmark Lockup */}
-            <div className="flex items-center gap-3.5 px-4 py-2.5 rounded-2xl bg-white/90 border border-[#E5DAC8] shadow-sm backdrop-blur-md group-hover:border-[#B8935B]/60 group-hover:shadow-md transition-all duration-300">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-b from-[#FAF8F5] to-[#ECE5D8] border border-[#D4AF7A]/40 flex items-center justify-center shadow-xs flex-shrink-0">
-                <Logo variant="icon" size={32} dark={false} />
-              </div>
-              <div className="text-left">
-                <div className="flex items-center gap-2">
-                  <span className="font-serif font-black text-xl text-[#0A0B0D] tracking-[0.16em] uppercase">
-                    CATALYST
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-[#B8935B]/10 text-[#9A7540] border border-[#B8935B]/25 text-[9px] font-extrabold uppercase tracking-wider">
-                    CAREERPILOT
-                  </span>
-                </div>
-                <p className="text-[9.5px] font-extrabold text-[#9A7540] uppercase tracking-[0.24em] mt-0.5">
-                  Talent Positioning Architecture
-                </p>
-              </div>
-            </div>
-          </a>
-        </div>
-
-        {/* Luxury Glass Card */}
-        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-slate-900/10 border border-[#EDE4D3] p-7 sm:p-9 relative overflow-hidden">
-          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#B8935B] to-transparent" />
-          {children}
-        </div>
-
-        {/* Security badges */}
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs font-medium text-slate-500">
-          <span className="flex items-center gap-1.5 text-slate-600 font-semibold">
-            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" className="text-emerald-600">
-              <path stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-            256-Bit SSL Encrypted
+    <div className="min-h-dvh bg-[#F7F5F0] text-slate-900 lg:grid lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+      <aside className="relative hidden min-h-dvh flex-col justify-between overflow-hidden bg-[#0A0B0D] px-10 py-12 text-white lg:flex xl:px-16">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-36 top-1/4 h-[28rem] w-[28rem] rounded-full bg-[#B8935B]/10 blur-3xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-[#D4AF7A]/50 to-transparent" />
+        <a href="https://catalyst.theripplenexus.com" target="_blank" rel="noopener noreferrer" className="relative z-10 inline-flex w-fit items-center gap-3 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF7A]/60">
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#D4AF7A]/40 bg-white p-1"><Logo variant="icon" size={36} dark={false} /></span>
+          <span>
+            <span className="block text-base font-extrabold tracking-[0.16em]">CATALYST</span>
+            <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#D4AF7A]">Client workspace</span>
           </span>
-          <span className="text-slate-300">·</span>
-          <span>Zero-Knowledge Auth</span>
-          <span className="text-slate-300">·</span>
-          <span className="text-[#9A7540] font-bold">Catalyst TPA</span>
+        </a>
+
+        <div className="relative z-10 my-16 max-w-xl">
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#D4AF7A]">Your project, clearly organized</p>
+          <h1 className="mt-4 text-4xl font-bold leading-[1.12] tracking-tight xl:text-5xl">Everything for your next career move.</h1>
+          <p className="mt-5 max-w-lg text-base leading-7 text-white/65">Sign in to follow progress, share your brief, and keep your work with Catalyst in one place.</p>
+          <div className="mt-9 grid gap-3">
+            {[
+              ['01', 'Project overview', 'See progress and recent updates.'],
+              ['02', 'Messages and briefs', 'Keep details and conversations together.'],
+              ['03', 'Files and invoices', 'Review your project documents.'],
+            ].map(([number, label, description]) => (
+              <div key={number} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[.04] px-4 py-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#B8935B]/15 text-[10px] font-bold text-[#E6D0A5]">{number}</span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-white/90">{label}</span>
+                  <span className="mt-0.5 block text-xs leading-5 text-white/50">{description}</span>
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+
+        <p className="relative z-10 text-xs text-white/40">Catalyst TPA · Secure client access</p>
+      </aside>
+
+      <main className="flex min-h-dvh items-center justify-center px-4 py-7 sm:px-8 sm:py-10 lg:px-10 xl:px-16">
+        <div className="w-full max-w-[440px]">
+          <a href="https://catalyst.theripplenexus.com" target="_blank" rel="noopener noreferrer" className="mb-7 inline-flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8935B]/50 lg:hidden">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#E8DDD0] bg-white p-1"><Logo variant="icon" size={34} dark={false} /></span>
+            <span>
+              <span className="block text-sm font-extrabold tracking-[0.14em] text-[#0A0B0D]">CATALYST</span>
+              <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9A7540]">Client workspace</span>
+            </span>
+          </a>
+
+          <section className="overflow-hidden rounded-3xl border border-[#E8DDD0] bg-white shadow-[0_20px_60px_rgba(26,24,20,.08)]">
+            <div aria-hidden="true" className="h-1 bg-gradient-to-r from-[#8B6738] via-[#D4AF7A] to-[#8B6738]" />
+            <div className="p-5 sm:p-8">{children}</div>
+          </section>
+
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-slate-400">
+            <span className="inline-flex items-center gap-1.5 font-medium text-slate-500">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" className="text-[#9A7540]">
+                <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              Secure sign-in
+            </span>
+            <span aria-hidden="true" className="text-slate-300">·</span>
+            <span>Private client workspace</span>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
