@@ -21,14 +21,21 @@ export function LoginClient() {
   const [verifying, setVerifying] = useState(!!token);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token) {
+      setVerifying(false);
+      return;
+    }
+    const controller = new AbortController();
+    let active = true;
     setVerifying(true);
     fetch('/api/career/auth/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
+      signal: controller.signal,
     })
       .then(async res => {
+        if (!active) return;
         if (res.ok) {
           const d = await res.json().catch(() => ({})) as { hasPinSet?: boolean };
           router.replace(d.hasPinSet ? '/portal/dashboard' : '/portal/setup-pin');
@@ -38,8 +45,22 @@ export function LoginClient() {
         setError(d.error ?? 'This link has expired. Request a new one below.');
         setVerifying(false);
       })
-      .catch(() => { setError('Something went wrong. Please try again.'); setVerifying(false); });
+      .catch(() => {
+        if (!active) return;
+        setError('Something went wrong. Please try again.');
+        setVerifying(false);
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [token, router]);
+
+  const openEmailSignIn = () => {
+    setError('');
+    setVerifying(false);
+    router.replace('/portal/login');
+  };
 
   const requestMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +103,13 @@ export function LoginClient() {
         </div>
         <p className="text-slate-800 font-bold text-base tracking-tight">Verifying your secure link…</p>
         <p className="text-slate-400 text-xs mt-1.5 font-medium">Authenticating your session · Redirecting momentarily</p>
+        <div className="mx-auto mt-6 max-w-sm border-t border-[#E8DDD0] pt-5 text-center lg:hidden">
+          <p className="text-sm font-semibold text-slate-800">Having trouble opening the link?</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">Use your registered email address to request a fresh sign-in link.</p>
+          <button type="button" onClick={openEmailSignIn} className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-[#0A0B0D] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#29251E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8935B]/50">
+            Go to email sign-in
+          </button>
+        </div>
       </div>
     </PortalShell>
   );
