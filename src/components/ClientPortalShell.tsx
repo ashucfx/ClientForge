@@ -46,17 +46,24 @@ export function ClientPortalShell({
   clientName,
   unreadMessages = 0,
   title = 'Client workspace',
+  greeting,
 }: {
   clientName?: string;
   unreadMessages?: number;
   title?: string;
+  greeting?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeHash, setActiveHash] = useState('');
   const name = clientName?.trim() || 'Client';
-  const initial = name.charAt(0).toUpperCase();
+  const nameParts = name.split(/\s+/).filter(Boolean);
+  const firstName = nameParts[0] || 'Client';
+  const initials = nameParts.length > 1
+    ? nameParts.slice(0, 2).map(part => part.charAt(0)).join('').toUpperCase()
+    : firstName.slice(0, 2).toUpperCase();
+  const compactName = name.length > 18 ? initials : firstName;
 
   useEffect(() => {
     const readHash = () => setActiveHash(window.location.hash);
@@ -124,44 +131,52 @@ export function ClientPortalShell({
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-[#E8DDD0] bg-[#fffdfa]/95 shadow-[0_4px_18px_rgba(15,23,42,.04)] backdrop-blur-xl">
-        <div className="mx-auto flex h-16 items-center gap-3 px-4 sm:px-6 lg:ml-64 lg:mr-0 lg:pl-8 lg:pr-8">
+      <header className="sticky top-0 z-40 border-b border-[#B8935B]/35 bg-[#0A0B0D] text-white shadow-[0_8px_28px_rgba(10,11,13,.2)]">
+        <div aria-hidden="true" className="h-[2px] bg-gradient-to-r from-[#8B6738] via-[#D4AF7A] to-[#8B6738]" />
+        <div className="mx-auto flex h-[62px] max-w-[1800px] items-center gap-3 px-4 sm:px-6">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
             aria-label="Open workspace navigation"
             aria-expanded={mobileOpen}
             aria-controls="client-portal-navigation"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#E8DDD0] bg-white text-slate-600 shadow-sm transition hover:border-[#D8C8B0] hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8935B]/40 lg:hidden"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[.06] text-white/80 shadow-sm transition hover:border-[#D4AF7A]/60 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF7A]/60 lg:hidden"
           >
             <PortalIcon kind="menu" className="h-[18px] w-[18px]" />
           </button>
 
-          <Link href="/portal/dashboard" className="flex min-w-0 items-center gap-2.5" aria-label="Catalyst client workspace overview">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D8C8B0] bg-[#0A0B0D] shadow-sm">
-              <Image src="/logos/catalyst-symbol-dark.svg" width={20} height={20} alt="" className="object-contain" />
+          <Link href="/portal/dashboard" className="flex min-w-0 items-center gap-3" aria-label="Catalyst client workspace overview">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D4AF7A]/60 bg-[#111210] shadow-[0_0_0_3px_rgba(212,175,122,.08)]">
+              <Image src="/logos/catalyst-symbol-dark.svg" width={28} height={28} alt="" className="object-contain" />
             </span>
             <span className="min-w-0">
-              <span className="block truncate text-[15px] font-bold leading-tight tracking-tight text-[#0A0B0D]">Catalyst</span>
-              <span className="block max-w-[150px] truncate text-[9px] font-semibold uppercase leading-tight tracking-[0.16em] text-[#9A7540] sm:max-w-none">{title}</span>
+              <span className="block truncate text-[15px] font-extrabold leading-tight tracking-[0.015em] text-[#FFFDF8]">Catalyst</span>
+              <span className={`block max-w-[170px] truncate leading-tight text-[#D4AF7A] ${greeting ? 'text-[10px] font-semibold tracking-[0.01em]' : 'text-[9px] font-bold uppercase tracking-[0.16em]'}`}>
+                {greeting ? `${greeting}, ${compactName}` : `Client portal · ${title}`}
+              </span>
             </span>
           </Link>
+
+          <div className="ml-2 hidden min-w-0 border-l border-white/15 pl-5 md:block">
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Workspace</p>
+            <p className="max-w-[240px] truncate text-sm font-semibold tracking-tight text-white/90">{title}</p>
+          </div>
 
           <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
             <Link
               href="/portal/dashboard#messages"
               aria-label={unreadMessages > 0 ? `Messages, ${unreadMessages} unread` : 'Messages'}
               title="Messages"
-              className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-[#F5F1EB] hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8935B]/40"
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-white/70 transition hover:border-white/10 hover:bg-white/[.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF7A]/60"
             >
               <PortalIcon kind="messages" className="h-[18px] w-[18px]" />
               {unreadMessages > 0 && <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-[#fffdfa] bg-rose-500" />}
             </Link>
-            <Link href="/portal/dashboard/profile" className="hidden max-w-44 items-center gap-2 rounded-xl border border-[#E8DDD0] bg-white px-2 py-1.5 transition hover:border-[#D8C8B0] sm:flex">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#B8935B] text-[11px] font-bold text-white">{initial}</span>
-              <span className="min-w-0 truncate text-xs font-semibold text-slate-700">{name.split(' ')[0]}</span>
+            <Link href="/portal/dashboard/profile" className="hidden max-w-44 items-center gap-2 rounded-xl border border-white/15 bg-white/[.06] px-2 py-1.5 transition hover:border-[#D4AF7A]/50 hover:bg-white/[.1] sm:flex">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#F0D9A4]/70 bg-[#B8935B] text-[10px] font-extrabold tracking-wide text-white">{initials}</span>
+              <span className="min-w-0 truncate text-xs font-semibold text-white/85">{compactName}</span>
             </Link>
-            <button type="button" onClick={() => void logout()} aria-label="Sign out" title="Sign out" className="hidden h-10 items-center gap-2 rounded-xl border border-[#E8DDD0] px-3 text-xs font-semibold text-slate-500 transition hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8935B]/40 lg:inline-flex">
+            <button type="button" onClick={() => void logout()} aria-label="Sign out" title="Sign out" className="hidden h-10 items-center gap-2 rounded-xl border border-[#D4AF7A]/35 bg-[#D4AF7A]/[.08] px-3 text-xs font-semibold text-[#E6D0A5] transition hover:border-[#D4AF7A]/70 hover:bg-[#D4AF7A]/[.16] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF7A]/60 lg:inline-flex">
               <PortalIcon kind="logout" className="h-4 w-4" />
               Sign out
             </button>
@@ -178,7 +193,7 @@ export function ClientPortalShell({
       >
         <div className="flex items-center justify-between border-b border-[#EEE7DC] px-5 py-5 lg:hidden">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0A0B0D] text-sm font-bold text-[#C9A96E]">C</span>
+            <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-[#D4AF7A]/50 bg-[#0A0B0D]"><Image src="/logos/catalyst-symbol-dark.svg" width={26} height={26} alt="" /></span>
             <span className="min-w-0">
               <span className="block text-sm font-bold text-slate-900">Client workspace</span>
               <span className="block truncate text-xs text-slate-500">{name}</span>
@@ -198,7 +213,7 @@ export function ClientPortalShell({
 
         <div className="border-t border-[#EEE7DC] p-3">
           <Link href="/portal/dashboard/profile" onClick={closeMenu} className="flex min-w-0 items-center gap-3 rounded-xl p-2 transition hover:bg-[#F8F5F0]">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#B8935B] text-sm font-bold text-white">{initial}</span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#B8935B] text-xs font-extrabold tracking-wide text-white">{initials}</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-xs font-bold text-slate-800">{name}</span>
               <span className="block text-[10px] text-slate-500">Account profile</span>
