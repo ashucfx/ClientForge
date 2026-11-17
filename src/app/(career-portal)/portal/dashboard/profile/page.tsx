@@ -146,7 +146,7 @@ export default function ClientProfilePage() {
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#C9A96E]">Catalyst profile</p>
-              <h1 className="mt-2 break-words text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">{me.name}</h1>
+              <h1 className="mt-2 break-words text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">Your profile</h1>
               <p className="mt-2 text-sm text-white/60">Your account details and career brief, kept together for your project team.</p>
             </div>
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#B8935B] text-2xl font-bold text-white">
@@ -159,8 +159,8 @@ export default function ClientProfilePage() {
           <div className="rounded-2xl border border-[#E8DDD0] bg-white p-5">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9A7540]">Account details</p>
             <dl className="mt-4 grid gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
-              <div className="min-w-0"><dt className="text-xs text-slate-400">Client name</dt><dd className="mt-0.5 break-words font-semibold text-slate-800">{me.name}</dd></div>
-              <div className="min-w-0"><dt className="text-xs text-slate-400">Client ID</dt><dd className="mt-0.5 break-all font-mono text-xs font-semibold text-slate-800">{me.id}</dd></div>
+              <div className="min-w-0"><dt className="text-xs text-slate-400">Your name</dt><dd className="mt-0.5 break-words font-semibold text-slate-800">{me.name}</dd></div>
+              <div className="min-w-0"><dt className="text-xs text-slate-400">Your ID</dt><dd className="mt-0.5 break-all font-mono text-xs font-semibold text-slate-800">{me.id}</dd></div>
               <div className="min-w-0"><dt className="text-xs text-slate-400">Email</dt><dd className="mt-0.5 break-all font-semibold text-slate-800">{me.email}</dd></div>
               <div className="min-w-0"><dt className="text-xs text-slate-400">Mobile</dt><dd className="mt-0.5 break-words font-semibold text-slate-800">{me.phone || 'Not provided'}</dd></div>
               {me.country && <div><dt className="text-xs text-slate-400">Country</dt><dd className="mt-0.5 font-semibold text-slate-800">{me.country}</dd></div>}

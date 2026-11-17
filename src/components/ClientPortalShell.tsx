@@ -43,7 +43,7 @@ function navIsActive(item: PortalNavItem, pathname: string, hash: string) {
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
-function scrollToSectionWhenReady(hash: string) {
+function scrollToSectionWhenReady(hash: string, force = false) {
   const sectionId = hash.slice(1);
   let observer: MutationObserver | null = null;
   let timeoutId: number | null = null;
@@ -57,7 +57,7 @@ function scrollToSectionWhenReady(hash: string) {
   };
 
   const findAndScroll = () => {
-    if (window.location.hash !== hash) {
+    if (!force && window.location.hash !== hash) {
       stop();
       return true;
     }
@@ -164,7 +164,7 @@ export function ClientPortalShell({
         onClick={() => {
           handleNavClick(item);
           if (item.hash && pathname === '/portal/dashboard') {
-            window.requestAnimationFrame(() => { scrollToSectionWhenReady(item.hash!); });
+            window.requestAnimationFrame(() => { scrollToSectionWhenReady(item.hash!, true); });
           }
         }}
         aria-current={active ? 'page' : undefined}
@@ -196,7 +196,7 @@ export function ClientPortalShell({
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-[#B8935B]/35 bg-[#0A0B0D] text-white shadow-[0_8px_28px_rgba(10,11,13,.2)]">
+      <header className="fixed inset-x-0 top-0 z-40 border-b border-[#B8935B]/35 bg-[#0A0B0D] pt-[env(safe-area-inset-top)] text-white shadow-[0_8px_28px_rgba(10,11,13,.2)] lg:sticky lg:top-0">
         <div aria-hidden="true" className="h-[2px] bg-gradient-to-r from-[#8B6738] via-[#D4AF7A] to-[#8B6738]" />
         <div className="mx-auto flex h-[62px] max-w-[1800px] items-center gap-3 px-4 sm:px-6">
           <button
@@ -248,6 +248,7 @@ export function ClientPortalShell({
           </div>
         </div>
       </header>
+      <div aria-hidden="true" className="h-[calc(4rem+env(safe-area-inset-top))] lg:hidden" />
 
       {mobileOpen && <button type="button" aria-label="Close workspace navigation" onClick={closeMenu} className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-[2px] lg:hidden" />}
 
