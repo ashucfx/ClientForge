@@ -185,7 +185,7 @@ function SlaDeadlineCell({ client, onUpdated }: {
   const deadline = client.slaDeadline ?? client.expectedDeliveryAt;
 
   return (
-    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+    <div className="client-metric-card rounded-2xl border border-slate-200/80 bg-white p-3.5">
       <div className="flex items-center justify-between mb-0.5">
         <p className="text-xs text-slate-400 font-medium">SLA Deadline</p>
         {client.status !== 'COMPLETED' && !editing && (
@@ -523,30 +523,33 @@ export default function CareerClientDetailPage() {
   const s = STATUS_STYLES[client.status];
 
   return (
-    <div className="p-5 md:p-7 max-w-5xl mx-auto space-y-5">
+    <div className="admin-client-detail mx-auto max-w-7xl space-y-5 px-4 py-5 sm:px-6 sm:py-7 xl:px-8">
 
       {/* Breadcrumb + action buttons */}
       <div className="flex items-center justify-between gap-3">
         <nav className="flex items-center gap-2 text-sm">
-          <Link href="/career" className="text-slate-400 hover:text-[#B8935B] transition-colors">Branding Suite</Link>
+          <Link href="/career" className="text-slate-500 hover:text-[#9A7540] transition-colors">Client Accounts</Link>
           <span className="text-slate-300">/</span>
           <span className="text-slate-700 font-medium truncate max-w-[200px]">{client.name}</span>
         </nav>
-        <div className="flex gap-2 flex-shrink-0">
+        <div className="flex flex-wrap justify-end gap-2 flex-shrink-0">
           <button
             type="button"
-            onClick={() => document.getElementById('re-onboarding')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-            className="flex items-center gap-1.5 rounded-lg border border-[#E5D4B4] bg-[#FBF8F3] px-3 py-1.5 text-xs font-semibold text-[#8C6C39] transition-all hover:bg-[#F5F0E8]"
+            onClick={() => {
+              setActiveTab('overview');
+              window.setTimeout(() => document.getElementById('re-onboarding')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 40);
+            }}
+            className="admin-client-action-primary flex min-h-10 items-center gap-1.5 rounded-xl border border-[#E5D4B4] bg-[#FBF8F3] px-3.5 py-2 text-xs font-semibold text-[#8C6C39] transition-all hover:bg-[#F5F0E8]"
           >
             Re-onboard
           </button>
           <button onClick={() => setShowEdit(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all">
+            className="flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50">
             <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Edit
           </button>
           <button onClick={() => { setShowDelete(true); setDeleteStep('idle'); setOtpInput(''); setOtpError(''); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-all">
+            className="flex min-h-10 items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3.5 py-2 text-xs font-semibold text-rose-700 transition-all hover:bg-rose-50">
             <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
             Delete
           </button>
@@ -578,18 +581,18 @@ export default function CareerClientDetailPage() {
       )}
 
       {/* Hero card */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="admin-client-hero relative overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-br from-[#17191b] via-[#111315] to-[#211a10] text-white shadow-[0_18px_45px_rgba(15,23,42,.14)]">
         <div className="h-1.5 bg-gradient-to-r from-[#B8935B] via-[#B8935B] to-emerald-400" />
-        <div className="p-4 sm:p-6">
+        <div className="relative p-5 sm:p-7">
           <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             {/* Left: identity */}
             <div className="flex min-w-0 items-start gap-3 sm:flex-1 sm:items-center sm:gap-4">
-              <div className="w-12 h-12 rounded-xl bg-[#B8935B] flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl border border-[#D3B47D]/20 bg-[#D3B47D]/10 text-xl font-bold text-[#E2C993] shadow-inner">
                 {client.name[0]?.toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-                  <h1 className="min-w-0 break-words text-xl font-bold text-slate-900">{client.name}</h1>
+                  <h1 className="min-w-0 break-words text-2xl font-bold tracking-tight text-[#fffefa] sm:text-3xl">{client.name}</h1>
                   {client.slaDeadline && (
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider ${
                       client.status === 'COMPLETED' ? 'bg-[#F5F0E8] text-[#8C6C39] border border-[#E5D4B4]' :
@@ -605,14 +608,14 @@ export default function CareerClientDetailPage() {
                   )}
                 </div>
                 <div className="mt-1 flex min-w-0 flex-col items-start gap-0.5">
-                  <p className="m-0 block max-w-full break-all text-sm leading-snug text-slate-500">{client.email}</p>
-                  {client.phone && <p className="m-0 block max-w-full break-words text-xs leading-snug text-slate-400">{client.phone}</p>}
+                  <p className="m-0 block max-w-full break-all text-sm leading-snug text-white/70">{client.email}</p>
+                  {client.phone && <p className="m-0 block max-w-full break-words text-xs leading-snug text-white/45">{client.phone}</p>}
                 </div>
               </div>
             </div>
             {/* Right: badges */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 bg-[#FBF8F3] text-[#9A7540] text-xs font-bold rounded-full border border-[#E8DDD0] uppercase tracking-wide">
+              <span className="rounded-full border border-[#D3B47D]/25 bg-[#D3B47D]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.12em] text-[#E2C993]">
                 {client.services?.length > 0
                   ? (() => {
                       const slugs = client.services.map(s => s.slug);
@@ -633,18 +636,21 @@ export default function CareerClientDetailPage() {
               </span>
             </div>
           </div>
+        </div>
+      </div>
 
+      <div className="client-account-facts">
           <ClientPresenceCard clientId={client.id} />
 
           {/* Stats row */}
-          <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="client-account-metrics grid grid-cols-2 gap-3">
             {[
               { label: 'Amount Paid', value: `${client.currency} ${client.amountPaid.toLocaleString()}` },
               { label: 'Forms',       value: `${client.forms.length} submitted` },
               { label: 'Files',       value: `${client.deliverables.length} / 10 uploaded` },
               { label: 'Last Login',  value: client.lastLoginAt ? fmt(client.lastLoginAt, true) : 'Never' },
             ].map(({ label, value }) => (
-              <div key={label} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+              <div key={label} className="client-metric-card rounded-2xl border border-slate-200/80 bg-white p-3.5">
                 <p className="text-xs text-slate-400 font-medium mb-0.5">{label}</p>
                 <p className="text-sm font-bold text-slate-800">{value}</p>
               </div>
@@ -652,7 +658,9 @@ export default function CareerClientDetailPage() {
             {/* Editable SLA Deadline */}
             <SlaDeadlineCell client={client} onUpdated={(d) => setClient(prev => prev ? { ...prev, slaDeadline: d, expectedDeliveryAt: d } : prev)} />
           </div>
+      </div>
 
+      <div className="client-account-sidecards">
           {/* SLA Agreement Status for Admin */}
           {(() => {
             const slaLog = client.activityLogs?.find(l => l.action === 'sla_agreement_accepted');
@@ -781,47 +789,10 @@ export default function CareerClientDetailPage() {
               <span className="font-semibold">Note: </span>{client.notes}
             </div>
           )}
-
-          <div id="re-onboarding">
-            <ReOnboardingPanel client={client} onCreated={() => void reload()} />
-          </div>
-
-          {/* Portal access reminder stays available until the client has signed in. */}
-          {!client.lastLoginAt && (() => {
-            const welcomePreviouslySent = client.emailLogs.some(l => l.trigger === 'WELCOME');
-            const slugs = client.services?.map(s => s.slug) ?? [];
-            const tier = getPackageTier(slugs);
-            const formsCopy = tier === 'premium' ? 'Resume, LinkedIn, and Portfolio forms'
-              : tier === 'booster' ? 'Resume and LinkedIn Profile forms'
-              : tier === 'resume_cl' ? 'Resume & Cover Letter forms'
-              : tier === 'resume' ? 'Resume Intake Form'
-              : 'intake forms';
-            return (
-              <div className="mt-4 flex items-center justify-between gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <span className="text-lg flex-shrink-0">🔑</span>
-                  <div>
-                      <p className="text-sm font-bold text-amber-900">Portal not yet activated</p>
-                    <p className="text-xs text-amber-700">
-                      {welcomePreviouslySent
-                        ? <>A fresh sign-in link can help <strong>{client.name.split(' ')[0]}</strong> access their {formsCopy}.</>
-                        : <>Send the Welcome Email so <strong>{client.name.split(' ')[0]}</strong> can submit their {formsCopy} to get started.</>}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => triggerWelcome(welcomePreviouslySent ? 'REENGAGEMENT' : 'WELCOME')}
-                  className="flex-shrink-0 px-3 py-1.5 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 transition-colors">
-                  {welcomePreviouslySent ? 'Re-engage →' : 'Send Welcome →'}
-                </button>
-              </div>
-            );
-          })()}
-        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto">
+      <div className="client-detail-tabs flex gap-1 overflow-x-auto rounded-2xl border border-slate-200/80 bg-white/80 p-1.5 shadow-sm">
         {(['overview','forms','files','emails','activity','revisions','comments','invoices'] as Tab[]).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`flex-shrink-0 px-4 py-1.5 text-sm font-semibold rounded-lg capitalize transition-all ${
@@ -839,7 +810,42 @@ export default function CareerClientDetailPage() {
 
       {/* ── OVERVIEW ── */}
       {activeTab === 'overview' && (
-        <OverviewTab client={client} onUpdated={reload} welcomeSignal={welcomeSignal} welcomeTrigger={welcomeEmailType} />
+        <div className="space-y-5">
+          <div id="re-onboarding">
+            <ReOnboardingPanel client={client} onCreated={() => void reload()} />
+          </div>
+          {!client.lastLoginAt && (() => {
+            const welcomePreviouslySent = client.emailLogs.some(l => l.trigger === 'WELCOME');
+            const tier = getPackageTier(client.services?.map(service => service.slug) ?? []);
+            const formsCopy = tier === 'premium' ? 'Resume, LinkedIn, and Portfolio forms'
+              : tier === 'booster' ? 'Resume and LinkedIn Profile forms'
+              : tier === 'resume_cl' ? 'Resume & Cover Letter forms'
+              : tier === 'resume' ? 'Resume Intake Form'
+              : 'intake forms';
+            return (
+              <div className="client-portal-reminder flex flex-col items-start justify-between gap-3 rounded-2xl border border-[#E7D7B9] bg-[#FBF8F1] px-4 py-4 sm:flex-row sm:items-center sm:px-5">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl bg-[#B8935B]/12 text-[#9A7540]">↗</span>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Portal not yet activated</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
+                      {welcomePreviouslySent
+                        ? <>Send a fresh sign-in link so <strong>{client.name.split(' ')[0]}</strong> can access their {formsCopy}.</>
+                        : <>Send the welcome email so <strong>{client.name.split(' ')[0]}</strong> can submit their {formsCopy}.</>}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => triggerWelcome(welcomePreviouslySent ? 'REENGAGEMENT' : 'WELCOME')}
+                  className="min-h-10 flex-shrink-0 rounded-xl bg-[#17191b] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#34302a]"
+                >
+                  {welcomePreviouslySent ? 'Send fresh link' : 'Send welcome email'}
+                </button>
+              </div>
+            );
+          })()}
+          <OverviewTab client={client} onUpdated={reload} welcomeSignal={welcomeSignal} welcomeTrigger={welcomeEmailType} />
+        </div>
       )}
 
       {/* ── FORMS ── */}
@@ -1078,7 +1084,7 @@ function ClientPresenceCard({ clientId }: { clientId: string }) {
   if (selectedTimezone) {
     try { clientTime = `${new Intl.DateTimeFormat(undefined, { timeZone: selectedTimezone, timeStyle: 'short' }).format(now)} (${selectedTimezone})`; } catch { clientTime = 'Time zone needs review'; }
   }
-  return <section aria-label="Client collaboration status" className="mt-3 w-full min-w-0 max-w-full rounded-2xl border border-[#EBE4D9] bg-[#FFFEFC] p-3 sm:max-w-2xl">
+  return <section aria-label="Client collaboration status" className="client-presence-panel w-full min-w-0 max-w-full rounded-2xl border border-[#EBE4D9] bg-[#FFFEFC] p-3 sm:p-4">
     <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
       <div className="flex min-w-0 items-start gap-2 rounded-xl border border-[#F0E9E0] bg-white px-2.5 py-2">
         <i className={`mt-1 h-2 w-2 shrink-0 rounded-full ${clientOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />

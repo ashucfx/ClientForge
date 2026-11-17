@@ -142,6 +142,31 @@ function isActive(href: string, pathname: string) {
   return pathname.startsWith(href);
 }
 
+function getAdminPageTitle(pathname: string) {
+  if (pathname === '/') return 'Workspace overview';
+  if (pathname === '/career' || pathname.startsWith('/career/')) {
+    if (pathname.startsWith('/career/kanban')) return 'Client workflow';
+    if (pathname.startsWith('/career/calendar')) return 'Holiday calendar';
+    if (pathname.startsWith('/career/email-logs')) return 'Email dispatch';
+    if (/^\/career\/[^/]+/.test(pathname)) return 'Client account';
+    return 'Client accounts';
+  }
+  if (pathname.startsWith('/invoices/new')) return 'Create invoice';
+  if (pathname.startsWith('/invoices')) return 'Invoices';
+  if (pathname.startsWith('/sales/inquiries')) return 'Sales inquiries';
+  if (pathname.startsWith('/sales/proposals')) return 'Proposals';
+  if (pathname.startsWith('/settings')) return 'Workspace settings';
+  if (pathname.startsWith('/analytics')) return 'Revenue analytics';
+  if (pathname.startsWith('/reconciliation')) return 'Reconciliation';
+  if (pathname.startsWith('/bank-transfers')) return 'Bank transfers';
+  if (pathname.startsWith('/notifications')) return 'Notifications';
+  if (pathname.startsWith('/team')) return 'Team and access';
+  if (pathname.startsWith('/reviews')) return 'Testimonials';
+  if (pathname.startsWith('/referrals')) return 'Client referrals';
+  if (pathname.startsWith('/bugs')) return 'Bug reports';
+  return pathname.split('/').filter(Boolean).pop()?.replace(/-/g, ' ') ?? 'Workspace';
+}
+
 // ── Unread polling ────────────────────────────────────────────────
 interface UnreadSummary { totalUnread: number }
 
@@ -284,7 +309,7 @@ function NavGroup({
 
   return (
     <div className="mb-4">
-      <div className="px-3 py-1.5 text-[10px] font-bold tracking-[1.2px] text-slate-400 uppercase select-none">
+      <div className="sidebar-section-label px-3 py-1.5 text-[10px] font-bold tracking-[1.2px] text-slate-400 uppercase select-none">
         {label}
       </div>
       <div className="space-y-0.5">
@@ -326,7 +351,7 @@ function SidebarContent({
               variant={collapsed ? 'icon' : 'horizontal'}
               size={collapsed ? 28 : 34}
               brandId="catalyst"
-              dark={false}
+              dark
             />
           </Link>
 
@@ -595,8 +620,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
-  const { hasCatalystAccess, isSuperAdmin } = useAdmin();
+  const { hasCatalystAccess, isSuperAdmin, role } = useAdmin();
   const { careerUnread } = useUnreadSummary();
+  const pageTitle = getAdminPageTitle(pathname);
 
   // Load collapsed state from localStorage
   useEffect(() => {
@@ -687,6 +713,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </button>
         <div className="topbar-logo">
           <Logo variant="icon" size={28} brandId="catalyst" dark={false} />
+          <span className="mobile-topbar-title">{pageTitle}</span>
         </div>
         <div style={{ width: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <NotificationBell />
@@ -695,6 +722,32 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main Content Area */}
       <div className={`page-wrapper ${collapsed ? 'page-wrapper-collapsed' : ''}`}>
+        <header className="admin-topbar">
+          <div className="admin-topbar-heading">
+            <span className="admin-topbar-eyebrow">CATALYST TPA · CLIENTFORGE</span>
+            <h1>{pageTitle}</h1>
+          </div>
+          <button
+            type="button"
+            className="admin-command-trigger"
+            onClick={() => window.dispatchEvent(new Event('clientforge:open-command-palette'))}
+            aria-label="Search the workspace"
+          >
+            <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none">
+              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
+              <path d="m16.5 16.5 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+            <span>Search clients, invoices, and more</span>
+            <kbd>Ctrl K</kbd>
+          </button>
+          <div className="admin-topbar-actions">
+            <NotificationBell />
+            <div className="admin-role-chip" title={role.replace(/_/g, ' ')}>
+              <span className="admin-role-mark">CF</span>
+              <span>{role.replace(/_/g, ' ')}</span>
+            </div>
+          </div>
+        </header>
         {children}
       </div>
     </div>
