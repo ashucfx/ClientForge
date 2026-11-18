@@ -604,8 +604,11 @@ export default function PortalDashboardPage() {
     ? formatClientActivityTime(me.teamLastActiveAt, me.teamTimezone)
     : null;
   const accountLastViewed = me?.lastViewedByAdminAt
-    ? formatClientActivityTime(me.lastViewedByAdminAt, me.timezone)
+    ? formatClientActivityTime(me.lastViewedByAdminAt, me.teamTimezone)
     : null;
+  const accountViewerName = me?.lastViewedByAdminName?.toLocaleLowerCase() === 'catalyst'
+    ? 'Catalyst admin'
+    : me?.lastViewedByAdminName || 'Catalyst admin';
 
   if (loading) return <DashboardSkeleton />;
   if (!me) return null;
@@ -1655,9 +1658,9 @@ export default function PortalDashboardPage() {
                   <small>{me.teamTimezone || 'Asia/Kolkata'}</small>
                 </div>
                 <div>
-                  <span>Account viewed</span>
+                  <span>Admin opened account</span>
                   <strong>{accountLastViewed ?? 'No account view recorded yet'}</strong>
-                  {accountLastViewed && <small>Opened by {me.lastViewedByAdminName || 'Catalyst team'}</small>}
+                  {accountLastViewed && <small>Opened by {accountViewerName} · Catalyst time ({me.teamTimezone || 'Asia/Kolkata'})</small>}
                 </div>
               </div>
               {me.presenceAvailable === false && <p className="portal-presence-note">Live availability is temporarily unavailable. Showing the latest recorded activity.</p>}

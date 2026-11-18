@@ -12,7 +12,7 @@ import { AdminSlaViewModal } from '@/components/AdminSlaViewModal';
 import { RevisionNoteViewer } from '@/components/career/RevisionNoteViewer';
 import type { RevisionWindowInfo } from '@/lib/career/revisionWindow';
 import { SUPPORTED_CURRENCIES } from '@/lib/currency';
-import { CountryTimeZoneSelect } from '@/components/CountryTimeZoneSelect';
+import { CountryTimeZoneSelect, getTimeZoneCountryName } from '@/components/CountryTimeZoneSelect';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -64,6 +64,9 @@ interface ClientDetail {
   packageType: CareerPackage | null; status: CareerStatus;
   lifecycleStatus: string;
   amountPaid: number; currency: string; notes: string | null;
+  paidTotals?: { currency: string; amount: number }[];
+  paidInvoiceCount?: number;
+  includesLegacyProfileTotal?: boolean;
   createdAt: string; lastLoginAt: string | null; invoiceId: string | null;
   country?: string | null; timezone?: string | null;
   slaDeadline: string | null; slaStatus: string | null; expectedDeliveryAt: string | null;
@@ -77,6 +80,12 @@ interface ClientDetail {
   invoice?: { id?: string; invoiceNumber: string; totalPayable: number; currency: string; status: string; paymentGateway?: string | null } | null;
   linkedInvoice?: { id?: string; invoiceNumber: string; totalPayable: number; currency: string; status: string; paymentGateway?: string | null } | null;
   revisionWindow?: RevisionWindowInfo;
+}
+
+function formatClientPaidTotal(client: Pick<ClientDetail, 'paidTotals' | 'currency'>): string {
+  return client.paidTotals?.length
+    ? client.paidTotals.map(total => `${total.currency} ${total.amount.toLocaleString(total.currency === 'INR' ? 'en-IN' : 'en-US', { maximumFractionDigits: 2 })}`).join(' · ')
+    : `${client.currency || 'INR'} 0`;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -532,6 +541,12 @@ export default function CareerClientDetailPage() {
   );
 
   const s = STATUS_STYLES[client.status];
+  const paidTotalsValue = formatClientPaidTotal(client);
+  const paidTotalsDetail = client.paidInvoiceCount
+    ? `${client.paidInvoiceCount} invoice${client.paidInvoiceCount === 1 ? '' : 's'} with payments${client.paidTotals && client.paidTotals.length > 1 ? ' · totals shown by currency' : ''}${client.includesLegacyProfileTotal ? ' · plus historical client total' : ''}`
+    : client.includesLegacyProfileTotal
+      ? 'Historical amount from the client record'
+      : 'No settled invoice payments recorded';
 
   return (
     <div className="admin-client-detail mx-auto max-w-7xl space-y-5 px-4 py-5 sm:px-6 sm:py-7 xl:px-8">
@@ -663,10 +678,9 @@ export default function CareerClientDetailPage() {
           </header>
           <div className="client-metric-grid">
             {[
-              { label: 'Amount paid', value: `${client.currency} ${client.amountPaid.toLocaleString()}`, detail: 'Payments received', icon: 'payment' },
+              { label: 'Total paid', value: paidTotalsValue, detail: paidTotalsDetail, icon: 'payment' },
               { label: 'Forms', value: `${client.forms.length} submitted`, detail: 'Client submissions', icon: 'forms' },
               { label: 'Files', value: `${client.deliverables.length} / 10 uploaded`, detail: 'Deliverables received', icon: 'files' },
-              { label: 'Last login', value: client.lastLoginAt ? fmt(client.lastLoginAt, true) : 'Never', detail: 'Most recent portal sign-in', icon: 'login' },
             ].map(({ label, value, detail, icon }) => (
               <div key={label} className="client-metric-card">
                 <div className="client-metric-topline">
@@ -1092,14 +1106,24 @@ function SlaDocumentIcon() {
   );
 }
 
+function displayAdminViewerName(name?: string | null) {
+  if (!name || ['catalyst', 'catalyst team'].includes(name.trim().toLocaleLowerCase())) return 'Catalyst admin';
+  return name;
+}
+
 function ClientPresenceCard({ clientId }: { clientId: string }) {
-  const [data, setData] = useState<{ clientLastActiveAt?: string | null; clientLastLoginAt?: string | null; lastViewedByAdminAt?: string | null; lastViewedByAdminName?: string | null; timezone?: string | null; country?: string | null; serverNow?: string; presenceAvailable?: boolean } | null>(null);
+  const [data, setData] = useState<{ clientLastActiveAt?: string | null; clientLastLoginAt?: string | null; lastViewedByAdminAt?: string | null; lastViewedByAdminName?: string | null; timezone?: string | null; country?: string | null; teamTimezone?: string | null; serverNow?: string; presenceAvailable?: boolean } | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const [timezoneSaving, setTimezoneSaving] = useState(false);
   const [timezoneSaveError, setTimezoneSaveError] = useState('');
   const [draftTimezone, setDraftTimezone] = useState('');
+  const [viewerTimezone, setViewerTimezone] = useState('');
   const [now, setNow] = useState(Date.now());
   const serverOffset = useRef(0);
+  useEffect(() => {
+    try { setViewerTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone); }
+    catch { setViewerTimezone(''); }
+  }, []);
   useEffect(() => {
     let alive = true;
     let accountViewRecorded = false;
@@ -1141,8 +1165,26 @@ function ClientPresenceCard({ clientId }: { clientId: string }) {
   const synchronizedNow = now + serverOffset.current;
   const clientActiveAge = data.clientLastActiveAt ? synchronizedNow - new Date(data.clientLastActiveAt).getTime() : Number.POSITIVE_INFINITY;
   const clientOnline = data.presenceAvailable !== false && clientActiveAge >= 0 && clientActiveAge < 90_000;
-  const clientLastSeenAt = data.clientLastActiveAt || data.clientLastLoginAt;
   const selectedTimezone = draftTimezone || data.timezone || '';
+  const teamTimezone = data.teamTimezone || 'Asia/Kolkata';
+  const accountViewTimezone = viewerTimezone || teamTimezone;
+  const rawCountry = data.country?.trim();
+  let countryLabel = rawCountry || getTimeZoneCountryName(selectedTimezone);
+  if (rawCountry && /^[A-Z]{2}$/.test(rawCountry)) {
+    try { countryLabel = new Intl.DisplayNames(['en'], { type: 'region' }).of(rawCountry) || rawCountry; }
+    catch { countryLabel = rawCountry; }
+  }
+  const clientLocation = [countryLabel, selectedTimezone].filter(Boolean).join(' · ') || 'Country and time zone not set';
+  const clientActivityLabel = clientOnline ? 'Active now'
+    : data.clientLastActiveAt ? 'Last active in portal'
+      : 'No recent portal activity';
+  const clientLastActiveLabel = data.clientLastActiveAt
+    ? `Last activity · ${formatPresenceTimestamp(data.clientLastActiveAt, selectedTimezone)} · ${selectedTimezone || 'UTC'}`
+    : 'No portal activity heartbeat recorded';
+  const clientLastLoginLabel = data.clientLastLoginAt
+    ? `Last portal sign-in · ${formatPresenceTimestamp(data.clientLastLoginAt, selectedTimezone)} · ${selectedTimezone || 'UTC'}`
+    : 'No portal sign-in recorded';
+  const accountViewerName = displayAdminViewerName(data.lastViewedByAdminName);
   const timezoneDirty = Boolean(draftTimezone && draftTimezone !== data.timezone);
   const saveTimezone = async () => {
     if (!timezoneDirty || !draftTimezone) return;
@@ -1169,22 +1211,23 @@ function ClientPresenceCard({ clientId }: { clientId: string }) {
     <header className="client-presence-heading">
       <div>
         <p className="client-presence-eyebrow">Collaboration</p>
-        <h2>Client status &amp; local time</h2>
+        <h2>Client activity &amp; time zones</h2>
       </div>
       <span className="client-presence-refresh"><i />Updates every 30 sec</span>
     </header>
 
     <div className="client-presence-status-grid">
       <article className="client-presence-status-card">
-        <div className="client-presence-status-title"><i className={clientOnline ? 'is-online' : ''} /><span>Client</span></div>
-        <p className={`client-presence-state${clientOnline ? ' is-online' : ''}`}>{clientOnline ? 'Active now' : data.clientLastActiveAt ? 'Last seen' : data.clientLastLoginAt ? 'Last login' : 'Not seen yet'}</p>
-        <p className="client-presence-time">{clientLastSeenAt ? formatPresenceTimestamp(clientLastSeenAt, selectedTimezone) : 'No activity recorded'}</p>
-        <p className="client-presence-country">{data.country || 'Country not recorded'}{selectedTimezone ? ` · ${selectedTimezone}` : ''}</p>
+        <div className="client-presence-status-title"><i className={clientOnline ? 'is-online' : ''} /><span>Client portal activity</span></div>
+        <p className={`client-presence-state${clientOnline ? ' is-online' : ''}`}>{clientActivityLabel}</p>
+        <p className="client-presence-time">{clientLastActiveLabel}</p>
+        <p className="client-presence-country">{clientLastLoginLabel}</p>
       </article>
       <article className="client-presence-status-card client-viewed-card">
-        <div className="client-presence-status-title"><i /><span>Account viewed</span></div>
-        <p className="client-presence-state">{data.lastViewedByAdminName ? `Opened by ${data.lastViewedByAdminName}` : 'Viewer not recorded'}</p>
-        <p className="client-presence-time">{data.lastViewedByAdminAt ? formatPresenceTimestamp(data.lastViewedByAdminAt, selectedTimezone) : 'No account view recorded yet'}</p>
+        <div className="client-presence-status-title"><i /><span>Admin account view</span></div>
+        <p className="client-presence-state">{data.lastViewedByAdminAt ? `Opened by ${accountViewerName}` : 'No account view recorded'}</p>
+        <p className="client-presence-time">{data.lastViewedByAdminAt ? formatPresenceTimestamp(data.lastViewedByAdminAt, accountViewTimezone) : 'This appears when an admin opens this account'}</p>
+        <p className="client-presence-country">Your local time · {accountViewTimezone}</p>
       </article>
     </div>
 
@@ -1192,9 +1235,9 @@ function ClientPresenceCard({ clientId }: { clientId: string }) {
 
     <div className="client-local-time-row">
       <div className="client-local-time">
-        <p>{data.country ? `${data.country} · client local time` : 'Client local time'}</p>
+        <p>Client local time now</p>
         <strong>{clientTime}</strong>
-        <span>{selectedTimezone || 'Choose a time zone to show client local time'}</span>
+        <span>{clientLocation}</span>
         {timezoneDirty && <em>Unsaved change</em>}
       </div>
       <div className="client-timezone-control">
@@ -1220,6 +1263,7 @@ function OverviewTab({ client, onUpdated, welcomeSignal, welcomeTrigger }: {
   const [emailSending,    setEmailSending]    = useState(false);
   const [toast,           setToast]           = useState('');
   const emailPanelRef = useRef<HTMLDivElement>(null);
+  const paidTotalsValue = formatClientPaidTotal(client);
 
   // ── Derive client capabilities ──────────────────────────────────────────────
   const slugs = client.services?.map(s => s.slug) ?? [];
@@ -2131,9 +2175,8 @@ function OverviewTab({ client, onUpdated, welcomeSignal, welcomeTrigger }: {
               client.services?.length > 0
                 ? client.services.map(s => SERVICE_LABELS[s.slug as CareerServiceSlug] ?? s.name).join(', ')
                 : client.packageType ? PACKAGE_LABELS[client.packageType] : 'Career Services'],
-            ['Amount Paid', `${client.currency} ${client.amountPaid.toLocaleString()}`],
+            ['Total Paid', paidTotalsValue],
             ['Joined',      fmt(client.createdAt)],
-            ['Last Login',  client.lastLoginAt ? fmt(client.lastLoginAt) : 'Never'],
             ...(client.invoiceId ? [['Invoice ID', client.invoiceId]] : []),
           ].map(([label, value]) => (
             <div key={label} className="flex items-center justify-between text-sm">

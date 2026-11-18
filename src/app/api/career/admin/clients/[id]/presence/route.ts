@@ -3,7 +3,7 @@ export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
-import { getAdminDisplayName } from '@/lib/career/presence';
+import { getAdminDisplayName, getCatalystTeamTimeZone } from '@/lib/career/presence';
 
 async function recordAccountView(clientId: string, adminId: string) {
   const admin = await db.adminUser.findUnique({ where: { id: adminId }, select: { email: true } });
@@ -77,6 +77,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       lastViewedByAdminName: lastAccountView?.performedBy ?? null,
       timezone: client.timezone || client.contact?.timezone || null,
       country: client.contact?.country || null,
+      teamTimezone: getCatalystTeamTimeZone(),
       serverNow: new Date().toISOString(),
       presenceAvailable: true,
     });
@@ -97,6 +98,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         lastViewedByAdminName: null,
         timezone: client.contact?.timezone || null,
         country: client.contact?.country || null,
+        teamTimezone: getCatalystTeamTimeZone(),
         serverNow: new Date().toISOString(),
         presenceAvailable: false,
       });

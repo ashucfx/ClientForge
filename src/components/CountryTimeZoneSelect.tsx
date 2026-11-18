@@ -5,6 +5,12 @@ import { getTimeZones } from '@vvo/tzdb';
 
 const TIME_ZONES = getTimeZones({ includeUtc: true, locale: 'en' });
 
+export function getTimeZoneCountryName(value?: string | null) {
+  if (!value) return null;
+  const zone = TIME_ZONES.find(item => item.name === value || item.group.includes(value));
+  return zone?.countryName ?? null;
+}
+
 function normalizeCountryName(country?: string | null) {
   const value = country?.trim();
   if (!value) return '';
