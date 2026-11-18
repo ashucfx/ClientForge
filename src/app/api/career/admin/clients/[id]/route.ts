@@ -7,6 +7,7 @@ import { isAdminRequest } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 import { expandClientServices, migrateClientToComponentServices } from '@/lib/career/services';
 import { calculateRevisionWindow } from '@/lib/career/revisionWindow';
+import { summarizePaidInvoices } from '@/lib/career/paidTotals';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   if (!await isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -146,6 +147,37 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     deliverableCreatedAt: (draftFiles[0] || finalFiles[0])?.createdAt ?? null,
   });
 
+  const [invoiceLinks, revisionInvoices] = await Promise.all([
+    db.invoiceClientLink.findMany({ where: { clientId: client.id }, select: { invoiceId: true } }),
+    db.careerRevision.findMany({ where: { clientId: client.id, invoiceId: { not: null } }, select: { invoiceId: true } }),
+  ]);
+  const paidInvoiceIds = new Set<string>([
+    ...(client.invoiceId ? [client.invoiceId] : []),
+    ...invoiceLinks.map(link => link.invoiceId),
+    ...revisionInvoices.flatMap(revision => revision.invoiceId ? [revision.invoiceId] : []),
+  ]);
+  const paymentInvoices = await db.invoice.findMany({
+    where: {
+      OR: [
+        { id: { in: [...paidInvoiceIds] } },
+        { clientEmail: { equals: client.email, mode: 'insensitive' }, brandId: 'catalyst' },
+      ],
+    },
+    select: {
+      id: true,
+      status: true,
+      totalPayable: true,
+      currency: true,
+      installments: true,
+      invoiceInstallments: { select: { amount: true, status: true } },
+    },
+  });
+  const { paidTotals, paidInvoiceCount, includesLegacyProfileTotal } = summarizePaidInvoices(
+    paymentInvoices,
+    client.amountPaid,
+    client.currency,
+  );
+
   return NextResponse.json({
     client: {
       ...rest,
@@ -156,6 +188,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       services: expandedServices,
       invoice: linkedInvoice,
       revisionWindow,
+      paidTotals,
+      paidInvoiceCount,
+      includesLegacyProfileTotal,
     },
   });
 }
