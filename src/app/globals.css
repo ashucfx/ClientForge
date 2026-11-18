@@ -2179,3 +2179,143 @@ body,
   .client-account-metrics .client-metric-card > .client-metric-value { font-size: 13px; }
 }
 
+/* Compact client collaboration and billing summary */
+.client-presence-panel { padding: 14px; border-radius: 17px; }
+.client-presence-heading { align-items: center; margin-bottom: 10px; }
+.client-presence-heading h2 { font-size: 14px; }
+.client-presence-status-grid { gap: 8px; }
+.client-presence-status-card { padding: 10px 11px; }
+.client-presence-state { margin-top: 5px; font-size: 13px; }
+.client-presence-time { margin-top: 3px; }
+.client-presence-country { margin-top: 4px; color: #8a9198; font-size: 9px; line-height: 1.4; overflow-wrap: anywhere; }
+.client-viewed-card .client-presence-state { font-size: 12px; }
+.client-local-time-row { margin-top: 10px; padding-top: 11px; }
+.client-local-time strong { font-size: 20px; }
+.client-timezone-control { gap: 6px; }
+.client-timezone-control > div > button { min-height: 40px; }
+.client-timezone-save { min-height: 38px; }
+
+.client-message-presence,
+.portal-message-presence {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  margin-top: 5px;
+  color: #748078;
+  font-size: 10px;
+  font-weight: 550;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.client-message-presence i,
+.portal-message-presence i {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #aab2b8;
+}
+.client-message-presence.is-online,
+.portal-message-presence.is-online { color: #377b61; }
+.client-message-presence.is-online i,
+.portal-message-presence.is-online i { background: #1aa477; box-shadow: 0 0 0 3px rgba(26, 164, 119, .11); }
+
+.portal-collaboration-summary {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(165px, 205px);
+  gap: 11px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid #e8dfd1;
+  border-radius: 17px;
+  background: linear-gradient(135deg, #fffefa, #f8f4ec);
+  box-shadow: 0 4px 14px rgba(31, 33, 35, .035);
+}
+.portal-collaboration-main,
+.portal-team-clock { min-width: 0; }
+.portal-collaboration-heading { display: flex; min-width: 0; align-items: center; gap: 9px; }
+.portal-collaboration-icon,
+.portal-team-clock-icon { display: grid; width: 32px; height: 32px; flex: 0 0 auto; place-items: center; border: 1px solid #e5d6bd; border-radius: 10px; background: white; color: #947243; }
+.portal-collaboration-icon svg,
+.portal-team-clock-icon svg { width: 17px; height: 17px; }
+.portal-collaboration-heading p,
+.portal-team-clock p { color: #947243; font-size: 8px; font-weight: 800; letter-spacing: .15em; line-height: 1.4; text-transform: uppercase; }
+.portal-collaboration-heading h3 { margin-top: 1px; color: #242321; font-size: 13px; font-weight: 750; line-height: 1.25; }
+.portal-team-status { display: inline-flex; min-height: 25px; flex: 0 0 auto; align-items: center; gap: 6px; margin-left: auto; padding: 0 8px; border: 1px solid #e6e7e8; border-radius: 999px; background: #fff; color: #6b747d; font-size: 9px; font-weight: 700; }
+.portal-team-status i { width: 6px; height: 6px; border-radius: 50%; background: #aab2b8; }
+.portal-team-status.is-online { border-color: #cbe8da; background: #f2fbf6; color: #287455; }
+.portal-team-status.is-online i { background: #1aa477; }
+.portal-collaboration-details { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.portal-collaboration-details > div { min-width: 0; padding: 8px 9px; border: 1px solid #eee7db; border-radius: 11px; background: rgba(255,255,255,.82); }
+.portal-collaboration-details span { display: block; color: #828991; font-size: 8px; font-weight: 750; letter-spacing: .08em; line-height: 1.35; text-transform: uppercase; }
+.portal-collaboration-details strong { display: block; margin-top: 3px; color: #26282a; font-size: 10px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.portal-collaboration-details small { display: block; margin-top: 2px; color: #8a9198; font-size: 8px; line-height: 1.4; overflow-wrap: anywhere; }
+.portal-presence-note { margin-top: 7px; color: #8b692f; font-size: 9px; line-height: 1.4; }
+.portal-team-clock { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 10px 12px; border: 1px solid #302a1f; border-radius: 13px; background: #151613; color: #fff; }
+.portal-team-clock-icon { width: 27px; height: 27px; margin-bottom: 7px; border-color: rgba(212,175,122,.2); background: rgba(212,175,122,.1); color: #dcc18e; }
+.portal-team-clock-icon svg { width: 15px; height: 15px; }
+.portal-team-clock p { color: rgba(255,255,255,.56); font-size: 7px; }
+.portal-team-clock strong { margin-top: 3px; color: #f3e5c6; font-size: 20px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.portal-team-clock > span { margin-top: 3px; color: rgba(255,255,255,.63); font-size: 8px; line-height: 1.4; overflow-wrap: anywhere; }
+
+.client-sla-banner {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 8px;
+  padding: 9px 12px;
+  border-radius: 13px;
+  font-size: 11px;
+}
+.client-sla-accepted { border: 1px solid #b7e8d4; background: #f0fbf6; }
+.client-sla-historical { border: 1px solid #e0e4e8; background: #f7f8f9; }
+.client-sla-pending { border: 1px solid #f1dba8; background: #fff9eb; }
+.client-sla-banner > div { min-width: 0; }
+.client-sla-banner button { min-height: 32px; padding-inline: 10px; border-radius: 9px; }
+.client-sla-banner button svg { flex: 0 0 auto; }
+.client-invoice-summary { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 9px 12px; margin-top: 8px; padding: 9px 12px; border: 1px solid #e4e7eb; border-radius: 13px; background: white; }
+.client-invoice-summary > div { min-width: 0; }
+.client-invoice-summary > div:first-child > div:first-child { flex-wrap: wrap; }
+.client-invoice-summary > div:last-child { display: flex; flex-wrap: wrap; gap: 6px; }
+.client-invoice-summary a { min-height: 32px; padding-inline: 9px; font-size: 10px; }
+.client-reengagement-panel { margin-top: 10px !important; padding: 12px !important; border-radius: 15px !important; }
+.client-reengagement-panel > div:first-child { align-items: center; gap: 9px; }
+.client-reengagement-panel > div:first-child p:first-child { font-size: 12px; }
+.client-reengagement-panel > div:first-child p:nth-child(2) { margin-top: 2px; font-size: 10px; line-height: 1.4; }
+.client-reengagement-panel > div:first-child button { min-height: 34px; padding: 0 10px; white-space: nowrap; }
+.client-reengagement-panel > div.mt-4 { margin-top: 9px !important; }
+.client-reengagement-panel .mt-4.space-y-2 { margin-top: 9px !important; }
+.client-reengagement-panel .mt-4.space-y-2 > div { padding: 9px 10px; }
+.admin-status-card { padding: 14px !important; }
+.admin-status-card > h3 { margin-bottom: 10px !important; font-size: 12px !important; }
+.admin-status-card .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: 8px; }
+.admin-status-card .mt-3 { margin-top: 8px; }
+
+@container client-presence (min-width: 440px) {
+  .client-presence-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .portal-collaboration-summary { grid-template-columns: minmax(0, 1fr); }
+  .portal-team-clock { display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: 9px; align-items: center; }
+  .portal-team-clock-icon { grid-row: 1 / span 3; margin: 0; }
+  .portal-team-clock p, .portal-team-clock strong, .portal-team-clock > span { grid-column: 2; }
+  .portal-team-clock strong { font-size: 19px; }
+}
+@media (max-width: 420px) {
+  .portal-collaboration-summary { padding: 10px; gap: 8px; }
+  .portal-collaboration-heading { flex-wrap: wrap; }
+  .portal-team-status { margin-left: 0; }
+  .portal-collaboration-details { grid-template-columns: minmax(0, 1fr); }
+  .client-presence-panel { padding: 12px; }
+  .client-presence-refresh { min-height: 24px; padding-inline: 7px; font-size: 8px; }
+  .client-sla-banner { align-items: flex-start; padding: 9px; }
+  .client-sla-banner > div:last-child { width: 100%; }
+  .client-invoice-summary > div:last-child { width: 100%; }
+  .client-invoice-summary > div:last-child a { flex: 1 1 auto; justify-content: center; }
+}
+

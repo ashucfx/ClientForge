@@ -126,6 +126,34 @@ export function ClientPortalShell({
   }, [pathname]);
 
   useEffect(() => {
+    let active = true;
+    let inFlight = false;
+    const ping = async () => {
+      if (!active || inFlight || document.visibilityState !== 'visible' || !document.hasFocus()) return;
+      inFlight = true;
+      try {
+        const response = await fetch('/api/career/portal/presence', { method: 'POST' });
+        if (response.ok && active) {
+          const presence = await response.json();
+          window.dispatchEvent(new CustomEvent('client-portal:presence', { detail: presence }));
+        }
+      } catch { /* Presence is best-effort; portal content remains available. */ }
+      finally { inFlight = false; }
+    };
+    const refreshOnReturn = () => { if (document.visibilityState === 'visible') void ping(); };
+    void ping();
+    const heartbeat = window.setInterval(() => { void ping(); }, 30_000);
+    document.addEventListener('visibilitychange', refreshOnReturn);
+    window.addEventListener('focus', refreshOnReturn);
+    return () => {
+      active = false;
+      window.clearInterval(heartbeat);
+      document.removeEventListener('visibilitychange', refreshOnReturn);
+      window.removeEventListener('focus', refreshOnReturn);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!mobileOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';

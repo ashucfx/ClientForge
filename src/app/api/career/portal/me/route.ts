@@ -17,6 +17,7 @@ import { waitUntil } from '@vercel/functions';
 import { sendCareerEmail } from '@/lib/career/email';
 import { expandClientServices, migrateClientToComponentServices } from '@/lib/career/services';
 import { calculateRevisionWindow, calculateComponentRevisionWindow } from '@/lib/career/revisionWindow';
+import { getCatalystTeamTimeZone } from '@/lib/career/presence';
 
 export async function GET(req: NextRequest) {
   void req;
@@ -62,10 +63,17 @@ export async function GET(req: NextRequest) {
 
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const activeTeamMember = await db.adminUser.findFirst({
-    where: { isActive: true, brandAccess: { has: 'catalyst' }, lastActiveAt: { not: null } },
-    orderBy: { lastActiveAt: 'desc' }, select: { lastActiveAt: true },
-  });
+  const [activeTeamMember, lastAccountView] = await Promise.all([
+    db.adminUser.findFirst({
+      where: { isActive: true, brandAccess: { has: 'catalyst' }, lastActiveAt: { not: null } },
+      orderBy: { lastActiveAt: 'desc' }, select: { lastActiveAt: true },
+    }),
+    db.careerActivityLog.findFirst({
+      where: { clientId: client.id, action: 'client_account_viewed' },
+      orderBy: { createdAt: 'desc' },
+      select: { performedBy: true, createdAt: true },
+    }),
+  ]);
 
   // Robustly synchronize lastLoginAt (throttle updates to every 15 minutes)
   const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
@@ -304,6 +312,9 @@ export async function GET(req: NextRequest) {
     timezone: client.timezone || client.contact?.timezone || null,
     clientLastActiveAt: client.lastActiveAt ?? client.lastLoginAt,
     teamLastActiveAt: activeTeamMember?.lastActiveAt ?? null,
-    lastViewedByAdminAt: client.lastViewedByAdminAt,
+    teamTimezone: getCatalystTeamTimeZone(),
+    lastViewedByAdminAt: lastAccountView?.createdAt ?? client.lastViewedByAdminAt,
+    lastViewedByAdminName: lastAccountView?.performedBy ?? null,
+    serverNow: new Date().toISOString(),
   });
 }
