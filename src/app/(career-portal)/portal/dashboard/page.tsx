@@ -59,8 +59,11 @@ interface Me {
   country?: string | null;
   clientLastActiveAt?: string | null;
   teamLastActiveAt?: string | null;
+  teamTimezone?: string | null;
   lastViewedByAdminAt?: string | null;
+  lastViewedByAdminName?: string | null;
   presenceAvailable?: boolean;
+  serverNow?: string;
 }
 interface ReferralStats {
   referralCode: string | null;
@@ -282,6 +285,7 @@ export default function PortalDashboardPage() {
   const [files, setFiles] = useState<DeliverableItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [presenceNow, setPresenceNow] = useState(Date.now());
+  const presenceServerOffset = useRef(0);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [newComment, setNewComment] = useState('');
   const [postingComment, setPostingComment] = useState(false);
@@ -467,6 +471,7 @@ export default function PortalDashboardPage() {
         : Promise.resolve(null),
     ]);
     if (!meData.hasPinSet) { router.replace('/portal/setup-pin'); return; }
+    if (meData.serverNow) presenceServerOffset.current = new Date(meData.serverNow).getTime() - Date.now();
     setMe(meData);
     // Enforce SLA agreement for active/ongoing clients.
     // Completed clients are not interrupted from viewing historical deliverables.
@@ -547,19 +552,26 @@ export default function PortalDashboardPage() {
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
-    let alive = true;
-    const ping = async () => {
-      try {
-        const res = await fetch('/api/career/portal/presence', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
-        if (res.ok && alive) {
-          const data = await res.json();
-          setMe(prev => prev ? { ...prev, teamLastActiveAt: data.teamLastActiveAt, lastViewedByAdminAt: data.lastViewedByAdminAt, clientLastActiveAt: new Date().toISOString(), presenceAvailable: data.presenceAvailable ?? prev.presenceAvailable } : prev);
-        }
-      } catch { /* Presence is best-effort; portal content remains available. */ }
+    const applyPresence = (event: Event) => {
+      const data = (event as CustomEvent<Partial<Me>>).detail;
+      if (!data) return;
+      if (data.serverNow) presenceServerOffset.current = new Date(data.serverNow).getTime() - Date.now();
+      setMe(prev => prev ? {
+        ...prev,
+        teamLastActiveAt: data.teamLastActiveAt ?? prev.teamLastActiveAt,
+        teamTimezone: data.teamTimezone ?? prev.teamTimezone,
+        lastViewedByAdminAt: data.lastViewedByAdminAt ?? prev.lastViewedByAdminAt,
+        lastViewedByAdminName: data.lastViewedByAdminName ?? prev.lastViewedByAdminName,
+        clientLastActiveAt: data.clientLastActiveAt ?? prev.clientLastActiveAt,
+        presenceAvailable: data.presenceAvailable ?? prev.presenceAvailable,
+      } : prev);
     };
-    void ping();
-    const heartbeat = window.setInterval(() => { void ping(); setPresenceNow(Date.now()); }, 60_000);
-    return () => { alive = false; window.clearInterval(heartbeat); };
+    const clock = window.setInterval(() => setPresenceNow(Date.now()), 15_000);
+    window.addEventListener('client-portal:presence', applyPresence);
+    return () => {
+      window.clearInterval(clock);
+      window.removeEventListener('client-portal:presence', applyPresence);
+    };
   }, []);
 
   const currentKey = useMemo(() => {
@@ -582,14 +594,14 @@ export default function PortalDashboardPage() {
   }, []);
 
   const greeting = useMemo(
-    () => getClientGreeting(me?.timezone, presenceNow),
+    () => getClientGreeting(me?.timezone, presenceNow + presenceServerOffset.current),
     [me?.timezone, presenceNow],
   );
   const catalystTeamIsActive = Boolean(
-    me?.teamLastActiveAt && presenceNow - new Date(me.teamLastActiveAt).getTime() < 120_000,
+    me?.teamLastActiveAt && presenceNow + presenceServerOffset.current >= new Date(me.teamLastActiveAt).getTime() && presenceNow + presenceServerOffset.current - new Date(me.teamLastActiveAt).getTime() < 90_000,
   );
   const catalystTeamLastSeen = me?.teamLastActiveAt
-    ? formatClientActivityTime(me.teamLastActiveAt, me.timezone)
+    ? formatClientActivityTime(me.teamLastActiveAt, me.teamTimezone)
     : null;
   const accountLastViewed = me?.lastViewedByAdminAt
     ? formatClientActivityTime(me.lastViewedByAdminAt, me.timezone)
@@ -1622,83 +1634,42 @@ export default function PortalDashboardPage() {
 
         {/* ── Messages ── */}
         <div id="messages" className="scroll-mt-20 bg-white border border-[#EBE4D9] rounded-2xl shadow-[0_1px_4px_rgba(10,11,13,0.05)] p-4 sm:p-6">
-          <section aria-label="Team availability and your local time" className="relative isolate mb-6 overflow-hidden rounded-[22px] border border-[#E4D6BD] bg-[#F7F3EA] shadow-[0_10px_28px_rgba(67,50,25,.06)]">
-            <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-[#D4AF7A]/20 blur-3xl" />
-            <div className="relative grid min-w-0 gap-3 p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-              <div className="min-w-0 p-1 sm:p-2">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#D9C7A8] bg-white text-[#96713B] shadow-sm">
-                    <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.8M17 14a5 5 0 0 1 3.5 4.8"/></svg>
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[9px] font-bold uppercase tracking-[.2em] text-[#947243]">Collaboration</p>
-                    <h3 className="truncate text-sm font-bold tracking-tight text-[#171613] sm:text-base">Your team, in sync</h3>
-                  </div>
-                  <span className="ml-auto hidden shrink-0 items-center gap-1.5 rounded-full border border-[#D9C7A8] bg-white/80 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[.1em] text-[#80643A] sm:inline-flex">
-                    <svg aria-hidden="true" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                    {me.presenceAvailable === false ? 'Status unavailable' : 'Live updates'}
-                  </span>
+          <section aria-label="Catalyst team activity and local time" className="portal-collaboration-summary">
+            <div className="portal-collaboration-main">
+              <div className="portal-collaboration-heading">
+                <span className="portal-collaboration-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM16 11a4 4 0 0 0 0-8M20 21v-2a4 4 0 0 0-3-3.87" /></svg>
+                </span>
+                <div className="min-w-0">
+                  <p>Collaboration</p>
+                  <h3>Catalyst team</h3>
                 </div>
-
-                <div className="mt-4 grid min-w-0 gap-2.5 sm:grid-cols-2">
-                  <div className="min-w-0 rounded-2xl border border-[#EAE1D3] bg-white/90 p-3.5 shadow-[0_2px_8px_rgba(25,22,17,.025)]">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F3EBDD] text-[#876639]">
-                        <svg aria-hidden="true" className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM16 11a4 4 0 0 0 0-8M20 21v-2a4 4 0 0 0-3-3.87"/></svg>
-                        <span className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white ${catalystTeamIsActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex min-w-0 flex-wrap items-center justify-between gap-1.5">
-                          <p className="text-[9px] font-bold uppercase tracking-[.16em] text-slate-400">Catalyst team</p>
-                          <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold ${catalystTeamIsActive ? 'bg-emerald-50 text-emerald-700' : 'bg-[#F4F1EB] text-slate-500'}`}>
-                            <span className={`h-1.5 w-1.5 rounded-full ${catalystTeamIsActive ? 'bg-emerald-500 motion-pulse-slow' : 'bg-slate-400'}`} />
-                            {catalystTeamIsActive ? 'Active now' : catalystTeamLastSeen ? 'Away' : me.presenceAvailable === false ? 'Unavailable' : 'Not recorded'}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-[10px] font-medium text-slate-400">{catalystTeamIsActive ? 'Here with you now' : catalystTeamLastSeen ? 'Last seen' : 'No recent activity'}</p>
-                        {catalystTeamLastSeen && !catalystTeamIsActive && <time dateTime={me.teamLastActiveAt ?? undefined} className="mt-0.5 block break-words text-xs font-semibold leading-relaxed text-slate-800">{catalystTeamLastSeen}</time>}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="min-w-0 rounded-2xl border border-[#EAE1D3] bg-white/90 p-3.5 shadow-[0_2px_8px_rgba(25,22,17,.025)]">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F3EBDD] text-[#876639]">
-                        <svg aria-hidden="true" className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[9px] font-bold uppercase tracking-[.16em] text-slate-400">Account viewed</p>
-                        {accountLastViewed ? (
-                          <>
-                            <time dateTime={me.lastViewedByAdminAt ?? undefined} className="mt-2 block break-words text-xs font-semibold leading-relaxed text-slate-800">{accountLastViewed}</time>
-                            <p className="mt-0.5 text-[10px] text-slate-400">Opened by the Catalyst team</p>
-                          </>
-                        ) : (
-                          <p className="mt-2 text-xs font-semibold text-slate-700">No account view recorded yet</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {me.presenceAvailable === false && <p className="mt-3 px-1 text-[10px] leading-relaxed text-[#8A6B3D]">Live availability is temporarily unavailable. The last recorded activity is still shown above.</p>}
+                <span className={`portal-team-status${catalystTeamIsActive ? ' is-online' : ''}`}>
+                  <i />{catalystTeamIsActive ? 'Active now' : catalystTeamLastSeen ? 'Away' : me.presenceAvailable === false ? 'Unavailable' : 'Status not recorded'}
+                </span>
               </div>
-
-              <aside className="flex min-w-0 flex-col justify-between rounded-2xl border border-[#302A1F] bg-[#111210] p-4 text-white shadow-[0_8px_20px_rgba(10,11,13,.12)] sm:flex-row sm:items-center sm:gap-4 lg:flex-col lg:items-stretch lg:gap-0">
-                <div className="flex min-w-0 items-center gap-3 lg:items-start">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#D4AF7A]/25 bg-[#D4AF7A]/10 text-[#DCC18E]">
-                    <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[9px] font-bold uppercase tracking-[.18em] text-white/45">Your local time</p>
-                    <p className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums text-[#F3E5C6]">{formatClientLocalTime(me.timezone, presenceNow)}</p>
-                  </div>
+              <div className="portal-collaboration-details">
+                <div>
+                  <span>{catalystTeamIsActive ? 'Online now' : 'Last seen'}</span>
+                  <strong>{catalystTeamLastSeen ?? 'Team activity will appear after a member opens the portal.'}</strong>
+                  <small>{me.teamTimezone || 'Asia/Kolkata'}</small>
                 </div>
-                <div className="ml-[52px] min-w-0 sm:ml-0 sm:text-right lg:ml-0 lg:mt-5 lg:text-left">
-                  <p className="break-all text-[10px] font-medium text-white/75">{me.timezone || 'Using device time'}</p>
-                  <p className="mt-0.5 text-[9px] text-white/40">{me.country ? `${me.country} · ` : ''}Updates every minute</p>
+                <div>
+                  <span>Account viewed</span>
+                  <strong>{accountLastViewed ?? 'No account view recorded yet'}</strong>
+                  {accountLastViewed && <small>Opened by {me.lastViewedByAdminName || 'Catalyst team'}</small>}
                 </div>
-              </aside>
+              </div>
+              {me.presenceAvailable === false && <p className="portal-presence-note">Live availability is temporarily unavailable. Showing the latest recorded activity.</p>}
             </div>
+            <aside className="portal-team-clock">
+              <div className="portal-team-clock-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+              </div>
+              <p>Catalyst team local time</p>
+              <strong>{formatClientLocalTime(me.teamTimezone || 'Asia/Kolkata', presenceNow + presenceServerOffset.current)}</strong>
+              <span>{me.teamTimezone || 'Asia/Kolkata'} · refreshed every 15 seconds</span>
+            </aside>
           </section>
           <div className="flex items-center gap-2 mb-5">
             <div>
@@ -1710,6 +1681,14 @@ export default function PortalDashboardPage() {
                 {me.unreadMessages} new
               </span>
             ) : null}
+          </div>
+          <div className={`portal-message-presence${catalystTeamIsActive ? ' is-online' : ''}`} aria-live="polite">
+            <i />
+            {catalystTeamIsActive
+              ? `Catalyst team is active now · ${me.teamTimezone || 'Asia/Kolkata'}`
+              : catalystTeamLastSeen
+                ? `Catalyst team last seen ${catalystTeamLastSeen} · ${me.teamTimezone || 'Asia/Kolkata'}`
+                : 'Catalyst team activity is not recorded yet'}
           </div>
 
           {/* Thread */}

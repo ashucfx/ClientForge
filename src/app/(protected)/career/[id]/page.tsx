@@ -371,7 +371,7 @@ function ReOnboardingPanel({ client, onCreated }: {
   };
 
   return (
-    <section className="mt-4 rounded-xl border border-[#E8DDD0] bg-[#FBF8F3] p-4">
+    <section className="client-reengagement-panel mt-4 rounded-xl border border-[#E8DDD0] bg-[#FBF8F3] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-bold text-slate-900">Client engagement history</p>
@@ -688,7 +688,7 @@ export default function CareerClientDetailPage() {
             const slaLog = client.activityLogs?.find(l => l.action === 'sla_agreement_accepted');
             if (slaLog) {
               return (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs shadow-2xs">
+                <div className="client-sla-banner client-sla-accepted">
                   <div className="flex items-center gap-2.5 text-emerald-900 font-semibold">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-xs" />
                     <span>Master Services Agreement &amp; Turnaround SLA Bound ({String(slaLog.metadata?.version || 'v2026.1')})</span>
@@ -705,7 +705,7 @@ export default function CareerClientDetailPage() {
                       onClick={() => setShowSlaModal(true)}
                       className="px-3 py-1.5 bg-white border border-emerald-300 hover:border-emerald-400 text-emerald-800 hover:text-emerald-900 text-xs font-bold rounded-lg shadow-2xs hover:shadow-xs transition-all flex items-center gap-1.5"
                     >
-                      <span>📄</span>
+                      <SlaDocumentIcon />
                       <span>View Signed SLA</span>
                     </button>
                   </div>
@@ -714,7 +714,7 @@ export default function CareerClientDetailPage() {
             }
             if (client.status === 'COMPLETED') {
               return (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                <div className="client-sla-banner client-sla-historical">
                   <div className="flex items-center gap-2 text-slate-700 font-medium">
                     <span className="w-2 h-2 rounded-full bg-slate-400" />
                     <span>Historical Client · Fulfilled under Baseline Service Terms</span>
@@ -724,14 +724,14 @@ export default function CareerClientDetailPage() {
                     onClick={() => setShowSlaModal(true)}
                     className="px-3 py-1 text-xs text-slate-600 border border-slate-200 hover:bg-white rounded-lg transition-colors font-medium flex items-center gap-1"
                   >
-                    <span>📄</span>
+                    <SlaDocumentIcon />
                     <span>View Standard Agreement</span>
                   </button>
                 </div>
               );
             }
             return (
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs">
+              <div className="client-sla-banner client-sla-pending">
                 <div className="flex items-center gap-2 text-amber-800 font-semibold">
                   <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                   <span>SLA Agreement: Pending Client Intake Acceptance</span>
@@ -743,7 +743,7 @@ export default function CareerClientDetailPage() {
                     onClick={() => setShowSlaModal(true)}
                     className="px-3 py-1 text-xs text-amber-800 border border-amber-300 hover:bg-white rounded-lg transition-colors font-semibold flex items-center gap-1"
                   >
-                    <span>📄</span>
+                    <SlaDocumentIcon />
                     <span>Preview SLA Terms</span>
                   </button>
                 </div>
@@ -756,7 +756,7 @@ export default function CareerClientDetailPage() {
             const invoiceId = client.invoice.id || client.invoiceId || `client-${client.id}`;
             const isSynthetic = invoiceId.startsWith('client-');
             return (
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white border border-slate-200 rounded-xl shadow-xs">
+              <div className="client-invoice-summary">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-[#FAF9F6] border border-[#EAE2D5] flex items-center justify-center text-[#9A7540] font-bold">
                     <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -1075,32 +1075,73 @@ function formatPresenceTimestamp(value: string | null | undefined, timezone: str
   }
 }
 
+function formatPresenceClock(value: number, timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat(undefined, { timeZone: timezone || 'UTC', hour: 'numeric', minute: '2-digit' }).format(value);
+  } catch {
+    return new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(value);
+  }
+}
+
+function SlaDocumentIcon() {
+  return (
+    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6M8 13h8M8 17h8" />
+    </svg>
+  );
+}
+
 function ClientPresenceCard({ clientId }: { clientId: string }) {
-  const [data, setData] = useState<{ clientLastActiveAt?: string | null; teamLastActiveAt?: string | null; lastViewedByAdminAt?: string | null; timezone?: string | null; country?: string | null; presenceAvailable?: boolean } | null>(null);
+  const [data, setData] = useState<{ clientLastActiveAt?: string | null; clientLastLoginAt?: string | null; lastViewedByAdminAt?: string | null; lastViewedByAdminName?: string | null; timezone?: string | null; country?: string | null; serverNow?: string; presenceAvailable?: boolean } | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const [timezoneSaving, setTimezoneSaving] = useState(false);
   const [timezoneSaveError, setTimezoneSaveError] = useState('');
   const [draftTimezone, setDraftTimezone] = useState('');
   const [now, setNow] = useState(Date.now());
+  const serverOffset = useRef(0);
   useEffect(() => {
     let alive = true;
     let accountViewRecorded = false;
+    let inFlight = false;
     const refresh = async () => {
+      if (inFlight || document.visibilityState !== 'visible' || !document.hasFocus()) return;
+      inFlight = true;
       try {
         const viewQuery = accountViewRecorded ? '' : '?view=1';
-        const res = await fetch(`/api/career/admin/clients/${clientId}/presence${viewQuery}`);
+        const res = await fetch(`/api/career/admin/clients/${clientId}/presence${viewQuery}`, { cache: 'no-store' });
         if (!res.ok) throw new Error('Presence request failed');
-        const result = await res.json();
-        if (alive) { setData(result); setUnavailable(false); accountViewRecorded = true; }
+        const result = await res.json() as NonNullable<typeof data>;
+        if (alive) {
+          setData(result);
+          setUnavailable(false);
+          accountViewRecorded = true;
+          if (result.serverNow) serverOffset.current = new Date(result.serverNow).getTime() - Date.now();
+        }
       } catch { if (alive) setUnavailable(true); }
+      finally { inFlight = false; }
+    };
+    const refreshOnReturn = () => {
+      if (document.visibilityState === 'visible' && document.hasFocus()) void refresh();
     };
     void refresh();
-    const timer = window.setInterval(() => { setNow(Date.now()); void refresh(); }, 60_000);
-    return () => { alive = false; window.clearInterval(timer); };
+    const timer = window.setInterval(() => setNow(Date.now()), 15_000);
+    const poll = window.setInterval(() => { void refresh(); }, 30_000);
+    document.addEventListener('visibilitychange', refreshOnReturn);
+    window.addEventListener('focus', refreshOnReturn);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      window.clearInterval(poll);
+      document.removeEventListener('visibilitychange', refreshOnReturn);
+      window.removeEventListener('focus', refreshOnReturn);
+    };
   }, [clientId]);
   if (!data) return <section className="client-presence-panel client-presence-loading" aria-label="Client collaboration status"><p className="client-presence-eyebrow">Collaboration</p><p>{unavailable ? 'Status is temporarily unavailable' : 'Loading collaboration status…'}</p></section>;
-  const clientOnline = Boolean(data.clientLastActiveAt && now - new Date(data.clientLastActiveAt).getTime() < 120_000);
-  const teamOnline = Boolean(data.teamLastActiveAt && now - new Date(data.teamLastActiveAt).getTime() < 120_000);
+  const synchronizedNow = now + serverOffset.current;
+  const clientActiveAge = data.clientLastActiveAt ? synchronizedNow - new Date(data.clientLastActiveAt).getTime() : Number.POSITIVE_INFINITY;
+  const clientOnline = data.presenceAvailable !== false && clientActiveAge >= 0 && clientActiveAge < 90_000;
+  const clientLastSeenAt = data.clientLastActiveAt || data.clientLastLoginAt;
   const selectedTimezone = draftTimezone || data.timezone || '';
   const timezoneDirty = Boolean(draftTimezone && draftTimezone !== data.timezone);
   const saveTimezone = async () => {
@@ -1122,36 +1163,29 @@ function ClientPresenceCard({ clientId }: { clientId: string }) {
   };
   let clientTime = 'Time zone not set';
   if (selectedTimezone) {
-    try { clientTime = new Intl.DateTimeFormat(undefined, { timeZone: selectedTimezone, hour: 'numeric', minute: '2-digit' }).format(now); } catch { clientTime = 'Time zone needs review'; }
+    try { clientTime = new Intl.DateTimeFormat(undefined, { timeZone: selectedTimezone, hour: 'numeric', minute: '2-digit' }).format(synchronizedNow); } catch { clientTime = 'Time zone needs review'; }
   }
   return <section aria-label="Client collaboration status" className="client-presence-panel">
     <header className="client-presence-heading">
       <div>
         <p className="client-presence-eyebrow">Collaboration</p>
-        <h2>Availability &amp; local time</h2>
+        <h2>Client status &amp; local time</h2>
       </div>
-      <span className="client-presence-refresh"><i />Updates every minute</span>
+      <span className="client-presence-refresh"><i />Updates every 30 sec</span>
     </header>
 
     <div className="client-presence-status-grid">
       <article className="client-presence-status-card">
         <div className="client-presence-status-title"><i className={clientOnline ? 'is-online' : ''} /><span>Client</span></div>
-        <p className={`client-presence-state${clientOnline ? ' is-online' : ''}`}>{clientOnline ? 'Active now' : data.clientLastActiveAt ? 'Last seen' : 'Not seen yet'}</p>
-        <p className="client-presence-time">{data.clientLastActiveAt ? formatPresenceTimestamp(data.clientLastActiveAt, selectedTimezone) : 'No activity recorded'}</p>
+        <p className={`client-presence-state${clientOnline ? ' is-online' : ''}`}>{clientOnline ? 'Active now' : data.clientLastActiveAt ? 'Last seen' : data.clientLastLoginAt ? 'Last login' : 'Not seen yet'}</p>
+        <p className="client-presence-time">{clientLastSeenAt ? formatPresenceTimestamp(clientLastSeenAt, selectedTimezone) : 'No activity recorded'}</p>
+        <p className="client-presence-country">{data.country || 'Country not recorded'}{selectedTimezone ? ` · ${selectedTimezone}` : ''}</p>
       </article>
-      <article className="client-presence-status-card">
-        <div className="client-presence-status-title"><i className={teamOnline ? 'is-online' : ''} /><span>Catalyst team</span></div>
-        <p className={`client-presence-state${teamOnline ? ' is-online' : ''}`}>{teamOnline ? 'Active now' : data.teamLastActiveAt ? 'Last seen' : 'Not recorded yet'}</p>
-        <p className="client-presence-time">{data.teamLastActiveAt ? formatPresenceTimestamp(data.teamLastActiveAt, selectedTimezone) : 'Team availability will appear after a team member visits a client workspace.'}</p>
+      <article className="client-presence-status-card client-viewed-card">
+        <div className="client-presence-status-title"><i /><span>Account viewed</span></div>
+        <p className="client-presence-state">{data.lastViewedByAdminName ? `Opened by ${data.lastViewedByAdminName}` : 'Viewer not recorded'}</p>
+        <p className="client-presence-time">{data.lastViewedByAdminAt ? formatPresenceTimestamp(data.lastViewedByAdminAt, selectedTimezone) : 'No account view recorded yet'}</p>
       </article>
-    </div>
-
-    <div className="client-account-viewed">
-      <span className="client-account-viewed-mark" aria-hidden="true"><ClientMetricIcon kind="login" /></span>
-      <div>
-        <p>Account viewed</p>
-        <span>{formatPresenceTimestamp(data.lastViewedByAdminAt, selectedTimezone)}</span>
-      </div>
     </div>
 
     {data.presenceAvailable === false && <p className="client-presence-notice">Live activity tracking is unavailable until the portal presence update is applied.</p>}
@@ -1411,7 +1445,7 @@ function OverviewTab({ client, onUpdated, welcomeSignal, welcomeTrigger }: {
       )}
 
       {/* Status control */}
-      <Card title="Update Status" icon={<svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>}>
+      <Card className="admin-status-card" title="Update Status" icon={<svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>}>
         {(() => {
           const MAIN_STEPS: { status: CareerStatus; short: string }[] = [
             { status: 'NOT_STARTED',   short: 'Not Started'   },
@@ -2998,6 +3032,7 @@ const ACTION_LABELS: Record<string, string> = {
   revision_actioned:         'Revision Actioned',
   deliverable_approved:      'Client Approved Final Deliverable',
   client_created:            'Client Onboarded',
+  client_account_viewed:     'Client Account Viewed by Admin',
   client_upgraded:           'Services Upgraded / Add-on Added',
   client_repurchased:        'Client Repurchased Service',
   sla_agreement_accepted:    'Master Services Agreement & Turnaround SLA Accepted',
@@ -3017,6 +3052,7 @@ const ACTIVITY_STYLE: Record<string, { dot: string; border: string; icon: string
   revision_actioned:         { dot: 'bg-amber-400',    border: 'border-l-amber-400',    icon: '↺' },
   deliverable_approved:      { dot: 'bg-emerald-500',  border: 'border-l-emerald-500',  icon: '★' },
   client_created:            { dot: 'bg-[#B8935B]',   border: 'border-l-[#B8935B]',   icon: '★' },
+  client_account_viewed:     { dot: 'bg-slate-400',   border: 'border-l-slate-300',   icon: '↗' },
   client_upgraded:           { dot: 'bg-violet-500',   border: 'border-l-violet-500',   icon: '▲' },
   client_repurchased:        { dot: 'bg-sky-500',      border: 'border-l-sky-500',      icon: '✚' },
   sla_agreement_accepted:    { dot: 'bg-emerald-600',  border: 'border-l-emerald-600',  icon: '⚖' },
@@ -4170,6 +4206,9 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
   const [editingId,    setEditingId]    = useState<string | null>(null);
   const [editContent,  setEditContent]  = useState('');
   const [saving,       setSaving]       = useState(false);
+  const [clientPresence, setClientPresence] = useState<{ clientLastActiveAt?: string | null; clientLastLoginAt?: string | null; timezone?: string | null; country?: string | null; serverNow?: string; presenceAvailable?: boolean } | null>(null);
+  const [presenceNow, setPresenceNow] = useState(Date.now());
+  const presenceServerOffset = useRef(0);
   const fileInputRef  = useRef<HTMLInputElement>(null);
   const threadRef     = useRef<HTMLDivElement>(null);
   const replyRef      = useRef<HTMLTextAreaElement>(null);
@@ -4183,6 +4222,39 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
   };
 
   useEffect(() => { load(); }, [clientId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let alive = true;
+    let inFlight = false;
+    const refreshPresence = async () => {
+      if (inFlight || document.visibilityState !== 'visible' || !document.hasFocus()) return;
+      inFlight = true;
+      try {
+        const response = await fetch(`/api/career/admin/clients/${clientId}/presence`, { cache: 'no-store' });
+        if (!response.ok) return;
+        const result = await response.json() as NonNullable<typeof clientPresence>;
+        if (!alive) return;
+        setClientPresence(result);
+        if (result.serverNow) presenceServerOffset.current = new Date(result.serverNow).getTime() - Date.now();
+      } catch { /* Presence is supplemental; keep the message thread available. */ }
+      finally { inFlight = false; }
+    };
+    const refreshOnReturn = () => {
+      if (document.visibilityState === 'visible' && document.hasFocus()) void refreshPresence();
+    };
+    void refreshPresence();
+    const clock = window.setInterval(() => setPresenceNow(Date.now()), 15_000);
+    const poll = window.setInterval(() => { void refreshPresence(); }, 30_000);
+    document.addEventListener('visibilitychange', refreshOnReturn);
+    window.addEventListener('focus', refreshOnReturn);
+    return () => {
+      alive = false;
+      window.clearInterval(clock);
+      window.clearInterval(poll);
+      document.removeEventListener('visibilitychange', refreshOnReturn);
+      window.removeEventListener('focus', refreshOnReturn);
+    };
+  }, [clientId]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -4278,6 +4350,17 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
   };
 
   const unreadCount = comments.filter(c => c.authorType === 'client' && !c.readByAdmin).length;
+  const clientLastActiveMs = clientPresence?.clientLastActiveAt ? new Date(clientPresence.clientLastActiveAt).getTime() : 0;
+  const clientIsActive = Boolean(clientPresence?.presenceAvailable !== false && clientLastActiveMs && presenceNow + presenceServerOffset.current >= clientLastActiveMs && presenceNow + presenceServerOffset.current - clientLastActiveMs < 90_000);
+  const clientZone = clientPresence?.timezone || 'UTC';
+  const clientCountryLabel = clientPresence?.country ? ` · ${clientPresence.country}` : '';
+  const clientPresenceText = clientIsActive
+    ? `Client active now · ${formatPresenceClock(presenceNow + presenceServerOffset.current, clientZone)} in ${clientZone}${clientCountryLabel}`
+    : clientPresence?.clientLastActiveAt
+      ? `Client last seen ${formatPresenceTimestamp(clientPresence.clientLastActiveAt, clientZone)} · ${clientZone}${clientCountryLabel}`
+      : clientPresence?.clientLastLoginAt
+        ? `Last portal login ${formatPresenceTimestamp(clientPresence.clientLastLoginAt, clientZone)} · ${clientZone}${clientCountryLabel}`
+      : 'Client activity not recorded yet';
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
@@ -4293,6 +4376,10 @@ function CommentsAdminTab({ clientId, clientName }: { clientId: string; clientNa
             )}
           </div>
           <p className="text-xs text-slate-400 mt-0.5">Conversation with {clientName}</p>
+          <div className={`client-message-presence${clientIsActive ? ' is-online' : ''}`} aria-live="polite">
+            <i />
+            <span>{clientPresenceText}</span>
+          </div>
         </div>
         {!loading && (
           <span className="text-xs text-slate-400">{comments.length} message{comments.length !== 1 ? 's' : ''}</span>
@@ -4793,9 +4880,9 @@ function FormDataViewer({ data, compact = false, clientId }: { data: Record<stri
   );
 }
 
-function Card({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+function Card({ title, icon, children, className = '' }: { title: string; icon: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 card-hover-lift transition-all">
+    <div className={`bg-white border border-slate-200 rounded-2xl shadow-sm p-5 card-hover-lift transition-all ${className}`}>
       <h3 className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wide mb-4">
         <span className="text-[#B8935B] flex-shrink-0">{icon}</span>{title}
       </h3>

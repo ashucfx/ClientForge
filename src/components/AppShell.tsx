@@ -624,6 +624,29 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { careerUnread } = useUnreadSummary();
   const pageTitle = getAdminPageTitle(pathname);
 
+  useEffect(() => {
+    let active = true;
+    let inFlight = false;
+    const ping = async () => {
+      if (!active || document.visibilityState !== 'visible' || !document.hasFocus() || inFlight) return;
+      inFlight = true;
+      try { await fetch('/api/career/admin/presence', { method: 'POST' }); }
+      catch { /* Presence is best-effort and must not interrupt the workspace. */ }
+      finally { inFlight = false; }
+    };
+    const refreshOnReturn = () => { if (document.visibilityState === 'visible') void ping(); };
+    void ping();
+    const heartbeat = window.setInterval(() => { void ping(); }, 30_000);
+    document.addEventListener('visibilitychange', refreshOnReturn);
+    window.addEventListener('focus', refreshOnReturn);
+    return () => {
+      active = false;
+      window.clearInterval(heartbeat);
+      document.removeEventListener('visibilitychange', refreshOnReturn);
+      window.removeEventListener('focus', refreshOnReturn);
+    };
+  }, []);
+
   // Load collapsed state from localStorage
   useEffect(() => {
     try {
