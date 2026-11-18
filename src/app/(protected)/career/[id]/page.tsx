@@ -1,7 +1,7 @@
 'use client';
 // src/app/(protected)/career/[id]/page.tsx
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { PACKAGE_LABELS, SERVICE_LABELS, STATUS_LABELS, parseRevisionNote, OUT_OF_SCOPE_CATEGORIES } from '@/lib/career/types';
@@ -153,6 +153,17 @@ function relativeTime(dateStr: string): string {
 
 // ── SLA Deadline inline editor ────────────────────────────────────────────────
 
+function ClientMetricIcon({ kind }: { kind: string }) {
+  const paths: Record<string, ReactNode> = {
+    payment: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h3" /></>,
+    forms: <><path d="M7 3h7l4 4v14H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" /><path d="M14 3v5h5M9 12h6M9 16h6" /></>,
+    files: <><path d="M5 4h10l4 4v12H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" /><path d="M14 4v5h5M7 13h8M7 17h8" /></>,
+    login: <><path d="M10 17l5-5-5-5M15 12H3" /><path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6" /></>,
+    deadline: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18M8 14h3" /></>,
+  };
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[kind] ?? paths.forms}</svg>;
+}
+
 function SlaDeadlineCell({ client, onUpdated }: {
   client: ClientDetail;
   onUpdated: (newDeadline: string | null) => void;
@@ -185,28 +196,27 @@ function SlaDeadlineCell({ client, onUpdated }: {
   const deadline = client.slaDeadline ?? client.expectedDeliveryAt;
 
   return (
-    <div className="client-metric-card rounded-2xl border border-slate-200/80 bg-white p-3.5">
-      <div className="flex items-center justify-between mb-0.5">
-        <p className="text-xs text-slate-400 font-medium">SLA Deadline</p>
+    <div className="client-metric-card client-sla-metric">
+      <div className="client-metric-topline">
+        <span className="client-metric-icon" aria-hidden="true"><ClientMetricIcon kind="deadline" /></span>
+        <p className="client-metric-label">SLA deadline</p>
         {client.status !== 'COMPLETED' && !editing && (
-          <button onClick={startEdit} className="text-[10px] text-[#B8935B] hover:underline font-semibold leading-none">Edit</button>
+          <button onClick={startEdit} className="client-sla-edit">Edit</button>
         )}
       </div>
       {editing ? (
-        <div className="flex items-center gap-1 mt-1">
+        <div className="client-sla-editor">
           <input
             type="date"
             value={val}
             onChange={e => setVal(e.target.value)}
-            className="text-xs border border-slate-200 rounded px-1.5 py-0.5 bg-white w-32 outline-none focus:border-[#B8935B]"
+            className="client-sla-date"
           />
-          <button onClick={save} disabled={saving} className="text-[10px] bg-[#B8935B] text-white px-2 py-1 rounded font-semibold disabled:opacity-50">
-            {saving ? '…' : 'Save'}
-          </button>
-          <button onClick={() => setEditing(false)} className="text-[10px] text-slate-400 px-1 py-1">✕</button>
+          <button onClick={save} disabled={saving} className="client-sla-save">{saving ? 'Saving…' : 'Save'}</button>
+          <button onClick={() => setEditing(false)} className="client-sla-cancel" aria-label="Cancel deadline edit">Cancel</button>
         </div>
       ) : (
-        <p className="text-sm font-bold text-slate-800">
+        <p className="client-metric-value">
           {client.status === 'COMPLETED'
             ? 'Fulfilled'
             : deadline
@@ -214,6 +224,7 @@ function SlaDeadlineCell({ client, onUpdated }: {
               : 'Not set'}
         </p>
       )}
+      <p className="client-metric-detail">{client.status === 'COMPLETED' ? 'Service delivery complete' : 'Service commitment date'}</p>
     </div>
   );
 }
@@ -640,24 +651,35 @@ export default function CareerClientDetailPage() {
       </div>
 
       <div className="client-account-facts">
-          <ClientPresenceCard clientId={client.id} />
+        <ClientPresenceCard clientId={client.id} />
 
-          {/* Stats row */}
-          <div className="client-account-metrics grid grid-cols-2 gap-3">
+        <section className="client-account-metrics" aria-label="Client account snapshot">
+          <header className="client-metrics-heading">
+            <div>
+              <p>Account snapshot</p>
+              <h2>Progress &amp; activity</h2>
+            </div>
+            <span>Account overview</span>
+          </header>
+          <div className="client-metric-grid">
             {[
-              { label: 'Amount Paid', value: `${client.currency} ${client.amountPaid.toLocaleString()}` },
-              { label: 'Forms',       value: `${client.forms.length} submitted` },
-              { label: 'Files',       value: `${client.deliverables.length} / 10 uploaded` },
-              { label: 'Last Login',  value: client.lastLoginAt ? fmt(client.lastLoginAt, true) : 'Never' },
-            ].map(({ label, value }) => (
-              <div key={label} className="client-metric-card rounded-2xl border border-slate-200/80 bg-white p-3.5">
-                <p className="text-xs text-slate-400 font-medium mb-0.5">{label}</p>
-                <p className="text-sm font-bold text-slate-800">{value}</p>
+              { label: 'Amount paid', value: `${client.currency} ${client.amountPaid.toLocaleString()}`, detail: 'Payments received', icon: 'payment' },
+              { label: 'Forms', value: `${client.forms.length} submitted`, detail: 'Client submissions', icon: 'forms' },
+              { label: 'Files', value: `${client.deliverables.length} / 10 uploaded`, detail: 'Deliverables received', icon: 'files' },
+              { label: 'Last login', value: client.lastLoginAt ? fmt(client.lastLoginAt, true) : 'Never', detail: 'Most recent portal sign-in', icon: 'login' },
+            ].map(({ label, value, detail, icon }) => (
+              <div key={label} className="client-metric-card">
+                <div className="client-metric-topline">
+                  <span className="client-metric-icon" aria-hidden="true"><ClientMetricIcon kind={icon} /></span>
+                  <p className="client-metric-label">{label}</p>
+                </div>
+                <p className="client-metric-value">{value}</p>
+                <p className="client-metric-detail">{detail}</p>
               </div>
             ))}
-            {/* Editable SLA Deadline */}
             <SlaDeadlineCell client={client} onUpdated={(d) => setClient(prev => prev ? { ...prev, slaDeadline: d, expectedDeliveryAt: d } : prev)} />
           </div>
+        </section>
       </div>
 
       <div className="client-account-sidecards">
@@ -1037,8 +1059,24 @@ export default function CareerClientDetailPage() {
   );
 }
 
+function formatPresenceTimestamp(value: string | null | undefined, timezone: string): string {
+  if (!value) return 'Not recorded';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return 'Time unavailable';
+  try {
+    const formatted = new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: timezone || 'UTC',
+    }).format(date);
+    return timezone ? formatted : `${formatted} UTC`;
+  } catch {
+    return `${date.toISOString()} UTC`;
+  }
+}
+
 function ClientPresenceCard({ clientId }: { clientId: string }) {
-  const [data, setData] = useState<{ clientLastActiveAt?: string | null; teamLastActiveAt?: string | null; timezone?: string | null; country?: string | null; presenceAvailable?: boolean } | null>(null);
+  const [data, setData] = useState<{ clientLastActiveAt?: string | null; teamLastActiveAt?: string | null; lastViewedByAdminAt?: string | null; timezone?: string | null; country?: string | null; presenceAvailable?: boolean } | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const [timezoneSaving, setTimezoneSaving] = useState(false);
   const [timezoneSaveError, setTimezoneSaveError] = useState('');
@@ -1046,19 +1084,21 @@ function ClientPresenceCard({ clientId }: { clientId: string }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     let alive = true;
+    let accountViewRecorded = false;
     const refresh = async () => {
       try {
-        const res = await fetch(`/api/career/admin/clients/${clientId}/presence`);
+        const viewQuery = accountViewRecorded ? '' : '?view=1';
+        const res = await fetch(`/api/career/admin/clients/${clientId}/presence${viewQuery}`);
         if (!res.ok) throw new Error('Presence request failed');
         const result = await res.json();
-        if (alive) { setData(result); setUnavailable(false); }
+        if (alive) { setData(result); setUnavailable(false); accountViewRecorded = true; }
       } catch { if (alive) setUnavailable(true); }
     };
     void refresh();
     const timer = window.setInterval(() => { setNow(Date.now()); void refresh(); }, 60_000);
     return () => { alive = false; window.clearInterval(timer); };
   }, [clientId]);
-  if (!data) return <p className="text-[11px] text-slate-400 mt-1">{unavailable ? 'Collaboration status unavailable' : 'Loading collaboration status…'}</p>;
+  if (!data) return <section className="client-presence-panel client-presence-loading" aria-label="Client collaboration status"><p className="client-presence-eyebrow">Collaboration</p><p>{unavailable ? 'Status is temporarily unavailable' : 'Loading collaboration status…'}</p></section>;
   const clientOnline = Boolean(data.clientLastActiveAt && now - new Date(data.clientLastActiveAt).getTime() < 120_000);
   const teamOnline = Boolean(data.teamLastActiveAt && now - new Date(data.teamLastActiveAt).getTime() < 120_000);
   const selectedTimezone = draftTimezone || data.timezone || '';
@@ -1082,37 +1122,53 @@ function ClientPresenceCard({ clientId }: { clientId: string }) {
   };
   let clientTime = 'Time zone not set';
   if (selectedTimezone) {
-    try { clientTime = `${new Intl.DateTimeFormat(undefined, { timeZone: selectedTimezone, timeStyle: 'short' }).format(now)} (${selectedTimezone})`; } catch { clientTime = 'Time zone needs review'; }
+    try { clientTime = new Intl.DateTimeFormat(undefined, { timeZone: selectedTimezone, hour: 'numeric', minute: '2-digit' }).format(now); } catch { clientTime = 'Time zone needs review'; }
   }
-  return <section aria-label="Client collaboration status" className="client-presence-panel w-full min-w-0 max-w-full rounded-2xl border border-[#EBE4D9] bg-[#FFFEFC] p-3 sm:p-4">
-    <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
-      <div className="flex min-w-0 items-start gap-2 rounded-xl border border-[#F0E9E0] bg-white px-2.5 py-2">
-        <i className={`mt-1 h-2 w-2 shrink-0 rounded-full ${clientOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-        <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Client</p>
-          <p className="mt-0.5 break-words text-xs leading-relaxed text-slate-600">{clientOnline ? 'Active now' : data.clientLastActiveAt ? `Last seen ${new Date(data.clientLastActiveAt).toLocaleString()}` : 'Not seen yet'}</p>
-        </div>
+  return <section aria-label="Client collaboration status" className="client-presence-panel">
+    <header className="client-presence-heading">
+      <div>
+        <p className="client-presence-eyebrow">Collaboration</p>
+        <h2>Availability &amp; local time</h2>
       </div>
-      <div className="flex min-w-0 items-start gap-2 rounded-xl border border-[#F0E9E0] bg-white px-2.5 py-2">
-        <i className={`mt-1 h-2 w-2 shrink-0 rounded-full ${teamOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-        <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Catalyst team</p>
-          <p className="mt-0.5 break-words text-xs leading-relaxed text-slate-600">{teamOnline ? 'Active now' : data.teamLastActiveAt ? `Last seen ${new Date(data.teamLastActiveAt).toLocaleString()}` : 'Availability not yet recorded'}</p>
-        </div>
+      <span className="client-presence-refresh"><i />Updates every minute</span>
+    </header>
+
+    <div className="client-presence-status-grid">
+      <article className="client-presence-status-card">
+        <div className="client-presence-status-title"><i className={clientOnline ? 'is-online' : ''} /><span>Client</span></div>
+        <p className={`client-presence-state${clientOnline ? ' is-online' : ''}`}>{clientOnline ? 'Active now' : data.clientLastActiveAt ? 'Last seen' : 'Not seen yet'}</p>
+        <p className="client-presence-time">{data.clientLastActiveAt ? formatPresenceTimestamp(data.clientLastActiveAt, selectedTimezone) : 'No activity recorded'}</p>
+      </article>
+      <article className="client-presence-status-card">
+        <div className="client-presence-status-title"><i className={teamOnline ? 'is-online' : ''} /><span>Catalyst team</span></div>
+        <p className={`client-presence-state${teamOnline ? ' is-online' : ''}`}>{teamOnline ? 'Active now' : data.teamLastActiveAt ? 'Last seen' : 'Not recorded yet'}</p>
+        <p className="client-presence-time">{data.teamLastActiveAt ? formatPresenceTimestamp(data.teamLastActiveAt, selectedTimezone) : 'Team availability will appear after a team member visits a client workspace.'}</p>
+      </article>
+    </div>
+
+    <div className="client-account-viewed">
+      <span className="client-account-viewed-mark" aria-hidden="true"><ClientMetricIcon kind="login" /></span>
+      <div>
+        <p>Account viewed</p>
+        <span>{formatPresenceTimestamp(data.lastViewedByAdminAt, selectedTimezone)}</span>
       </div>
     </div>
-    {data.presenceAvailable === false && <p className="mt-2 text-[10px] leading-relaxed text-amber-700">Live activity tracking is unavailable until the portal presence update is applied.</p>}
-    <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 border-t border-[#F0E9E0] pt-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,auto)] sm:items-center">
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{data.country ? `${data.country} local time` : 'Client local time'}</p>
-        <p className="mt-0.5 break-words text-xs font-semibold text-slate-700">{clientTime}{timezoneDirty && <span className="ml-2 text-[10px] font-medium text-amber-700">Unsaved</span>}</p>
+
+    {data.presenceAvailable === false && <p className="client-presence-notice">Live activity tracking is unavailable until the portal presence update is applied.</p>}
+
+    <div className="client-local-time-row">
+      <div className="client-local-time">
+        <p>{data.country ? `${data.country} · client local time` : 'Client local time'}</p>
+        <strong>{clientTime}</strong>
+        <span>{selectedTimezone || 'Choose a time zone to show client local time'}</span>
+        {timezoneDirty && <em>Unsaved change</em>}
       </div>
-      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,250px)_auto] sm:items-center">
+      <div className="client-timezone-control">
         <CountryTimeZoneSelect country={data.country} value={selectedTimezone} disabled={timezoneSaving} onChange={setDraftTimezone} ariaLabel="Client time zone" />
-        <button type="button" onClick={() => void saveTimezone()} disabled={!timezoneDirty || timezoneSaving} className="inline-flex min-h-10 items-center justify-center justify-self-start rounded-xl bg-[#9A7540] px-4 text-xs font-semibold text-white transition hover:bg-[#836338] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 sm:justify-self-auto">{timezoneSaving ? 'Saving…' : 'Save'}</button>
+        <button type="button" onClick={() => void saveTimezone()} disabled={!timezoneDirty || timezoneSaving} className="client-timezone-save">{timezoneSaving ? 'Saving…' : 'Save time zone'}</button>
       </div>
     </div>
-    {timezoneSaveError && <p role="alert" className="mt-2 text-[10px] text-red-600">{timezoneSaveError}</p>}
+    {timezoneSaveError && <p role="alert" className="client-presence-error">{timezoneSaveError}</p>}
   </section>;
 }
 

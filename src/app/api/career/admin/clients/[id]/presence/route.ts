@@ -40,11 +40,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    await db.careerClient.update({ where: { id: params.id }, data: { lastViewedByAdminAt: new Date() }, select: { id: true } });
+    if (req.nextUrl.searchParams.get('view') === '1') {
+      await db.careerClient.update({ where: { id: params.id }, data: { lastViewedByAdminAt: new Date() }, select: { id: true } });
+    }
     const [client, activeTeam, thisAdmin] = await Promise.all([
       db.careerClient.findUnique({ where: { id: params.id }, select: { lastActiveAt: true, lastLoginAt: true, lastViewedByAdminAt: true, timezone: true, contact: { select: { country: true, timezone: true } } } }),
       db.adminUser.findFirst({ where: { isActive: true, brandAccess: { has: 'catalyst' }, lastActiveAt: { not: null } }, orderBy: { lastActiveAt: 'desc' }, select: { lastActiveAt: true } }),
